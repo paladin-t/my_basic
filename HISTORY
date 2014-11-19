@@ -1,0 +1,135 @@
+May. 25 2014
+Added a mb_set_inputer function which allows the user to specify an INPUT reader, thanks to Michael P. Welch for suggestion
+Added a mb_remove_reserved_func function which allows the user to disable/remove a reserved statement
+
+May. 22 2014
+Fixed a crash bug when missing colon in a combined line, thanks to Michael P. Welch for pointing it out
+Fixed a missing lexical cursor stepping bug in INPUT function
+
+Mar. 17 2014
+Added an XCode project
+Added a safe stdin reader function mb_gets
+Fixed a crash bug in INPUT function
+
+Feb. 17 2014
+Added mod by zero processing
+
+Feb. 16 2014
+Fixed a crash bug in _core_for, thanks to mummylauncher for pointing it out
+
+Jul. 19 2013
+Fixed a crash bug in _execute_statement, thanks to Jon Mayo for pointing it out
+
+Feb. 25 2013
+Fixed a cross routine multi-statement execution bug, thanks to Bruce Kendall for pointing it out
+Fixed a memory corruption bug when loading a script file
+
+Jan. 9 2013
+Fixed a crash bug when using EDIT command
+
+Dec. 14 2012
+Added an invalid expression error handling
+Added an out of memory error handling
+
+Dec. 5 2012
+Fixed a minus calculation bug, thanks to Bill Walker for pointing it out
+
+Nov. 14 2012
+Fixed a cross routine RETURN bug, thanks to Bruce Kendall for pointing it out
+
+Sep. 12 2012
+Fixed a bug in ASC
+Fixed a label parsing, jumping bug, thanks to Ahmad Hawwash for pointing above two issues out
+Fixed a crash bug in IF statement
+Added divide by zero processing
+Added calculation error raising
+
+Sep. 1 2012
+Fixed a redisposing bug when retrieving a string argument, thanks to Ahmad Hawwash for pointing it out
+Fixed a memory leak after retrieving a composited string argument
+
+Aug. 29 2012
+Modified an odd string comparison behavior, thanks to Matthias Nott for testing it out
+Added a warning system, disabled warning as default
+Improved compatibility with GCC
+
+Aug. 3 2012
+Implemented memory occupation statistics
+Improved compatibility on 64bit systems
+Fixed some warnings under a stricter mode
+
+Jul. 21 2012
+Added a compatibility macro for PRINT a newline
+Added an mb_attempt_func_end C API
+Fixed a unary minus symbol parsing bug
+
+Jul. 19 2012
+Fixed a crash bug caused by a mistake in calculation priority table, thanks to Bruce Kendall for pointing it out
+
+Jul. 10 2012
+Implemented KILL command
+Fixed a negative calculation bug
+Added an invalid identifier usage error handling
+Avoided some warnings on gcc
+
+Jul. 5 2012
+Implemented LIST, EDIT, LOAD, SAVE commands
+
+Jul. 4 2012
+Fixed some crash bugs
+Fixed some memory leaks
+
+Jul. 3 2012
+Modified/added math functions: FLOOR, CEIL, FIX
+Fixed an INPUT type issue
+Changed float number formatting from using "%f" to "%g" in PRINT, thanks to Bruce Kendall for pointing above three issues out
+Refactored the way to load a script file
+Done several small improvements
+
+Jun. 29 2012
+Fixed a newline mistake in PRINT
+
+Jun. 29 2012
+Implemented customizable print functor
+Improved PRINT statement
+Fixed an infinity loop bug in RND function
+Fixed some crash bugs
+
+Jun. 28 2012
+Fixed a cross routine RETURN bug, thanks to Bruce Kendall for pointing it out
+Fixed some memory leaks
+Refactored error position informing
+
+Jun. 18 2012
+Implemented user extended abort, thanks to Bruce Kendall for giving suggestion
+
+Apr. 30 2012
+Compress number to integer if necessary
+
+Apr. 27 2012
+Fixed a string connecting crash bug, thanks to Ahmad Hawwash for pointing it out
+Improved portability on gcc
+
+Aug. 3 2011
+Fixed hashtable removing bug
+
+Jun. 18 2011
+Fixed some mistakes
+Allowed underline character appear in an identifier
+
+Apr. 15 2011
+Fixed garbage collection and _label_t release bugs
+
+Apr. 14 2011
+Fixed some list / comparison operator bugs
+
+Feb. 15 2011
+Improved portability on Cocoa
+Improved portability on VC++ 6.0
+Fixed a suspend / resume bug
+
+Feb. 9 2011
+Fixed struct mb_interpreter_t declaration warnings on gcc
+
+Feb. 1 2011
+First release.
