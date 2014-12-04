@@ -31,7 +31,7 @@ To compile an interpreter binary for your own platform, please see the steps as 
 * Use your compiler to process `core/my_basic.c` and `shell/main.c`
 
 ### Combine with exist projects
-MY-BASIC is cleanly writen in a single C source file and an associated header file. Just copy `my_basic.c` and `my_basic.h` to your project folder and add them to a build configuration.
+MY-BASIC is cleanly written in a single C source file and an associated header file. Just copy `my_basic.c` and `my_basic.h` to your project folder and add them to a build configuration.
 
 For more details about using MY-BASIC with exist projects, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf).
 
