@@ -37,6 +37,10 @@ For more details about using MY-BASIC with exist projects, please see [MY-BASIC 
 
 ## [FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
 
+## References
+**Notes**
+* [BASIC - Wikipedia](http://en.wikipedia.org/wiki/BASIC)
+
 -----
 You can support MY-BASIC development with a donation:
 <br>
