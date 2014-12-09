@@ -1,3 +1,6 @@
+Dec. 9 2014
+Improved compatibility with BCB
+
 May. 25 2014
 Added a mb_set_inputer function which allows the user to specify an INPUT reader, thanks to Michael P. Welch for suggestion
 Added a mb_remove_reserved_func function which allows the user to disable/remove a reserved statement

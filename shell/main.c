@@ -32,7 +32,7 @@
 #ifdef _MSC_VER
 #	include <crtdbg.h>
 #	include <conio.h>
-#else /* _MSC_VER */
+#elif !defined __BORLANDC__
 #	include <unistd.h>
 #endif /* _MSC_VER */
 #include <assert.h>
@@ -45,6 +45,12 @@
 #	pragma warning(disable : 4127)
 #	pragma warning(disable : 4996)
 #endif /* _MSC_VER */
+
+#ifdef __BORLANDC__
+#	pragma warn -8004
+#	pragma warn -8008
+#	pragma warn -8066
+#endif /* __BORLANDC__ */
 
 #define _MAX_LINE_LENGTH 256
 #define _str_eq(__str1, __str2) (_strcmpi(__str1, __str2) == 0)

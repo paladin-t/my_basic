@@ -60,6 +60,12 @@ extern "C" {
 #   pragma clang diagnostic ignored "-Wunused-variable"
 #endif /* __APPLE__ */
 
+#ifdef __BORLANDC__
+#	pragma warn -8004
+#	pragma warn -8008
+#	pragma warn -8066
+#endif /* __BORLANDC__ */
+
 #ifdef MB_COMPACT_MODE
 #	pragma pack(1)
 #endif /* MB_COMPACT_MODE */
@@ -72,9 +78,9 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 0
-#define _VER_REVISION 42
+#define _VER_REVISION 43
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
-#define _MB_VERSION_STRING "1.0.0042"
+#define _MB_VERSION_STRING "1.0.0043"
 
 /* Uncomment this line to treat warnings as error */
 /*#define _WARING_AS_ERROR*/
@@ -695,6 +701,8 @@ static int _close_std_lib(mb_interpreter_t* s);
 #	else /* _MSC_VER < 1300 */
 #		define _do_nothing do { printf("Unaccessable function: %s\n", __FUNCTION__); } while(0)
 #	endif /* _MSC_VER < 1300 */
+#elif defined  __BORLANDC__
+#	define _do_nothing do { printf("Unaccessable function: %s\n", __FUNC__); } while(0)
 #else /* _MSC_VER */
 #	define _do_nothing do { printf("Unaccessable function: %s\n", __FUNCTION__); } while(0)
 #endif /* _MSC_VER */
@@ -5908,6 +5916,12 @@ _exit:
 #ifdef MB_COMPACT_MODE
 #	pragma pack()
 #endif /* MB_COMPACT_MODE */
+
+#ifdef __BORLANDC__
+#	pragma warn .8004
+#	pragma warn .8008
+#	pragma warn .8066
+#endif /* __BORLANDC__ */
 
 #ifdef __APPLE__
 #   pragma clang diagnostic pop

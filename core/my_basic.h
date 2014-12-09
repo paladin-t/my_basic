@@ -64,7 +64,11 @@ extern "C" {
 
 #ifndef _MSC_VER
 #	ifndef _strcmpi
-#		define _strcmpi strcasecmp
+#		ifdef __BORLANDC__
+#			define _strcmpi stricmp
+#		else /* __BORLANDC__*/
+#			define _strcmpi strcasecmp
+#		endif /* __BORLANDC__ */
 #	endif /* _strcmpi */
 #endif /* _MSC_VER */
 
