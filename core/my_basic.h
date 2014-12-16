@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (c) 2011 - 2014 W. Renxin
+** Copyright (C) 2011 - 2014 W. Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -75,6 +75,13 @@ extern "C" {
 #ifndef mb_assert
 #	define mb_assert(__a) do { ((void)(__a)); assert(__a); } while(0)
 #endif /* mb_assert */
+
+#ifndef mb_static_assert
+#	define _static_assert_impl(cond, msg) typedef char static_assertion_##msg[(!!(cond)) * 2 - 1]
+#	define _compile_time_assert3(x, l) _static_assert_impl(x, static_assertion_at_line_##l)
+#	define _compile_time_assert2(x, l) _compile_time_assert3(x, l)
+#	define mb_static_assert(x) _compile_time_assert2(x, __LINE__)
+#endif /* mb_static_assert */
 
 #ifndef mb_unrefvar
 #	define mb_unrefvar(__v) ((void)(__v))
@@ -161,13 +168,15 @@ typedef enum mb_error_e {
 	SE_RN_OUT_OF_MEMORY,
 	/** Extended abort */
 	SE_EA_EXTENDED_ABORT,
+	/** Extra */
+	SE_COUNT
 } mb_error_e;
 
 typedef enum mb_data_e {
 	MB_DT_NIL = -1,
 	MB_DT_INT = 0,
 	MB_DT_REAL,
-	MB_DT_STRING,
+	MB_DT_STRING
 } mb_data_e;
 
 typedef union mb_value_u {

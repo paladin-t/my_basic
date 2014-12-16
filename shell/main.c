@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (c) 2011 - 2014 W. Renxin
+** Copyright (C) 2011 - 2014 W. Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -29,6 +29,7 @@
 #	endif /* _CRT_SECURE_NO_WARNINGS */
 #endif /* _MSC_VER */
 
+#include "../core/my_basic.h"
 #ifdef _MSC_VER
 #	include <crtdbg.h>
 #	include <conio.h>
@@ -39,7 +40,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../core/my_basic.h"
 
 #ifdef _MSC_VER
 #	pragma warning(disable : 4127)
@@ -331,7 +331,7 @@ static void _kill_program(const char* path) {
 
 static void _show_tip(void) {
 	printf("MY-BASIC Interpreter Shell - %s.\n", mb_ver_string());
-	printf("Copyright (c) 2011 - 2014 W. Renxin. All Rights Reserved.\n");
+	printf("Copyright (C) 2011 - 2014 W. Renxin. All Rights Reserved.\n");
 	printf("For more information, see https://github.com/paladin-t/my_basic/.\n");
 	printf("Input HELP and hint enter to view help information.\n");
 }

@@ -196,7 +196,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\README"
+				RelativePath=".\MY-BASIC Quick Reference.pdf"
+				>
+			</File>
+			<File
+				RelativePath=".\README.md"
 				>
 			</File>
 		</Filter>

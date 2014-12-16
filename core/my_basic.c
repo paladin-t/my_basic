@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (c) 2011 - 2014 W. Renxin
+** Copyright (C) 2011 - 2014 W. Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -29,6 +29,7 @@
 #	endif /* _CRT_SECURE_NO_WARNINGS */
 #endif /* _MSC_VER */
 
+#include "my_basic.h"
 #ifdef _MSC_VER
 #	include <conio.h>
 #	include <malloc.h>
@@ -42,7 +43,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "my_basic.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -78,9 +78,8 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 0
-#define _VER_REVISION 43
+#define _VER_REVISION 44
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
-#define _MB_VERSION_STRING "1.0.0043"
 
 /* Uncomment this line to treat warnings as error */
 /*#define _WARING_AS_ERROR*/
@@ -222,8 +221,10 @@ static const char* _ERR_DESC[] = {
 	"Invalid expression",
 	"Out of memory",
 	/** Extended abort */
-	"Extended abort",
+	"Extended abort"
 };
+
+mb_static_assert(_countof(_ERR_DESC) == SE_COUNT);
 
 /* Data type */
 #define _EOS '\n'
@@ -244,7 +245,7 @@ typedef enum _data_e {
 	_DT_ARRAY,
 	_DT_LABEL, /* Label type, used for GOTO, GOSUB statement */
 	_DT_SEP, /* Separator */
-	_DT_EOS, /* End of statement */
+	_DT_EOS /* End of statement */
 } _data_e;
 
 typedef struct _func_t {
@@ -300,12 +301,12 @@ static _object_t* _OBJ_BOOL_FALSE = 0;
 typedef enum _parsing_state_e {
 	_PS_NORMAL = 0,
 	_PS_STRING,
-	_PS_COMMENT,
+	_PS_COMMENT
 } _parsing_state_e;
 
 typedef enum _symbol_state_e {
 	_SS_IDENTIFIER = 0,
-	_SS_OPERATOR,
+	_SS_OPERATOR
 } _symbol_state_e;
 
 typedef struct _parsing_context_t {
@@ -326,6 +327,7 @@ typedef struct _running_context_t {
 	mb_value_t intermediate_value;
 	int_t no_eat_comma_mark;
 	_ls_node_t* skip_to_eoi;
+	_ls_node_t* in_neg_expr;
 } _running_context_t;
 
 /* Expression processing */
@@ -822,11 +824,11 @@ static const _func_t _core_libs[] = {
 	{ "GOSUB", _core_gosub },
 	{ "RETURN", _core_return },
 
-	{ "END", _core_end },
-
 #ifdef _MB_ENABLE_ALLOC_STAT
 	{ "MEM", _core_mem },
 #endif /* _MB_ENABLE_ALLOC_STAT */
+
+	{ "END", _core_end }
 };
 
 static const _func_t _std_libs[] = {
@@ -857,7 +859,7 @@ static const _func_t _std_libs[] = {
 	{ "VAL", _std_val },
 
 	{ "PRINT", _std_print },
-	{ "INPUT", _std_input },
+	{ "INPUT", _std_input }
 };
 
 /* ========================================================} */
@@ -1724,6 +1726,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	_object_t* r = 0;
 	_object_t* theta = 0;
 	char pri = '\0';
+	int* inep = 0;
 
 	unsigned int arr_idx = 0;
 	mb_value_u arr_val;
@@ -1742,6 +1745,10 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	garbage = _ls_create();
 	optr = _ls_create();
 	opnd = _ls_create();
+
+	inep = (int*)mb_malloc(sizeof(int));
+	*inep = 0;
+	_ls_pushback(running->in_neg_expr, inep);
 
 	c = (_object_t*)(ast->data);
 	do {
@@ -1934,6 +1941,7 @@ _exit:
 	_ls_destroy(optr);
 	_ls_destroy(opnd);
 	*l = ast;
+	mb_free(_ls_popback(running->in_neg_expr));
 
 	return result;
 }
@@ -2327,7 +2335,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, void** value) {
 		}
 	}
 	/* _func_t */
-	if(context->last_symbol && ((context->last_symbol->type == _DT_FUNC && context->last_symbol->data.func->pointer != _core_close_bracket)||
+	if(context->last_symbol && ((context->last_symbol->type == _DT_FUNC && context->last_symbol->data.func->pointer != _core_close_bracket) ||
 		context->last_symbol->type == _DT_SEP)) {
 		if(strcmp("-", sym) == 0) {
 			*value = (void*)(intptr_t)(_core_neg);
@@ -3232,7 +3240,10 @@ unsigned int mb_ver(void) {
 
 const char* mb_ver_string(void) {
 	/* Get the version text of this MY-BASIC system */
-	return _MB_VERSION_STRING;
+	static char buf[32] = { '\0' };
+	if(!buf[0]) sprintf(buf, "%d.%d.%04d", _VER_MAJOR, _VER_MINOR, _VER_REVISION);
+
+	return buf;
 }
 
 int mb_init(void) {
@@ -3349,6 +3360,7 @@ int mb_open(mb_interpreter_t** s) {
 	memset(running, 0, sizeof(_running_context_t));
 
 	running->temp_values = _ls_create();
+	running->in_neg_expr = _ls_create();
 
 	running->sub_stack = _ls_create();
 	(*s)->running_context = running;
@@ -3380,6 +3392,7 @@ int mb_close(mb_interpreter_t** s) {
 
 	_ls_foreach(running->temp_values, _destroy_object);
 	_ls_destroy(running->temp_values);
+	_ls_destroy(running->in_neg_expr);
 
 	_ls_destroy(running->sub_stack);
 	safe_free(running);
@@ -3645,10 +3658,13 @@ int mb_pop_value(mb_interpreter_t* s, void** l, mb_value_t* val) {
 	_object_t val_obj;
 	_object_t* val_ptr = 0;
 	_running_context_t* running = 0;
+	int* inep = 0;
 
 	mb_assert(s && l && val);
 
 	running = (_running_context_t*)(s->running_context);
+
+	inep = (int*)_ls_back(running->in_neg_expr)->data;
 
 	val_ptr = &val_obj;
 	memset(val_ptr, 0, sizeof(_object_t));
@@ -3665,7 +3681,7 @@ int mb_pop_value(mb_interpreter_t* s, void** l, mb_value_t* val) {
 		_ls_pushback(running->temp_values, val_ptr);
 	}
 
-	if(running->no_eat_comma_mark < _NO_EAT_COMMA) {
+	if(running->no_eat_comma_mark < _NO_EAT_COMMA && !(*inep)) {
 		if(ast && ((_object_t*)(ast->data))->type == _DT_SEP && ((_object_t*)(ast->data))->data.separator == ',') {
 			ast = ast->next;
 		}
@@ -4092,14 +4108,24 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 	/* Operator - (negative) */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
+	_running_context_t* running = 0;
+	int* inep = 0;
 
 	mb_assert(s && l);
+
+	running = (_running_context_t*)(s->running_context);
+
+	inep = (int*)_ls_back(running->in_neg_expr)->data;
+
+	(*inep)++;
 
 	mb_check(mb_attempt_func_begin(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
 
 	mb_check(mb_attempt_func_end(s, l));
+
+	(*inep)--;
 
 	switch(arg.type) {
 	case MB_DT_INT:
