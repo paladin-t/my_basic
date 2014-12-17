@@ -3682,7 +3682,7 @@ int mb_pop_value(mb_interpreter_t* s, void** l, mb_value_t* val) {
 		_ls_pushback(running->temp_values, val_ptr);
 	}
 
-	if(running->no_eat_comma_mark < _NO_EAT_COMMA && (inep && !(*inep))) {
+	if(running->no_eat_comma_mark < _NO_EAT_COMMA && (!inep || (inep && !(*inep)))) {
 		if(ast && ((_object_t*)(ast->data))->type == _DT_SEP && ((_object_t*)(ast->data))->data.separator == ',') {
 			ast = ast->next;
 		}
