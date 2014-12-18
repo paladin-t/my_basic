@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 0
-#define _VER_REVISION 44
+#define _VER_REVISION 45
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -215,6 +215,7 @@ static const char* _ERR_DESC[] = {
 	"Jump label expected",
 	"Variable expected",
 	"Invalid identifier usage",
+	"Operator expected",
 	"Calculation error",
 	"Divide by zero",
 	"MOD by zero",
@@ -370,13 +371,11 @@ static _object_t* _exp_assign = 0;
 		_object_t* opnd1 = (_object_t*)(tpptr->e1); \
 		_object_t* opnd2 = (_object_t*)(tpptr->e2); \
 		_object_t* val = (_object_t*)(tpptr->e3); \
-		opndv1.type = \
-			(opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
-				_DT_INT : _DT_REAL; \
+		opndv1.type = (opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
+			_DT_INT : _DT_REAL; \
 		opndv1.data = opnd1->type == _DT_VAR ? opnd1->data.variable->data->data : opnd1->data; \
-		opndv2.type = \
-			(opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
-				_DT_INT : _DT_REAL; \
+		opndv2.type = (opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
+			_DT_INT : _DT_REAL; \
 		opndv2.data = opnd2->type == _DT_VAR ? opnd2->data.variable->data->data : opnd2->data; \
 		if(opndv1.type == _DT_INT && opndv2.type == _DT_INT) { \
 			val->type = _DT_REAL; \
@@ -400,13 +399,11 @@ static _object_t* _exp_assign = 0;
 		_object_t* opnd1 = (_object_t*)(tpptr->e1); \
 		_object_t* opnd2 = (_object_t*)(tpptr->e2); \
 		_object_t* val = (_object_t*)(tpptr->e3); \
-		opndv1.type = \
-			(opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
-				_DT_INT : _DT_REAL; \
+		opndv1.type = (opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
+			_DT_INT : _DT_REAL; \
 		opndv1.data = opnd1->type == _DT_VAR ? opnd1->data.variable->data->data : opnd1->data; \
-		opndv2.type = \
-			(opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
-				_DT_INT : _DT_REAL; \
+		opndv2.type = (opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
+			_DT_INT : _DT_REAL; \
 		opndv2.data = opnd2->type == _DT_VAR ? opnd2->data.variable->data->data : opnd2->data; \
 		if(opndv1.type == _DT_INT && opndv2.type == _DT_INT) { \
 			if((real_t)(opndv1.data.integer __optr opndv2.data.integer) == (real_t)opndv1.data.integer __optr (real_t)opndv2.data.integer) { \
@@ -435,13 +432,11 @@ static _object_t* _exp_assign = 0;
 		_object_t* opnd1 = (_object_t*)(tpptr->e1); \
 		_object_t* opnd2 = (_object_t*)(tpptr->e2); \
 		_object_t* val = (_object_t*)(tpptr->e3); \
-		opndv1.type = \
-			(opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
-				_DT_INT : _DT_REAL; \
+		opndv1.type = (opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
+			_DT_INT : _DT_REAL; \
 		opndv1.data = opnd1->type == _DT_VAR ? opnd1->data.variable->data->data : opnd1->data; \
-		opndv2.type = \
-			(opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
-				_DT_INT : _DT_REAL; \
+		opndv2.type = (opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
+			_DT_INT : _DT_REAL; \
 		opndv2.data = opnd2->type == _DT_VAR ? opnd2->data.variable->data->data : opnd2->data; \
 		if(opndv1.type == _DT_INT && opndv2.type == _DT_INT) { \
 			val->type = _DT_INT; \
@@ -494,13 +489,11 @@ static _object_t* _exp_assign = 0;
 		_object_t* opnd1 = (_object_t*)(tpptr->e1); \
 		_object_t* opnd2 = (_object_t*)(tpptr->e2); \
 		_object_t* val = (_object_t*)(tpptr->e3); \
-		opndv1.type = \
-			(opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
-				_DT_INT : _DT_REAL; \
+		opndv1.type = (opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
+			_DT_INT : _DT_REAL; \
 		opndv1.data = opnd1->type == _DT_VAR ? opnd1->data.variable->data->data : opnd1->data; \
-		opndv2.type = \
-			(opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
-				_DT_INT : _DT_REAL; \
+		opndv2.type = (opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
+			_DT_INT : _DT_REAL; \
 		opndv2.data = opnd2->type == _DT_VAR ? opnd2->data.variable->data->data : opnd2->data; \
 		if((opndv2.type == _DT_INT && opndv2.data.integer == 0) || (opndv2.type == _DT_REAL && opndv2.data.float_point == 0.0f)) { \
 			if((opndv1.type == _DT_INT && opndv1.data.integer == 0) || (opndv1.type == _DT_REAL && opndv1.data.float_point == 0.0f)) { \
@@ -670,6 +663,7 @@ static char* _extract_string(_object_t* obj);
 static bool_t _is_internal_object(_object_t* obj);
 static int _dispose_object(_object_t* obj);
 static int _destroy_object(void* data, void* extra);
+static int _destroy_object_non_syntax(void* data, void* extra);
 static int _remove_source_object(void* data, void* extra);
 static int _compare_numbers(const _object_t* first, const _object_t* second);
 static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn);
@@ -688,6 +682,15 @@ static int _open_core_lib(mb_interpreter_t* s);
 static int _close_core_lib(mb_interpreter_t* s);
 static int _open_std_lib(mb_interpreter_t* s);
 static int _close_std_lib(mb_interpreter_t* s);
+
+/* ========================================================} */
+
+/*
+** {========================================================
+** Protected function declarations
+*/
+
+MBAPI int mb_dispose_value(mb_interpreter_t* s, mb_value_t val);
 
 /* ========================================================} */
 
@@ -746,10 +749,10 @@ static int _core_exit(mb_interpreter_t* s, void** l);
 static int _core_goto(mb_interpreter_t* s, void** l);
 static int _core_gosub(mb_interpreter_t* s, void** l);
 static int _core_return(mb_interpreter_t* s, void** l);
-static int _core_end(mb_interpreter_t* s, void** l);
 #ifdef _MB_ENABLE_ALLOC_STAT
 static int _core_mem(mb_interpreter_t* s, void** l);
 #endif /* _MB_ENABLE_ALLOC_STAT */
+static int _core_end(mb_interpreter_t* s, void** l);
 
 /** Std lib */
 static int _std_abs(mb_interpreter_t* s, void** l);
@@ -1231,20 +1234,14 @@ unsigned int _ht_hash_int(void* ht, void* d) {
 
 unsigned int _ht_hash_real(void* ht, void* d) {
 	real_t r = *(real_t*)d;
-	union {
-		real_t r;
-		int_t i;
-	} u;
+	union { real_t r; int_t i; } u;
 	u.r = r;
 
 	return _ht_hash_int(ht, &u.i);
 }
 
 unsigned int _ht_hash_ptr(void* ht, void* d) {
-	union {
-		int_t i;
-		void* p;
-	} u;
+	union { int_t i; void* p; } u;
 	u.p = d;
 
 	return _ht_hash_int(ht, &u.i);
@@ -1705,8 +1702,7 @@ bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj) {
 			(obj->data.func->pointer == _core_then ||
 			obj->data.func->pointer == _core_else ||
 			obj->data.func->pointer == _core_to ||
-			obj->data.func->pointer == _core_step)
-		);
+			obj->data.func->pointer == _core_step));
 
 	return result;
 }
@@ -1727,6 +1723,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	_object_t* theta = 0;
 	char pri = '\0';
 	int* inep = 0;
+	int f = 0;
 
 	unsigned int arr_idx = 0;
 	mb_value_u arr_val;
@@ -1772,10 +1769,8 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	ast = ast->next;
 	_ls_pushback(optr, _exp_assign);
 	while(
-		!(c->type == _DT_FUNC &&
-			strcmp(c->data.func->name, "#") == 0) ||
-		!(((_object_t*)(_ls_back(optr)->data))->type == _DT_FUNC &&
-			strcmp(((_object_t*)(_ls_back(optr)->data))->data.func->name, "#") == 0)) {
+		!(c->type == _DT_FUNC && strcmp(c->data.func->name, "#") == 0) ||
+		!(((_object_t*)(_ls_back(optr)->data))->type == _DT_FUNC && strcmp(((_object_t*)(_ls_back(optr)->data))->data.func->name, "#") == 0)) {
 		if(!hack) {
 			if(c->type == _DT_FUNC && c->data.func->pointer == _core_open_bracket) {
 				++bracket_count;
@@ -1807,6 +1802,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					while(bracket_count) {
 						_ls_pushback(optr, &_cb);
 						bracket_count--;
+						f = 0;
 					}
 					errn = ast;
 				}
@@ -1830,7 +1826,11 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					} else {
 						mb_assert(0 && "Unsupported");
 					}
+					if(f) {
+						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
+					}
 					_ls_pushback(opnd, arr_elem);
+					f++;
 				} else if(c->type == _DT_FUNC) {
 					ast = ast->prev;
 					result = (c->data.func->pointer)(s, (void**)(&ast));
@@ -1844,7 +1844,11 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					if(result != MB_FUNC_OK) {
 						goto _exit;
 					}
+					if(f) {
+						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
+					}
 					_ls_pushback(opnd, c);
+					f++;
 				} else {
 					if(c->type == _DT_VAR && ast) {
 						_object_t* _err_var = (_object_t*)(ast->data);
@@ -1852,7 +1856,11 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 							_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, DON(ast), MB_FUNC_ERR, _exit, result);
 						}
 					}
+					if(f) {
+						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
+					}
 					_ls_pushback(opnd, c);
+					f++;
 				}
 				if(ast) {
 					c = (_object_t*)(ast->data);
@@ -1873,6 +1881,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 				_ls_pushback(optr, c);
 				c = (_object_t*)(ast->data);
 				ast = ast->next;
+				f = 0;
 
 				break;
 			case '=':
@@ -1936,8 +1945,8 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 _exit:
 	_ls_foreach(garbage, _destroy_object);
 	_ls_destroy(garbage);
-	_ls_foreach(optr, _destroy_object);
-	_ls_foreach(opnd, _destroy_object);
+	_ls_foreach(optr, _destroy_object_non_syntax);
+	_ls_foreach(opnd, _destroy_object_non_syntax);
 	_ls_destroy(optr);
 	_ls_destroy(opnd);
 	*l = ast;
@@ -1955,9 +1964,7 @@ bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
 	result =
 		(obj->type == _DT_EOS) ||
 		(obj->type == _DT_SEP && obj->data.separator == ':') ||
-		(obj->type == _DT_FUNC &&
-			(obj->data.func->pointer == _core_else)
-		);
+		(obj->type == _DT_FUNC && (obj->data.func->pointer == _core_else));
 
 	return result;
 }
@@ -2852,6 +2859,28 @@ _exit:
 	return result;
 }
 
+int _destroy_object_non_syntax(void* data, void* extra) {
+	/* Destroy a non syntax object */
+	int result = _OP_RESULT_NORMAL;
+	_object_t* obj = 0;
+	mb_unrefvar(extra);
+
+	mb_assert(data);
+
+	obj = (_object_t*)data;
+	if(!obj->source_pos) {
+		if(!_dispose_object(obj)) {
+			goto _exit;
+		}
+		safe_free(obj);
+	}
+
+_exit:
+	result = _OP_RESULT_DEL_NODE;
+
+	return result;
+}
+
 int _remove_source_object(void* data, void* extra) {
 	/* Remove an object referenced from source code */
 	int result = _OP_RESULT_DEL_NODE;
@@ -3000,14 +3029,7 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 			ast = ast->next;
 		} else if(obj && obj->type == _DT_VAR) {
 			_handle_error_on_obj(s, SE_RN_COLON_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
-		} else if(
-			(obj && obj->type != _DT_FUNC) || (
-				obj && obj->type == _DT_FUNC && (
-					_is_operator(obj->data.func->pointer) ||
-					_is_flow(obj->data.func->pointer)
-				)
-			)
-		) {
+		} else if((obj && obj->type != _DT_FUNC) || (obj && obj->type == _DT_FUNC && (_is_operator(obj->data.func->pointer) || _is_flow(obj->data.func->pointer)))) {
 			ast = ast->next;
 		} else {
 			_handle_error_on_obj(s, SE_RN_COLON_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -3230,6 +3252,26 @@ int _close_std_lib(mb_interpreter_t* s) {
 
 /*
 ** {========================================================
+** Protected function definitions
+*/
+
+int mb_dispose_value(mb_interpreter_t* s, mb_value_t val) {
+	/* Dispose a value */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s);
+
+	if(val.type == MB_DT_STRING) {
+		mb_free(val.value.string);
+	}
+
+	return result;
+}
+
+/* ========================================================} */
+
+/*
+** {========================================================
 ** Public functions definitions
 */
 
@@ -3390,6 +3432,7 @@ int mb_close(mb_interpreter_t** s) {
 
 	running = (_running_context_t*)((*s)->running_context);
 
+	mb_dispose_value(*s, running->intermediate_value);
 	_ls_foreach(running->temp_values, _destroy_object);
 	_ls_destroy(running->temp_values);
 	_ls_destroy(running->in_neg_expr);
@@ -5058,17 +5101,6 @@ _exit:
 	return result;
 }
 
-int _core_end(mb_interpreter_t* s, void** l) {
-	/* END statement */
-	int result = MB_FUNC_OK;
-
-	mb_assert(s && l);
-
-	result = MB_FUNC_END;
-
-	return result;
-}
-
 #ifdef _MB_ENABLE_ALLOC_STAT
 int _core_mem(mb_interpreter_t* s, void** l) {
 	/* MEM statement */
@@ -5084,6 +5116,17 @@ int _core_mem(mb_interpreter_t* s, void** l) {
 	return result;
 }
 #endif /* _MB_ENABLE_ALLOC_STAT */
+
+int _core_end(mb_interpreter_t* s, void** l) {
+	/* END statement */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s && l);
+
+	result = MB_FUNC_END;
+
+	return result;
+}
 
 /** Std lib */
 int _std_abs(mb_interpreter_t* s, void** l) {
