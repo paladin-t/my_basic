@@ -3014,6 +3014,7 @@ void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s)
 	/* Try clear the intermediate value when destroying an object */
 	_object_t* obj = 0;
 	_running_context_t* running = 0;
+	mb_unrefvar(extra);
 
 	mb_assert(s);
 
