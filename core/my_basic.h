@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2014 W. Renxin
+** Copyright (C) 2011 - 2015 W. Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -251,6 +251,8 @@ MBAPI int mb_set_printer(mb_interpreter_t* s, mb_print_func_t p);
 MBAPI int mb_set_inputer(mb_interpreter_t* s, mb_input_func_t p);
 
 MBAPI int mb_gets(char* buf, int s);
+
+MBAPI char* mb_strdup(char* val, unsigned size);
 
 #ifdef MB_COMPACT_MODE
 #	pragma pack()

@@ -1,3 +1,8 @@
+Mar. 25 2015
+Changed _strupr macro to mb_strupr function
+Added an mb_strdup function
+Fixed an intermediate value disposing more than once bug
+
 Dec. 17 2014
 Fixed a calculation crash bug
 Fixed a memory leak with intermediate value
@@ -9,8 +14,8 @@ Dec. 9 2014
 Improved compatibility with BCB
 
 May. 25 2014
-Added a mb_set_inputer function which allows the user to specify an INPUT reader, thanks to Michael P. Welch for suggestion
-Added a mb_remove_reserved_func function which allows the user to disable/remove a reserved statement
+Added an mb_set_inputer function which allows the user to specify an INPUT reader, thanks to Michael P. Welch for suggestion
+Added an mb_remove_reserved_func function which allows the user to disable/remove a reserved statement
 
 May. 22 2014
 Fixed a crash bug when missing colon in a combined line, thanks to Michael P. Welch for pointing it out

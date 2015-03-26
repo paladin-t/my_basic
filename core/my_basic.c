@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2014 W. Renxin
+** Copyright (C) 2011 - 2015 W. Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 0
-#define _VER_REVISION 45
+#define _VER_REVISION 46
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -109,21 +109,6 @@ extern "C" {
 #ifndef toupper
 #	define toupper(__c) ((islower(__c)) ? ((__c) - 'a' + 'A') : (__c))
 #endif /* toupper */
-
-#ifndef _MSC_VER
-#	ifndef _strupr
-		static char* _strupr(char* __s) {
-			char* t = __s;
-
-			while(*__s) {
-				*__s = toupper(*__s);
-				++__s;
-			}
-
-			return t;
-		}
-#	endif /* _strupr */
-#endif /* _MSC_VER */
 
 #define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
 
@@ -545,6 +530,32 @@ static void _ls_clear(_ls_node_t* list);
 static void _ls_destroy(_ls_node_t* list);
 static int _ls_free_extra(void* data, void* extra);
 
+#define _LS_FOREACH(L, O, P, E) \
+	do { \
+		_ls_node_t* __lst = L; \
+		int __opresult = _OP_RESULT_NORMAL; \
+		_ls_node_t* __tmp = 0; \
+		mb_assert(L && O); \
+		__lst = __lst->next; \
+		while(__lst) { \
+			if(P != 0) { \
+				P(__lst->data, __lst->extra, E); \
+			} \
+			__opresult = O(__lst->data, __lst->extra); \
+			__tmp = __lst; \
+			__lst = __lst->next; \
+			if(_OP_RESULT_NORMAL == __opresult) { \
+			} else if(_OP_RESULT_DEL_NODE == __opresult) { \
+				__tmp->prev->next = __lst; \
+				if(__lst) { \
+					__lst->prev = __tmp->prev; \
+				} \
+				safe_free(__tmp); \
+			} else { \
+			} \
+		} \
+	} while(0)
+
 /** Dictionary */
 static unsigned int _ht_hash_string(void* ht, void* d);
 static unsigned int _ht_hash_int(void* ht, void* d);
@@ -582,6 +593,8 @@ static volatile size_t _mb_allocated = (size_t)(~0);
 static void* mb_malloc(size_t s);
 static void* mb_realloc(void** p, size_t s);
 static void mb_free(void* p);
+
+static char* mb_strupr(char* s);
 
 #define safe_free(__p) do { if(__p) { mb_free(__p); __p = 0; } else { mb_assert(0 && "Memory already released"); } } while(0)
 
@@ -668,6 +681,7 @@ static int _remove_source_object(void* data, void* extra);
 static int _compare_numbers(const _object_t* first, const _object_t* second);
 static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn);
 static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl);
+static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s);
 
 static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l);
 static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t);
@@ -1531,6 +1545,17 @@ void mb_free(void* p) {
 	free(p);
 }
 
+char* mb_strupr(char* s) {
+	char* t = s;
+
+	while(*s) {
+		*s = toupper(*s);
+		++s;
+	}
+
+	return t;
+}
+
 /** Expression processing */
 bool_t _is_operator(mb_func_t op) {
 	/* Determine whether a function is an operator */
@@ -1939,11 +1964,13 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 		}
 	}
 	if(guard_val != c && _ls_try_remove(garbage, c, _ls_cmp_data, NULL)) {
+		_try_clear_intermediate_value(c, 0, s);
+
 		_destroy_object(c, 0);
 	}
 
 _exit:
-	_ls_foreach(garbage, _destroy_object);
+	_LS_FOREACH(garbage, _destroy_object, _try_clear_intermediate_value, s);
 	_ls_destroy(garbage);
 	_ls_foreach(optr, _destroy_object_non_syntax);
 	_ls_foreach(opnd, _destroy_object_non_syntax);
@@ -2983,6 +3010,24 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 	return result;
 }
 
+void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s) {
+	/* Try clear the intermediate value when destroying an object */
+	_object_t* obj = 0;
+	_running_context_t* running = 0;
+
+	mb_assert(s);
+
+	if(data == 0)
+		return;
+
+	obj = (_object_t*)data;
+	running = (_running_context_t*)(s->running_context);
+
+	if(obj->type == _DT_STRING && running->intermediate_value.type == MB_DT_STRING && obj->data.string == running->intermediate_value.value.string) {
+		running->intermediate_value.type = MB_DT_NIL;
+	}
+}
+
 int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 	/* Execute the ast, core execution function */
 	int result = MB_FUNC_OK;
@@ -3130,7 +3175,7 @@ int _register_func(mb_interpreter_t* s, const char* n, mb_func_t f, bool_t local
 		size_t _sl = strlen(n);
 		name = (char*)mb_malloc(_sl + 1);
 		memcpy(name, n, _sl + 1);
-		_strupr(name);
+		mb_strupr(name);
 		result += _ht_set_or_insert(scope, (void*)name, (void*)(intptr_t)f);
 	} else {
 		_set_current_error(s, SE_CM_FUNC_EXISTS);
@@ -3158,7 +3203,7 @@ int _remove_func(mb_interpreter_t* s, const char* n, bool_t local) {
 		size_t _sl = strlen(n);
 		name = (char*)mb_malloc(_sl + 1);
 		memcpy(name, n, _sl + 1);
-		_strupr(name);
+		mb_strupr(name);
 		result += _ht_remove(scope, (void*)name, _ls_cmp_extra_string);
 		safe_free(name);
 	} else {
@@ -4021,6 +4066,18 @@ int mb_gets(char* buf, int s) {
 	result = (int)strlen(buf);
 	if(buf[result - 1] == '\n')
 		buf[result - 1] = '\0';
+
+	return result;
+}
+
+char* mb_strdup(char* val, unsigned size) {
+	/* Duplicate a string for internal use */
+	char* result = 0;
+
+	if(val != 0) {
+		result = (char*)mb_malloc(size);
+		memcpy(result, val, size);
+	}
 
 	return result;
 }
