@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 0
-#define _VER_REVISION 46
+#define _VER_REVISION 47
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -258,6 +258,8 @@ typedef struct _label_t {
 	_ls_node_t* node;
 } _label_t;
 
+typedef unsigned char _raw_t[sizeof(union { int_t i; real_t r; void* p; })];
+
 typedef struct _object_t {
 	_data_e type;
 	union {
@@ -270,6 +272,7 @@ typedef struct _object_t {
 		_array_t* array;
 		_label_t* label;
 		char separator;
+        _raw_t raw;
 	} data;
 	bool_t ref;
 	int source_pos;
@@ -594,6 +597,8 @@ static void* mb_malloc(size_t s);
 static void* mb_realloc(void** p, size_t s);
 static void mb_free(void* p);
 
+static size_t mb_memtest(void*p, size_t s);
+
 static char* mb_strupr(char* s);
 
 #define safe_free(__p) do { if(__p) { mb_free(__p); __p = 0; } else { mb_assert(0 && "Memory already released"); } } while(0)
@@ -656,7 +661,7 @@ static int _append_char_to_symbol(mb_interpreter_t* s, char c);
 static int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col);
 static int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int pos, unsigned short row, unsigned short col);
 static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** obj, _ls_node_t*** asgn, bool_t* delsym);
-static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, void** value);
+static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value);
 
 static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsigned short col);
 static void _set_error_pos(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col);
@@ -722,6 +727,8 @@ MBAPI int mb_dispose_value(mb_interpreter_t* s, mb_value_t val);
 #	endif /* _MSC_VER < 1300 */
 #elif defined  __BORLANDC__
 #	define _do_nothing do { printf("Unaccessable function: %s\n", __FUNC__); } while(0)
+#elif defined __POCC__
+#	define _do_nothing do { printf("Unaccessable function: %s\n", __func__); } while(0)
 #else /* _MSC_VER */
 #	define _do_nothing do { printf("Unaccessable function: %s\n", __FUNCTION__); } while(0)
 #endif /* _MSC_VER */
@@ -1545,6 +1552,16 @@ void mb_free(void* p) {
 	free(p);
 }
 
+size_t mb_memtest(void*p, size_t s) {
+    size_t result = 0;
+    size_t i = 0;
+    for(i = 0; i < s; i++) {
+        result += ((unsigned char*)p)[i];
+    }
+
+    return result;
+}
+
 char* mb_strupr(char* s) {
 	char* t = s;
 
@@ -2165,14 +2182,16 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	/* Create a syntax symbol */
 	int result = MB_FUNC_OK;
 	_data_e type;
-	union { _func_t* func; _array_t* array; _var_t* var; _label_t* label; real_t float_point; int_t integer; void* any; } tmp;
-	void* value = 0;
+	union { _func_t* func; _array_t* array; _var_t* var; _label_t* label; real_t float_point; int_t integer; _raw_t any; } tmp;
+    _raw_t value;
 	unsigned int ul = 0;
 	_parsing_context_t* context = 0;
 	_ls_node_t* glbsyminscope = 0;
 	mb_unrefvar(l);
 
 	mb_assert(s && sym && obj);
+
+    memset(value, 0, sizeof(_raw_t));
 
 	context = (_parsing_context_t*)s->parsing_context;
 
@@ -2185,13 +2204,13 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	(*obj)->type = type;
 	switch(type) {
 	case _DT_INT:
-		tmp.any = value;
+        memcpy(tmp.any, value, sizeof(_raw_t));
 		(*obj)->data.integer = tmp.integer;
 		safe_free(sym);
 
 		break;
 	case _DT_REAL:
-		tmp.any = value;
+		memcpy(tmp.any, value, sizeof(_raw_t));
 		(*obj)->data.float_point = tmp.float_point;
 		safe_free(sym);
 
@@ -2209,7 +2228,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		tmp.func = (_func_t*)mb_malloc(sizeof(_func_t));
 		memset(tmp.func, 0, sizeof(_func_t));
 		tmp.func->name = sym;
-		tmp.func->pointer = (mb_func_t)(intptr_t)value;
+        memcpy(&tmp.func->pointer, value, sizeof(tmp.func->pointer));
 		(*obj)->data.func = tmp.func;
 
 		break;
@@ -2223,7 +2242,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			tmp.array = (_array_t*)mb_malloc(sizeof(_array_t));
 			memset(tmp.array, 0, sizeof(_array_t));
 			tmp.array->name = sym;
-			tmp.array->type = (_data_e)(int)(long)(intptr_t)value;
+            memcpy(&tmp.array->type, value, sizeof(tmp.array->type));
 			(*obj)->data.array = tmp.array;
 
 			ul = _ht_set_or_insert((_ht_node_t*)s->global_var_dict, sym, *obj);
@@ -2266,8 +2285,8 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		break;
 	case _DT_LABEL:
 		if(context->current_char == ':') {
-			if(value) {
-				(*obj)->data.label = value;
+			if(mb_memtest(value, sizeof(_raw_t))) {
+                memcpy(&((*obj)->data.label), value, sizeof((*obj)->data.label));
 				(*obj)->ref = true;
 				*delsym = true;
 			} else {
@@ -2309,15 +2328,17 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	return result;
 }
 
-_data_e _get_symbol_type(mb_interpreter_t* s, char* sym, void** value) {
+_data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	/* Get the type of a syntax symbol */
 	_data_e result = _DT_NIL;
-	union { real_t float_point; int_t integer; _object_t* obj; void* any; } tmp;
+	union { real_t float_point; int_t integer; _object_t* obj; _raw_t any; } tmp;
 	char* conv_suc = 0;
 	_parsing_context_t* context = 0;
 	_ls_node_t* lclsyminscope = 0;
 	_ls_node_t* glbsyminscope = 0;
 	size_t _sl = 0;
+	_data_e en = _DT_ANY;
+	intptr_t ptr = 0;
 
 	mb_assert(s && sym);
 	_sl = strlen(sym);
@@ -2328,7 +2349,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, void** value) {
 	/* int_t */
 	tmp.integer = (int_t)strtol(sym, &conv_suc, 0);
 	if(*conv_suc == '\0') {
-		*value = tmp.any;
+        memcpy(*value, tmp.any, sizeof(_raw_t));
 
 		result = _DT_INT;
 
@@ -2337,7 +2358,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, void** value) {
 	/* real_t */
 	tmp.float_point = (real_t)strtod(sym, &conv_suc);
 	if(*conv_suc == '\0') {
-		*value = tmp.any;
+        memcpy(*value, tmp.any, sizeof(_raw_t));
 
 		result = _DT_REAL;
 
@@ -2353,7 +2374,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, void** value) {
 	glbsyminscope = _ht_find((_ht_node_t*)s->global_var_dict, sym);
 	if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
 		tmp.obj = (_object_t*)(glbsyminscope->data);
-		*value = (void*)(intptr_t)(tmp.obj->data.array->type);
+        memcpy(*value, &(tmp.obj->data.array->type), sizeof(tmp.obj->data.array->type));
 
 		result = _DT_ARRAY;
 
@@ -2361,7 +2382,8 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, void** value) {
 	}
 	if(context->last_symbol && context->last_symbol->type == _DT_FUNC) {
 		if(strcmp("DIM", context->last_symbol->data.func->name) == 0) {
-			*value = (void*)(intptr_t)(sym[_sl - 1] == '$' ? _DT_STRING : _DT_REAL);
+			en = (sym[_sl - 1] == '$' ? _DT_STRING : _DT_REAL);
+            memcpy(*value, &en, sizeof(en));
 
 			result = _DT_ARRAY;
 
@@ -2369,10 +2391,12 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, void** value) {
 		}
 	}
 	/* _func_t */
-	if(context->last_symbol && ((context->last_symbol->type == _DT_FUNC && context->last_symbol->data.func->pointer != _core_close_bracket) ||
-		context->last_symbol->type == _DT_SEP)) {
+	if(!context->last_symbol ||
+		(context->last_symbol && ((context->last_symbol->type == _DT_FUNC && context->last_symbol->data.func->pointer != _core_close_bracket) ||
+		context->last_symbol->type == _DT_SEP))) {
 		if(strcmp("-", sym) == 0) {
-			*value = (void*)(intptr_t)(_core_neg);
+			ptr = (intptr_t)_core_neg;
+            memcpy(*value, &ptr, sizeof(intptr_t));
 
 			result = _DT_FUNC;
 
@@ -2382,7 +2406,8 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, void** value) {
 	lclsyminscope = _ht_find((_ht_node_t*)s->local_func_dict, sym);
 	glbsyminscope = _ht_find((_ht_node_t*)s->global_func_dict, sym);
 	if(lclsyminscope || glbsyminscope) {
-		*value = lclsyminscope ? lclsyminscope->data : glbsyminscope->data;
+		ptr = lclsyminscope ? (intptr_t)lclsyminscope->data : (intptr_t)glbsyminscope->data;
+        memcpy(*value, &ptr, sizeof(intptr_t));
 
 		result = _DT_FUNC;
 
@@ -2404,7 +2429,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, void** value) {
 	glbsyminscope = _ht_find((_ht_node_t*)s->global_var_dict, sym);
 	if(glbsyminscope) {
 		if(((_object_t*)glbsyminscope->data)->type != _DT_LABEL) {
-			*value = glbsyminscope->data;
+            memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
 
 			result = _DT_VAR;
 
@@ -2416,7 +2441,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, void** value) {
 		if(!context->last_symbol || context->last_symbol->type == _DT_EOS) {
 			glbsyminscope = _ht_find((_ht_node_t*)s->global_var_dict, sym);
 			if(glbsyminscope) {
-				*value = glbsyminscope->data;
+                memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
 			}
 
 			result = _DT_LABEL;
@@ -2442,11 +2467,13 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 	/* Parse a char */
 	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
+    char last_char = '\0';
 
 	mb_assert(s && s->parsing_context);
 
 	context = (_parsing_context_t*)(s->parsing_context);
 
+    last_char = context->current_char;
 	context->current_char = c;
 
 	if(context->parsing_state == _PS_NORMAL) {
@@ -2478,9 +2505,13 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 				if(_is_identifier_char(c)) {
 					result += _append_char_to_symbol(s, c);
 				} else if(_is_operator_char(c)) {
-					context->symbol_state = _SS_OPERATOR;
-					result += _cut_symbol(s, pos, row, col);
-					result += _append_char_to_symbol(s, c);
+                    if((last_char == 'e' || last_char == 'E') && c == '-') {
+                        result += _append_char_to_symbol(s, c);
+                    } else {
+                        context->symbol_state = _SS_OPERATOR;
+                        result += _cut_symbol(s, pos, row, col);
+                        result += _append_char_to_symbol(s, c);
+                    }
 				} else {
 					_handle_error(s, SE_PS_INVALID_CHAR, pos, row, col, MB_FUNC_ERR, _exit, result);
 				}
@@ -4217,9 +4248,13 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 
 	running = (_running_context_t*)(s->running_context);
 
-	inep = (int*)_ls_back(running->in_neg_expr)->data;
+	if(!_ls_empty(running->in_neg_expr)) {
+		inep = (int*)_ls_back(running->in_neg_expr)->data;
+	}
 
-	(*inep)++;
+	if(inep) {
+		(*inep)++;
+	}
 
 	mb_check(mb_attempt_func_begin(s, l));
 
@@ -4227,7 +4262,9 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_func_end(s, l));
 
-	(*inep)--;
+	if(inep) {
+		(*inep)--;
+	}
 
 	switch(arg.type) {
 	case MB_DT_INT:

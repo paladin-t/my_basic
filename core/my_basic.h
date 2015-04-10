@@ -66,6 +66,8 @@ extern "C" {
 #	ifndef _strcmpi
 #		ifdef __BORLANDC__
 #			define _strcmpi stricmp
+#		elif defined __POCC__
+#			define _strcmpi _stricmp
 #		else /* __BORLANDC__*/
 #			define _strcmpi strcasecmp
 #		endif /* __BORLANDC__ */

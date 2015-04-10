@@ -1,3 +1,9 @@
+Apr. 10 2015
+Improved compatibility with PellesC
+Fixed a double precision float parsing bug on all 32bit systems, thanks to Pito for pointing it out
+Fixed a exponential number parsing bug, thanks to Pito for pointing it out
+Fixed a crash bug when a script begins with a meaningless negtive number
+
 Mar. 25 2015
 Changed _strupr macro to mb_strupr function
 Added an mb_strdup function

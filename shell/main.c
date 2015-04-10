@@ -52,6 +52,11 @@
 #	pragma warn -8066
 #endif /* __BORLANDC__ */
 
+#ifdef __POCC__
+#	define unlink _unlink
+#	define strdup _strdup
+#endif /* __POCC__ */
+
 #define _MAX_LINE_LENGTH 256
 #define _str_eq(__str1, __str2) (_strcmpi(__str1, __str2) == 0)
 
