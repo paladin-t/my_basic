@@ -34,6 +34,10 @@ extern "C" {
 #	define MBAPI
 #endif /* MBAPI */
 
+#ifndef MB_ENABLE_SOURCE_TRACE
+#   define MB_ENABLE_SOURCE_TRACE
+#endif /* MB_ENABLE_SOURCE_TRACE */
+
 #ifndef MB_COMPACT_MODE
 #	define MB_COMPACT_MODE
 #endif /* MB_COMPACT_MODE */
@@ -198,59 +202,43 @@ typedef int (* mb_func_t)(struct mb_interpreter_t*, void**);
 typedef int (* mb_print_func_t)(const char*, ...);
 typedef int (* mb_input_func_t)(char*, int);
 
-typedef struct mb_interpreter_t {
-	void* local_func_dict;
-	void* global_func_dict;
-	void* global_var_dict;
-	void* ast;
-	void* parsing_context;
-	void* running_context;
-	mb_error_e last_error;
-	int last_error_pos;
-	unsigned short last_error_row;
-	unsigned short last_error_col;
-	mb_error_handler_t error_handler;
-	mb_print_func_t printer;
-	mb_input_func_t inputer;
-	void* userdata;
-} mb_interpreter_t;
-
 MBAPI unsigned int mb_ver(void);
 MBAPI const char* mb_ver_string(void);
 
 MBAPI int mb_init(void);
 MBAPI int mb_dispose(void);
-MBAPI int mb_open(mb_interpreter_t** s);
-MBAPI int mb_close(mb_interpreter_t** s);
-MBAPI int mb_reset(mb_interpreter_t** s, bool_t clrf);
+MBAPI int mb_open(struct mb_interpreter_t** s);
+MBAPI int mb_close(struct mb_interpreter_t** s);
+MBAPI int mb_reset(struct mb_interpreter_t** s, bool_t clrf);
 
-MBAPI int mb_register_func(mb_interpreter_t* s, const char* n, mb_func_t f);
-MBAPI int mb_remove_func(mb_interpreter_t* s, const char* n);
-MBAPI int mb_remove_reserved_func(mb_interpreter_t* s, const char* n);
+MBAPI int mb_register_func(struct mb_interpreter_t* s, const char* n, mb_func_t f);
+MBAPI int mb_remove_func(struct mb_interpreter_t* s, const char* n);
+MBAPI int mb_remove_reserved_func(struct mb_interpreter_t* s, const char* n);
 
-MBAPI int mb_attempt_func_begin(mb_interpreter_t* s, void** l);
-MBAPI int mb_attempt_func_end(mb_interpreter_t* s, void** l);
-MBAPI int mb_attempt_open_bracket(mb_interpreter_t* s, void** l);
-MBAPI int mb_attempt_close_bracket(mb_interpreter_t* s, void** l);
-MBAPI int mb_pop_int(mb_interpreter_t* s, void** l, int_t* val);
-MBAPI int mb_pop_real(mb_interpreter_t* s, void** l, real_t* val);
-MBAPI int mb_pop_string(mb_interpreter_t* s, void** l, char** val);
-MBAPI int mb_pop_value(mb_interpreter_t* s, void** l, mb_value_t* val);
-MBAPI int mb_push_int(mb_interpreter_t* s, void** l, int_t val);
-MBAPI int mb_push_real(mb_interpreter_t* s, void** l, real_t val);
-MBAPI int mb_push_string(mb_interpreter_t* s, void** l, char* val);
-MBAPI int mb_push_value(mb_interpreter_t* s, void** l, mb_value_t val);
+MBAPI int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l);
+MBAPI int mb_attempt_func_end(struct mb_interpreter_t* s, void** l);
+MBAPI int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l);
+MBAPI int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l);
+MBAPI int mb_has_arg(struct mb_interpreter_t* s, void** l);
+MBAPI int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val);
+MBAPI int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val);
+MBAPI int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val);
+MBAPI int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val);
+MBAPI int mb_push_int(struct mb_interpreter_t* s, void** l, int_t val);
+MBAPI int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val);
+MBAPI int mb_push_string(struct mb_interpreter_t* s, void** l, char* val);
+MBAPI int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 
-MBAPI int mb_load_string(mb_interpreter_t* s, const char* l);
-MBAPI int mb_load_file(mb_interpreter_t* s, const char* f);
-MBAPI int mb_run(mb_interpreter_t* s);
-MBAPI int mb_suspend(mb_interpreter_t* s, void** l);
+MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l);
+MBAPI int mb_load_file(struct mb_interpreter_t* s, const char* f);
+MBAPI int mb_run(struct mb_interpreter_t* s);
+MBAPI int mb_suspend(struct mb_interpreter_t* s, void** l);
 
-MBAPI mb_error_e mb_get_last_error(mb_interpreter_t* s);
+MBAPI mb_error_e mb_get_last_error(struct mb_interpreter_t* s);
 MBAPI const char* mb_get_error_desc(mb_error_e err);
-MBAPI int mb_set_error_handler(mb_interpreter_t* s, mb_error_handler_t h);
-MBAPI int mb_set_printer(mb_interpreter_t* s, mb_print_func_t p);
-MBAPI int mb_set_inputer(mb_interpreter_t* s, mb_input_func_t p);
+MBAPI int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h);
+MBAPI int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p);
+MBAPI int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p);
 
 MBAPI int mb_gets(char* buf, int s);
 

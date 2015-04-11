@@ -1,7 +1,13 @@
+Apr. 11 2015
+Moved struct mb_interpreter_t from my_basic.h to my_basic.c
+Added an mb_has_argument interface to tell whether there is any more argument
+Added an MB_ENABLE_SOURCE_TRACE macro to enable or disable source tracing
+Disposed parsing context at runtime to reduce memory occupation
+
 Apr. 10 2015
 Improved compatibility with PellesC
 Fixed a double precision float parsing bug on all 32bit systems, thanks to Pito for pointing it out
-Fixed a exponential number parsing bug, thanks to Pito for pointing it out
+Fixed an exponential number parsing bug, thanks to Pito for pointing it out
 Fixed a crash bug when a script begins with a meaningless negtive number
 
 Mar. 25 2015
@@ -139,7 +145,7 @@ Fixed some mistakes
 Allowed underline character appear in an identifier
 
 Apr. 15 2011
-Fixed garbage collection and _label_t release bugs
+Fixed garbage collection and _label_t disposing bugs
 
 Apr. 14 2011
 Fixed some list / comparison operator bugs

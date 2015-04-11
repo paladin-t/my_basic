@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 0
-#define _VER_REVISION 47
+#define _VER_REVISION 48
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -275,9 +275,13 @@ typedef struct _object_t {
         _raw_t raw;
 	} data;
 	bool_t ref;
+#ifdef MB_ENABLE_SOURCE_TRACE
 	int source_pos;
 	unsigned short source_row;
 	unsigned short source_col;
+#else /* MB_ENABLE_SOURCE_TRACE */
+    char source_pos;
+#endif /* MB_ENABLE_SOURCE_TRACE */
 } _object_t;
 
 static const _object_t _OBJ_INT_UNIT = { _DT_INT, 1, false, 0 };
@@ -325,6 +329,24 @@ typedef struct _tuple3_t {
 	void* e2;
 	void* e3;
 } _tuple3_t;
+
+/* Interpreter tag */
+typedef struct mb_interpreter_t {
+    _ht_node_t* local_func_dict;
+    _ht_node_t* global_func_dict;
+    _ht_node_t* global_var_dict;
+    _ls_node_t* ast;
+    _parsing_context_t* parsing_context;
+    _running_context_t* running_context;
+    mb_error_e last_error;
+    int last_error_pos;
+    unsigned short last_error_row;
+    unsigned short last_error_col;
+    mb_error_handler_t error_handler;
+    mb_print_func_t printer;
+    mb_input_func_t inputer;
+    void* userdata;
+} mb_interpreter_t;
 
 static const char _PRECEDE_TABLE[19][19] = {
 	/* +    -    *    /    MOD  ^    (    )    =    >    <    >=   <=   ==   <>   AND  OR   NOT  NEG */
@@ -633,10 +655,15 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 			goto __exit; \
 		} while(0)
 #endif /* _WARING_AS_ERROR */
+#ifdef MB_ENABLE_SOURCE_TRACE
+#   define _HANDLE_ERROR(__s, __err, __obj, __ret, __exit, __result) _handle_error(__s, __err, (__obj)->source_pos, (__obj)->source_row, (__obj)->source_col, __ret, __exit, __result)
+#else /* MB_ENABLE_SOURCE_TRACE */
+#   define _HANDLE_ERROR(__s, __err, __obj, __ret, __exit, __result) _handle_error(__s, __err, 0, 0, 0, __ret, __exit, __result)
+#endif /* MB_ENABLE_SOURCE_TRACE */
 #define _handle_error_on_obj(__s, __err, __obj, __ret, __exit, __result) \
 	do { \
 		if(__obj) { \
-			_handle_error(__s, __err, (__obj)->source_pos, (__obj)->source_row, (__obj)->source_col, __ret, __exit, __result); \
+			_HANDLE_ERROR(__s, __err, __obj, __ret, __exit, __result); \
 		} else { \
 			_handle_error(__s, __err, 0, 0, 0, __ret, __exit, __result); \
 		} \
@@ -1725,7 +1752,11 @@ _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opn
 			result = 0;
 		}
 		_set_current_error(s, SE_RN_OPERATION_FAILED);
+#ifdef MB_ENABLE_SOURCE_TRACE
 		_set_error_pos(s, optr->source_pos, optr->source_row, optr->source_col);
+#else /* MB_ENABLE_SOURCE_TRACE */
+        _set_error_pos(s, 0, 0, 0);
+#endif /* MB_ENABLE_SOURCE_TRACE */
 	}
 
 	return result;
@@ -1779,7 +1810,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 
 	mb_assert(s && l);
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 	ast = *l;
 	garbage = _ls_create();
 	optr = _ls_create();
@@ -2107,7 +2138,7 @@ int _append_char_to_symbol(mb_interpreter_t* s, char c) {
 
 	mb_assert(s);
 
-	context = (_parsing_context_t*)(s->parsing_context);
+	context = s->parsing_context;
 
 	if(context->current_symbol_nonius + 1 >= _SINGLE_SYMBOL_MAX_LENGTH) {
 		_set_current_error(s, SE_PS_SYMBOL_TOO_LONG);
@@ -2131,7 +2162,7 @@ int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short
 
 	mb_assert(s);
 
-	context = (_parsing_context_t*)(s->parsing_context);
+	context = s->parsing_context;
 	if(context->current_symbol_nonius && context->current_symbol[0] != '\0') {
 		sym = (char*)mb_malloc(context->current_symbol_nonius + 1);
 		memcpy(sym, context->current_symbol, context->current_symbol_nonius + 1);
@@ -2159,19 +2190,23 @@ int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int pos, unsi
 
 	mb_assert(s && sym);
 
-	ast = (_ls_node_t*)(s->ast);
+	ast = s->ast;
 	result = _create_symbol(s, ast, sym, &obj, &assign, delsym);
 	if(obj) {
+#ifdef MB_ENABLE_SOURCE_TRACE
 		obj->source_pos = pos;
 		obj->source_row = row;
 		obj->source_col = col;
+#else /* MB_ENABLE_SOURCE_TRACE */
+        obj->source_pos = (char)pos;
+#endif /* MB_ENABLE_SOURCE_TRACE */
 
 		node = _ls_pushback(ast, obj);
 		if(assign) {
 			*assign = node;
 		}
 
-		context = (_parsing_context_t*)s->parsing_context;
+		context = s->parsing_context;
 		context->last_symbol = obj;
 	}
 
@@ -2193,12 +2228,16 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
     memset(value, 0, sizeof(_raw_t));
 
-	context = (_parsing_context_t*)s->parsing_context;
+	context = s->parsing_context;
 
 	*obj = (_object_t*)mb_malloc(sizeof(_object_t));
 	memset(*obj, 0, sizeof(_object_t));
+#ifdef MB_ENABLE_SOURCE_TRACE
 	(*obj)->source_pos = -1;
 	(*obj)->source_row = (*obj)->source_col = 0xffff;
+#else /* MB_ENABLE_SOURCE_TRACE */
+    (*obj)->source_pos = -1;
+#endif /* MB_ENABLE_SOURCE_TRACE */
 
 	type = _get_symbol_type(s, sym, &value);
 	(*obj)->type = type;
@@ -2233,7 +2272,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
 		break;
 	case _DT_ARRAY:
-		glbsyminscope = _ht_find((_ht_node_t*)s->global_var_dict, sym);
+		glbsyminscope = _ht_find(s->global_var_dict, sym);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
 			(*obj)->data.array = ((_object_t*)(glbsyminscope->data))->data.array;
 			(*obj)->ref = true;
@@ -2245,7 +2284,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
             memcpy(&tmp.array->type, value, sizeof(tmp.array->type));
 			(*obj)->data.array = tmp.array;
 
-			ul = _ht_set_or_insert((_ht_node_t*)s->global_var_dict, sym, *obj);
+			ul = _ht_set_or_insert(s->global_var_dict, sym, *obj);
 			mb_assert(ul);
 
 			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
@@ -2257,7 +2296,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
 		break;
 	case _DT_VAR:
-		glbsyminscope = _ht_find((_ht_node_t*)s->global_var_dict, sym);
+		glbsyminscope = _ht_find(s->global_var_dict, sym);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
 			(*obj)->data.variable = ((_object_t*)(glbsyminscope->data))->data.variable;
 			(*obj)->ref = true;
@@ -2272,7 +2311,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			tmp.var->data->data.integer = 0;
 			(*obj)->data.variable = tmp.var;
 
-			ul = _ht_set_or_insert((_ht_node_t*)s->global_var_dict, sym, *obj);
+			ul = _ht_set_or_insert(s->global_var_dict, sym, *obj);
 			mb_assert(ul);
 
 			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
@@ -2296,7 +2335,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 				*asgn = &(tmp.label->node);
 				(*obj)->data.label = tmp.label;
 
-				ul = _ht_set_or_insert((_ht_node_t*)s->global_var_dict, sym, *obj);
+				ul = _ht_set_or_insert(s->global_var_dict, sym, *obj);
 				mb_assert(ul);
 
 				*obj = (_object_t*)mb_malloc(sizeof(_object_t));
@@ -2344,7 +2383,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	_sl = strlen(sym);
 	mb_assert(_sl > 0);
 
-	context = (_parsing_context_t*)s->parsing_context;
+	context = s->parsing_context;
 
 	/* int_t */
 	tmp.integer = (int_t)strtol(sym, &conv_suc, 0);
@@ -2371,7 +2410,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 		goto _exit;
 	}
 	/* _array_t */
-	glbsyminscope = _ht_find((_ht_node_t*)s->global_var_dict, sym);
+	glbsyminscope = _ht_find(s->global_var_dict, sym);
 	if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
 		tmp.obj = (_object_t*)(glbsyminscope->data);
         memcpy(*value, &(tmp.obj->data.array->type), sizeof(tmp.obj->data.array->type));
@@ -2403,8 +2442,8 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			goto _exit;
 		}
 	}
-	lclsyminscope = _ht_find((_ht_node_t*)s->local_func_dict, sym);
-	glbsyminscope = _ht_find((_ht_node_t*)s->global_func_dict, sym);
+	lclsyminscope = _ht_find(s->local_func_dict, sym);
+	glbsyminscope = _ht_find(s->global_func_dict, sym);
 	if(lclsyminscope || glbsyminscope) {
 		ptr = lclsyminscope ? (intptr_t)lclsyminscope->data : (intptr_t)glbsyminscope->data;
         memcpy(*value, &ptr, sizeof(intptr_t));
@@ -2426,7 +2465,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 		goto _exit;
 	}
 	/* _var_t */
-	glbsyminscope = _ht_find((_ht_node_t*)s->global_var_dict, sym);
+	glbsyminscope = _ht_find(s->global_var_dict, sym);
 	if(glbsyminscope) {
 		if(((_object_t*)glbsyminscope->data)->type != _DT_LABEL) {
             memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
@@ -2439,7 +2478,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	/* _label_t */
 	if(context->current_char == ':') {
 		if(!context->last_symbol || context->last_symbol->type == _DT_EOS) {
-			glbsyminscope = _ht_find((_ht_node_t*)s->global_var_dict, sym);
+			glbsyminscope = _ht_find(s->global_var_dict, sym);
 			if(glbsyminscope) {
                 memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
 			}
@@ -2471,7 +2510,7 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 
 	mb_assert(s && s->parsing_context);
 
-	context = (_parsing_context_t*)(s->parsing_context);
+	context = s->parsing_context;
 
     last_char = context->current_char;
 	context->current_char = c;
@@ -2888,9 +2927,13 @@ int _dispose_object(_object_t* obj) {
 	obj->ref = false;
 	obj->type = _DT_NIL;
 	memset(&obj->data, 0, sizeof(obj->data));
+#ifdef MB_ENABLE_SOURCE_TRACE
 	obj->source_pos = 0;
 	obj->source_row = 0;
 	obj->source_col = 0;
+#else /* MB_ENABLE_SOURCE_TRACE */
+    obj->source_pos = 0;
+#endif /* MB_ENABLE_SOURCE_TRACE */
 	++result;
 
 _exit:
@@ -3053,7 +3096,7 @@ void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s)
 		return;
 
 	obj = (_object_t*)data;
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 
 	if(obj->type == _DT_STRING && running->intermediate_value.type == MB_DT_STRING && obj->data.string == running->intermediate_value.value.string) {
 		running->intermediate_value.type = MB_DT_NIL;
@@ -3070,7 +3113,7 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 
 	mb_assert(s && l);
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 
 	ast = *l;
 
@@ -3201,7 +3244,7 @@ int _register_func(mb_interpreter_t* s, const char* n, mb_func_t f, bool_t local
 		return result;
 	}
 
-	scope = (_ht_node_t*)(local ? s->local_func_dict : s->global_func_dict);
+	scope = local ? s->local_func_dict : s->global_func_dict;
 	exists = _ht_find(scope, (void*)n);
 	if(!exists) {
 		size_t _sl = strlen(n);
@@ -3229,7 +3272,7 @@ int _remove_func(mb_interpreter_t* s, const char* n, bool_t local) {
 		return result;
 	}
 
-	scope = (_ht_node_t*)(local ? s->local_func_dict : s->global_func_dict);
+	scope = local ? s->local_func_dict : s->global_func_dict;
 	exists = _ht_find(scope, (void*)n);
 	if(exists) {
 		size_t _sl = strlen(n);
@@ -3252,9 +3295,9 @@ int _open_constant(mb_interpreter_t* s) {
 
 	mb_assert(s);
 
-	ul = _ht_set_or_insert((_ht_node_t*)(s->global_var_dict), "TRUE", (_OBJ_BOOL_TRUE));
+	ul = _ht_set_or_insert(s->global_var_dict, "TRUE", _OBJ_BOOL_TRUE);
 	mb_assert(ul);
-	ul = _ht_set_or_insert((_ht_node_t*)(s->global_var_dict), "FALSE", (_OBJ_BOOL_FALSE));
+	ul = _ht_set_or_insert(s->global_var_dict, "FALSE", _OBJ_BOOL_FALSE);
 	mb_assert(ul);
 
 	return result;
@@ -3447,7 +3490,7 @@ int mb_dispose(void) {
 	return result;
 }
 
-int mb_open(mb_interpreter_t** s) {
+int mb_open(struct mb_interpreter_t** s) {
 	/* Initialize a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 	_ht_node_t* local_scope = 0;
@@ -3493,7 +3536,7 @@ int mb_open(mb_interpreter_t** s) {
 	return result;
 }
 
-int mb_close(mb_interpreter_t** s) {
+int mb_close(struct mb_interpreter_t** s) {
 	/* Close a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 	_ht_node_t* local_scope = 0;
@@ -3507,7 +3550,7 @@ int mb_close(mb_interpreter_t** s) {
 	_close_std_lib(*s);
 	_close_core_lib(*s);
 
-	running = (_running_context_t*)((*s)->running_context);
+	running = (*s)->running_context;
 
 	mb_dispose_value(*s, running->intermediate_value);
 	_ls_foreach(running->temp_values, _destroy_object);
@@ -3517,22 +3560,24 @@ int mb_close(mb_interpreter_t** s) {
 	_ls_destroy(running->sub_stack);
 	safe_free(running);
 
-	context = (_parsing_context_t*)((*s)->parsing_context);
-	safe_free(context);
+	context = (*s)->parsing_context;
+    if(context) {
+        safe_free(context);
+    }
 
-	ast = (_ls_node_t*)((*s)->ast);
+	ast = (*s)->ast;
 	_ls_foreach(ast, _destroy_object);
 	_ls_destroy(ast);
 
-	global_scope = (_ht_node_t*)((*s)->global_var_dict);
+	global_scope = (*s)->global_var_dict;
 	_ht_foreach(global_scope, _destroy_object);
 	_ht_destroy(global_scope);
 
-	global_scope = (_ht_node_t*)((*s)->global_func_dict);
+	global_scope = (*s)->global_func_dict;
 	_ht_foreach(global_scope, _ls_free_extra);
 	_ht_destroy(global_scope);
 
-	local_scope = (_ht_node_t*)((*s)->local_func_dict);
+	local_scope = (*s)->local_func_dict;
 	_ht_foreach(local_scope, _ls_free_extra);
 	_ht_destroy(local_scope);
 
@@ -3544,7 +3589,7 @@ int mb_close(mb_interpreter_t** s) {
 	return result;
 }
 
-int mb_reset(mb_interpreter_t** s, bool_t clrf/* = false*/) {
+int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
 	/* Reset a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 	_ht_node_t* global_scope = 0;
@@ -3556,26 +3601,31 @@ int mb_reset(mb_interpreter_t** s, bool_t clrf/* = false*/) {
 
 	(*s)->last_error = SE_NO_ERR;
 
-	running = (_running_context_t*)((*s)->running_context);
+	running = (*s)->running_context;
 	_ls_clear(running->sub_stack);
 	running->suspent_point = 0;
 	running->next_loop_var = 0;
 	running->no_eat_comma_mark = 0;
 	memset(&(running->intermediate_value), 0, sizeof(mb_value_t));
 
-	context = (_parsing_context_t*)((*s)->parsing_context);
+	context = (*s)->parsing_context;
+    if(!context) {
+        context = (_parsing_context_t*)mb_malloc(sizeof(_parsing_context_t));
+        memset(context, 0, sizeof(_parsing_context_t));
+        (*s)->parsing_context = context;
+    }
 	memset(context, 0, sizeof(_parsing_context_t));
 
-	ast = (_ls_node_t*)((*s)->ast);
+	ast = (*s)->ast;
 	_ls_foreach(ast, _destroy_object);
 	_ls_clear(ast);
 
-	global_scope = (_ht_node_t*)((*s)->global_var_dict);
+	global_scope = (*s)->global_var_dict;
 	_ht_foreach(global_scope, _destroy_object);
 	_ht_clear(global_scope);
 
 	if(clrf) {
-		global_scope = (_ht_node_t*)((*s)->global_func_dict);
+		global_scope = (*s)->global_func_dict;
 		_ht_foreach(global_scope, _ls_free_extra);
 		_ht_clear(global_scope);
 	}
@@ -3586,22 +3636,22 @@ int mb_reset(mb_interpreter_t** s, bool_t clrf/* = false*/) {
 	return result;
 }
 
-int mb_register_func(mb_interpreter_t* s, const char* n, mb_func_t f) {
+int mb_register_func(struct mb_interpreter_t* s, const char* n, mb_func_t f) {
 	/* Register a remote function to a MY-BASIC environment */
 	return _register_func(s, n, f, false);
 }
 
-int mb_remove_func(mb_interpreter_t* s, const char* n) {
+int mb_remove_func(struct mb_interpreter_t* s, const char* n) {
 	/* Remove a remote function from a MY-BASIC environment */
 	return _remove_func(s, n, false);
 }
 
-int mb_remove_reserved_func(mb_interpreter_t* s, const char* n) {
+int mb_remove_reserved_func(struct mb_interpreter_t* s, const char* n) {
 	/* Remove a reserved remote function from a MY-BASIC environment */
 	return _remove_func(s, n, true);
 }
 
-int mb_attempt_func_begin(mb_interpreter_t* s, void** l) {
+int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
 	/* Try attempting to begin a function */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -3617,7 +3667,7 @@ int mb_attempt_func_begin(mb_interpreter_t* s, void** l) {
 	}
 	ast = ast->next;
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 	++running->no_eat_comma_mark;
 
 _exit:
@@ -3626,20 +3676,20 @@ _exit:
 	return result;
 }
 
-int mb_attempt_func_end(mb_interpreter_t* s, void** l) {
+int mb_attempt_func_end(struct mb_interpreter_t* s, void** l) {
 	/* Try attempting to end a function */
 	int result = MB_FUNC_OK;
 	_running_context_t* running = 0;
 
 	mb_assert(s && l);
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 	--running->no_eat_comma_mark;
 
 	return result;
 }
 
-int mb_attempt_open_bracket(mb_interpreter_t* s, void** l) {
+int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l) {
 	/* Try attempting an open bracket */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -3661,7 +3711,7 @@ _exit:
 	return result;
 }
 
-int mb_attempt_close_bracket(mb_interpreter_t* s, void** l) {
+int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
 	/* Try attempting a close bracket */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -3670,6 +3720,9 @@ int mb_attempt_close_bracket(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	ast = (_ls_node_t*)(*l);
+    if(!ast) {
+        _handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
+    }
 	obj = (_object_t*)(ast->data);
 	if(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_close_bracket)) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -3682,7 +3735,26 @@ _exit:
 	return result;
 }
 
-int mb_pop_int(mb_interpreter_t* s, void** l, int_t* val) {
+int mb_has_arg(struct mb_interpreter_t* s, void** l) {
+    /* Detect whether there is any more argument */
+    int result = 0;
+    _ls_node_t* ast = 0;
+    _object_t* obj = 0;
+
+    mb_assert(s && l);
+
+    ast = (_ls_node_t*)(*l);
+    if(ast) {
+        obj = (_object_t*)(ast->data);
+        if(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_close_bracket) && obj->type != _DT_EOS) {
+            result = obj->data.integer;
+        }
+    }
+
+    return result;
+}
+
+int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val) {
 	/* Pop an integer argument */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -3713,7 +3785,7 @@ _exit:
 	return result;
 }
 
-int mb_pop_real(mb_interpreter_t* s, void** l, real_t* val) {
+int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val) {
 	/* Pop a float point argument */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -3744,7 +3816,7 @@ _exit:
 	return result;
 }
 
-int mb_pop_string(mb_interpreter_t* s, void** l, char** val) {
+int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val) {
 	/* Pop a string argument */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -3771,7 +3843,7 @@ _exit:
 	return result;
 }
 
-int mb_pop_value(mb_interpreter_t* s, void** l, mb_value_t* val) {
+int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 	/* Pop an argument */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -3782,7 +3854,7 @@ int mb_pop_value(mb_interpreter_t* s, void** l, mb_value_t* val) {
 
 	mb_assert(s && l && val);
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 
 	if(!_ls_empty(running->in_neg_expr))
 		inep = (int*)_ls_back(running->in_neg_expr)->data;
@@ -3819,7 +3891,7 @@ _exit:
 	return result;
 }
 
-int mb_push_int(mb_interpreter_t* s, void** l, int_t val) {
+int mb_push_int(struct mb_interpreter_t* s, void** l, int_t val) {
 	/* Push an integer argument */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -3833,7 +3905,7 @@ int mb_push_int(mb_interpreter_t* s, void** l, int_t val) {
 	return result;
 }
 
-int mb_push_real(mb_interpreter_t* s, void** l, real_t val) {
+int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val) {
 	/* Push a float point argument */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -3847,7 +3919,7 @@ int mb_push_real(mb_interpreter_t* s, void** l, real_t val) {
 	return result;
 }
 
-int mb_push_string(mb_interpreter_t* s, void** l, char* val) {
+int mb_push_string(struct mb_interpreter_t* s, void** l, char* val) {
 	/* Push a string argument */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -3861,20 +3933,20 @@ int mb_push_string(mb_interpreter_t* s, void** l, char* val) {
 	return result;
 }
 
-int mb_push_value(mb_interpreter_t* s, void** l, mb_value_t val) {
+int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	/* Push an argument */
 	int result = MB_FUNC_OK;
 	_running_context_t* running = 0;
 
 	mb_assert(s && l);
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 	running->intermediate_value = val;
 
 	return result;
 }
 
-int mb_load_string(mb_interpreter_t* s, const char* l) {
+int mb_load_string(struct mb_interpreter_t* s, const char* l) {
 	/* Load a script string */
 	int result = MB_FUNC_OK;
 	char ch = 0;
@@ -3889,7 +3961,7 @@ int mb_load_string(mb_interpreter_t* s, const char* l) {
 
 	mb_assert(s && s->parsing_context);
 
-	context = (_parsing_context_t*)(s->parsing_context);
+	context = s->parsing_context;
 
 	while(l[i]) {
 		ch = l[i];
@@ -3927,7 +3999,7 @@ _exit:
 	return result;
 }
 
-int mb_load_file(mb_interpreter_t* s, const char* f) {
+int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 	/* Load a script file */
 	int result = MB_FUNC_OK;
 	FILE* fp = 0;
@@ -3938,7 +4010,7 @@ int mb_load_file(mb_interpreter_t* s, const char* f) {
 
 	mb_assert(s && s->parsing_context);
 
-	context = (_parsing_context_t*)(s->parsing_context);
+	context = s->parsing_context;
 
 	fp = fopen(f, "rb");
 	if(fp) {
@@ -3970,13 +4042,15 @@ _exit:
 	return result;
 }
 
-int mb_run(mb_interpreter_t* s) {
+int mb_run(struct mb_interpreter_t* s) {
 	/* Run loaded and parsed script */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_running_context_t* running = 0;
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
+
+    safe_free(s->parsing_context);
 
 	if(running->suspent_point) {
 		ast = running->suspent_point;
@@ -3984,7 +4058,7 @@ int mb_run(mb_interpreter_t* s) {
 		running->suspent_point = 0;
 	} else {
 		mb_assert(!running->no_eat_comma_mark);
-		ast = (_ls_node_t*)(s->ast);
+		ast = s->ast;
 		ast = ast->next;
 		if(!ast) {
 			_set_current_error(s, SE_RN_EMPTY_PROGRAM);
@@ -4025,7 +4099,7 @@ _exit:
 	return result;
 }
 
-int mb_suspend(mb_interpreter_t* s, void** l) {
+int mb_suspend(struct mb_interpreter_t* s, void** l) {
 	/* Suspend current execution and save the context */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast;
@@ -4033,12 +4107,12 @@ int mb_suspend(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l && *l);
 
 	ast = (_ls_node_t*)(*l);
-	((_running_context_t*)(s->running_context))->suspent_point = ast;
+	s->running_context->suspent_point = ast;
 
 	return result;
 }
 
-mb_error_e mb_get_last_error(mb_interpreter_t* s) {
+mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
 	/* Get last error information */
 	mb_error_e result = SE_NO_ERR;
 
@@ -4055,7 +4129,7 @@ const char* mb_get_error_desc(mb_error_e err) {
 	return _get_error_desc(err);
 }
 
-int mb_set_error_handler(mb_interpreter_t* s, mb_error_handler_t h) {
+int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h) {
 	/* Set an error handler to an interpreter instance */
 	int result = MB_FUNC_OK;
 
@@ -4066,7 +4140,7 @@ int mb_set_error_handler(mb_interpreter_t* s, mb_error_handler_t h) {
 	return result;
 }
 
-int mb_set_printer(mb_interpreter_t* s, mb_print_func_t p) {
+int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p) {
 	/* Set a print functor to an interpreter instance */
 	int result = MB_FUNC_OK;
 
@@ -4077,7 +4151,7 @@ int mb_set_printer(mb_interpreter_t* s, mb_print_func_t p) {
 	return result;
 }
 
-int mb_set_inputer(mb_interpreter_t* s, mb_input_func_t p) {
+int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 	/* Set an input functor to an interpreter instance */
 	int result = MB_FUNC_OK;
 
@@ -4246,7 +4320,7 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 
 	if(!_ls_empty(running->in_neg_expr)) {
 		inep = (int*)_ls_back(running->in_neg_expr)->data;
@@ -4671,7 +4745,7 @@ int _core_if(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 
 	ast = (_ls_node_t*)(*l);
 	ast = ast->next;
@@ -4788,7 +4862,7 @@ int _core_for(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 	ast = (_ls_node_t*)(*l);
 	ast = ast->next;
 
@@ -4935,7 +5009,7 @@ int _core_next(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 	ast = (_ls_node_t*)(*l);
 
 	result = MB_LOOP_CONTINUE;
@@ -5143,7 +5217,7 @@ int _core_goto(mb_interpreter_t* s, void** l) {
 
 	label = (_label_t*)(obj->data.label);
 	if(!label->node) {
-		glbsyminscope = _ht_find((_ht_node_t*)s->global_var_dict, label->name);
+		glbsyminscope = _ht_find(s->global_var_dict, label->name);
 		if(!(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_LABEL)) {
 			_handle_error_on_obj(s, SE_RN_LABEL_NOT_EXISTS, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
@@ -5167,7 +5241,7 @@ int _core_gosub(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 	ast = (_ls_node_t*)(*l);
 	result = _core_goto(s, l);
 	if(result == MB_FUNC_OK) {
@@ -5185,7 +5259,7 @@ int _core_return(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 	ast = (_ls_node_t*)_ls_popback(running->sub_stack);
 	if(!ast) {
 		_handle_error_on_obj(s, SE_RN_NO_RETURN_POINT, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -5944,7 +6018,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 	val_ptr = &val_obj;
 	memset(val_ptr, 0, sizeof(_object_t));
 
-	running = (_running_context_t*)(s->running_context);
+	running = s->running_context;
 	++running->no_eat_comma_mark;
 	ast = (_ls_node_t*)(*l);
 	ast = ast->next;

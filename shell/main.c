@@ -70,7 +70,7 @@ typedef struct _code_line_t {
 	int size;
 } _code_line_t;
 
-static mb_interpreter_t* bas = 0;
+static struct mb_interpreter_t* bas = 0;
 
 static _code_line_t* c = 0;
 
@@ -186,7 +186,7 @@ static int _save_file(const char* path, const char* txt) {
 	return 0;
 }
 
-static int beep(mb_interpreter_t* s, void** l) {
+static int beep(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
 	mb_assert(s && l);
@@ -199,7 +199,7 @@ static int beep(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-static void _on_error(mb_interpreter_t* s, mb_error_e e, char* m, int p, unsigned short row, unsigned short col, int abort_code) {
+static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, int p, unsigned short row, unsigned short col, int abort_code) {
 	mb_unrefvar(s);
 	if(SE_NO_ERR != e) {
 		printf("Error:\n    [POS] %d, [ROW] %d, [COL] %d,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d\n", p, row, col, e, m, abort_code);
