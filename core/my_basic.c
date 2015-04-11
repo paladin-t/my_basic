@@ -90,7 +90,9 @@ extern "C" {
 #define _NO_EAT_COMMA 2
 
 #if (defined _DEBUG && !defined NDEBUG)
-#	define _MB_ENABLE_ALLOC_STAT
+#   ifndef _MB_ENABLE_ALLOC_STAT
+#       define _MB_ENABLE_ALLOC_STAT
+#   endif /* _MB_ENABLE_ALLOC_STAT */
 #endif /* (defined _DEBUG && !defined NDEBUG) */
 
 /* Helper */
