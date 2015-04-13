@@ -62,8 +62,8 @@ IDI_ICON_MAIN           ICON                    "icon.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,45
- PRODUCTVERSION 1,0,0,45
+ FILEVERSION 1,0,0,49
+ PRODUCTVERSION 1,0,0,49
  FILEFLAGSMASK 0x17L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -81,13 +81,13 @@ BEGIN
             VALUE "Comments", "MY-BASIC"
             VALUE "CompanyName", "W. Renxin"
             VALUE "FileDescription", "MY-BASIC interpreter"
-            VALUE "FileVersion", "1, 0, 0, 48"
+            VALUE "FileVersion", "1, 0, 0, 49"
             VALUE "InternalName", "my_basic"
             VALUE "LegalCopyright", "Copyright (C) 2011 - 2015 W. Renxin"
             VALUE "LegalTrademarks", "MY-BASIC"
             VALUE "OriginalFilename", "my_basic.exe"
             VALUE "ProductName", "MY-BASIC"
-            VALUE "ProductVersion", "1, 0, 0, 48"
+            VALUE "ProductVersion", "1, 0, 0, 49"
         END
     END
     BLOCK "VarFileInfo"

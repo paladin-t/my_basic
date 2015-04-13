@@ -120,7 +120,7 @@ static char* _get_code(_code_line_t* code) {
 	for(i = 0; i < code->count; ++i) {
 		result = strcat(result, code->lines[i]);
 		if(i != code->count - 1) {
-			result = strcat(result, "\r\n");
+			result = strcat(result, "\n");
 		}
 	}
 
@@ -201,8 +201,9 @@ static int beep(struct mb_interpreter_t* s, void** l) {
 
 static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, int p, unsigned short row, unsigned short col, int abort_code) {
 	mb_unrefvar(s);
+	mb_unrefvar(p);
 	if(SE_NO_ERR != e) {
-		printf("Error:\n    [POS] %d, [ROW] %d, [COL] %d,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d\n", p, row, col, e, m, abort_code);
+		printf("Error:\n    [LINE] %d, [COL] %d,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d\n", row, col, e, m, abort_code);
 	}
 }
 
@@ -251,9 +252,10 @@ static void _list_program(const char* sn, const char* cn) {
 	lsn = atoi(sn);
 	lcn = atoi(cn);
 	if(lsn == 0 && lcn == 0) {
-		char* txt = _get_code(c);
-		printf("%s\n", txt);
-		free(txt);
+		long i = 0;
+		for(i = 0; i < c->count; ++i) {
+			printf("%d]%s\n", i + 1, c->lines[i]);
+		}
 	} else {
 		long i = 0;
 		long e = 0;
@@ -273,7 +275,7 @@ static void _list_program(const char* sn, const char* cn) {
 			if(i >= c->count) {
 				break;
 			}
-			printf("%s\n", c->lines[i]);
+			printf("%d]%s\n", i + 1, c->lines[i]);
 		}
 	}
 }

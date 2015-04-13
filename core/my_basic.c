@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 0
-#define _VER_REVISION 48
+#define _VER_REVISION 49
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -190,9 +190,10 @@ static const char* _ERR_DESC[] = {
 	"Array subscript expected",
 	"Structure not completed",
 	"Function expected",
-	"String expected",
 	"Variable or array identifier expected",
 	"Assign operator expected",
+	"String expected",
+	"Number expected",
 	"Integer expected",
 	"ELSE statement expected",
 	"TO statement expected",
@@ -249,8 +250,11 @@ typedef struct _var_t {
 typedef struct _array_t {
 	char* name;
 	_data_e type;
-	unsigned int count;
+#ifndef MB_SIMPLE_ARRAY
+	_data_e* types;
+#endif /* MB_SIMPLE_ARRAY */
 	void* raw;
+	unsigned int count;
 	int dimension_count;
 	int dimensions[_MAX_DIMENSION_COUNT];
 } _array_t;
@@ -260,7 +264,9 @@ typedef struct _label_t {
 	_ls_node_t* node;
 } _label_t;
 
-typedef unsigned char _raw_t[sizeof(union { int_t i; real_t r; void* p; })];
+typedef union _raw_u { int_t i; real_t r; void* p; } _raw_u;
+
+typedef unsigned char _raw_t[sizeof(_raw_u)];
 
 typedef struct _object_t {
 	_data_e type;
@@ -1894,7 +1900,10 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					memset(arr_elem, 0, sizeof(_object_t));
 					_ls_pushback(garbage, arr_elem);
 					arr_elem->type = arr_type;
-					if(arr_type == _DT_REAL) {
+					arr_elem->ref = true;
+					if(arr_type == _DT_INT) {
+						arr_elem->data.integer = arr_val.integer;
+					} else if(arr_type == _DT_REAL) {
 						arr_elem->data.float_point = arr_val.float_point;
 					} else if(arr_type == _DT_STRING) {
 						arr_elem->data.string = arr_val.string;
@@ -2608,6 +2617,7 @@ int_t _get_size_of(_data_e type) {
 	/* Get the size of a data type */
 	int_t result = 0;
 
+#ifdef MB_SIMPLE_ARRAY
 	if(type == _DT_INT) {
 		result = sizeof(int_t);
 	} else if(type == _DT_REAL) {
@@ -2617,6 +2627,9 @@ int_t _get_size_of(_data_e type) {
 	} else {
 		mb_assert(0 && "Unsupported");
 	}
+#else /* MB_SIMPLE_ARRAY */
+	result = sizeof(_raw_u);
+#endif /* MB_SIMPLE_ARRAY */
 
 	return result;
 }
@@ -2726,8 +2739,18 @@ bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, m
 	pos = (unsigned int)(elemsize * index);
 	rawptr = (void*)((intptr_t)arr->raw + pos);
 	if(arr->type == _DT_REAL) {
+#ifdef MB_SIMPLE_ARRAY
 		val->float_point = *((real_t*)rawptr);
 		*type = _DT_REAL;
+#else /* MB_SIMPLE_ARRAY */
+		if(arr->types[index] == _DT_REAL) {
+			val->float_point = *((real_t*)rawptr);
+			*type = _DT_REAL;
+		} else {
+			val->integer = *((int_t*)rawptr);
+			*type = _DT_INT;
+		}
+#endif /* MB_SIMPLE_ARRAY */
 	} else if(arr->type == _DT_STRING) {
 		val->string = *((char**)rawptr);
 		*type = _DT_STRING;
@@ -2752,9 +2775,17 @@ bool_t _set_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, m
 	pos = (unsigned int)(elemsize * index);
 	rawptr = (void*)((intptr_t)arr->raw + pos);
 	if(*type == _DT_INT) {
+#ifdef MB_SIMPLE_ARRAY
 		*((real_t*)rawptr) = (real_t)val->integer;
+#else /* MB_SIMPLE_ARRAY */
+		*((int_t*)rawptr) = val->integer;
+		arr->types[index] = _DT_INT;
+#endif /* MB_SIMPLE_ARRAY */
 	} else if(*type == _DT_REAL) {
 		*((real_t*)rawptr) = val->float_point;
+#ifndef MB_SIMPLE_ARRAY
+		arr->types[index] = _DT_REAL;
+#endif /* MB_SIMPLE_ARRAY */
 	} else if(*type == _DT_STRING) {
 		size_t _sl = strlen(val->string);
 		*((char**)rawptr) = (char*)mb_malloc(_sl + 1);
@@ -2769,47 +2800,56 @@ bool_t _set_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, m
 void _init_array(_array_t* arr) {
 	/* Initialize an array */
 	int elemsize = 0;
+#ifndef MB_SIMPLE_ARRAY
+	unsigned int ul = 0;
+#endif
 
 	mb_assert(arr);
 
+#ifdef MB_SIMPLE_ARRAY
 	elemsize = (int)_get_size_of(arr->type);
+#else /* MB_SIMPLE_ARRAY */
+	elemsize = (int)_get_size_of(_DT_ANY);
+#endif /* MB_SIMPLE_ARRAY */
 	mb_assert(arr->count > 0);
 	mb_assert(!arr->raw);
 	arr->raw = (void*)mb_malloc(elemsize * arr->count);
 	if(arr->raw) {
 		memset(arr->raw, 0, elemsize * arr->count);
 	}
+#ifndef MB_SIMPLE_ARRAY
+	arr->types = (_data_e*)mb_malloc(sizeof(_data_e) * arr->count);
+	if(arr->types) {
+		for(ul = 0; ul < arr->count; ++ul) {
+			arr->types[ul] = _DT_INT;
+		}
+	}
+#endif /* MB_SIMPLE_ARRAY */
 }
 
 void _clear_array(_array_t* arr) {
 	/* Clear an array */
-	char** strs = 0;
+	char* str = 0;
+	int_t elemsize = 0;
+	unsigned int pos = 0;
+	void* rawptr = 0;
 	unsigned int ul = 0;
 
 	mb_assert(arr);
 
 	if(arr->raw) {
-		switch(arr->type) {
-		case _DT_INT: /* Fall through */
-		case _DT_REAL:
-			safe_free(arr->raw);
-
-			break;
-		case _DT_STRING:
-			strs = (char**)arr->raw;
+		if(arr->type == _DT_STRING) {
 			for(ul = 0; ul < arr->count; ++ul) {
-				if(strs[ul]) {
-					safe_free(strs[ul]);
+				elemsize = _get_size_of(arr->type);
+				pos = (unsigned int)(elemsize * ul);
+				rawptr = (void*)((intptr_t)arr->raw + pos);
+				str = *((char**)rawptr);
+				if(str) {
+					safe_free(str);
 				}
 			}
-			safe_free(arr->raw);
-
-			break;
-		default:
-			mb_assert(0 && "Unsupported");
-
-			break;
 		}
+		safe_free(arr->raw);
 		arr->raw = 0;
 	}
 }
@@ -2820,6 +2860,11 @@ void _destroy_array(_array_t* arr) {
 
 	_clear_array(arr);
 	safe_free(arr->name);
+#ifndef MB_SIMPLE_ARRAY
+	if(arr->types) {
+		safe_free(arr->types);
+	}
+#endif /* MB_SIMPLE_ARRAY */
 	safe_free(arr);
 }
 
@@ -4352,10 +4397,13 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -4646,16 +4694,28 @@ int _core_let(mb_interpreter_t* s, void** l) {
 		}
 	} else if(arr) {
 		mb_value_u _val;
-		if(val->type == _DT_INT) {
+		switch(val->type) {
+		case _DT_INT:
 			_val.integer = val->data.integer;
-		} else if(val->type == _DT_REAL) {
+
+			break;
+		case _DT_REAL:
 			_val.float_point = val->data.float_point;
-		} else if(val->type == _DT_STRING) {
+
+			break;
+		case _DT_STRING:
 			_val.string = val->data.string;
-		} else {
+
+			break;
+		default:
 			mb_assert(0 && "Unsupported");
+
+			break;
 		}
 		_set_array_elem(s, arr, arr_idx, &_val, &val->type);
+		if(val->type == _DT_STRING && !val->ref) {
+			safe_free(val->data.string);
+		}
 	}
 	safe_free(val);
 
@@ -5323,10 +5383,13 @@ int _std_abs(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -5354,10 +5417,13 @@ int _std_sgn(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_int(s, l, arg.value.integer));
 
+_exit:
 	return result;
 }
 
@@ -5385,10 +5451,13 @@ int _std_sqr(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -5416,10 +5485,13 @@ int _std_floor(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_int(s, l, arg.value.integer));
 
+_exit:
 	return result;
 }
 
@@ -5447,10 +5519,13 @@ int _std_ceil(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_int(s, l, arg.value.integer));
 
+_exit:
 	return result;
 }
 
@@ -5478,10 +5553,13 @@ int _std_fix(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_int(s, l, arg.value.integer));
 
+_exit:
 	return result;
 }
 
@@ -5509,10 +5587,13 @@ int _std_round(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_int(s, l, arg.value.integer));
 
+_exit:
 	return result;
 }
 
@@ -5556,10 +5637,13 @@ int _std_sin(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -5587,10 +5671,13 @@ int _std_cos(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -5618,10 +5705,13 @@ int _std_tan(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -5649,10 +5739,13 @@ int _std_asin(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -5680,10 +5773,13 @@ int _std_acos(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -5711,10 +5807,13 @@ int _std_atan(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -5742,10 +5841,13 @@ int _std_exp(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -5773,10 +5875,13 @@ int _std_log(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+
 		break;
 	}
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 

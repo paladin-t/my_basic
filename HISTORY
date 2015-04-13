@@ -1,3 +1,9 @@
+Apr. 13 2015
+Added mixed integer/float array support
+Added warning prompt when passing strings to maths functions
+Fixed a memory leak when storing strings in an array
+Polisned the interpreter commands
+
 Apr. 11 2015
 Moved struct mb_interpreter_t from my_basic.h to my_basic.c
 Added an mb_has_argument interface to tell whether there is any more argument
