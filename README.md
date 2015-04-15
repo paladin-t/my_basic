@@ -35,7 +35,11 @@ MY-BASIC is cleanly written in a single C source file and an associated header f
 
 For more details about using MY-BASIC with exist projects, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf).
 
-## [FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
+## WIKI
+
+[FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
+
+[How to redirect PRINT and INPUT?](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
 
 ## References
 **Notes**
