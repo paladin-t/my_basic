@@ -48,8 +48,6 @@ For more details about using MY-BASIC with exist projects, please see [MY-BASIC 
 * [More scripting API](https://github.com/paladin-t/my_basic/wiki/More-scripting-API)
 * [FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
 
-[FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
-
 ## References
 
 **Notes**
