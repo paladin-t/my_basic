@@ -42,7 +42,11 @@ For more details about using MY-BASIC with exist projects, please see [MY-BASIC 
 
 ## WIKI
 
-[Redirect PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
+* [Redirect PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
+* [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
+* [Customizable macros](https://github.com/paladin-t/my_basic/wiki/Customizable-macros)
+* [More scripting API](https://github.com/paladin-t/my_basic/wiki/More-scripting-API)
+* [FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
 
 [FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
 
@@ -51,6 +55,7 @@ For more details about using MY-BASIC with exist projects, please see [MY-BASIC 
 **Notes**
 
 * [BASIC - Wikipedia](http://en.wikipedia.org/wiki/BASIC)
+* [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf)
 
 -----
 
