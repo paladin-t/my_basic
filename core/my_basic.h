@@ -34,13 +34,21 @@ extern "C" {
 #	define MBAPI
 #endif /* MBAPI */
 
-#ifndef MB_ENABLE_SOURCE_TRACE
-#   define MB_ENABLE_SOURCE_TRACE
-#endif /* MB_ENABLE_SOURCE_TRACE */
-
 #ifndef MB_SIMPLE_ARRAY
 #	define MB_SIMPLE_ARRAY
 #endif /* MB_SIMPLE_ARRAY */
+
+#ifndef MB_MAX_DIMENSION_COUNT
+#	define MB_MAX_DIMENSION_COUNT 4
+#endif /* MB_MAX_DIMENSION_COUNT */
+
+#ifndef MB_ENABLE_ALLOC_STAT
+#	define MB_ENABLE_ALLOC_STAT
+#endif /* MB_ENABLE_ALLOC_STAT */
+
+#ifndef MB_ENABLE_SOURCE_TRACE
+#   define MB_ENABLE_SOURCE_TRACE
+#endif /* MB_ENABLE_SOURCE_TRACE */
 
 #ifndef MB_COMPACT_MODE
 #	define MB_COMPACT_MODE
@@ -76,9 +84,9 @@ extern "C" {
 #			define _strcmpi stricmp
 #		elif defined __POCC__
 #			define _strcmpi _stricmp
-#		else /* __BORLANDC__*/
+#		else
 #			define _strcmpi strcasecmp
-#		endif /* __BORLANDC__ */
+#		endif
 #	endif /* _strcmpi */
 #endif /* _MSC_VER */
 
@@ -188,13 +196,15 @@ typedef enum mb_data_e {
 	MB_DT_NIL = -1,
 	MB_DT_INT = 0,
 	MB_DT_REAL,
-	MB_DT_STRING
+	MB_DT_STRING,
+	MB_DT_USERTYPE
 } mb_data_e;
 
 typedef union mb_value_u {
 	int_t integer;
 	real_t float_point;
 	char* string;
+	void* usertype;
 } mb_value_u;
 
 typedef struct mb_value_t {
@@ -228,10 +238,12 @@ MBAPI int mb_has_arg(struct mb_interpreter_t* s, void** l);
 MBAPI int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val);
 MBAPI int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val);
 MBAPI int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val);
+MBAPI int mb_pop_usertype(struct mb_interpreter_t* s, void** l, void** val);
 MBAPI int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val);
 MBAPI int mb_push_int(struct mb_interpreter_t* s, void** l, int_t val);
 MBAPI int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val);
 MBAPI int mb_push_string(struct mb_interpreter_t* s, void** l, char* val);
+MBAPI int mb_push_usertype(struct mb_interpreter_t* s, void** l, void* val);
 MBAPI int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 
 MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l);
@@ -247,7 +259,7 @@ MBAPI int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p);
 
 MBAPI int mb_gets(char* buf, int s);
 
-MBAPI char* mb_strdup(char* val, unsigned size);
+MBAPI char* mb_memdup(char* val, unsigned size);
 
 #ifdef MB_COMPACT_MODE
 #	pragma pack()

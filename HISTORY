@@ -1,12 +1,17 @@
+Apr. 15 2015
+Added mb_pop_usertype, mb_push_usertype to support user defined type
+Polished code
+Polished document
+
 Apr. 13 2015
 Added mixed integer/float array support
 Added warning prompt when passing strings to maths functions
 Fixed a memory leak when storing strings in an array
-Polisned the interpreter commands
+Polished the interpreter commands
 
 Apr. 11 2015
 Moved struct mb_interpreter_t from my_basic.h to my_basic.c
-Added an mb_has_argument interface to tell whether there is any more argument
+Added an mb_has_arg interface to tell whether there is any more argument
 Added an MB_ENABLE_SOURCE_TRACE macro to enable or disable source tracing
 Disposed parsing context at runtime to reduce memory occupation
 
@@ -18,7 +23,7 @@ Fixed a crash bug when a script begins with a meaningless negtive number
 
 Mar. 25 2015
 Changed _strupr macro to mb_strupr function
-Added an mb_strdup function
+Added an mb_memdup function
 Fixed an intermediate value disposing more than once bug
 
 Dec. 17 2014

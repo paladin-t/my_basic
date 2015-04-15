@@ -119,9 +119,8 @@ static char* _get_code(_code_line_t* code) {
 	result[0] = '\0';
 	for(i = 0; i < code->count; ++i) {
 		result = strcat(result, code->lines[i]);
-		if(i != code->count - 1) {
+		if(i != code->count - 1)
 			result = strcat(result, "\n");
-		}
 	}
 
 	return result;
@@ -131,18 +130,17 @@ static void _set_code(_code_line_t* code, char* txt) {
 	char* cursor = 0;
 	char _c = '\0';
 	mb_assert(code);
-	if(!txt) {
+	if(!txt)
 		return;
-	}
+
 	_clear_code(code);
 	cursor = txt;
 	do {
 		_c = *cursor;
 		if(_c == '\r' || _c == '\n' || _c == '\0') {
 			cursor[0] = '\0';
-			if(_c == '\r' && *(cursor + 1) == '\n') {
+			if(_c == '\r' && *(cursor + 1) == '\n')
 				++cursor;
-			}
 			_append_line(code, txt);
 			txt = cursor + 1;
 		}
@@ -272,9 +270,9 @@ static void _list_program(const char* sn, const char* cn) {
 		--lsn;
 		e = lcn ? lsn + lcn : c->count;
 		for(i = lsn; i < e; ++i) {
-			if(i >= c->count) {
+			if(i >= c->count)
 				break;
-			}
+
 			printf("%d]%s\n", i + 1, c->lines[i]);
 		}
 	}
@@ -434,9 +432,8 @@ int main(int argc, char* argv[]) {
 			status = _do_line();
 		} while(_NO_END(status));
 	} else if(argc == 2) {
-		if(mb_load_file(bas, argv[1]) == MB_FUNC_OK) {
+		if(mb_load_file(bas, argv[1]) == MB_FUNC_OK)
 			mb_run(bas);
-		}
 	} else {
 		printf("Unknown arguments\n");
 		_show_tip();
