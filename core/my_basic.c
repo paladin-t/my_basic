@@ -2434,7 +2434,7 @@ bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, m
 		if(arr->types[index] == _DT_REAL) {
 			val->float_point = *((real_t*)rawptr);
 			*type = _DT_REAL;
-		} else if(arr->types[index] == _DT_REAL) {
+		} else if(arr->types[index] == _DT_INT) {
 			val->integer = *((int_t*)rawptr);
 			*type = _DT_INT;
 		} else if(arr->types[index] == _DT_USERTYPE) {
