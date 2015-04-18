@@ -10,7 +10,7 @@ MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in p
 
 * Written in clean ANSI C, source code portable
 * Most GW-BASIC like syntax, but without line numbers
-* Small (binary less than 80KB, memory less than 500KB) and fast
+* Small (within memory usage less than 32KB) and fast
 * Case-insensitive tokens
 * Integer/float point/string/boolean/array data types support
 * `IF-THEN-ELSE` support
