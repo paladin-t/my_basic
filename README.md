@@ -8,19 +8,22 @@ MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in p
 
 ## Main features
 
+* It is free
 * Written in clean ANSI C, source code portable
 * Most GW-BASIC like syntax, but without line numbers
-* Small (within memory usage less than 32KB) and fast
+* Small (within memory usage less than 128KB) and fast
 * Case-insensitive tokens
 * Integer/float point/string/boolean/array data types support
-* `IF-THEN-ELSE` support
+* User customizable type support
+* `IF-THEN-ELSEIF-ELSE-ENDIF` support
 * `FOR-TO-STEP-NEXT/WHILE-WEND/DO-UNTIL` support
 * `GOTO/GOSUB-RETURN` support
 * Numeric functions
 * String functions
 * Easy to embed into C/C++/Objective-C projects
+* Debug APIs
 * High expansibility, easy to use APIs, easy to write customized scripting interfaces
-* It is free
+* More features/modules under developing
 
 ## Installation
 
