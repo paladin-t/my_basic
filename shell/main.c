@@ -197,6 +197,13 @@ static int beep(struct mb_interpreter_t* s, void** l) {
 	return result;
 }
 
+static void _on_stepped(struct mb_interpreter_t* s, int p, unsigned short row, unsigned short col) {
+	mb_unrefvar(s);
+	mb_unrefvar(p);
+	mb_unrefvar(row);
+	mb_unrefvar(col);
+}
+
 static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, int p, unsigned short row, unsigned short col, int abort_code) {
 	mb_unrefvar(s);
 	mb_unrefvar(p);
@@ -211,6 +218,7 @@ static void _on_startup(void) {
 	mb_init();
 
 	mb_open(&bas);
+	mb_debug_set_stepped_handler(bas, _on_stepped);
 	mb_set_error_handler(bas, _on_error);
 
 	mb_reg_fun(bas, beep);
@@ -382,10 +390,11 @@ static int _do_line(void) {
 	} else if(_str_eq(line, "NEW")) {
 		result = _new_program();
 	} else if(_str_eq(line, "RUN")) {
-		char* txt = _get_code(c);
+		int i = 0;
+		mb_assert(c);
 		result = mb_reset(&bas, false);
-		result = mb_load_string(bas, txt);
-		free(txt);
+		for(i = 0; i < c->count; ++i)
+			mb_load_string(bas, c->lines[i]);
 		result = mb_run(bas);
 		printf("\n");
 	} else if(_str_eq(line, "BYE")) {

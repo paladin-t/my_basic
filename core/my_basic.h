@@ -117,6 +117,7 @@ extern "C" {
 #	define MB_LOOP_BREAK 5001
 #	define MB_LOOP_CONTINUE 5002
 #	define MB_SUB_RETURN 5101
+#	define MB_DEBUG_ID_NOT_FOUND 7001
 #	define MB_EXTENDED_ABORT 9001
 #endif /* MB_CODES */
 
@@ -212,8 +213,9 @@ typedef struct mb_value_t {
 	mb_value_u value;
 } mb_value_t;
 
-typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, int, unsigned short, unsigned short, int);
 typedef int (* mb_func_t)(struct mb_interpreter_t*, void**);
+typedef void (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, int, unsigned short, unsigned short);
+typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, int, unsigned short, unsigned short, int);
 typedef int (* mb_print_func_t)(const char*, ...);
 typedef int (* mb_input_func_t)(char*, int);
 
@@ -250,6 +252,10 @@ MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l);
 MBAPI int mb_load_file(struct mb_interpreter_t* s, const char* f);
 MBAPI int mb_run(struct mb_interpreter_t* s);
 MBAPI int mb_suspend(struct mb_interpreter_t* s, void** l);
+
+MBAPI int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val);
+MBAPI int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val);
+MBAPI int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t h);
 
 MBAPI mb_error_e mb_get_last_error(struct mb_interpreter_t* s);
 MBAPI const char* mb_get_error_desc(mb_error_e err);

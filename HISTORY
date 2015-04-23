@@ -1,3 +1,7 @@
+Apr. 23 2015 Version 1.1
+Added debug APIs
+Added (nestable) multi line IF statement support
+
 Apr. 15 2015
 Added mb_pop_usertype, mb_push_usertype to support user defined type
 Polished code
@@ -169,5 +173,5 @@ Fixed a suspend / resume bug
 Feb. 9 2011
 Fixed struct mb_interpreter_t declaration warnings on gcc
 
-Feb. 1 2011
+Feb. 1 2011 Version 1.0
 First release.

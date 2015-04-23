@@ -51,7 +51,6 @@ extern "C" {
 #ifdef _MSC_VER
 #	pragma warning(push)
 #	pragma warning(disable : 4127)
-#	pragma warning(disable : 4996)
 #endif /* _MSC_VER */
 
 #ifdef __APPLE__
@@ -77,8 +76,8 @@ extern "C" {
 
 /** Macros */
 #define _VER_MAJOR 1
-#define _VER_MINOR 0
-#define _VER_REVISION 50
+#define _VER_MINOR 1
+#define _VER_REVISION 51
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -107,6 +106,10 @@ extern "C" {
 #endif /* toupper */
 
 #define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
+
+#define _IS_EOS(__o) (__o && ((_object_t*)(__o))->type == _DT_EOS)
+#define _IS_SEP(__o, __c) (((_object_t*)(__o))->type == _DT_SEP && ((_object_t*)(__o))->data.separator == __c)
+#define _IS_FUNC(__o, __f) (((_object_t*)(__o))->type == _DT_FUNC && ((_object_t*)(__o))->data.func->pointer == __f)
 
 /* Hash table size */
 #define _HT_ARRAY_SIZE_SMALL 193
@@ -342,6 +345,7 @@ typedef struct mb_interpreter_t {
     int last_error_pos;
     unsigned short last_error_row;
     unsigned short last_error_col;
+	mb_debug_stepped_handler_t debug_stepped_handler;
     mb_error_handler_t error_handler;
     mb_print_func_t printer;
     mb_input_func_t inputer;
@@ -696,8 +700,10 @@ static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn);
 static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl);
 static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s);
 
+static void _stepped(mb_interpreter_t* s, _ls_node_t* ast);
 static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l);
 static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t);
+static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l);
 static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func);
 
 static int _register_func(mb_interpreter_t* s, const char* n, mb_func_t f, bool_t local);
@@ -765,7 +771,9 @@ static int _core_let(mb_interpreter_t* s, void** l);
 static int _core_dim(mb_interpreter_t* s, void** l);
 static int _core_if(mb_interpreter_t* s, void** l);
 static int _core_then(mb_interpreter_t* s, void** l);
+static int _core_elseif(mb_interpreter_t* s, void** l);
 static int _core_else(mb_interpreter_t* s, void** l);
+static int _core_endif(mb_interpreter_t* s, void** l);
 static int _core_for(mb_interpreter_t* s, void** l);
 static int _core_to(mb_interpreter_t* s, void** l);
 static int _core_step(mb_interpreter_t* s, void** l);
@@ -840,7 +848,9 @@ static const _func_t _core_libs[] = {
 
 	{ "IF", _core_if },
 	{ "THEN", _core_then },
+	{ "ELSEIF", _core_elseif },
 	{ "ELSE", _core_else },
+	{ "ENDIF", _core_endif },
 
 	{ "FOR", _core_for },
 	{ "TO", _core_to },
@@ -1351,7 +1361,9 @@ bool_t _is_flow(mb_func_t op) {
 	result =
 		(op == _core_if) ||
 		(op == _core_then) ||
+		(op == _core_elseif) ||
 		(op == _core_else) ||
+		(op == _core_endif) ||
 		(op == _core_for) ||
 		(op == _core_to) ||
 		(op == _core_step) ||
@@ -1488,7 +1500,9 @@ bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj) {
 		(obj->type == _DT_SEP) ||
 		(obj->type == _DT_FUNC &&
 			(obj->data.func->pointer == _core_then ||
+			obj->data.func->pointer == _core_elseif ||
 			obj->data.func->pointer == _core_else ||
+			obj->data.func->pointer == _core_endif ||
 			obj->data.func->pointer == _core_to ||
 			obj->data.func->pointer == _core_step));
 
@@ -1540,7 +1554,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 		if(c->type == _DT_STRING) {
 			if(ast->next) {
 				_object_t* _fsn = (_object_t*)ast->next->data;
-				if(_fsn->type == _DT_FUNC && _fsn->data.func->pointer == _core_add)
+				if(_IS_FUNC(_fsn, _core_add))
 					break;
 			}
 
@@ -1559,9 +1573,9 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 		!(c->type == _DT_FUNC && strcmp(c->data.func->name, "#") == 0) ||
 		!(((_object_t*)(_ls_back(optr)->data))->type == _DT_FUNC && strcmp(((_object_t*)(_ls_back(optr)->data))->data.func->name, "#") == 0)) {
 		if(!hack) {
-			if(c->type == _DT_FUNC && c->data.func->pointer == _core_open_bracket) {
+			if(_IS_FUNC(c, _core_open_bracket)) {
 				++bracket_count;
-			} else if(c->type == _DT_FUNC && c->data.func->pointer == _core_close_bracket) {
+			} else if(_IS_FUNC(c, _core_close_bracket)) {
 				--bracket_count;
 				if(bracket_count < 0) {
 					c = _exp_assign;
@@ -1642,7 +1656,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 				} else {
 					if(c->type == _DT_VAR && ast) {
 						_object_t* _err_var = (_object_t*)(ast->data);
-						if(_err_var->type == _DT_FUNC && _err_var->data.func->pointer == _core_open_bracket) {
+						if(_IS_FUNC(_err_var, _core_open_bracket)) {
 							_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, DON(ast), MB_FUNC_ERR, _exit, result);
 						}
 					}
@@ -1691,7 +1705,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 				}
 				_ls_pushback(opnd, r);
 				_ls_pushback(garbage, r);
-				if(c->type == _DT_FUNC && c->data.func->pointer == _core_close_bracket)
+				if(_IS_FUNC(c, _core_close_bracket))
 					hack = true;
 
 				break;
@@ -1751,10 +1765,11 @@ bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
 
 	mb_assert(s && obj);
 
-	result =
-		(obj->type == _DT_EOS) ||
-		(obj->type == _DT_SEP && obj->data.separator == ':') ||
-		(obj->type == _DT_FUNC && (obj->data.func->pointer == _core_else));
+	result = _IS_EOS(obj) ||
+		_IS_SEP(obj, ':') ||
+		_IS_FUNC(obj, _core_elseif) ||
+		_IS_FUNC(obj, _core_else) ||
+		_IS_FUNC(obj, _core_endif);
 
 	return result;
 }
@@ -1903,6 +1918,8 @@ int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int pos, unsi
 		obj->source_row = row;
 		obj->source_col = col;
 #else /* MB_ENABLE_SOURCE_TRACE */
+		mb_unrefvar(row);
+		mb_unrefvar(col);
         obj->source_pos = (char)pos;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
@@ -2181,7 +2198,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	}
 	/* _label_t */
 	if(context->current_char == ':') {
-		if(!context->last_symbol || context->last_symbol->type == _DT_EOS) {
+		if(!context->last_symbol || _IS_EOS(context->last_symbol)) {
 			glbsyminscope = _ht_find(s->global_var_dict, sym);
 			if(glbsyminscope) {
                 memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
@@ -2400,7 +2417,7 @@ int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index) {
 		else
 			idx += (unsigned int)val.integer;
 		/* Comma? */
-		if(((_object_t*)(ast->data))->type == _DT_SEP && ((_object_t*)(ast->data))->data.separator == ',')
+		if(_IS_SEP(ast->data, ','))
 			ast = ast->next;
 
 		++dcount;
@@ -2848,6 +2865,26 @@ void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s)
 		running->intermediate_value.type = MB_DT_NIL;
 }
 
+void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
+	/* Called each step */
+	_object_t* obj = 0;
+
+	mb_assert(s);
+
+	if(s->debug_stepped_handler) {
+		if(ast && ast->data) {
+			obj = (_object_t*)ast->data;
+#ifdef MB_ENABLE_SOURCE_TRACE
+			s->debug_stepped_handler(s, obj->source_pos, obj->source_row, obj->source_col);
+#else /* MB_ENABLE_SOURCE_TRACE */
+			s->debug_stepped_handler(s, obj->source_pos, 0, 0);
+#endif /* MB_ENABLE_SOURCE_TRACE */
+		} else {
+			s->debug_stepped_handler(s, -1, 0, 0);
+		}
+	}
+}
+
 int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 	/* Execute the ast, core execution function */
 	int result = MB_FUNC_OK;
@@ -2886,9 +2923,9 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 		goto _exit;
 	if(ast) {
 		obj = (_object_t*)(ast->data);
-		if(obj && obj->type == _DT_EOS) {
+		if(_IS_EOS(obj)) {
 			ast = ast->next;
-		} else if(obj && obj->type == _DT_SEP && obj->data.separator == ':') {
+		} else if(_IS_SEP(obj, ':')) {
 			skip_to_eoi = false;
 			ast = ast->next;
 		} else if(obj && obj->type == _DT_VAR) {
@@ -2911,6 +2948,8 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 
 _exit:
 	*l = ast;
+
+	_stepped(s, ast);
 
 	return result;
 }
@@ -2940,6 +2979,31 @@ _exit:
 	return result;
 }
 
+int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
+	/* Skip current IF execution flow to next chunk */
+	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
+	_ls_node_t* tmp = 0;
+	_object_t* obj = 0;
+
+	mb_assert(s && l);
+
+	ast = *l;
+	mb_assert(ast && ast->prev);
+	do {
+		if(!ast) {
+			_handle_error_on_obj(s, SE_RN_SYNTAX, DON(tmp), MB_FUNC_ERR, _exit, result);
+		}
+		tmp = ast;
+		obj = (_object_t*)(ast->data);
+		*l = ast;
+		ast = ast->next;
+	} while(!_IS_FUNC(obj, _core_elseif) && !_IS_FUNC(obj, _core_if) && !_IS_FUNC(obj, _core_else));
+
+_exit:
+	return result;
+}
+
 int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func) {
 	/* Skip current structure */
 	int result = MB_FUNC_OK;
@@ -2960,10 +3024,9 @@ int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_fu
 		obj_prev = (_object_t*)(ast->data);
 		ast = ast->next;
 		obj = (_object_t*)(ast->data);
-		if(obj->type == _DT_FUNC && obj->data.func->pointer == open_func) {
+		if(_IS_FUNC(obj, open_func)) {
 			++count;
-		} else if(obj->type == _DT_FUNC && obj->data.func->pointer == close_func &&
-			(obj_prev && obj_prev->type == _DT_EOS)) {
+		} else if(_IS_FUNC(obj, close_func) && _IS_EOS(obj_prev)) {
 			--count;
 		}
 	} while(count);
@@ -3437,7 +3500,7 @@ int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l) {
 	ast = (_ls_node_t*)(*l);
 	ast = ast->next;
 	obj = (_object_t*)(ast->data);
-	if(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_open_bracket)) {
+	if(!_IS_FUNC(obj, _core_open_bracket)) {
 		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
@@ -3461,7 +3524,7 @@ int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
         _handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
     }
 	obj = (_object_t*)(ast->data);
-	if(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_close_bracket)) {
+	if(!_IS_FUNC(obj, _core_close_bracket)) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
@@ -3483,7 +3546,7 @@ int mb_has_arg(struct mb_interpreter_t* s, void** l) {
     ast = (_ls_node_t*)(*l);
     if(ast) {
         obj = (_object_t*)(ast->data);
-        if(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_close_bracket) && obj->type != _DT_EOS)
+        if(!_IS_FUNC(obj, _core_close_bracket) && obj->type != _DT_EOS)
             result = obj->data.integer;
     }
 
@@ -3637,7 +3700,7 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 	}
 
 	if(running->no_eat_comma_mark < _NO_EAT_COMMA && (!inep || (inep && !(*inep)))) {
-		if(ast && ((_object_t*)(ast->data))->type == _DT_SEP && ((_object_t*)(ast->data))->data.separator == ',')
+		if(ast && _IS_SEP(ast->data, ','))
 			ast = ast->next;
 	}
 
@@ -3880,6 +3943,58 @@ int mb_suspend(struct mb_interpreter_t* s, void** l) {
 
 	ast = (_ls_node_t*)(*l);
 	s->running_context->suspent_point = ast;
+
+	return result;
+}
+
+int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
+	/* Get the value of an identifier */
+	int result = MB_FUNC_OK;
+	_ls_node_t* v = 0;
+	_object_t* obj = 0;
+
+	mb_assert(s && n && val);
+
+	v = _ht_find(s->global_var_dict, (void*)n);
+	if(v) {
+		obj = (_object_t*)(v->data);
+		mb_assert(obj->type == _DT_VAR);
+		result = _internal_object_to_public_value(obj->data.variable->data, val);
+	} else {
+		val->type = MB_DT_NIL;
+		result = MB_DEBUG_ID_NOT_FOUND;
+	}
+
+	return result;
+}
+
+int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
+	/* Set the value of an identifier */
+	int result = MB_FUNC_OK;
+	_ls_node_t* v = 0;
+	_object_t* obj = 0;
+
+	mb_assert(s && n);
+
+	v = _ht_find(s->global_var_dict, (void*)n);
+	if(v) {
+		obj = (_object_t*)(v->data);
+		mb_assert(obj->type == _DT_VAR);
+		result = _public_value_to_internal_object(&val, obj->data.variable->data);
+	} else {
+		result = MB_DEBUG_ID_NOT_FOUND;
+	}
+
+	return result;
+}
+
+int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t h) {
+	/* Set a stepped handler to an interpreter instance */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s);
+
+	s->debug_stepped_handler = h;
 
 	return result;
 }
@@ -4501,7 +4616,7 @@ int _core_dim(mb_interpreter_t* s, void** l) {
 			dummy.count += (unsigned int)val.integer;
 		ast = ast->next;
 		/* Comma? */
-		if(((_object_t*)(ast->data))->type == _DT_SEP && ((_object_t*)(ast->data))->data.separator == ',')
+		if(_IS_SEP(ast->data, ','))
 			ast = ast->next;
 	}
 	/* Create or modify raw data */
@@ -4527,6 +4642,7 @@ int _core_if(mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* val = 0;
 	_object_t* obj = 0;
+	bool_t multi_line = false;
 	_running_context_t* running = 0;
 
 	mb_assert(s && l);
@@ -4537,6 +4653,8 @@ int _core_if(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 
 	val = (_object_t*)mb_malloc(sizeof(_object_t));
+
+_elseif:
 	memset(val, 0, sizeof(_object_t));
 	result = _calc_expression(s, &ast, &val);
 	if(result != MB_FUNC_OK)
@@ -4545,9 +4663,12 @@ int _core_if(mb_interpreter_t* s, void** l) {
 
 	obj = (_object_t*)(ast->data);
 	if(val->data.integer) {
-		if(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_then)) {
+		if(!_IS_FUNC(obj, _core_then)) {
 			_handle_error_on_obj(s, SE_RN_INTEGER_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
+
+		if(ast && ast->next && _IS_EOS(ast->next->data))
+			multi_line = true;
 
 		running->skip_to_eoi = _ls_back(running->sub_stack);
 		do {
@@ -4557,7 +4678,16 @@ int _core_if(mb_interpreter_t* s, void** l) {
 				goto _exit;
 			if(ast)
 				ast = ast->prev;
-		} while(ast && ((_object_t*)(ast->data))->type == _DT_SEP && ((_object_t*)(ast->data))->data.separator == ':');
+		} while(ast && (
+				(!multi_line && _IS_SEP(ast->data, ':')) || (
+					multi_line && ast->next && (
+						!_IS_FUNC(ast->next->data, _core_elseif) &&
+						!_IS_FUNC(ast->next->data, _core_else) &&
+						!_IS_FUNC(ast->next->data, _core_endif)
+					)
+				)
+			)
+		);
 
 		if(!ast)
 			goto _exit;
@@ -4570,28 +4700,48 @@ int _core_if(mb_interpreter_t* s, void** l) {
 				goto _exit;
 		}
 	} else {
+		if(ast && ast->next && _IS_EOS(ast->next->data)) {
+			multi_line = true;
+
+			_skip_if_chunk(s, &ast);
+		}
+		if(multi_line && ast && _IS_FUNC(ast->data, _core_elseif)) {
+			if(ast) ast = ast->next;
+
+			goto _elseif;
+		}
+
 		result = _skip_to(s, &ast, _core_else, _DT_EOS);
 		if(result != MB_FUNC_OK)
 			goto _exit;
 
 		obj = (_object_t*)(ast->data);
 		if(obj->type != _DT_EOS) {
-			if(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_else)) {
+			if(!_IS_FUNC(obj, _core_else)) {
 				_handle_error_on_obj(s, SE_RN_ELSE_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
 
 			do {
 				ast = ast->next;
+				while(_IS_EOS(ast->data))
+					ast = ast->next;
 				result = _execute_statement(s, &ast);
 				if(result != MB_FUNC_OK)
 					goto _exit;
 				if(ast)
 					ast = ast->prev;
-			} while(ast && ((_object_t*)(ast->data))->type == _DT_SEP && ((_object_t*)(ast->data))->data.separator == ':');
+			} while(ast && (
+					(!multi_line && _IS_SEP(ast->data, ':')) ||
+					(multi_line && !_IS_FUNC(ast->next->data, _core_endif))
+				)
+			);
 		}
 	}
 
 _exit:
+	if(multi_line)
+		result = _skip_to(s, &ast, _core_endif, _DT_NIL);
+
 	_destroy_object(val, 0);
 
 	*l = ast;
@@ -4611,8 +4761,32 @@ int _core_then(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
+int _core_elseif(mb_interpreter_t* s, void** l) {
+	/* ELSEIF statement */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+
+	mb_assert(0 && "Do nothing, impossible here");
+	_do_nothing;
+
+	return result;
+}
+
 int _core_else(mb_interpreter_t* s, void** l) {
 	/* ELSE statement */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+
+	mb_assert(0 && "Do nothing, impossible here");
+	_do_nothing;
+
+	return result;
+}
+
+int _core_endif(mb_interpreter_t* s, void** l) {
+	/* ENDIF statement */
 	int result = MB_FUNC_OK;
 	mb_unrefvar(s);
 	mb_unrefvar(l);
@@ -4660,7 +4834,7 @@ int _core_for(mb_interpreter_t* s, void** l) {
 	ast = ast->prev;
 
 	obj = (_object_t*)(ast->data);
-	if(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_to)) {
+	if(!_IS_FUNC(obj, _core_to)) {
 		_handle_error_on_obj(s, SE_RN_TO_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 
@@ -4678,7 +4852,7 @@ _to:
 		goto _exit;
 
 	obj = (_object_t*)(ast->data);
-	if(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_step)) {
+	if(!_IS_FUNC(obj, _core_step)) {
 		step_val = _OBJ_INT_UNIT;
 	} else {
 		ast = ast->next;
@@ -4702,7 +4876,7 @@ _to:
 	} else {
 		/* Keep looping */
 		obj = (_object_t*)(ast->data);
-		while(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_next)) {
+		while(!_IS_FUNC(obj, _core_next)) {
 			result = _execute_statement(s, &ast);
 			if(result == MB_LOOP_CONTINUE) { /* NEXT */
 				if(!running->next_loop_var || running->next_loop_var == var_loop) { /* This loop */
@@ -4826,7 +5000,7 @@ _loop_begin:
 	if(loop_cond_ptr->data.integer) {
 		/* Keep looping */
 		obj = (_object_t*)(ast->data);
-		while(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_wend)) {
+		while(!_IS_FUNC(obj, _core_wend)) {
 			result = _execute_statement(s, &ast);
 			if(result == MB_LOOP_BREAK) { /* EXIT */
 				if(_skip_struct(s, &ast, _core_while, _core_wend) != MB_FUNC_OK)
@@ -4885,7 +5059,7 @@ int _core_do(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 
 	obj = (_object_t*)(ast->data);
-	if(!(obj->type == _DT_EOS)) {
+	if(!_IS_EOS(obj->type)) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
@@ -4898,7 +5072,7 @@ _loop_begin:
 	ast = loop_begin_node;
 
 	obj = (_object_t*)(ast->data);
-	while(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_until)) {
+	while(!_IS_FUNC(obj, _core_until)) {
 		result = _execute_statement(s, &ast);
 		if(result == MB_LOOP_BREAK) { /* EXIT */
 			if(_skip_struct(s, &ast, _core_do, _core_until) != MB_FUNC_OK)
@@ -4915,7 +5089,7 @@ _loop_begin:
 	}
 
 	obj = (_object_t*)(ast->data);
-	if(!(obj->type == _DT_FUNC && obj->data.func->pointer == _core_until)) {
+	if(!_IS_FUNC(obj, _core_until)) {
 		_handle_error_on_obj(s, SE_RN_UNTIL_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
@@ -5885,13 +6059,13 @@ int _std_print(mb_interpreter_t* s, void** l) {
 		obj = (_object_t*)(ast->data);
 		if(_is_print_terminal(s, obj))
 			break;
-		if(obj->type == _DT_SEP && (obj->data.separator == ',' || obj->data.separator == ';')) {
+		if(_IS_SEP(obj, ',') || _IS_SEP(obj, ';')) {
 			ast = ast->next;
 			obj = (_object_t*)(ast->data);
 		} else {
 			_handle_error_on_obj(s, SE_RN_COMMA_OR_SEMICOLON_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
-	} while(ast && !(obj->type == _DT_SEP && obj->data.separator == ':') && (obj->type == _DT_SEP || !_is_expression_terminal(s, obj)));
+	} while(ast && !_IS_SEP(obj, ':') && (obj->type == _DT_SEP || !_is_expression_terminal(s, obj)));
 
 _exit:
 	--running->no_eat_comma_mark;
