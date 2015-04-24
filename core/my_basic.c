@@ -5065,7 +5065,7 @@ int _core_do(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 
 	obj = (_object_t*)(ast->data);
-	if(!_IS_EOS(obj->type)) {
+	if(!_IS_EOS(obj)) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
