@@ -3953,16 +3953,21 @@ int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* v = 0;
 	_object_t* obj = 0;
+	mb_value_t tmp;
 
-	mb_assert(s && n && val);
+	mb_assert(s && n);
 
 	v = _ht_find(s->global_var_dict, (void*)n);
 	if(v) {
 		obj = (_object_t*)(v->data);
 		mb_assert(obj->type == _DT_VAR);
-		result = _internal_object_to_public_value(obj->data.variable->data, val);
+		if(val)
+			result = _internal_object_to_public_value(obj->data.variable->data, val);
+		else
+			result = _internal_object_to_public_value(obj->data.variable->data, &tmp);
 	} else {
-		val->type = MB_DT_NIL;
+		if(val)
+			val->type = MB_DT_NIL;
 		result = MB_DEBUG_ID_NOT_FOUND;
 	}
 
