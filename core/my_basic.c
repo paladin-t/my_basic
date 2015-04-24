@@ -2998,7 +2998,7 @@ int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 		obj = (_object_t*)(ast->data);
 		*l = ast;
 		ast = ast->next;
-	} while(!_IS_FUNC(obj, _core_elseif) && !_IS_FUNC(obj, _core_if) && !_IS_FUNC(obj, _core_else));
+	} while(!_IS_FUNC(obj, _core_if) && !_IS_FUNC(obj, _core_elseif) && !_IS_FUNC(obj, _core_else));
 
 _exit:
 	return result;
@@ -3886,7 +3886,8 @@ int mb_run(struct mb_interpreter_t* s) {
 
 	running = s->running_context;
 
-    safe_free(s->parsing_context);
+	if(s->parsing_context)
+		safe_free(s->parsing_context);
 
 	if(running->suspent_point) {
 		ast = running->suspent_point;
