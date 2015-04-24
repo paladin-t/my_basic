@@ -377,20 +377,22 @@ static const char _PRECEDE_TABLE[19][19] = {
 
 static _object_t* _exp_assign = 0;
 
+#define _instruct_common(__tuple) \
+	_object_t opndv1; \
+	_object_t opndv2; \
+	_tuple3_t* tpptr = (_tuple3_t*)(*__tuple); \
+	_object_t* opnd1 = (_object_t*)(tpptr->e1); \
+	_object_t* opnd2 = (_object_t*)(tpptr->e2); \
+	_object_t* val = (_object_t*)(tpptr->e3); \
+	opndv1.type = (opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
+		_DT_INT : _DT_REAL; \
+	opndv1.data = opnd1->type == _DT_VAR ? opnd1->data.variable->data->data : opnd1->data; \
+	opndv2.type = (opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
+		_DT_INT : _DT_REAL; \
+	opndv2.data = opnd2->type == _DT_VAR ? opnd2->data.variable->data->data : opnd2->data;
 #define _instruct_fun_num_num(__optr, __tuple) \
 	do { \
-		_object_t opndv1; \
-		_object_t opndv2; \
-		_tuple3_t* tpptr = (_tuple3_t*)(*__tuple); \
-		_object_t* opnd1 = (_object_t*)(tpptr->e1); \
-		_object_t* opnd2 = (_object_t*)(tpptr->e2); \
-		_object_t* val = (_object_t*)(tpptr->e3); \
-		opndv1.type = (opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
-			_DT_INT : _DT_REAL; \
-		opndv1.data = opnd1->type == _DT_VAR ? opnd1->data.variable->data->data : opnd1->data; \
-		opndv2.type = (opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
-			_DT_INT : _DT_REAL; \
-		opndv2.data = opnd2->type == _DT_VAR ? opnd2->data.variable->data->data : opnd2->data; \
+		_instruct_common(__tuple) \
 		if(opndv1.type == _DT_INT && opndv2.type == _DT_INT) { \
 			val->type = _DT_REAL; \
 			val->data.float_point = (real_t)__optr((real_t)opndv1.data.integer, (real_t)opndv2.data.integer); \
@@ -407,18 +409,7 @@ static _object_t* _exp_assign = 0;
 	} while(0)
 #define _instruct_num_op_num(__optr, __tuple) \
 	do { \
-		_object_t opndv1; \
-		_object_t opndv2; \
-		_tuple3_t* tpptr = (_tuple3_t*)(*__tuple); \
-		_object_t* opnd1 = (_object_t*)(tpptr->e1); \
-		_object_t* opnd2 = (_object_t*)(tpptr->e2); \
-		_object_t* val = (_object_t*)(tpptr->e3); \
-		opndv1.type = (opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
-			_DT_INT : _DT_REAL; \
-		opndv1.data = opnd1->type == _DT_VAR ? opnd1->data.variable->data->data : opnd1->data; \
-		opndv2.type = (opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
-			_DT_INT : _DT_REAL; \
-		opndv2.data = opnd2->type == _DT_VAR ? opnd2->data.variable->data->data : opnd2->data; \
+		_instruct_common(__tuple) \
 		if(opndv1.type == _DT_INT && opndv2.type == _DT_INT) { \
 			if((real_t)(opndv1.data.integer __optr opndv2.data.integer) == (real_t)opndv1.data.integer __optr (real_t)opndv2.data.integer) { \
 				val->type = _DT_INT; \
@@ -440,18 +431,7 @@ static _object_t* _exp_assign = 0;
 	} while(0)
 #define _instruct_int_op_int(__optr, __tuple) \
 	do { \
-		_object_t opndv1; \
-		_object_t opndv2; \
-		_tuple3_t* tpptr = (_tuple3_t*)(*__tuple); \
-		_object_t* opnd1 = (_object_t*)(tpptr->e1); \
-		_object_t* opnd2 = (_object_t*)(tpptr->e2); \
-		_object_t* val = (_object_t*)(tpptr->e3); \
-		opndv1.type = (opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
-			_DT_INT : _DT_REAL; \
-		opndv1.data = opnd1->type == _DT_VAR ? opnd1->data.variable->data->data : opnd1->data; \
-		opndv2.type = (opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
-			_DT_INT : _DT_REAL; \
-		opndv2.data = opnd2->type == _DT_VAR ? opnd2->data.variable->data->data : opnd2->data; \
+		_instruct_common(__tuple) \
 		if(opndv1.type == _DT_INT && opndv2.type == _DT_INT) { \
 			val->type = _DT_INT; \
 			val->data.integer = opndv1.data.integer __optr opndv2.data.integer; \
@@ -494,21 +474,9 @@ static _object_t* _exp_assign = 0;
 		_str2 = _extract_string(opnd2); \
 		val->data.integer = strcmp(_str1, _str2) __optr 0; \
 	} while(0)
-
 #define _proc_div_by_zero(__s, __tuple, __exit, __result, __kind) \
 	do { \
-		_object_t opndv1; \
-		_object_t opndv2; \
-		_tuple3_t* tpptr = (_tuple3_t*)(*__tuple); \
-		_object_t* opnd1 = (_object_t*)(tpptr->e1); \
-		_object_t* opnd2 = (_object_t*)(tpptr->e2); \
-		_object_t* val = (_object_t*)(tpptr->e3); \
-		opndv1.type = (opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
-			_DT_INT : _DT_REAL; \
-		opndv1.data = opnd1->type == _DT_VAR ? opnd1->data.variable->data->data : opnd1->data; \
-		opndv2.type = (opnd2->type == _DT_INT || (opnd2->type == _DT_VAR && opnd2->data.variable->data->type == _DT_INT)) ? \
-			_DT_INT : _DT_REAL; \
-		opndv2.data = opnd2->type == _DT_VAR ? opnd2->data.variable->data->data : opnd2->data; \
+		_instruct_common(__tuple) \
 		if((opndv2.type == _DT_INT && opndv2.data.integer == 0) || (opndv2.type == _DT_REAL && opndv2.data.float_point == 0.0f)) { \
 			if((opndv1.type == _DT_INT && opndv1.data.integer == 0) || (opndv1.type == _DT_REAL && opndv1.data.float_point == 0.0f)) { \
 				val->type = _DT_REAL; \
