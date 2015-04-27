@@ -42,11 +42,14 @@ To compile an interpreter binary for your own platform, please see the steps as 
 
 MY-BASIC is cleanly written in a single C source file and an associated header file. Just copy `my_basic.c` and `my_basic.h` to your project folder and add them to a build configuration.
 
-For more details about using MY-BASIC with exist projects, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf).
+You can definitely [link with MY-BASIC as a lib](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC) as well.
+
+For more details about using MY-BASIC when it's already integrated with exist projects, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf).
 
 ## [WIKI](https://github.com/paladin-t/my_basic/wiki)
 
 * [Workflow](https://github.com/paladin-t/my_basic/wiki/Workflow)
+* [Link with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC)
 * [Redirect PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
 * [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
 * [Customize macros](https://github.com/paladin-t/my_basic/wiki/Customize-macros)
