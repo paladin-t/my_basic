@@ -304,6 +304,49 @@ static void _edit_program(const char* no) {
 	strcpy(c->lines[lno], line);
 }
 
+static void _insert_program(const char* no) {
+	char line[_MAX_LINE_LENGTH];
+	long lno = 0;
+	int i = 0;
+	mb_assert(no);
+	lno = atoi(no);
+	if(lno < 1 || lno > c->count) {
+		printf("Line number %ld out of bound.\n", lno);
+
+		return;
+	}
+	--lno;
+	memset(line, 0, _MAX_LINE_LENGTH);
+	printf("%ld]", lno + 1);
+	mb_gets(line, _MAX_LINE_LENGTH);
+	if(c->count + 1 == c->size) {
+		c->size += _LINE_INC_STEP;
+		c->lines = (char**)realloc(c->lines, sizeof(char*) * c->size);
+	}
+	for(i = c->count; i > lno; i--)
+		c->lines[i] = c->lines[i - 1];
+	c->lines[lno] = (char*)realloc(0, strlen(line) + 1);
+	strcpy(c->lines[lno], line);
+	c->count++;
+}
+
+static void _alter_program(const char* no) {
+	long lno = 0;
+	int i = 0;
+	mb_assert(no);
+	lno = atoi(no);
+	if(lno < 1 || lno > c->count) {
+		printf("Line number %ld out of bound.\n", lno);
+
+		return;
+	}
+	--lno;
+	free(c->lines[lno]);
+	for(i = lno; i < c->count - 1; i++)
+		c->lines[i] = c->lines[i + 1];
+	c->count--;
+}
+
 static void _load_program(const char* path) {
 	char* txt = _load_file(path);
 	if(txt) {
@@ -357,8 +400,10 @@ static void _show_help(void) {
 	printf("  BYE   - Quit interpreter\n");
 	printf("  LIST  - List current program\n");
 	printf("          Usage: LIST [l [n]], l is start line number, n is line count\n");
-	printf("  EDIT  - Edit a line in current program\n");
+	printf("  EDIT  - Edit (modify/insert/remove) a line in current program\n");
 	printf("          Usage: EDIT n, n is line number\n");
+	printf("                 EDIT -I n, insert a line before a given line, n is line number\n");
+	printf("                 EDIT -R n, remove a line, n is line number\n");
 	printf("  LOAD  - Load a file as current program\n");
 	printf("          Usage: LOAD *.*\n");
 	printf("  SAVE  - Save current program to a file\n");
@@ -407,7 +452,15 @@ static int _do_line(void) {
 		_list_program(sn, cn);
 	} else if(_str_eq(line, "EDIT")) {
 		char* no = line + strlen(line) + 1;
-		_edit_program(no);
+		char* ne = 0;
+		strtok(no, " ");
+		ne = no + strlen(no) + 1;
+		if(!(*ne))
+			_edit_program(no);
+		else if(_str_eq(no, "-I"))
+			_insert_program(ne);
+		else if(_str_eq(no, "-R"))
+			_alter_program(ne);
 	} else if(_str_eq(line, "LOAD")) {
 		char* path = line + strlen(line) + 1;
 		_load_program(path);

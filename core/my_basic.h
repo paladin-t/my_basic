@@ -247,6 +247,7 @@ MBAPI int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val);
 MBAPI int mb_push_string(struct mb_interpreter_t* s, void** l, char* val);
 MBAPI int mb_push_usertype(struct mb_interpreter_t* s, void** l, void* val);
 MBAPI int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
+MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 
 MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l);
 MBAPI int mb_load_file(struct mb_interpreter_t* s, const char* f);

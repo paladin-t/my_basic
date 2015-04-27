@@ -1,3 +1,7 @@
+Apr. 27 2015
+Added code line inserting/removing to interpreter shell
+Changed mb_dispose_value as public
+
 Apr. 23 2015 Version 1.1
 Added debug APIs
 Added (nestable) multi line IF statement support

@@ -77,7 +77,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 51
+#define _VER_REVISION 52
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -683,15 +683,6 @@ static int _open_core_lib(mb_interpreter_t* s);
 static int _close_core_lib(mb_interpreter_t* s);
 static int _open_std_lib(mb_interpreter_t* s);
 static int _close_std_lib(mb_interpreter_t* s);
-
-/* ========================================================} */
-
-/*
-** {========================================================
-** Protected function declarations
-*/
-
-MBAPI int mb_dispose_value(mb_interpreter_t* s, mb_value_t val);
 
 /* ========================================================} */
 
@@ -3140,25 +3131,6 @@ int _close_std_lib(mb_interpreter_t* s) {
 
 /*
 ** {========================================================
-** Protected function definitions
-*/
-
-int mb_dispose_value(mb_interpreter_t* s, mb_value_t val) {
-	/* Dispose a value */
-	int result = MB_FUNC_OK;
-
-	mb_assert(s);
-
-	if(val.type == MB_DT_STRING)
-		mb_free(val.value.string);
-
-	return result;
-}
-
-/* ========================================================} */
-
-/*
-** {========================================================
 ** Public functions definitions
 */
 
@@ -3747,6 +3719,18 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 	running = s->running_context;
 	running->intermediate_value = val;
+
+	return result;
+}
+
+int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val) {
+	/* Dispose a value */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s);
+
+	if(val.type == MB_DT_STRING)
+		mb_free(val.value.string);
 
 	return result;
 }
