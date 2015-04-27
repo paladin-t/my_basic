@@ -20,7 +20,8 @@ MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in p
 * `GOTO/GOSUB-RETURN` support
 * Numeric functions
 * String functions
-* Easy to embed into C/C++/Objective-C projects
+* It's able to use it as a standalone interpreter, or integrate it with existing C/C++/Objective-C projects, or learn how to build an interpreter from scratch
+* It's able to build your own dialect based on it
 * Debug APIs
 * High expansibility, easy to use APIs, easy to write customized scripting interfaces
 * More features/modules under developing
