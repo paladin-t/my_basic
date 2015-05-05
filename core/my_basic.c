@@ -51,6 +51,7 @@ extern "C" {
 #ifdef _MSC_VER
 #	pragma warning(push)
 #	pragma warning(disable : 4127)
+#	pragma warning(disable : 4305)
 #endif /* _MSC_VER */
 
 #ifdef __APPLE__
@@ -62,7 +63,7 @@ extern "C" {
 #ifdef __BORLANDC__
 #	pragma warn -8004
 #	pragma warn -8008
-#	pragma warn -8066
+#	pragma warn -8012
 #endif /* __BORLANDC__ */
 
 #ifdef MB_COMPACT_MODE
@@ -77,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 52
+#define _VER_REVISION 53
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -211,12 +212,6 @@ static const char* _ERR_DESC[] = {
 mb_static_assert(_countof(_ERR_DESC) == SE_COUNT);
 
 /* Data type */
-#define _EOS '\n'
-#define _NULL_STRING "(empty)"
-
-#define _FNAN 0xffc00000
-#define _FINF 0x7f800000
-
 typedef enum _data_e {
 	_DT_NIL = -1,
 	_DT_ANY = 0,
@@ -377,6 +372,28 @@ static const char _PRECEDE_TABLE[19][19] = {
 
 static _object_t* _exp_assign = 0;
 
+#define _set_real_with_hex(__r, __i) \
+	do { \
+		if(sizeof(__r) == sizeof(unsigned char)) { \
+			unsigned char __b = __i; \
+			memcpy(&__r, &__b, sizeof(__r)); \
+		} else if(sizeof(__r) == sizeof(unsigned short)) { \
+			unsigned short __b = __i; \
+			memcpy(&__r, &__b, sizeof(__r)); \
+		} else if(sizeof(__r) == sizeof(unsigned)) { \
+			unsigned __b = __i; \
+			memcpy(&__r, &__b, sizeof(__r)); \
+		} else if(sizeof(__r) == sizeof(unsigned long)) { \
+			unsigned long __b = __i; \
+			memcpy(&__r, &__b, sizeof(__r)); \
+		} else if(sizeof(__r) == sizeof(unsigned long long)) { \
+			unsigned long long __b = __i; \
+			memcpy(&__r, &__b, sizeof(__r)); \
+		} else { \
+			mb_assert(0 && "Invalid real number precision."); \
+		} \
+	} while(0)
+
 #define _instruct_common(__tuple) \
 	_object_t opndv1; \
 	_object_t opndv2; \
@@ -480,10 +497,10 @@ static _object_t* _exp_assign = 0;
 		if((opndv2.type == _DT_INT && opndv2.data.integer == 0) || (opndv2.type == _DT_REAL && opndv2.data.float_point == 0.0f)) { \
 			if((opndv1.type == _DT_INT && opndv1.data.integer == 0) || (opndv1.type == _DT_REAL && opndv1.data.float_point == 0.0f)) { \
 				val->type = _DT_REAL; \
-				val->data.integer = _FNAN; \
+				_set_real_with_hex(val->data.float_point, MB_FNAN); \
 			} else { \
 				val->type = _DT_REAL; \
-				val->data.integer = _FINF; \
+				_set_real_with_hex(val->data.float_point, MB_FINF); \
 			} \
 			_handle_error_on_obj((__s), __kind, ((__tuple) && *(__tuple)) ? ((_object_t*)(((_tuple3_t*)(*(__tuple)))->e1)) : 0, MB_FUNC_WARNING, __exit, __result); \
 		} \
@@ -651,7 +668,7 @@ static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected);
 
 static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index);
 static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
-static bool_t _set_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
+static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
 
 static void _init_array(_array_t* arr);
 static void _clear_array(_array_t* arr);
@@ -2101,7 +2118,11 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	}
 	if(context->last_symbol && context->last_symbol->type == _DT_FUNC) {
 		if(strcmp("DIM", context->last_symbol->data.func->name) == 0) {
+#ifdef MB_SIMPLE_ARRAY
 			en = (sym[_sl - 1] == '$' ? _DT_STRING : _DT_REAL);
+#else /* MB_SIMPLE_ARRAY */
+			en = _DT_REAL;
+#endif /* MB_SIMPLE_ARRAY */
             memcpy(*value, &en, sizeof(en));
 
 			result = _DT_ARRAY;
@@ -2132,8 +2153,8 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 
 		goto _exit;
 	}
-	/* _EOS */
-	if(_sl == 1 && sym[0] == _EOS) {
+	/* MB_EOS */
+	if(_sl == 1 && sym[0] == MB_EOS) {
 		result = _DT_EOS;
 
 		goto _exit;
@@ -2203,7 +2224,7 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 			result += _cut_symbol(s, pos, row, col);
 		} else if(_is_newline(c)) { /* \r \n EOF */
 			result += _cut_symbol(s, pos, row, col);
-			result += _append_char_to_symbol(s, _EOS);
+			result += _append_char_to_symbol(s, MB_EOS);
 			result += _cut_symbol(s, pos, row, col);
 		} else if(_is_separator(c) || _is_bracket(c)) { /* , ; : ( ) */
 			result += _cut_symbol(s, pos, row, col);
@@ -2215,7 +2236,7 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 			context->parsing_state = _PS_STRING;
 		} else if(_is_comment(c)) { /* ' */
 			result += _cut_symbol(s, pos, row, col);
-			result += _append_char_to_symbol(s, _EOS);
+			result += _append_char_to_symbol(s, MB_EOS);
 			result += _cut_symbol(s, pos, row, col);
 			context->parsing_state = _PS_COMMENT;
 		} else {
@@ -2295,6 +2316,7 @@ int_t _get_size_of(_data_e type) {
 		mb_assert(0 && "Unsupported");
 	}
 #else /* MB_SIMPLE_ARRAY */
+	mb_unrefvar(type);
 	result = sizeof(_raw_u);
 #endif /* MB_SIMPLE_ARRAY */
 
@@ -2416,6 +2438,9 @@ bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, m
 		} else if(arr->types[index] == _DT_USERTYPE) {
 			val->usertype = *((void**)rawptr);
 			*type = _DT_USERTYPE;
+		} else if(arr->types[index] == _DT_STRING) {
+			val->string = *((char**)rawptr);
+			*type = _DT_STRING;
 		} else {
 			mb_assert(0 && "Unsupported");
 		}
@@ -2430,12 +2455,13 @@ bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, m
 	return result;
 }
 
-bool_t _set_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type) {
+int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type) {
 	/* Set the value of an element in an array */
-	bool_t result = true;
+	int result = MB_FUNC_OK;
 	int_t elemsize = 0;
 	unsigned int pos = 0;
 	void* rawptr = 0;
+	mb_unrefvar(ast);
 
 	mb_assert(s && arr && val);
 
@@ -2456,7 +2482,15 @@ bool_t _set_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, m
 		arr->types[index] = _DT_REAL;
 #endif /* MB_SIMPLE_ARRAY */
 	} else if(*type == _DT_STRING) {
-		size_t _sl = strlen(val->string);
+		size_t _sl = 0;
+#ifndef MB_SIMPLE_ARRAY
+		arr->types[index] = _DT_STRING;
+#else /* MB_SIMPLE_ARRAY */
+		if(arr->type != _DT_STRING) {
+			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
+		}
+#endif /* MB_SIMPLE_ARRAY */
+		_sl = strlen(val->string);
 		*((char**)rawptr) = (char*)mb_malloc(_sl + 1);
 		memcpy(*((char**)rawptr), val->string, _sl + 1);
 #ifndef MB_SIMPLE_ARRAY
@@ -2468,15 +2502,15 @@ bool_t _set_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, m
 		mb_assert(0 && "Unsupported");
 	}
 
+	goto _exit; /* Avoid an unreferenced warning */
+
+_exit:
 	return result;
 }
 
 void _init_array(_array_t* arr) {
 	/* Initialize an array */
 	int elemsize = 0;
-#ifndef MB_SIMPLE_ARRAY
-	unsigned int ul = 0;
-#endif
 
 	mb_assert(arr);
 
@@ -2494,6 +2528,7 @@ void _init_array(_array_t* arr) {
 #ifndef MB_SIMPLE_ARRAY
 	arr->types = (_data_e*)mb_malloc(sizeof(_data_e) * arr->count);
 	if(arr->types) {
+		unsigned int ul = 0;
 		for(ul = 0; ul < arr->count; ++ul) {
 			arr->types[ul] = _DT_INT;
 		}
@@ -2512,6 +2547,21 @@ void _clear_array(_array_t* arr) {
 	mb_assert(arr);
 
 	if(arr->raw) {
+#ifndef MB_SIMPLE_ARRAY
+		if(arr->type == _DT_REAL) {
+			for(ul = 0; ul < arr->count; ++ul) {
+				if(arr->types[ul] == _DT_STRING) {
+					elemsize = _get_size_of(arr->type);
+					pos = (unsigned int)(elemsize * ul);
+					rawptr = (void*)((intptr_t)arr->raw + pos);
+					str = *((char**)rawptr);
+					if(str) {
+						safe_free(str);
+					}
+				}
+			}
+		}
+#endif /* MB_SIMPLE_ARRAY */
 		if(arr->type == _DT_STRING) {
 			for(ul = 0; ul < arr->count; ++ul) {
 				elemsize = _get_size_of(arr->type);
@@ -2983,11 +3033,10 @@ int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_fu
 		obj_prev = (_object_t*)(ast->data);
 		ast = ast->next;
 		obj = (_object_t*)(ast->data);
-		if(_IS_FUNC(obj, open_func)) {
+		if(_IS_FUNC(obj, open_func))
 			++count;
-		} else if(_IS_FUNC(obj, close_func) && _IS_EOS(obj_prev)) {
+		else if(_IS_FUNC(obj, close_func) && _IS_EOS(obj_prev))
 			--count;
-		}
 	} while(count);
 
 _exit:
@@ -3780,7 +3829,7 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l) {
 		_col = col;
 		++i;
 	};
-	status = _parse_char(s, _EOS, i, row, col);
+	status = _parse_char(s, MB_EOS, i, row, col);
 
 _exit:
 	context->parsing_state = _PS_NORMAL;
@@ -4511,7 +4560,9 @@ int _core_let(mb_interpreter_t* s, void** l) {
 
 			break;
 		}
-		_set_array_elem(s, arr, arr_idx, &_val, &val->type);
+		result = _set_array_elem(s, ast, arr, arr_idx, &_val, &val->type);
+		if(result != MB_FUNC_OK)
+			goto _exit;
 		if(val->type == _DT_STRING && !val->ref) {
 			safe_free(val->data.string);
 		}
@@ -5897,9 +5948,9 @@ int _std_str(mb_interpreter_t* s, void** l) {
 	chr = (char*)mb_malloc(32);
 	memset(chr, 0, 32);
 	if(arg.type == MB_DT_INT) {
-		sprintf(chr, "%d", arg.value.integer);
+		sprintf(chr, MB_INT_FMT, arg.value.integer);
 	} else if(arg.type == MB_DT_REAL) {
-		sprintf(chr, "%g", arg.value.float_point);
+		sprintf(chr, MB_REAL_FMT, arg.value.float_point);
 	} else {
 		result = MB_FUNC_ERR;
 
@@ -5980,11 +6031,11 @@ int _std_print(mb_interpreter_t* s, void** l) {
 		case _DT_FUNC:
 			result = _calc_expression(s, &ast, &val_ptr);
 			if(val_ptr->type == _DT_INT) {
-				_get_printer(s)("%d", val_ptr->data.integer);
+				_get_printer(s)(MB_INT_FMT, val_ptr->data.integer);
 			} else if(val_ptr->type == _DT_REAL) {
-				_get_printer(s)("%g", val_ptr->data.float_point);
+				_get_printer(s)(MB_REAL_FMT, val_ptr->data.float_point);
 			} else if(val_ptr->type == _DT_STRING) {
-				_get_printer(s)("%s", (val_ptr->data.string ? val_ptr->data.string : _NULL_STRING));
+				_get_printer(s)("%s", (val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING));
 				if(!val_ptr->ref) {
 					safe_free(val_ptr->data.string);
 				}
@@ -5993,9 +6044,8 @@ int _std_print(mb_interpreter_t* s, void** l) {
 				goto _exit;
 			/* Fall through */
 		case _DT_SEP:
-			if(!ast) {
+			if(!ast)
 				break;
-			}
 			obj = (_object_t*)(ast->data);
 #ifdef _COMMA_AS_NEWLINE
 			if(obj->data.separator == ',') {
@@ -6098,7 +6148,7 @@ _exit:
 #ifdef __BORLANDC__
 #	pragma warn .8004
 #	pragma warn .8008
-#	pragma warn .8066
+#	pragma warn .8012
 #endif /* __BORLANDC__ */
 
 #ifdef __APPLE__

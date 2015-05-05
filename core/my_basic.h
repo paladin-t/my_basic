@@ -68,14 +68,32 @@ extern "C" {
 #ifndef bool_t
 #	define bool_t int
 #endif
-#ifndef byte_t
-#	define byte_t unsigned char
-#endif
 #ifndef int_t
 #	define int_t int
 #endif
 #ifndef real_t
 #	define real_t float
+#endif
+
+#ifndef MB_INT_FMT
+#	define MB_INT_FMT "%d"
+#endif
+#ifndef MB_REAL_FMT
+#	define MB_REAL_FMT "%g"
+#endif
+
+#ifndef MB_FNAN
+#	define MB_FNAN 0xffc00000
+#endif
+#ifndef MB_FINF
+#	define MB_FINF 0x7f800000
+#endif
+
+#ifndef MB_EOS
+#	define MB_EOS '\n'
+#endif
+#ifndef MB_NULL_STRING
+#	define MB_NULL_STRING "(empty)"
 #endif
 
 #ifndef _MSC_VER

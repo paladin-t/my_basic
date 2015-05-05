@@ -1,3 +1,8 @@
+May. 5 2015
+Added string type support for non-simple array
+Fixed a memory leak when storing strings to a non-string array
+Polished data precision related macros
+
 Apr. 27 2015
 Added code line inserting/removing to interpreter shell
 Changed mb_dispose_value as public
