@@ -75,6 +75,13 @@ extern "C" {
 #	define real_t float
 #endif
 
+#ifndef mb_strtol
+#	define mb_strtol(__s, __e, __r) strtol((__s), (__e), (__r))
+#endif
+#ifndef mb_strtod
+#	define mb_strtod(__s, __e) strtod((__s), (__e))
+#endif
+
 #ifndef MB_INT_FMT
 #	define MB_INT_FMT "%d"
 #endif

@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 53
+#define _VER_REVISION 54
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -1939,6 +1939,12 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	type = _get_symbol_type(s, sym, &value);
 	(*obj)->type = type;
 	switch(type) {
+	case _DT_NIL:
+		safe_free(*obj);
+		*obj = 0;
+		safe_free(sym);
+
+		break;
 	case _DT_INT:
         memcpy(tmp.any, value, sizeof(_raw_t));
 		(*obj)->data.integer = tmp.integer;
@@ -2083,7 +2089,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	context = s->parsing_context;
 
 	/* int_t */
-	tmp.integer = (int_t)strtol(sym, &conv_suc, 0);
+	tmp.integer = (int_t)mb_strtol(sym, &conv_suc, 0);
 	if(*conv_suc == '\0') {
         memcpy(*value, tmp.any, sizeof(_raw_t));
 
@@ -2092,7 +2098,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 		goto _exit;
 	}
 	/* real_t */
-	tmp.float_point = (real_t)strtod(sym, &conv_suc);
+	tmp.float_point = (real_t)mb_strtod(sym, &conv_suc);
 	if(*conv_suc == '\0') {
         memcpy(*value, tmp.any, sizeof(_raw_t));
 
@@ -2155,7 +2161,10 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	}
 	/* MB_EOS */
 	if(_sl == 1 && sym[0] == MB_EOS) {
-		result = _DT_EOS;
+		if(_IS_EOS(context->last_symbol))
+			result = _DT_NIL;
+		else
+			result = _DT_EOS;
 
 		goto _exit;
 	}
@@ -3779,7 +3788,7 @@ int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val) {
 	mb_assert(s);
 
 	if(val.type == MB_DT_STRING)
-		mb_free(val.value.string);
+		safe_free(val.value.string);
 
 	return result;
 }
@@ -3863,7 +3872,7 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 		buf[l] = '\0';
 
 		result = mb_load_string(s, buf);
-		mb_free(buf);
+		safe_free(buf);
 
 		if(result)
 			goto _exit;
@@ -5977,14 +5986,14 @@ int _std_val(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	val.value.integer = (int_t)strtol(arg, &conv_suc, 0);
+	val.value.integer = (int_t)mb_strtol(arg, &conv_suc, 0);
 	if(*conv_suc == '\0') {
 		val.type = MB_DT_INT;
 		mb_check(mb_push_value(s, l, val));
 
 		goto _exit;
 	}
-	val.value.float_point = (real_t)strtod(arg, &conv_suc);
+	val.value.float_point = (real_t)mb_strtod(arg, &conv_suc);
 	if(*conv_suc == '\0') {
 		val.type = MB_DT_REAL;
 		mb_check(mb_push_value(s, l, val));
@@ -6107,10 +6116,10 @@ int _std_input(mb_interpreter_t* s, void** l) {
 	if(obj->data.variable->data->type == _DT_INT || obj->data.variable->data->type == _DT_REAL) {
 		_get_inputer(s)(line, sizeof(line));
 		obj->data.variable->data->type = _DT_INT;
-		obj->data.variable->data->data.integer = (int_t)strtol(line, &conv_suc, 0);
+		obj->data.variable->data->data.integer = (int_t)mb_strtol(line, &conv_suc, 0);
 		if(*conv_suc != '\0') {
 			obj->data.variable->data->type = _DT_REAL;
-			obj->data.variable->data->data.float_point = (real_t)strtod(line, &conv_suc);
+			obj->data.variable->data->data.float_point = (real_t)mb_strtod(line, &conv_suc);
 			if(*conv_suc != '\0') {
 				result = MB_FUNC_ERR;
 

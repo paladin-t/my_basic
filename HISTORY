@@ -1,3 +1,7 @@
+May. 6 2015
+Removed redundant EOS tokens
+Polished data precision related macros
+
 May. 5 2015
 Added string type support for non-simple array
 Fixed a memory leak when storing strings to a non-string array
