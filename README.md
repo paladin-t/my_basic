@@ -1,42 +1,42 @@
 ![](resource/icon.ico)
 
-Copyright (C) 2011 - 2015 W. Renxin
+Copyright (C) 2011 - 2015 Wang Renxin
 
 ## Introduction
 
-MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in pure C with about 6000 lines of source code. Its grammar is similar to structured BASIC in early era, but without line number. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file. You can combine MY-BASIC with an existing C/C++/Objective-C project easily, scripting driven can make your projects more powerful, elegant and neat.
+MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in pure C with about 6000 lines of source code. Its grammar is similar to structured BASIC in early era, but without line number. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file. You can combine MY-BASIC with an existing C, C++, Objective-C, etc. project easily, scripting driven can make your projects more powerful, elegant and neat.
 
 ## Main features
 
 * It is free
 * Written in clean ANSI C, source code portable
-* Most GW-BASIC like syntax, but without line numbers
+* Most retro BASIC like syntax, without line numbers
 * Small (within memory usage less than 128KB) and fast
-* Case-insensitive tokens
-* Integer/float point/string/boolean/array data types support
-* User customizable type support
+* Case-insensitive tokenization
+* Integer, float point, string, boolean, user defined data types with array support
 * `IF-THEN-ELSEIF-ELSE-ENDIF` support
 * `FOR-TO-STEP-NEXT/WHILE-WEND/DO-UNTIL` support
 * `GOTO/GOSUB-RETURN` support
-* Numeric functions
-* String functions
-* It's able to use it as a standalone interpreter, or integrate it with existing C/C++/Objective-C projects, or learn how to build an interpreter from scratch
-* It's able to build your own dialect based on it
+* Standard numeric functions
+* Standard string functions
 * Debug APIs
 * High expansibility, easy to use APIs, easy to write customized scripting interfaces
+* It's able to use it as a standalone interpreter, or integrate it with existing C, C++, Objective-C, etc. projects
+* It's able to learn how to build an interpreter from scratch from it
+* It's able to build your own dialect based on it
 * More features/modules under developing
 
 ## Installation
 
 ### Use standalone interpreter binary
 
-This repository contains precompiled binaries for [Win32](output/my_basic.exe) and [MacOS](output/my_basic_mac), it's efficient to download it and have a first impressive playground.
+This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [OS X](output/my_basic_mac), it's efficient to download it and have a first impressive playground.
 
 To compile an interpreter binary for your own platform, please see the steps as follow.
 
-* Retrieve `core` and `shell` folders
+* Retrieve at least `core` and `shell` folders
 * Setup your compile toolchain configuration
-* Use your compiler to process `core/my_basic.c` and `shell/main.c`, both require including `core/my_basic.h`
+* Use your compiler to compile `core/my_basic.c` and `shell/main.c`, both require including `core/my_basic.h`, then link up your own executable
 
 ### Combine with exist projects
 
