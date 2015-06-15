@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 54
+#define _VER_REVISION 55
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -307,6 +307,9 @@ typedef struct _parsing_context_t {
 	_object_t* last_symbol;
 	_parsing_state_e parsing_state;
 	_symbol_state_e symbol_state;
+	int parsing_pos;
+	unsigned short parsing_row;
+	unsigned short parsing_col;
 } _parsing_context_t;
 
 /* Running context */
@@ -3314,6 +3317,7 @@ int mb_open(struct mb_interpreter_t** s) {
 
 	context = (_parsing_context_t*)mb_malloc(sizeof(_parsing_context_t));
 	memset(context, 0, sizeof(_parsing_context_t));
+	context->parsing_row = 1;
 	(*s)->parsing_context = context;
 
 	running = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
@@ -3413,6 +3417,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
         (*s)->parsing_context = context;
     }
 	memset(context, 0, sizeof(_parsing_context_t));
+	context->parsing_row = 1;
 
 	ast = (*s)->ast;
 	_ls_foreach(ast, _destroy_object);
@@ -3799,8 +3804,6 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l) {
 	char ch = 0;
 	int status = 0;
 	int i = 0;
-	unsigned short row = 1;
-	unsigned short col = 0;
 	unsigned short _row = 0;
 	unsigned short _col = 0;
 	char wrapped = '\0';
@@ -3814,16 +3817,16 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l) {
 		ch = l[i];
 		if((ch == '\n' || ch == '\r') && (!wrapped || wrapped == ch)) {
 			wrapped = ch;
-			++row;
-			col = 0;
+			++context->parsing_row;
+			context->parsing_col = 0;
 		} else {
 			wrapped = '\0';
-			++col;
+			++context->parsing_col;
 		}
-		status = _parse_char(s, ch, i, _row, _col);
+		status = _parse_char(s, ch, context->parsing_pos, _row, _col);
 		result = status;
 		if(status) {
-			_set_error_pos(s, i, _row, _col);
+			_set_error_pos(s, context->parsing_pos, _row, _col);
 			if(s->error_handler) {
 				(s->error_handler)(s, s->last_error, (char*)mb_get_error_desc(s->last_error),
 					s->last_error_pos,
@@ -3834,11 +3837,12 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l) {
 
 			goto _exit;
 		}
-		_row = row;
-		_col = col;
+		_row = context->parsing_row;
+		_col = context->parsing_col;
 		++i;
+		++context->parsing_pos;
 	};
-	status = _parse_char(s, MB_EOS, i, row, col);
+	status = _parse_char(s, MB_EOS, context->parsing_pos, context->parsing_row, context->parsing_col);
 
 _exit:
 	context->parsing_state = _PS_NORMAL;

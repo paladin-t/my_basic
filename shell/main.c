@@ -103,12 +103,19 @@ static void _clear_code(_code_line_t* code) {
 }
 
 static void _append_line(_code_line_t* code, char* txt) {
+	int l = 0;
+	char* buf = 0;
 	mb_assert(code && txt);
 	if(code->count + 1 == code->size) {
 		code->size += _LINE_INC_STEP;
 		code->lines = (char**)realloc(code->lines, sizeof(char*) * code->size);
 	}
-	code->lines[code->count++] = strdup(txt);
+	l = strlen(txt);
+	buf = (char*)malloc(l + 2);
+	memcpy(buf, txt, l);
+	buf[l] = '\n';
+	buf[l + 1] = '\0';
+	code->lines[code->count++] = buf;
 }
 
 static char* _get_code(_code_line_t* code) {
