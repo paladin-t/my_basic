@@ -333,21 +333,21 @@ typedef struct _tuple3_t {
 
 /* Interpreter tag */
 typedef struct mb_interpreter_t {
-    _ht_node_t* local_func_dict;
-    _ht_node_t* global_func_dict;
-    _ht_node_t* global_var_dict;
-    _ls_node_t* ast;
-    _parsing_context_t* parsing_context;
-    _running_context_t* running_context;
-    mb_error_e last_error;
-    int last_error_pos;
-    unsigned short last_error_row;
-    unsigned short last_error_col;
+	_ht_node_t* local_func_dict;
+	_ht_node_t* global_func_dict;
+	_ht_node_t* global_var_dict;
+	_ls_node_t* ast;
+	_parsing_context_t* parsing_context;
+	_running_context_t* running_context;
+	mb_error_e last_error;
+	int last_error_pos;
+	unsigned short last_error_row;
+	unsigned short last_error_col;
 	mb_debug_stepped_handler_t debug_stepped_handler;
-    mb_error_handler_t error_handler;
-    mb_print_func_t printer;
-    mb_input_func_t inputer;
-    void* userdata;
+	mb_error_handler_t error_handler;
+	mb_print_func_t printer;
+	mb_input_func_t inputer;
+	void* userdata;
 } mb_interpreter_t;
 
 static const char _PRECEDE_TABLE[19][19] = {
@@ -693,6 +693,8 @@ static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l);
 static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t);
 static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l);
 static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func);
+
+static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context);
 
 static int _register_func(mb_interpreter_t* s, const char* n, mb_func_t f, bool_t local);
 static int _remove_func(mb_interpreter_t* s, const char* n, bool_t local);
@@ -1287,12 +1289,12 @@ void mb_free(void* p) {
 }
 
 size_t mb_memtest(void*p, size_t s) {
-    size_t result = 0;
-    size_t i = 0;
-    for(i = 0; i < s; i++)
-        result += ((unsigned char*)p)[i];
+	size_t result = 0;
+	size_t i = 0;
+	for(i = 0; i < s; i++)
+		result += ((unsigned char*)p)[i];
 
-    return result;
+	return result;
 }
 
 char* mb_strupr(char* s) {
@@ -1918,7 +1920,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	int result = MB_FUNC_OK;
 	_data_e type;
 	union { _func_t* func; _array_t* array; _var_t* var; _label_t* label; real_t float_point; int_t integer; _raw_t any; } tmp;
-    _raw_t value;
+	_raw_t value;
 	unsigned int ul = 0;
 	_parsing_context_t* context = 0;
 	_ls_node_t* glbsyminscope = 0;
@@ -1926,7 +1928,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
 	mb_assert(s && sym && obj);
 
-    memset(value, 0, sizeof(_raw_t));
+	memset(value, 0, sizeof(_raw_t));
 
 	context = s->parsing_context;
 
@@ -1936,7 +1938,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	(*obj)->source_pos = -1;
 	(*obj)->source_row = (*obj)->source_col = 0xffff;
 #else /* MB_ENABLE_SOURCE_TRACE */
-    (*obj)->source_pos = -1;
+	(*obj)->source_pos = -1;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
 	type = _get_symbol_type(s, sym, &value);
@@ -1949,7 +1951,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
 		break;
 	case _DT_INT:
-        memcpy(tmp.any, value, sizeof(_raw_t));
+		memcpy(tmp.any, value, sizeof(_raw_t));
 		(*obj)->data.integer = tmp.integer;
 		safe_free(sym);
 
@@ -1987,7 +1989,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			tmp.array = (_array_t*)mb_malloc(sizeof(_array_t));
 			memset(tmp.array, 0, sizeof(_array_t));
 			tmp.array->name = sym;
-            memcpy(&tmp.array->type, value, sizeof(tmp.array->type));
+			memcpy(&tmp.array->type, value, sizeof(tmp.array->type));
 			(*obj)->data.array = tmp.array;
 
 			ul = _ht_set_or_insert(s->global_var_dict, sym, *obj);
@@ -2031,7 +2033,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	case _DT_LABEL:
 		if(context->current_char == ':') {
 			if(mb_memtest(value, sizeof(_raw_t))) {
-                memcpy(&((*obj)->data.label), value, sizeof((*obj)->data.label));
+				memcpy(&((*obj)->data.label), value, sizeof((*obj)->data.label));
 				(*obj)->ref = true;
 				*delsym = true;
 			} else {
@@ -2094,7 +2096,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	/* int_t */
 	tmp.integer = (int_t)mb_strtol(sym, &conv_suc, 0);
 	if(*conv_suc == '\0') {
-        memcpy(*value, tmp.any, sizeof(_raw_t));
+		memcpy(*value, tmp.any, sizeof(_raw_t));
 
 		result = _DT_INT;
 
@@ -2103,7 +2105,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	/* real_t */
 	tmp.float_point = (real_t)mb_strtod(sym, &conv_suc);
 	if(*conv_suc == '\0') {
-        memcpy(*value, tmp.any, sizeof(_raw_t));
+		memcpy(*value, tmp.any, sizeof(_raw_t));
 
 		result = _DT_REAL;
 
@@ -2119,7 +2121,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	glbsyminscope = _ht_find(s->global_var_dict, sym);
 	if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
 		tmp.obj = (_object_t*)(glbsyminscope->data);
-        memcpy(*value, &(tmp.obj->data.array->type), sizeof(tmp.obj->data.array->type));
+		memcpy(*value, &(tmp.obj->data.array->type), sizeof(tmp.obj->data.array->type));
 
 		result = _DT_ARRAY;
 
@@ -2132,7 +2134,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 #else /* MB_SIMPLE_ARRAY */
 			en = _DT_REAL;
 #endif /* MB_SIMPLE_ARRAY */
-            memcpy(*value, &en, sizeof(en));
+			memcpy(*value, &en, sizeof(en));
 
 			result = _DT_ARRAY;
 
@@ -2145,7 +2147,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 		context->last_symbol->type == _DT_SEP))) {
 		if(strcmp("-", sym) == 0) {
 			ptr = (intptr_t)_core_neg;
-            memcpy(*value, &ptr, sizeof(intptr_t));
+			memcpy(*value, &ptr, sizeof(intptr_t));
 
 			result = _DT_FUNC;
 
@@ -2156,7 +2158,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	glbsyminscope = _ht_find(s->global_func_dict, sym);
 	if(lclsyminscope || glbsyminscope) {
 		ptr = lclsyminscope ? (intptr_t)lclsyminscope->data : (intptr_t)glbsyminscope->data;
-        memcpy(*value, &ptr, sizeof(intptr_t));
+		memcpy(*value, &ptr, sizeof(intptr_t));
 
 		result = _DT_FUNC;
 
@@ -2181,7 +2183,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	glbsyminscope = _ht_find(s->global_var_dict, sym);
 	if(glbsyminscope) {
 		if(((_object_t*)glbsyminscope->data)->type != _DT_LABEL) {
-            memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
+			memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
 
 			result = _DT_VAR;
 
@@ -2193,7 +2195,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 		if(!context->last_symbol || _IS_EOS(context->last_symbol)) {
 			glbsyminscope = _ht_find(s->global_var_dict, sym);
 			if(glbsyminscope) {
-                memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
+				memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
 			}
 
 			result = _DT_LABEL;
@@ -2219,13 +2221,13 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 	/* Parse a char */
 	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
-    char last_char = '\0';
+	char last_char = '\0';
 
 	mb_assert(s && s->parsing_context);
 
 	context = s->parsing_context;
 
-    last_char = context->current_char;
+	last_char = context->current_char;
 	context->current_char = c;
 
 	if(context->parsing_state == _PS_NORMAL) {
@@ -2256,13 +2258,13 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 				if(_is_identifier_char(c)) {
 					result += _append_char_to_symbol(s, c);
 				} else if(_is_operator_char(c)) {
-                    if((last_char == 'e' || last_char == 'E') && c == '-') {
-                        result += _append_char_to_symbol(s, c);
-                    } else {
-                        context->symbol_state = _SS_OPERATOR;
-                        result += _cut_symbol(s, pos, row, col);
-                        result += _append_char_to_symbol(s, c);
-                    }
+					if((last_char == 'e' || last_char == 'E') && c == '-') {
+						result += _append_char_to_symbol(s, c);
+					} else {
+						context->symbol_state = _SS_OPERATOR;
+						result += _cut_symbol(s, pos, row, col);
+						result += _append_char_to_symbol(s, c);
+					}
 				} else {
 					_handle_error(s, SE_PS_INVALID_CHAR, pos, row, col, MB_FUNC_ERR, _exit, result);
 				}
@@ -3057,6 +3059,15 @@ _exit:
 	return result;
 }
 
+_parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
+	if(!context)
+		context = (_parsing_context_t*)mb_malloc(sizeof(_parsing_context_t));
+	memset(context, 0, sizeof(_parsing_context_t));
+	context->parsing_row = 1;
+
+	return context;
+}
+
 int _register_func(mb_interpreter_t* s, const char* n, mb_func_t f, bool_t local) {
 	/* Register a function to a MY-BASIC environment */
 	int result = 0;
@@ -3315,10 +3326,7 @@ int mb_open(struct mb_interpreter_t** s) {
 	ast = _ls_create();
 	(*s)->ast = ast;
 
-	context = (_parsing_context_t*)mb_malloc(sizeof(_parsing_context_t));
-	memset(context, 0, sizeof(_parsing_context_t));
-	context->parsing_row = 1;
-	(*s)->parsing_context = context;
+	(*s)->parsing_context = context = _reset_parsing_context(context);
 
 	running = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
 	memset(running, 0, sizeof(_running_context_t));
@@ -3363,9 +3371,9 @@ int mb_close(struct mb_interpreter_t** s) {
 	safe_free(running);
 
 	context = (*s)->parsing_context;
-    if(context) {
-        safe_free(context);
-    }
+	if(context) {
+		safe_free(context);
+	}
 
 	ast = (*s)->ast;
 	_ls_foreach(ast, _destroy_object);
@@ -3410,14 +3418,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
 	running->no_eat_comma_mark = 0;
 	memset(&(running->intermediate_value), 0, sizeof(mb_value_t));
 
-	context = (*s)->parsing_context;
-    if(!context) {
-        context = (_parsing_context_t*)mb_malloc(sizeof(_parsing_context_t));
-        memset(context, 0, sizeof(_parsing_context_t));
-        (*s)->parsing_context = context;
-    }
-	memset(context, 0, sizeof(_parsing_context_t));
-	context->parsing_row = 1;
+	(*s)->parsing_context = context = _reset_parsing_context(context);
 
 	ast = (*s)->ast;
 	_ls_foreach(ast, _destroy_object);
@@ -3523,9 +3524,9 @@ int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	ast = (_ls_node_t*)(*l);
-    if(!ast) {
-        _handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
-    }
+	if(!ast) {
+		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
+	}
 	obj = (_object_t*)(ast->data);
 	if(!_IS_FUNC(obj, _core_close_bracket)) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -3859,9 +3860,11 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 	long l = 0;
 	_parsing_context_t* context = 0;
 
-	mb_assert(s && s->parsing_context);
+	mb_assert(s);
 
 	context = s->parsing_context;
+
+	s->parsing_context = context = _reset_parsing_context(context);
 
 	fp = fopen(f, "rb");
 	if(fp) {
