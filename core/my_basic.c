@@ -3326,7 +3326,7 @@ int mb_open(struct mb_interpreter_t** s) {
 	ast = _ls_create();
 	(*s)->ast = ast;
 
-	(*s)->parsing_context = context = _reset_parsing_context(context);
+	(*s)->parsing_context = context = _reset_parsing_context((*s)->parsing_context);
 
 	running = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
 	memset(running, 0, sizeof(_running_context_t));
@@ -3418,7 +3418,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
 	running->no_eat_comma_mark = 0;
 	memset(&(running->intermediate_value), 0, sizeof(mb_value_t));
 
-	(*s)->parsing_context = context = _reset_parsing_context(context);
+	(*s)->parsing_context = context = _reset_parsing_context((*s)->parsing_context);
 
 	ast = (*s)->ast;
 	_ls_foreach(ast, _destroy_object);
@@ -3864,7 +3864,7 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 
 	context = s->parsing_context;
 
-	s->parsing_context = context = _reset_parsing_context(context);
+	s->parsing_context = context = _reset_parsing_context(s->parsing_context);
 
 	fp = fopen(f, "rb");
 	if(fp) {
