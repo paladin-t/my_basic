@@ -201,8 +201,6 @@ static int beep(struct mb_interpreter_t* s, void** l) {
 
 	putchar('\a');
 
-    mb_schedule_suspend(s, MB_FUNC_SUSPEND);
-
 	return result;
 }
 
@@ -450,7 +448,6 @@ static int _do_line(void) {
 		for(i = 0; i < c->count; ++i)
 			mb_load_string(bas, c->lines[i]);
 		result = mb_run(bas);
-        result = mb_run(bas);
 		printf("\n");
 	} else if(_str_eq(line, "BYE")) {
 		result = MB_FUNC_BYE;
