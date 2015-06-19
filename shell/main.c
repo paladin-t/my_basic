@@ -110,7 +110,7 @@ static void _append_line(_code_line_t* code, char* txt) {
 		code->size += _LINE_INC_STEP;
 		code->lines = (char**)realloc(code->lines, sizeof(char*) * code->size);
 	}
-	l = strlen(txt);
+	l = (int)strlen(txt);
 	buf = (char*)malloc(l + 2);
 	memcpy(buf, txt, l);
 	buf[l] = '\n';
@@ -267,7 +267,7 @@ static void _list_program(const char* sn, const char* cn) {
 	if(lsn == 0 && lcn == 0) {
 		long i = 0;
 		for(i = 0; i < c->count; ++i) {
-			printf("%d]%s\n", i + 1, c->lines[i]);
+			printf("%ld]%s\n", i + 1, c->lines[i]);
 		}
 	} else {
 		long i = 0;
@@ -288,7 +288,7 @@ static void _list_program(const char* sn, const char* cn) {
 			if(i >= c->count)
 				break;
 
-			printf("%d]%s\n", i + 1, c->lines[i]);
+			printf("%ld]%s\n", i + 1, c->lines[i]);
 		}
 	}
 }
@@ -339,7 +339,7 @@ static void _insert_program(const char* no) {
 
 static void _alter_program(const char* no) {
 	long lno = 0;
-	int i = 0;
+	long i = 0;
 	mb_assert(no);
 	lno = atoi(no);
 	if(lno < 1 || lno > c->count) {

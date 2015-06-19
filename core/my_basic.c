@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 55
+#define _VER_REVISION 56
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -278,7 +278,7 @@ typedef struct _object_t {
 	unsigned short source_row;
 	unsigned short source_col;
 #else /* MB_ENABLE_SOURCE_TRACE */
-    char source_pos;
+	char source_pos;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 } _object_t;
 
@@ -316,6 +316,7 @@ typedef struct _parsing_context_t {
 typedef struct _running_context_t {
 	_ls_node_t* temp_values;
 	_ls_node_t* suspent_point;
+	int schedule_suspend_tag;
 	_ls_node_t* sub_stack;
 	_var_t* next_loop_var;
 	mb_value_t intermediate_value;
@@ -1463,7 +1464,7 @@ _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opn
 #ifdef MB_ENABLE_SOURCE_TRACE
 		_set_error_pos(s, optr->source_pos, optr->source_row, optr->source_col);
 #else /* MB_ENABLE_SOURCE_TRACE */
-        _set_error_pos(s, 0, 0, 0);
+		_set_error_pos(s, 0, 0, 0);
 #endif /* MB_ENABLE_SOURCE_TRACE */
 	}
 
@@ -1901,7 +1902,7 @@ int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int pos, unsi
 #else /* MB_ENABLE_SOURCE_TRACE */
 		mb_unrefvar(row);
 		mb_unrefvar(col);
-        obj->source_pos = (char)pos;
+		obj->source_pos = (char)pos;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
 		node = _ls_pushback(ast, obj);
@@ -1975,7 +1976,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		tmp.func = (_func_t*)mb_malloc(sizeof(_func_t));
 		memset(tmp.func, 0, sizeof(_func_t));
 		tmp.func->name = sym;
-        memcpy(&tmp.func->pointer, value, sizeof(tmp.func->pointer));
+		memcpy(&tmp.func->pointer, value, sizeof(tmp.func->pointer));
 		(*obj)->data.func = tmp.func;
 
 		break;
@@ -2713,7 +2714,7 @@ int _dispose_object(_object_t* obj) {
 	obj->source_row = 0;
 	obj->source_col = 0;
 #else /* MB_ENABLE_SOURCE_TRACE */
-    obj->source_pos = 0;
+	obj->source_pos = 0;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 	++result;
 
@@ -2942,8 +2943,16 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 	default:
 		break;
 	}
+
+	if(running->schedule_suspend_tag) {
+		mb_suspend(s, (void**)(&ast));
+		result = MB_FUNC_SUSPEND;
+		running->schedule_suspend_tag = 0;
+	}
+
 	if(result != MB_FUNC_OK && result != MB_FUNC_SUSPEND && result != MB_SUB_RETURN)
 		goto _exit;
+
 	if(ast) {
 		obj = (_object_t*)(ast->data);
 		if(_IS_EOS(obj)) {
@@ -2959,6 +2968,7 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 			_handle_error_on_obj(s, SE_RN_COLON_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 	}
+
 	if(skip_to_eoi && running->skip_to_eoi && running->skip_to_eoi == _ls_back(running->sub_stack)) {
 		running->skip_to_eoi = 0;
 		obj = (_object_t*)(ast->data);
@@ -3540,21 +3550,21 @@ _exit:
 }
 
 int mb_has_arg(struct mb_interpreter_t* s, void** l) {
-    /* Detect whether there is any more argument */
-    int result = 0;
-    _ls_node_t* ast = 0;
-    _object_t* obj = 0;
+	/* Detect whether there is any more argument */
+	int result = 0;
+	_ls_node_t* ast = 0;
+	_object_t* obj = 0;
 
-    mb_assert(s && l);
+	mb_assert(s && l);
 
-    ast = (_ls_node_t*)(*l);
-    if(ast) {
-        obj = (_object_t*)(ast->data);
-        if(!_IS_FUNC(obj, _core_close_bracket) && obj->type != _DT_EOS)
-            result = obj->data.integer;
-    }
+	ast = (_ls_node_t*)(*l);
+	if(ast) {
+		obj = (_object_t*)(ast->data);
+		if(!_IS_FUNC(obj, _core_close_bracket) && obj->type != _DT_EOS)
+			result = obj->data.integer;
+	}
 
-    return result;
+	return result;
 }
 
 int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val) {
@@ -3955,12 +3965,23 @@ _exit:
 int mb_suspend(struct mb_interpreter_t* s, void** l) {
 	/* Suspend current execution and save the context */
 	int result = MB_FUNC_OK;
-	_ls_node_t* ast;
+	_ls_node_t* ast = 0;
 
 	mb_assert(s && l && *l);
 
 	ast = (_ls_node_t*)(*l);
 	s->running_context->suspent_point = ast;
+
+	return result;
+}
+
+int mb_schedule_suspend(struct mb_interpreter_t* s) {
+	/* Schedule to suspend current execution and will save the context */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s);
+
+	s->running_context->schedule_suspend_tag = 1;
 
 	return result;
 }

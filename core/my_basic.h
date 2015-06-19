@@ -47,7 +47,7 @@ extern "C" {
 #endif /* MB_ENABLE_ALLOC_STAT */
 
 #ifndef MB_ENABLE_SOURCE_TRACE
-#   define MB_ENABLE_SOURCE_TRACE
+#	define MB_ENABLE_SOURCE_TRACE
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
 #ifndef MB_COMPACT_MODE
@@ -278,6 +278,7 @@ MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l);
 MBAPI int mb_load_file(struct mb_interpreter_t* s, const char* f);
 MBAPI int mb_run(struct mb_interpreter_t* s);
 MBAPI int mb_suspend(struct mb_interpreter_t* s, void** l);
+MBAPI int mb_schedule_suspend(struct mb_interpreter_t* s);
 
 MBAPI int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val);
 MBAPI int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val);

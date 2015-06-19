@@ -1,3 +1,6 @@
+Jun. 19 2015
+Added an mb_schedule_suspend interface to schedule to suspend the execution
+
 Jun. 15 2015
 Fixed a wrong token position marking issue with interactive mode, thanks to Daniel Haensse for pointing it out
 
