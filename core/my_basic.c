@@ -55,9 +55,9 @@ extern "C" {
 #endif /* _MSC_VER */
 
 #ifdef __APPLE__
-#   pragma clang diagnostic push
-#   pragma clang diagnostic ignored "-Wunused-function"
-#   pragma clang diagnostic ignored "-Wunused-variable"
+#	pragma clang diagnostic push
+#	pragma clang diagnostic ignored "-Wunused-function"
+#	pragma clang diagnostic ignored "-Wunused-variable"
 #endif /* __APPLE__ */
 
 #ifdef __BORLANDC__
@@ -631,9 +631,9 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 		} while(0)
 #endif /* _WARING_AS_ERROR */
 #ifdef MB_ENABLE_SOURCE_TRACE
-#   define _HANDLE_ERROR(__s, __err, __obj, __ret, __exit, __result) _handle_error(__s, __err, (__obj)->source_pos, (__obj)->source_row, (__obj)->source_col, __ret, __exit, __result)
+#	define _HANDLE_ERROR(__s, __err, __obj, __ret, __exit, __result) _handle_error(__s, __err, (__obj)->source_pos, (__obj)->source_row, (__obj)->source_col, __ret, __exit, __result)
 #else /* MB_ENABLE_SOURCE_TRACE */
-#   define _HANDLE_ERROR(__s, __err, __obj, __ret, __exit, __result) _handle_error(__s, __err, 0, 0, 0, __ret, __exit, __result)
+#	define _HANDLE_ERROR(__s, __err, __obj, __ret, __exit, __result) _handle_error(__s, __err, 0, 0, 0, __ret, __exit, __result)
 #endif /* MB_ENABLE_SOURCE_TRACE */
 #define _handle_error_on_obj(__s, __err, __obj, __ret, __exit, __result) \
 	do { \
@@ -721,7 +721,7 @@ static int _close_std_lib(mb_interpreter_t* s);
 #	else /* _MSC_VER < 1300 */
 #		define _do_nothing do { printf("Unaccessable function: %s\n", __FUNCTION__); } while(0)
 #	endif /* _MSC_VER < 1300 */
-#elif defined  __BORLANDC__
+#elif defined __BORLANDC__
 #	define _do_nothing do { printf("Unaccessable function: %s\n", __FUNC__); } while(0)
 #elif defined __POCC__
 #	define _do_nothing do { printf("Unaccessable function: %s\n", __func__); } while(0)
@@ -2945,8 +2945,9 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 	}
 
 	if(running->schedule_suspend_tag) {
-		mb_suspend(s, (void**)(&ast));
-		result = MB_FUNC_SUSPEND;
+		if(running->schedule_suspend_tag == MB_FUNC_SUSPEND)
+			mb_suspend(s, (void**)(&ast));
+		result = running->schedule_suspend_tag;
 		running->schedule_suspend_tag = 0;
 	}
 
@@ -3975,13 +3976,15 @@ int mb_suspend(struct mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int mb_schedule_suspend(struct mb_interpreter_t* s) {
+int mb_schedule_suspend(struct mb_interpreter_t* s, int t) {
 	/* Schedule to suspend current execution and will save the context */
 	int result = MB_FUNC_OK;
 
 	mb_assert(s);
 
-	s->running_context->schedule_suspend_tag = 1;
+	if(t == MB_FUNC_OK)
+		t = MB_FUNC_SUSPEND;
+	s->running_context->schedule_suspend_tag = t;
 
 	return result;
 }
@@ -6189,7 +6192,7 @@ _exit:
 #endif /* __BORLANDC__ */
 
 #ifdef __APPLE__
-#   pragma clang diagnostic pop
+#	pragma clang diagnostic pop
 #endif /* __APPLE__ */
 
 #ifdef _MSC_VER
