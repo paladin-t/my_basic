@@ -26,7 +26,7 @@ MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in p
 * It's able to build your own dialect based on it
 * More features/modules under developing
 
-## Interpreter workflow diagram
+## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
 ![](https://github.com/paladin-t/my_basic/blob/master/interpreter%20workflow%20diagram.png)
 
