@@ -36,11 +36,11 @@ MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in p
 
 This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [OS X](output/my_basic_mac), it's efficient to download it and have a first impressive playground.
 
-To compile an interpreter binary for your own platform, please see the steps as follow.
+To compile an interpreter binary for your own platform, please follow the steps.
 
-* Retrieve at least `core` and `shell` folders
+* Retrieve at least `core` and `shell` folders for minimum build
 * Setup your compile toolchain configuration
-* Use your compiler to compile `core/my_basic.c` and `shell/main.c`, both require including `core/my_basic.h`, then link up your own executable
+* Use your compiler to compile `core/my_basic.c` and `shell/main.c`, including `core/my_basic.h` is required for both source files, then link up your own executable
 
 ### Combine with exist projects
 
@@ -66,8 +66,8 @@ For more details about using MY-BASIC when it's already integrated with exist pr
 
 ## References
 
-* [BASIC - Wikipedia](http://en.wikipedia.org/wiki/BASIC)
 * [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf)
+* [BASIC - Wikipedia](http://en.wikipedia.org/wiki/BASIC)
 
 -----
 
