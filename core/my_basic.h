@@ -142,6 +142,9 @@ extern "C" {
 #	define MB_LOOP_BREAK 5001
 #	define MB_LOOP_CONTINUE 5002
 #	define MB_SUB_RETURN 5101
+#	define MB_NEED_COMPLEX_ARRAY 6001
+#	define MB_RANK_OUT_OF_BOUNDS 6002
+#	define MB_INDEX_OUT_OF_BOUNDS 6003
 #	define MB_DEBUG_ID_NOT_FOUND 7001
 #	define MB_EXTENDED_ABORT 9001
 #endif /* MB_CODES */
@@ -219,11 +222,12 @@ typedef enum mb_error_e {
 } mb_error_e;
 
 typedef enum mb_data_e {
-	MB_DT_NIL = -1,
-	MB_DT_INT = 0,
-	MB_DT_REAL,
-	MB_DT_STRING,
-	MB_DT_USERTYPE
+	MB_DT_NIL = 0,
+	MB_DT_INT = 1 << 1,
+	MB_DT_REAL = 1 << 2,
+	MB_DT_STRING = 1 << 3,
+	MB_DT_USERTYPE = 1 << 4,
+	MB_DT_ARRAY = 1 << 12
 } mb_data_e;
 
 typedef union mb_value_u {
@@ -231,6 +235,7 @@ typedef union mb_value_u {
 	real_t float_point;
 	char* string;
 	void* usertype;
+	void* array;
 } mb_value_u;
 
 typedef struct mb_value_t {
@@ -272,6 +277,10 @@ MBAPI int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val);
 MBAPI int mb_push_string(struct mb_interpreter_t* s, void** l, char* val);
 MBAPI int mb_push_usertype(struct mb_interpreter_t* s, void** l, void* val);
 MBAPI int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
+MBAPI int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int c, void** a);
+MBAPI int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* i);
+MBAPI int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t* val);
+MBAPI int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t val);
 MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 
 MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l);

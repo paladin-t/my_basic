@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 56
+#define _VER_REVISION 57
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -670,6 +670,7 @@ static void _set_error_pos(mb_interpreter_t* s, int pos, unsigned short row, uns
 static int_t _get_size_of(_data_e type);
 static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected);
 
+static int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c);
 static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index);
 static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
 static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
@@ -677,6 +678,7 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 static void _init_array(_array_t* arr);
 static void _clear_array(_array_t* arr);
 static void _destroy_array(_array_t* arr);
+static bool_t _is_array(void* obj);
 static bool_t _is_string(void* obj);
 static char* _extract_string(_object_t* obj);
 static bool_t _is_internal_object(_object_t* obj);
@@ -685,6 +687,8 @@ static int _destroy_object(void* data, void* extra);
 static int _destroy_object_non_syntax(void* data, void* extra);
 static int _remove_source_object(void* data, void* extra);
 static int _compare_numbers(const _object_t* first, const _object_t* second);
+static _data_e _public_type_to_internal_type(mb_data_e t);
+static mb_data_e _internal_type_to_public_type(_data_e t);
 static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn);
 static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl);
 static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s);
@@ -1635,6 +1639,35 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					}
 					_ls_pushback(opnd, c);
 					f++;
+				} else if(c->type == _DT_VAR && c->data.variable->data->type == _DT_ARRAY) {
+					ast = ast->prev;
+					result = _get_array_index(s, &ast, &arr_idx);
+					if(result != MB_FUNC_OK) {
+						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, DON(ast), MB_FUNC_ERR, _exit, result);
+					}
+					ast = ast->next;
+					_get_array_elem(s, c->data.variable->data->data.array, arr_idx, &arr_val, &arr_type);
+					arr_elem = (_object_t*)mb_malloc(sizeof(_object_t));
+					memset(arr_elem, 0, sizeof(_object_t));
+					_ls_pushback(garbage, arr_elem);
+					arr_elem->type = arr_type;
+					arr_elem->ref = true;
+					if(arr_type == _DT_INT) {
+						arr_elem->data.integer = arr_val.integer;
+					} else if(arr_type == _DT_REAL) {
+						arr_elem->data.float_point = arr_val.float_point;
+					} else if(arr_type == _DT_STRING) {
+						arr_elem->data.string = arr_val.string;
+					} else if(arr_type == _DT_USERTYPE) {
+						arr_elem->data.usertype = arr_val.usertype;
+					} else {
+						mb_assert(0 && "Unsupported");
+					}
+					if(f) {
+						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
+					}
+					_ls_pushback(opnd, arr_elem);
+					f++;
 				} else {
 					if(c->type == _DT_VAR && ast) {
 						_object_t* _err_var = (_object_t*)(ast->data);
@@ -1700,7 +1733,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	}
 
 	c = (_object_t*)(_ls_popback(opnd));
-	if(!c || !(c->type == _DT_INT || c->type == _DT_REAL || c->type == _DT_STRING || c->type == _DT_VAR || c->type == _DT_USERTYPE)) {
+	if(!c || !(c->type == _DT_INT || c->type == _DT_REAL || c->type == _DT_STRING || c->type == _DT_VAR || c->type == _DT_USERTYPE || c->type == _DT_ARRAY)) {
 		_set_current_error(s, SE_RN_INVALID_DATA_TYPE);
 		result = MB_FUNC_ERR;
 
@@ -1718,6 +1751,9 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 			(*val)->data.string = (char*)mb_malloc(_sl + 1);
 			(*val)->data.string[_sl] = '\0';
 			memcpy((*val)->data.string, c->data.string, _sl + 1);
+		} else if(c->type == _DT_ARRAY) {
+			(*val)->data = c->data;
+			c->type = _DT_NIL;
 		} else {
 			(*val)->data = c->data;
 		}
@@ -2343,6 +2379,7 @@ bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected) {
 	bool_t result = false;
 
 	mb_assert(obj && val);
+
 	if(obj->type == _DT_INT && (expected == _DT_ANY || expected == _DT_INT)) {
 		val->integer = obj->data.integer;
 		result = true;
@@ -2356,8 +2393,38 @@ bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected) {
 	return result;
 }
 
+int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c) {
+	/* Calculate the index, used when interactive with host */
+	int result = 0;
+	int i = 0;
+	int n = 0;
+
+	mb_assert(s && arr && d);
+
+	if(c < 0 || c > arr->dimension_count) {
+		result = -1;
+
+		goto _exit;
+	}
+	for(i = 0; i < c; i++) {
+		n = d[i];
+		if(n < 0 || n >= arr->dimensions[i]) {
+			result = -1;
+
+			goto _exit;
+		}
+		if(result)
+			result *= n;
+		else
+			result += n;
+	}
+
+_exit:
+	return result;
+}
+
 int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index) {
-	/* Calculate the index */
+	/* Calculate the index, used when walking through an AST */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* arr = 0;
@@ -2374,10 +2441,13 @@ int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index) {
 
 	/* Array name */
 	ast = (_ls_node_t*)(*l);
-	if(!ast || ((_object_t*)(ast->data))->type != _DT_ARRAY) {
+	if(!ast || !_is_array(ast->data)) {
 		_handle_error_on_obj(s, SE_RN_ARRAY_IDENTIFIER_EXPECTED, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
-	arr = (_object_t*)(ast->data);
+	if(((_object_t*)(ast->data))->type == _DT_ARRAY)
+		arr = (_object_t*)(ast->data);
+	else
+		arr = ((_object_t*)(ast->data))->data.variable->data;
 	/* ( */
 	if(!ast->next || ((_object_t*)(ast->next->data))->type != _DT_FUNC || ((_object_t*)(ast->next->data))->data.func->pointer != _core_open_bracket) {
 		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED,
@@ -2598,13 +2668,31 @@ void _destroy_array(_array_t* arr) {
 	mb_assert(arr);
 
 	_clear_array(arr);
-	safe_free(arr->name);
+	if(arr->name) {
+		safe_free(arr->name);
+	}
 #ifndef MB_SIMPLE_ARRAY
 	if(arr->types) {
 		safe_free(arr->types);
 	}
 #endif /* MB_SIMPLE_ARRAY */
 	safe_free(arr);
+}
+
+bool_t _is_array(void* obj) {
+	/* Determine whether an object is an array value or an array variable */
+	bool_t result = false;
+	_object_t* o = 0;
+
+	mb_assert(obj);
+
+	o = (_object_t*)obj;
+	if(o->type == _DT_ARRAY)
+		result = true;
+	else if(o->type == _DT_VAR)
+		result = o->data.variable->data->type == _DT_ARRAY;
+
+	return result;
 }
 
 bool_t _is_string(void* obj) {
@@ -2799,6 +2887,38 @@ int _compare_numbers(const _object_t* first, const _object_t* second) {
 	return result;
 }
 
+_data_e _public_type_to_internal_type(mb_data_e t) {
+	/* Convert a public mb_data_e type to an internal _data_e */
+	switch(t) {
+	case MB_DT_INT:
+		return _DT_INT;
+	case MB_DT_REAL:
+		return _DT_REAL;
+	case MB_DT_STRING:
+		return _DT_STRING;
+	case MB_DT_USERTYPE:
+		return _DT_USERTYPE;
+	default:
+		return _DT_NIL;
+	}
+}
+
+mb_data_e _internal_type_to_public_type(_data_e t) {
+	/* Convert an internal mb_data_e type to a public _data_e */
+	switch(t) {
+	case _DT_INT:
+		return MB_DT_INT;
+	case _DT_REAL:
+		return MB_DT_REAL;
+	case _DT_STRING:
+		return MB_DT_STRING;
+	case _DT_USERTYPE:
+		return MB_DT_USERTYPE;
+	default:
+		return MB_DT_NIL;
+	}
+}
+
 int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	/* Assign a public mb_value_t to an internal _object_t */
 	int result = MB_FUNC_OK;
@@ -2824,6 +2944,11 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	case MB_DT_USERTYPE:
 		itn->type = _DT_USERTYPE;
 		itn->data.usertype = pbl->value.usertype;
+
+		break;
+	case MB_DT_ARRAY:
+		itn->type = _DT_ARRAY;
+		itn->data.array = pbl->value.array;
 
 		break;
 	default:
@@ -2860,6 +2985,11 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 	case _DT_USERTYPE:
 		pbl->type = MB_DT_USERTYPE;
 		pbl->value.usertype = itn->data.usertype;
+
+		break;
+	case _DT_ARRAY:
+		pbl->type = MB_DT_ARRAY;
+		pbl->value.array = itn->data.array;
 
 		break;
 	default:
@@ -3795,6 +3925,134 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	running = s->running_context;
 	running->intermediate_value = val;
 
+	return result;
+}
+
+int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int c, void** a) {
+	/* Create an array */
+	int result = MB_FUNC_OK;
+	_array_t* arr = 0;
+	_data_e type = _DT_NIL;
+	int j = 0;
+	int n = 0;
+
+	mb_assert(s && l && d && a);
+
+	*a = 0;
+#ifdef MB_SIMPLE_ARRAY
+	if(t == MB_DT_REAL) {
+		type = _DT_REAL;
+	} else if(t == MB_DT_STRING) {
+		type = _DT_STRING;
+	} else {
+		result = MB_NEED_COMPLEX_ARRAY;
+
+		goto _exit;
+	}
+#else /* MB_SIMPLE_ARRAY */
+	type = _DT_REAL;
+#endif /* MB_SIMPLE_ARRAY */
+
+	arr = (_array_t*)mb_malloc(sizeof(_array_t));
+	memset(arr, 0, sizeof(_array_t));
+	arr->type = type;
+	arr->name = 0;
+	for(j = 0; j < c; j++) {
+		n = d[j];
+		arr->dimensions[arr->dimension_count++] = n;
+		if(arr->count)
+			arr->count *= n;
+		else
+			arr->count += n;
+	}
+	_init_array(arr);
+	if(!arr->raw) {
+		arr->dimension_count = 0;
+		arr->dimensions[0] = 0;
+		arr->count = 0;
+	}
+	*a = arr;
+
+_exit:
+	return result;
+}
+
+int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* i) {
+	/* Get the length of an array */
+	int result = MB_FUNC_OK;
+	_array_t* arr = 0;
+
+	mb_assert(s && l);
+	arr = (_array_t*)a;
+	if(r < 0 || r >= arr->dimension_count) {
+		result = MB_RANK_OUT_OF_BOUNDS;
+
+		goto _exit;
+	}
+	if(i)
+		*i = arr->dimensions[r];
+
+_exit:
+	return result;
+}
+
+int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t* val) {
+	/* Get an element of an array with a given index */
+	int result = MB_FUNC_OK;
+	_array_t* arr = 0;
+	int index = 0;
+	_data_e type = _DT_NIL;
+
+	mb_assert(s && l);
+	arr = (_array_t*)a;
+	if(c < 0 || c > arr->dimension_count) {
+		result = MB_RANK_OUT_OF_BOUNDS;
+
+		goto _exit;
+	}
+	if(!val)
+		goto _exit;
+
+	index = _get_array_pos(s, arr, d, c);
+	if(index < 0) {
+		result = MB_INDEX_OUT_OF_BOUNDS;
+
+		goto _exit;
+	}
+
+	_get_array_elem(s, arr, index, &val->value, &type);
+	val->type = _internal_type_to_public_type(type);
+
+_exit:
+	return result;
+}
+
+int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t val) {
+	/* Set an element of an array with a given index */
+	int result = MB_FUNC_OK;
+	_array_t* arr = 0;
+	int index = 0;
+	_data_e type = _DT_NIL;
+
+	mb_assert(s && l);
+	arr = (_array_t*)a;
+	if(c < 0 || c > arr->dimension_count) {
+		result = MB_RANK_OUT_OF_BOUNDS;
+
+		goto _exit;
+	}
+
+	index = _get_array_pos(s, arr, d, c);
+	if(index < 0) {
+		result = MB_INDEX_OUT_OF_BOUNDS;
+
+		goto _exit;
+	}
+
+	type = _public_type_to_internal_type(val.type);
+	_set_array_elem(s, 0, arr, (unsigned int)index, &val.value, &type);
+
+_exit:
 	return result;
 }
 

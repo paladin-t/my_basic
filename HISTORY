@@ -1,3 +1,6 @@
+Jul. 12 2015
+Added array manipulation functions
+
 Jun. 19 2015
 Added an mb_schedule_suspend interface to schedule to suspend the execution
 
