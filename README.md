@@ -58,6 +58,7 @@ For more details about using MY-BASIC when it's already integrated with exist pr
 * [Redirect PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
 * [Redefine int_t and real_t](https://github.com/paladin-t/my_basic/wiki/Redefine-int_t-and-real_t)
 * [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
+* [Manipulate an array](https://github.com/paladin-t/my_basic/wiki/Manipulate-an-array)
 * [Customize macros](https://github.com/paladin-t/my_basic/wiki/Customize-macros)
 * [Write a debugger](https://github.com/paladin-t/my_basic/wiki/Write-a-debugger)
 * [More scripting APIs](https://github.com/paladin-t/my_basic/wiki/More-scripting-APIs)
