@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 57
+#define _VER_REVISION 58
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -1747,10 +1747,11 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	} else {
 		(*val)->type = c->type;
 		if(_is_string(c)) {
-			size_t _sl = strlen(_extract_string(c));
+			char* _str = _extract_string(c);
+			size_t _sl = strlen(_str);
 			(*val)->data.string = (char*)mb_malloc(_sl + 1);
 			(*val)->data.string[_sl] = '\0';
-			memcpy((*val)->data.string, c->data.string, _sl + 1);
+			memcpy((*val)->data.string, _str, _sl + 1);
 		} else if(c->type == _DT_ARRAY) {
 			(*val)->data = c->data;
 			c->type = _DT_NIL;
@@ -2721,6 +2722,9 @@ char* _extract_string(_object_t* obj) {
 		result = obj->data.string;
 	else if(obj->type == _DT_VAR && obj->data.variable->data->type == _DT_STRING)
 		result = obj->data.variable->data->data.string;
+
+	if(!result)
+		result = MB_NULL_STRING;
 
 	return result;
 }
