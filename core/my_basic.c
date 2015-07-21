@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 58
+#define _VER_REVISION 59
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -6338,7 +6338,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 				_get_printer(s)(MB_REAL_FMT, val_ptr->data.float_point);
 			} else if(val_ptr->type == _DT_STRING) {
 				_get_printer(s)("%s", (val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING));
-				if(!val_ptr->ref) {
+				if(!val_ptr->ref && val_ptr->data.string) {
 					safe_free(val_ptr->data.string);
 				}
 			}
