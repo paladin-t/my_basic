@@ -2476,7 +2476,7 @@ int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index) {
 		if(dcount + 1 > arr->data.array->dimension_count) {
 			_handle_error_on_obj(s, SE_RN_DIMENSION_OUT_OF_BOUND, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
-		if(val.integer >= arr->data.array->dimensions[dcount]) {
+		if((int)val.integer >= arr->data.array->dimensions[dcount]) {
 			_handle_error_on_obj(s, SE_RN_ARRAY_OUT_OF_BOUND, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		if(idx)
