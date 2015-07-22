@@ -3205,6 +3205,7 @@ _exit:
 }
 
 _parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
+	/* Reset the parsing context of a MY-BASIC environment */
 	if(!context)
 		context = (_parsing_context_t*)mb_malloc(sizeof(_parsing_context_t));
 	memset(context, 0, sizeof(_parsing_context_t));
