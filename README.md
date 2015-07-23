@@ -1,6 +1,8 @@
 ![](resource/icon.ico)
 
-Copyright (C) 2011 - 2015 [Wang Renxin](https://cn.linkedin.com/pub/wang-renxin/43/494/20)
+Copyright (C) 2011 - 2015 [Wang Renxin](https://twitter.com/wangrenxin)
+
+[LinkedIn](https://cn.linkedin.com/pub/wang-renxin/43/494/20)
 
 ## Introduction
 
