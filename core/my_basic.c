@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 59
+#define _VER_REVISION 60
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -3844,6 +3844,9 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 		goto _exit;
 
 	if(val_ptr->type == _DT_STRING && !val_ptr->ref) {
+		_ls_foreach(running->temp_values, _destroy_object);
+		_ls_clear(running->temp_values);
+
 		val_ptr = (_object_t*)mb_malloc(sizeof(_object_t));
 		memcpy(val_ptr, &val_obj, sizeof(_object_t));
 		_ls_pushback(running->temp_values, val_ptr);
