@@ -1,3 +1,6 @@
+Jul. 27 2015
+Fixed a memory leak with mb_pop_xxx, thanks to Daniel Haensse for pointing it out
+
 Jul. 20 2015
 Fixed a string manipulation bug
 
