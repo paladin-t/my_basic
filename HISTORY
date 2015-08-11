@@ -1,3 +1,7 @@
+Aug. 11 2015
+Fixed a wrong IF trunk processing bug, thanks to irony for pointing it out
+Fixed a crash bug with an invalid IF statement
+
 Jul. 27 2015
 Fixed a memory leak with mb_pop_xxx, thanks to Daniel Haensse for pointing it out
 

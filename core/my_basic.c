@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 60
+#define _VER_REVISION 61
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -3166,7 +3166,7 @@ int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 		obj = (_object_t*)(ast->data);
 		*l = ast;
 		ast = ast->next;
-	} while(!_IS_FUNC(obj, _core_if) && !_IS_FUNC(obj, _core_elseif) && !_IS_FUNC(obj, _core_else));
+	} while(!_IS_FUNC(obj, _core_if) && !_IS_FUNC(obj, _core_elseif) && !_IS_FUNC(obj, _core_else) && !_IS_FUNC(obj, _core_endif));
 
 _exit:
 	return result;
@@ -5021,10 +5021,12 @@ _elseif:
 			_skip_if_chunk(s, &ast);
 		}
 		if(multi_line && ast && _IS_FUNC(ast->data, _core_elseif)) {
-			if(ast) ast = ast->next;
+			ast = ast->next;
 
 			goto _elseif;
 		}
+		if(multi_line && ast && _IS_FUNC(ast->data, _core_endif))
+			goto _exit;
 
 		result = _skip_to(s, &ast, _core_else, _DT_EOS);
 		if(result != MB_FUNC_OK)
@@ -5057,7 +5059,8 @@ _exit:
 	if(multi_line)
 		result = _skip_to(s, &ast, _core_endif, _DT_NIL);
 
-	_destroy_object(val, 0);
+	if(val->type != _DT_ANY)
+		_destroy_object(val, 0);
 
 	*l = ast;
 

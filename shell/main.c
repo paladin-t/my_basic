@@ -267,7 +267,7 @@ static void _list_program(const char* sn, const char* cn) {
 	if(lsn == 0 && lcn == 0) {
 		long i = 0;
 		for(i = 0; i < c->count; ++i) {
-			printf("%ld]%s\n", i + 1, c->lines[i]);
+			printf("%ld]%s", i + 1, c->lines[i]);
 		}
 	} else {
 		long i = 0;
