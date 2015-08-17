@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 61
+#define _VER_REVISION 62
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -223,6 +223,8 @@ typedef enum _data_e {
 	_DT_VAR,
 	_DT_ARRAY,
 	_DT_LABEL, /* Label type, used for GOTO, GOSUB statement */
+	_DT_ROUTINE, /* User defined sub routine in script */
+	_DT_PROTOTYPE, /* Object prototype */
 	_DT_SEP, /* Separator */
 	_DT_EOS /* End of statement */
 } _data_e;
@@ -254,6 +256,19 @@ typedef struct _label_t {
 	_ls_node_t* node;
 } _label_t;
 
+typedef struct _obj_t {
+	char* name;
+	struct _running_context_t* scope;
+} _obj_t;
+
+typedef struct _routing_t {
+	char* name;
+	_obj_t* obj;
+	struct _running_context_t* scope;
+	_ls_node_t* entry;
+	_ls_node_t* parameters;
+} _routing_t;
+
 typedef union _raw_u { int_t i; real_t r; void* p; } _raw_u;
 
 typedef unsigned char _raw_t[sizeof(_raw_u)];
@@ -269,6 +284,8 @@ typedef struct _object_t {
 		_var_t* variable;
 		_array_t* array;
 		_label_t* label;
+		_routing_t* routine;
+		_obj_t* prototype;
 		char separator;
 		_raw_t raw;
 	} data;
@@ -282,8 +299,15 @@ typedef struct _object_t {
 #endif /* MB_ENABLE_SOURCE_TRACE */
 } _object_t;
 
+#ifdef MB_ENABLE_SOURCE_TRACE
+static const _object_t _OBJ_INT_UNIT = { _DT_INT, 1, false, 0, 0, 0 };
+static const _object_t _OBJ_INT_ZERO = { _DT_INT, 0, false, 0, 0, 0 };
+static const _object_t _OBJ_NIL = { _DT_NIL, 0, false, 0, 0, 0 };
+#else /* MB_ENABLE_SOURCE_TRACE */
 static const _object_t _OBJ_INT_UNIT = { _DT_INT, 1, false, 0 };
 static const _object_t _OBJ_INT_ZERO = { _DT_INT, 0, false, 0 };
+static const _object_t _OBJ_NIL = { _DT_NIL, 0, false, 0 };
+#endif /* MB_ENABLE_SOURCE_TRACE */
 
 static _object_t* _OBJ_BOOL_TRUE = 0;
 static _object_t* _OBJ_BOOL_FALSE = 0;
@@ -314,15 +338,13 @@ typedef struct _parsing_context_t {
 
 /* Running context */
 typedef struct _running_context_t {
+	_ht_node_t* var_dict;
 	_ls_node_t* temp_values;
 	_ls_node_t* suspent_point;
 	int schedule_suspend_tag;
 	_ls_node_t* sub_stack;
 	_var_t* next_loop_var;
 	mb_value_t intermediate_value;
-	int_t no_eat_comma_mark;
-	_ls_node_t* skip_to_eoi;
-	_ls_node_t* in_neg_expr;
 } _running_context_t;
 
 /* Expression processing */
@@ -336,10 +358,13 @@ typedef struct _tuple3_t {
 typedef struct mb_interpreter_t {
 	_ht_node_t* local_func_dict;
 	_ht_node_t* global_func_dict;
-	_ht_node_t* global_var_dict;
 	_ls_node_t* ast;
 	_parsing_context_t* parsing_context;
 	_running_context_t* running_context;
+	_running_context_t* scope_context;
+	int_t no_eat_comma_mark;
+	_ls_node_t* skip_to_eoi;
+	_ls_node_t* in_neg_expr;
 	mb_error_e last_error;
 	int last_error_pos;
 	unsigned short last_error_row;
@@ -657,6 +682,7 @@ static bool_t _is_quotation_mark(char c);
 static bool_t _is_comment(char c);
 static bool_t _is_identifier_char(char c);
 static bool_t _is_operator_char(char c);
+static bool_t _is_accessor(char c);
 
 static int _append_char_to_symbol(mb_interpreter_t* s, char c);
 static int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col);
@@ -772,6 +798,12 @@ static int _core_exit(mb_interpreter_t* s, void** l);
 static int _core_goto(mb_interpreter_t* s, void** l);
 static int _core_gosub(mb_interpreter_t* s, void** l);
 static int _core_return(mb_interpreter_t* s, void** l);
+static int _core_call(mb_interpreter_t* s, void** l);
+static int _core_var(mb_interpreter_t* s, void** l);
+static int _core_def(mb_interpreter_t* s, void** l);
+static int _core_enddef(mb_interpreter_t* s, void** l);
+static int _core_obj(mb_interpreter_t* s, void** l);
+static int _core_endobj(mb_interpreter_t* s, void** l);
 #ifdef MB_ENABLE_ALLOC_STAT
 static int _core_mem(mb_interpreter_t* s, void** l);
 #endif /* MB_ENABLE_ALLOC_STAT */
@@ -851,6 +883,13 @@ static const _func_t _core_libs[] = {
 	{ "GOTO", _core_goto },
 	{ "GOSUB", _core_gosub },
 	{ "RETURN", _core_return },
+
+	{ "CALL", _core_call },
+	{ "VAR", _core_var },
+	{ "DEF", _core_def },
+	{ "ENDDEF", _core_enddef },
+	{ "OBJ", _core_obj },
+	{ "ENDOBJ", _core_endobj },
 
 #ifdef MB_ENABLE_ALLOC_STAT
 	{ "MEM", _core_mem },
@@ -1533,7 +1572,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 
 	inep = (int*)mb_malloc(sizeof(int));
 	*inep = 0;
-	_ls_pushback(running->in_neg_expr, inep);
+	_ls_pushback(s->in_neg_expr, inep);
 
 	c = (_object_t*)(ast->data);
 	do {
@@ -1773,7 +1812,7 @@ _exit:
 	_ls_destroy(optr);
 	_ls_destroy(opnd);
 	*l = ast;
-	mb_free(_ls_popback(running->in_neg_expr));
+	mb_free(_ls_popback(s->in_neg_expr));
 
 	return result;
 }
@@ -1857,8 +1896,7 @@ bool_t _is_identifier_char(char c) {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 		(c == '_') ||
 		(c >= '0' && c <= '9') ||
-		(c == '$') ||
-		(c == '.');
+		(c == '$');
 }
 
 bool_t _is_operator_char(char c) {
@@ -1868,6 +1906,11 @@ bool_t _is_operator_char(char c) {
 		(c == '(') || (c == ')') ||
 		(c == '=') ||
 		(c == '>') || (c == '<');
+}
+
+bool_t _is_accessor(char c) {
+	/* Determine whether a char is an accessor char */
+	return c == '.';
 }
 
 int _append_char_to_symbol(mb_interpreter_t* s, char c) {
@@ -1961,6 +2004,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	_raw_t value;
 	unsigned int ul = 0;
 	_parsing_context_t* context = 0;
+	_running_context_t* running = 0;
 	_ls_node_t* glbsyminscope = 0;
 	mb_unrefvar(l);
 
@@ -1969,6 +2013,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	memset(value, 0, sizeof(_raw_t));
 
 	context = s->parsing_context;
+	running = s->running_context;
 
 	*obj = (_object_t*)mb_malloc(sizeof(_object_t));
 	memset(*obj, 0, sizeof(_object_t));
@@ -2018,7 +2063,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
 		break;
 	case _DT_ARRAY:
-		glbsyminscope = _ht_find(s->global_var_dict, sym);
+		glbsyminscope = _ht_find(running->var_dict, sym);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
 			(*obj)->data.array = ((_object_t*)(glbsyminscope->data))->data.array;
 			(*obj)->ref = true;
@@ -2030,7 +2075,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			memcpy(&tmp.array->type, value, sizeof(tmp.array->type));
 			(*obj)->data.array = tmp.array;
 
-			ul = _ht_set_or_insert(s->global_var_dict, sym, *obj);
+			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
 			mb_assert(ul);
 
 			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
@@ -2042,7 +2087,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
 		break;
 	case _DT_VAR:
-		glbsyminscope = _ht_find(s->global_var_dict, sym);
+		glbsyminscope = _ht_find(running->var_dict, sym);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
 			(*obj)->data.variable = ((_object_t*)(glbsyminscope->data))->data.variable;
 			(*obj)->ref = true;
@@ -2057,7 +2102,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			tmp.var->data->data.integer = 0;
 			(*obj)->data.variable = tmp.var;
 
-			ul = _ht_set_or_insert(s->global_var_dict, sym, *obj);
+			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
 			mb_assert(ul);
 
 			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
@@ -2081,7 +2126,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 				*asgn = &(tmp.label->node);
 				(*obj)->data.label = tmp.label;
 
-				ul = _ht_set_or_insert(s->global_var_dict, sym, *obj);
+				ul = _ht_set_or_insert(running->var_dict, sym, *obj);
 				mb_assert(ul);
 
 				*obj = (_object_t*)mb_malloc(sizeof(_object_t));
@@ -2119,6 +2164,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	union { real_t float_point; int_t integer; _object_t* obj; _raw_t any; } tmp;
 	char* conv_suc = 0;
 	_parsing_context_t* context = 0;
+	_running_context_t* running = 0;
 	_ls_node_t* lclsyminscope = 0;
 	_ls_node_t* glbsyminscope = 0;
 	size_t _sl = 0;
@@ -2130,6 +2176,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	mb_assert(_sl > 0);
 
 	context = s->parsing_context;
+	running = s->running_context;
 
 	/* int_t */
 	tmp.integer = (int_t)mb_strtol(sym, &conv_suc, 0);
@@ -2156,7 +2203,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 		goto _exit;
 	}
 	/* _array_t */
-	glbsyminscope = _ht_find(s->global_var_dict, sym);
+	glbsyminscope = _ht_find(running->var_dict, sym);
 	if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
 		tmp.obj = (_object_t*)(glbsyminscope->data);
 		memcpy(*value, &(tmp.obj->data.array->type), sizeof(tmp.obj->data.array->type));
@@ -2218,7 +2265,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 		goto _exit;
 	}
 	/* _var_t */
-	glbsyminscope = _ht_find(s->global_var_dict, sym);
+	glbsyminscope = _ht_find(running->var_dict, sym);
 	if(glbsyminscope) {
 		if(((_object_t*)glbsyminscope->data)->type != _DT_LABEL) {
 			memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
@@ -2231,7 +2278,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	/* _label_t */
 	if(context->current_char == ':') {
 		if(!context->last_symbol || _IS_EOS(context->last_symbol)) {
-			glbsyminscope = _ht_find(s->global_var_dict, sym);
+			glbsyminscope = _ht_find(running->var_dict, sym);
 			if(glbsyminscope) {
 				memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
 			}
@@ -3104,8 +3151,8 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 		}
 	}
 
-	if(skip_to_eoi && running->skip_to_eoi && running->skip_to_eoi == _ls_back(running->sub_stack)) {
-		running->skip_to_eoi = 0;
+	if(skip_to_eoi && s->skip_to_eoi && s->skip_to_eoi == _ls_back(running->sub_stack)) {
+		s->skip_to_eoi = 0;
 		obj = (_object_t*)(ast->data);
 		if(obj->type != _DT_EOS) {
 			result = _skip_to(s, &ast, 0, _DT_EOS);
@@ -3272,13 +3319,16 @@ int _remove_func(mb_interpreter_t* s, const char* n, bool_t local) {
 int _open_constant(mb_interpreter_t* s) {
 	/* Open global constant */
 	int result = MB_FUNC_OK;
+	_running_context_t* running = 0;
 	unsigned long ul = 0;
 
 	mb_assert(s);
 
-	ul = _ht_set_or_insert(s->global_var_dict, "TRUE", _OBJ_BOOL_TRUE);
+	running = s->running_context;
+
+	ul = _ht_set_or_insert(running->var_dict, "TRUE", _OBJ_BOOL_TRUE);
 	mb_assert(ul);
-	ul = _ht_set_or_insert(s->global_var_dict, "FALSE", _OBJ_BOOL_FALSE);
+	ul = _ht_set_or_insert(running->var_dict, "FALSE", _OBJ_BOOL_FALSE);
 	mb_assert(ul);
 
 	return result;
@@ -3460,17 +3510,13 @@ int mb_open(struct mb_interpreter_t** s) {
 	*s = (mb_interpreter_t*)mb_malloc(sizeof(mb_interpreter_t));
 	memset(*s, 0, sizeof(mb_interpreter_t));
 
+	(*s)->in_neg_expr = _ls_create();
+
 	local_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, _ls_free_extra);
 	(*s)->local_func_dict = local_scope;
 
 	global_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, _ls_free_extra);
 	(*s)->global_func_dict = global_scope;
-
-	global_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
-	(*s)->global_var_dict = global_scope;
-
-	ast = _ls_create();
-	(*s)->ast = ast;
 
 	(*s)->parsing_context = context = _reset_parsing_context((*s)->parsing_context);
 
@@ -3478,10 +3524,14 @@ int mb_open(struct mb_interpreter_t** s) {
 	memset(running, 0, sizeof(_running_context_t));
 
 	running->temp_values = _ls_create();
-	running->in_neg_expr = _ls_create();
-
 	running->sub_stack = _ls_create();
 	(*s)->running_context = running;
+
+	global_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
+	running->var_dict = global_scope;
+
+	ast = _ls_create();
+	(*s)->ast = ast;
 
 	_open_core_lib(*s);
 	_open_std_lib(*s);
@@ -3503,31 +3553,30 @@ int mb_close(struct mb_interpreter_t** s) {
 
 	mb_assert(s);
 
-	_close_std_lib(*s);
-	_close_core_lib(*s);
-
+	context = (*s)->parsing_context;
 	running = (*s)->running_context;
 
-	mb_dispose_value(*s, running->intermediate_value);
-	_ls_foreach(running->temp_values, _destroy_object);
-	_ls_destroy(running->temp_values);
-	_ls_destroy(running->in_neg_expr);
-
-	_ls_destroy(running->sub_stack);
-	safe_free(running);
-
-	context = (*s)->parsing_context;
-	if(context) {
-		safe_free(context);
-	}
+	_close_std_lib(*s);
+	_close_core_lib(*s);
 
 	ast = (*s)->ast;
 	_ls_foreach(ast, _destroy_object);
 	_ls_destroy(ast);
 
-	global_scope = (*s)->global_var_dict;
+	global_scope = running->var_dict;
 	_ht_foreach(global_scope, _destroy_object);
 	_ht_destroy(global_scope);
+
+	mb_dispose_value(*s, running->intermediate_value);
+	_ls_destroy(running->sub_stack);
+	_ls_foreach(running->temp_values, _destroy_object);
+	_ls_destroy(running->temp_values);
+
+	safe_free(running);
+
+	if(context) {
+		safe_free(context);
+	}
 
 	global_scope = (*s)->global_func_dict;
 	_ht_foreach(global_scope, _ls_free_extra);
@@ -3536,6 +3585,8 @@ int mb_close(struct mb_interpreter_t** s) {
 	local_scope = (*s)->local_func_dict;
 	_ht_foreach(local_scope, _ls_free_extra);
 	_ht_destroy(local_scope);
+
+	_ls_destroy((*s)->in_neg_expr);
 
 	_close_constant(*s);
 
@@ -3555,13 +3606,13 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
 
 	mb_assert(s);
 
+	(*s)->no_eat_comma_mark = 0;
 	(*s)->last_error = SE_NO_ERR;
 
 	running = (*s)->running_context;
 	_ls_clear(running->sub_stack);
 	running->suspent_point = 0;
 	running->next_loop_var = 0;
-	running->no_eat_comma_mark = 0;
 	memset(&(running->intermediate_value), 0, sizeof(mb_value_t));
 
 	(*s)->parsing_context = context = _reset_parsing_context((*s)->parsing_context);
@@ -3570,7 +3621,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
 	_ls_foreach(ast, _destroy_object);
 	_ls_clear(ast);
 
-	global_scope = (*s)->global_var_dict;
+	global_scope = running->var_dict;
 	_ht_foreach(global_scope, _destroy_object);
 	_ht_clear(global_scope);
 
@@ -3606,7 +3657,6 @@ int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
-	_running_context_t* running = 0;
 
 	mb_assert(s && l);
 
@@ -3617,8 +3667,7 @@ int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
 	}
 	ast = ast->next;
 
-	running = s->running_context;
-	++running->no_eat_comma_mark;
+	++s->no_eat_comma_mark;
 
 _exit:
 	*l = ast;
@@ -3629,12 +3678,10 @@ _exit:
 int mb_attempt_func_end(struct mb_interpreter_t* s, void** l) {
 	/* Try attempting to end a function */
 	int result = MB_FUNC_OK;
-	_running_context_t* running = 0;
 
 	mb_assert(s && l);
 
-	running = s->running_context;
-	--running->no_eat_comma_mark;
+	--s->no_eat_comma_mark;
 
 	return result;
 }
@@ -3832,8 +3879,8 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 
 	running = s->running_context;
 
-	if(!_ls_empty(running->in_neg_expr))
-		inep = (int*)_ls_back(running->in_neg_expr)->data;
+	if(!_ls_empty(s->in_neg_expr))
+		inep = (int*)_ls_back(s->in_neg_expr)->data;
 
 	val_ptr = &val_obj;
 	memset(val_ptr, 0, sizeof(_object_t));
@@ -3852,7 +3899,7 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 		_ls_pushback(running->temp_values, val_ptr);
 	}
 
-	if(running->no_eat_comma_mark < _NO_EAT_COMMA && (!inep || (inep && !(*inep)))) {
+	if(s->no_eat_comma_mark < _NO_EAT_COMMA && (!inep || (inep && !(*inep)))) {
 		if(ast && _IS_SEP(ast->data, ','))
 			ast = ast->next;
 	}
@@ -4188,7 +4235,7 @@ int mb_run(struct mb_interpreter_t* s) {
 		ast = ast->next;
 		running->suspent_point = 0;
 	} else {
-		mb_assert(!running->no_eat_comma_mark);
+		mb_assert(!s->no_eat_comma_mark);
 		ast = s->ast;
 		ast = ast->next;
 		if(!ast) {
@@ -4258,13 +4305,16 @@ int mb_schedule_suspend(struct mb_interpreter_t* s, int t) {
 int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 	/* Get the value of an identifier */
 	int result = MB_FUNC_OK;
+	_running_context_t* running = 0;
 	_ls_node_t* v = 0;
 	_object_t* obj = 0;
 	mb_value_t tmp;
 
 	mb_assert(s && n);
 
-	v = _ht_find(s->global_var_dict, (void*)n);
+	running = s->running_context;
+
+	v = _ht_find(running->var_dict, (void*)n);
 	if(v) {
 		obj = (_object_t*)(v->data);
 		mb_assert(obj->type == _DT_VAR);
@@ -4284,12 +4334,15 @@ int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
 	/* Set the value of an identifier */
 	int result = MB_FUNC_OK;
+	_running_context_t* running = 0;
 	_ls_node_t* v = 0;
 	_object_t* obj = 0;
 
 	mb_assert(s && n);
 
-	v = _ht_find(s->global_var_dict, (void*)n);
+	running = s->running_context;
+
+	v = _ht_find(running->var_dict, (void*)n);
 	if(v) {
 		obj = (_object_t*)(v->data);
 		mb_assert(obj->type == _DT_VAR);
@@ -4524,8 +4577,8 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 
 	running = s->running_context;
 
-	if(!_ls_empty(running->in_neg_expr))
-		inep = (int*)_ls_back(running->in_neg_expr)->data;
+	if(!_ls_empty(s->in_neg_expr))
+		inep = (int*)_ls_back(s->in_neg_expr)->data;
 
 	if(inep)
 		(*inep)++;
@@ -4985,7 +5038,7 @@ _elseif:
 		if(ast && ast->next && _IS_EOS(ast->next->data))
 			multi_line = true;
 
-		running->skip_to_eoi = _ls_back(running->sub_stack);
+		s->skip_to_eoi = _ls_back(running->sub_stack);
 		do {
 			ast = ast->next;
 			result = _execute_statement(s, &ast);
@@ -5009,7 +5062,7 @@ _elseif:
 
 		obj = (_object_t*)(ast->data);
 		if(obj->type != _DT_EOS) {
-			running->skip_to_eoi = 0;
+			s->skip_to_eoi = 0;
 			result = _skip_to(s, &ast, 0, _DT_EOS);
 			if(result != MB_FUNC_OK)
 				goto _exit;
@@ -5459,12 +5512,15 @@ int _core_exit(mb_interpreter_t* s, void** l) {
 int _core_goto(mb_interpreter_t* s, void** l) {
 	/* GOTO statement */
 	int result = MB_FUNC_OK;
+	_running_context_t* running = 0;
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 	_label_t* label = 0;
 	_ls_node_t* glbsyminscope = 0;
 
 	mb_assert(s && l);
+
+	running = s->running_context;
 
 	ast = (_ls_node_t*)(*l);
 	ast = ast->next;
@@ -5476,7 +5532,7 @@ int _core_goto(mb_interpreter_t* s, void** l) {
 
 	label = (_label_t*)(obj->data.label);
 	if(!label->node) {
-		glbsyminscope = _ht_find(s->global_var_dict, label->name);
+		glbsyminscope = _ht_find(running->var_dict, label->name);
 		if(!(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_LABEL)) {
 			_handle_error_on_obj(s, SE_RN_LABEL_NOT_EXISTS, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
@@ -5525,6 +5581,78 @@ int _core_return(mb_interpreter_t* s, void** l) {
 	*l = ast;
 
 _exit:
+	return result;
+}
+
+int _core_call(mb_interpreter_t* s, void** l) {
+	/* CALL statement */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+
+	mb_assert(0 && "Not implemented");
+	_do_nothing;
+
+	return result;
+}
+
+int _core_var(mb_interpreter_t* s, void** l) {
+	/* VAR statement */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+
+	mb_assert(0 && "Not implemented");
+	_do_nothing;
+
+	return result;
+}
+
+int _core_def(mb_interpreter_t* s, void** l) {
+	/* DEF statement */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+
+	mb_assert(0 && "Not implemented");
+	_do_nothing;
+
+	return result;
+}
+
+int _core_enddef(mb_interpreter_t* s, void** l) {
+	/* ENDDEF statement */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+
+	mb_assert(0 && "Not implemented");
+	_do_nothing;
+
+	return result;
+}
+
+int _core_obj(mb_interpreter_t* s, void** l) {
+	/* OBJ statement */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+
+	mb_assert(0 && "Not implemented");
+	_do_nothing;
+
+	return result;
+}
+
+int _core_endobj(mb_interpreter_t* s, void** l) {
+	/* ENDOBJ statement */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+
+	mb_assert(0 && "Not implemented");
+	_do_nothing;
+
 	return result;
 }
 
@@ -6311,7 +6439,6 @@ int _std_print(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
-	_running_context_t* running = 0;
 
 	_object_t val_obj;
 	_object_t* val_ptr = 0;
@@ -6321,8 +6448,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 	val_ptr = &val_obj;
 	memset(val_ptr, 0, sizeof(_object_t));
 
-	running = s->running_context;
-	++running->no_eat_comma_mark;
+	++s->no_eat_comma_mark;
 	ast = (_ls_node_t*)(*l);
 	ast = ast->next;
 	if(!ast || !ast->data) {
@@ -6385,7 +6511,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 	} while(ast && !_IS_SEP(obj, ':') && (obj->type == _DT_SEP || !_is_expression_terminal(s, obj)));
 
 _exit:
-	--running->no_eat_comma_mark;
+	--s->no_eat_comma_mark;
 
 	*l = ast;
 	if(result != MB_FUNC_OK)
