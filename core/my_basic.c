@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2015 W. Renxin
+** Copyright (C) 2011 - 2015 Wang Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 62
+#define _VER_REVISION 63
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -298,6 +298,31 @@ typedef struct _object_t {
 	char source_pos;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 } _object_t;
+
+typedef unsigned short _mem_tag_t;
+#define _MB_MEM_TAG_SIZE (sizeof(_mem_tag_t))
+
+#ifdef MB_ENABLE_ALLOC_STAT
+const size_t MB_SIZEOF_INT = _MB_MEM_TAG_SIZE + sizeof(int);
+const size_t MB_SIZEOF_PTR = _MB_MEM_TAG_SIZE + sizeof(intptr_t);
+const size_t MB_SIZEOF_LSN = _MB_MEM_TAG_SIZE + sizeof(_ls_node_t);
+const size_t MB_SIZEOF_HTN = _MB_MEM_TAG_SIZE + sizeof(_ht_node_t);
+const size_t MB_SIZEOF_OBJ = _MB_MEM_TAG_SIZE + sizeof(_object_t);
+const size_t MB_SIZEOF_FUN = _MB_MEM_TAG_SIZE + sizeof(_func_t);
+const size_t MB_SIZEOF_ARR = _MB_MEM_TAG_SIZE + sizeof(_array_t);
+const size_t MB_SIZEOF_VAR = _MB_MEM_TAG_SIZE + sizeof(_var_t);
+const size_t MB_SIZEOF_LBL = _MB_MEM_TAG_SIZE + sizeof(_label_t);
+#else /* MB_ENABLE_ALLOC_STAT */
+const size_t MB_SIZEOF_INT = sizeof(int);
+const size_t MB_SIZEOF_PTR = sizeof(intptr_t);
+const size_t MB_SIZEOF_LSN = sizeof(_ls_node_t);
+const size_t MB_SIZEOF_HTN = sizeof(_ht_node_t);
+const size_t MB_SIZEOF_OBJ = sizeof(_object_t);
+const size_t MB_SIZEOF_FUN = sizeof(_func_t);
+const size_t MB_SIZEOF_ARR = sizeof(_array_t);
+const size_t MB_SIZEOF_VAR = sizeof(_var_t);
+const size_t MB_SIZEOF_LBL = sizeof(_label_t);
+#endif /* MB_ENABLE_ALLOC_STAT */
 
 #ifdef MB_ENABLE_SOURCE_TRACE
 static const _object_t _OBJ_INT_UNIT = { _DT_INT, 1, false, 0, 0, 0 };
@@ -606,15 +631,18 @@ static void _ht_clear(_ht_node_t* ht);
 static void _ht_destroy(_ht_node_t* ht);
 
 /** Memory operations */
-#define _MB_POINTER_SIZE (sizeof(intptr_t))
-#define _MB_WRITE_CHUNK_SIZE(t, s) (*((size_t*)((char*)(t) - _MB_POINTER_SIZE)) = s)
-#define _MB_READ_CHUNK_SIZE(t) (*((size_t*)((char*)(t) - _MB_POINTER_SIZE)))
+#define _MB_CHECK_MEM_TAG_SIZE(y, s) do { _mem_tag_t _tmp = (_mem_tag_t)s; if((y)_tmp != s) { mb_assert(0 && "\"_mem_tag_t\" is too small."); printf("The type \"_mem_tag_t\" is not precise enough to hold the given data, please redefine it!"); } } while(0)
+#define _MB_WRITE_MEM_TAG_SIZE(t, s) (*((_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)) = (_mem_tag_t)s)
+#define _MB_READ_MEM_TAG_SIZE(t) (*((_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)))
 
 #ifdef MB_ENABLE_ALLOC_STAT
 static volatile size_t _mb_allocated = 0;
 #else /* MB_ENABLE_ALLOC_STAT */
 static volatile size_t _mb_allocated = (size_t)(~0);
 #endif /* MB_ENABLE_ALLOC_STAT */
+
+static mb_memory_allocate_func_t _mb_allocate_func = 0;
+static mb_memory_free_func_t _mb_free_func = 0;
 
 static void* mb_malloc(size_t s);
 static void mb_free(void* p);
@@ -1305,14 +1333,18 @@ void* mb_malloc(size_t s) {
 	char* ret = NULL;
 	size_t rs = s;
 #ifdef MB_ENABLE_ALLOC_STAT
-	rs += _MB_POINTER_SIZE;
+	_MB_CHECK_MEM_TAG_SIZE(size_t, s);
+	rs += _MB_MEM_TAG_SIZE;
 #endif /* MB_ENABLE_ALLOC_STAT */
-	ret = (char*)malloc(rs);
+	if(_mb_allocate_func)
+		ret = _mb_allocate_func((unsigned)rs);
+	else
+		ret = (char*)malloc(rs);
 	mb_assert(ret);
 #ifdef MB_ENABLE_ALLOC_STAT
 	_mb_allocated += s;
-	ret += _MB_POINTER_SIZE;
-	_MB_WRITE_CHUNK_SIZE(ret, s);
+	ret += _MB_MEM_TAG_SIZE;
+	_MB_WRITE_MEM_TAG_SIZE(ret, s);
 #endif /* MB_ENABLE_ALLOC_STAT */
 
 	return (void*)ret;
@@ -1323,13 +1355,16 @@ void mb_free(void* p) {
 
 #ifdef MB_ENABLE_ALLOC_STAT
 	do {
-		size_t os = _MB_READ_CHUNK_SIZE(p);
+		size_t os = _MB_READ_MEM_TAG_SIZE(p);
 		_mb_allocated -= os;
-		p = (char*)p - _MB_POINTER_SIZE;
+		p = (char*)p - _MB_MEM_TAG_SIZE;
 	} while(0);
 #endif /* MB_ENABLE_ALLOC_STAT */
 
-	free(p);
+	if(_mb_free_func)
+		_mb_free_func(p);
+	else
+		free(p);
 }
 
 size_t mb_memtest(void*p, size_t s) {
@@ -4441,6 +4476,15 @@ char* mb_memdup(char* val, unsigned size) {
 	}
 
 	return result;
+}
+
+int mb_set_memory_manager(mb_memory_allocate_func_t a, mb_memory_free_func_t f) {
+	/* Register an allocator and a freer globally */
+
+	_mb_allocate_func = a;
+	_mb_free_func = f;
+
+	return 0;
 }
 
 /* ========================================================} */

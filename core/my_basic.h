@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2015 W. Renxin
+** Copyright (C) 2011 - 2015 Wang Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -248,6 +248,8 @@ typedef void (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, int, unsig
 typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, int, unsigned short, unsigned short, int);
 typedef int (* mb_print_func_t)(const char*, ...);
 typedef int (* mb_input_func_t)(char*, int);
+typedef char* (* mb_memory_allocate_func_t)(unsigned s);
+typedef void (* mb_memory_free_func_t)(char* p);
 
 MBAPI unsigned int mb_ver(void);
 MBAPI const char* mb_ver_string(void);
@@ -302,6 +304,7 @@ MBAPI int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p);
 MBAPI int mb_gets(char* buf, int s);
 
 MBAPI char* mb_memdup(char* val, unsigned size);
+MBAPI int mb_set_memory_manager(mb_memory_allocate_func_t a, mb_memory_free_func_t f);
 
 #ifdef MB_COMPACT_MODE
 #	pragma pack()

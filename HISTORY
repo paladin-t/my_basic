@@ -1,3 +1,8 @@
+Aug. 25 2015
+Allowed a user to define the memory tag data type, unsigned short as default
+Added an mb_set_memory_manager function, allows user defined memory management
+Added referencable data type size constants
+
 Aug. 11 2015
 Fixed a wrong IF trunk processing bug, thanks to irony for pointing it out
 Fixed a crash bug with an invalid IF statement
@@ -73,8 +78,8 @@ Dec. 9 2014
 Improved compatibility with BCB
 
 May. 25 2014
-Added an mb_set_inputer function which allows the user to specify an INPUT reader, thanks to Michael P. Welch for suggestion
-Added an mb_remove_reserved_func function which allows the user to disable/remove a reserved statement
+Added an mb_set_inputer function which allows a user to specify an INPUT reader, thanks to Michael P. Welch for suggestion
+Added an mb_remove_reserved_func function which allows a user to disable/remove a reserved statement
 
 May. 22 2014
 Fixed a crash bug when missing colon in a combined line, thanks to Michael P. Welch for pointing it out

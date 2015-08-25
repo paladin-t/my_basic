@@ -2,7 +2,7 @@
 // Microsoft Visual C++ generated include file.
 // Used by my_basic.rc
 //
-#define IDI_ICON_MAIN                       101
+#define IDI_ICON_MAIN                   101
 
 // Next default values for new objects
 // 

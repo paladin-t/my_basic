@@ -57,6 +57,7 @@ For more details about using MY-BASIC when it's already integrated with exist pr
 * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
 * [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 * [Link with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC)
+* [Customize a memory allocator](https://github.com/paladin-t/my_basic/wiki/Customize-a-memory-allocator)
 * [Redirect PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
 * [Redefine int_t and real_t](https://github.com/paladin-t/my_basic/wiki/Redefine-int_t-and-real_t)
 * [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
