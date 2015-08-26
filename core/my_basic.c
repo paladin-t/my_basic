@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 63
+#define _VER_REVISION 64
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment this line to treat warnings as error */
@@ -299,8 +299,7 @@ typedef struct _object_t {
 #endif /* MB_ENABLE_SOURCE_TRACE */
 } _object_t;
 
-typedef unsigned short _mem_tag_t;
-#define _MB_MEM_TAG_SIZE (sizeof(_mem_tag_t))
+#define _MB_MEM_TAG_SIZE (sizeof(mb_mem_tag_t))
 
 #ifdef MB_ENABLE_ALLOC_STAT
 const size_t MB_SIZEOF_INT = _MB_MEM_TAG_SIZE + sizeof(int);
@@ -631,9 +630,9 @@ static void _ht_clear(_ht_node_t* ht);
 static void _ht_destroy(_ht_node_t* ht);
 
 /** Memory operations */
-#define _MB_CHECK_MEM_TAG_SIZE(y, s) do { _mem_tag_t _tmp = (_mem_tag_t)s; if((y)_tmp != s) { mb_assert(0 && "\"_mem_tag_t\" is too small."); printf("The type \"_mem_tag_t\" is not precise enough to hold the given data, please redefine it!"); } } while(0)
-#define _MB_WRITE_MEM_TAG_SIZE(t, s) (*((_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)) = (_mem_tag_t)s)
-#define _MB_READ_MEM_TAG_SIZE(t) (*((_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)))
+#define _MB_CHECK_MEM_TAG_SIZE(y, s) do { mb_mem_tag_t _tmp = (mb_mem_tag_t)s; if((y)_tmp != s) { mb_assert(0 && "\"mb_mem_tag_t\" is too small."); printf("The type \"mb_mem_tag_t\" is not precise enough to hold the given data, please redefine it!"); } } while(0)
+#define _MB_WRITE_MEM_TAG_SIZE(t, s) (*((mb_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)) = (mb_mem_tag_t)s)
+#define _MB_READ_MEM_TAG_SIZE(t) (*((mb_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)))
 
 #ifdef MB_ENABLE_ALLOC_STAT
 static volatile size_t _mb_allocated = 0;

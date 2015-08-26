@@ -1,3 +1,6 @@
+Aug. 26 2015
+Added a memory pool to interpreter shell in main.c
+
 Aug. 25 2015
 Allowed a user to define the memory tag data type, unsigned short as default
 Added an mb_set_memory_manager function, allows user defined memory management

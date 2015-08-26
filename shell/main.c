@@ -57,6 +57,13 @@
 #	define strdup _strdup
 #endif /* __POCC__ */
 
+/*
+** {========================================================
+** Common declarations
+*/
+
+#define _USE_MEM_POOL /* Comment this macro to disable memory pool */
+
 #define _MAX_LINE_LENGTH 256
 #define _str_eq(__str1, __str2) (_strcmpi(__str1, __str2) == 0)
 
@@ -64,13 +71,173 @@
 
 #define _NO_END(s) (MB_FUNC_OK == s || MB_FUNC_SUSPEND == s || MB_FUNC_WARNING == s || MB_FUNC_ERR == s || MB_FUNC_END == s)
 
+static struct mb_interpreter_t* bas = 0;
+
+/* ========================================================} */
+
+/*
+** {========================================================
+** Memory manipulation
+*/
+
+#ifdef _USE_MEM_POOL
+
+extern const size_t MB_SIZEOF_INT;
+extern const size_t MB_SIZEOF_PTR;
+extern const size_t MB_SIZEOF_LSN;
+extern const size_t MB_SIZEOF_HTN;
+extern const size_t MB_SIZEOF_OBJ;
+extern const size_t MB_SIZEOF_FUN;
+extern const size_t MB_SIZEOF_ARR;
+extern const size_t MB_SIZEOF_VAR;
+extern const size_t MB_SIZEOF_LBL;
+
+typedef unsigned _pool_chunk_size_t;
+
+typedef union _pool_tag_t {
+	_pool_chunk_size_t size;
+	void* ptr;
+} _pool_tag_t;
+
+typedef struct _pool_t {
+	size_t size;
+	char* stack;
+} _pool_t;
+
+static int pool_count = 0;
+
+static _pool_t* pool = 0;
+
+#define _POOL_NODE_ALLOC(size) (((char*)malloc(sizeof(_pool_tag_t) + size)) + sizeof(_pool_tag_t))
+#define _POOL_NODE_PTR(s) (s - sizeof(_pool_tag_t))
+#define _POOL_NODE_NEXT(s) (*((void**)(s - sizeof(_pool_tag_t))))
+#define _POOL_NODE_SIZE(s) (*((_pool_chunk_size_t*)(s - sizeof(_pool_tag_t))))
+#define _POOL_NODE_FREE(s) free(_POOL_NODE_PTR(s))
+
+static void _open_mem_pool(void) {
+#define N 9
+	size_t szs[N];
+	size_t lst[N] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	int i = 0;
+	int j = 0;
+	size_t s = 0;
+
+	pool_count = 0;
+
+	szs[0] = MB_SIZEOF_INT;
+	szs[1] = MB_SIZEOF_PTR;
+	szs[2] = MB_SIZEOF_LSN;
+	szs[3] = MB_SIZEOF_HTN;
+	szs[4] = MB_SIZEOF_OBJ;
+	szs[5] = MB_SIZEOF_FUN;
+	szs[6] = MB_SIZEOF_ARR;
+	szs[7] = MB_SIZEOF_VAR;
+	szs[8] = MB_SIZEOF_LBL;
+
+	for(i = 0; i < N; i++) {
+		s = szs[i];
+		for(j = 0; j < N; j++) {
+			if(!lst[j]) {
+				lst[j] = s;
+				pool_count++;
+
+				break;
+			} else if(lst[j] == s) {
+				break;
+			}
+		}
+	}
+
+	pool = (_pool_t*)malloc(sizeof(_pool_t) * pool_count);
+	for(i = 0; i < pool_count; i++) {
+		pool[i].size = lst[i];
+		pool[i].stack = 0;
+	}
+#undef N
+}
+
+static void _close_mem_pool(void) {
+	int i = 0;
+	char* s = 0;
+
+	if(!pool_count)
+		return;
+
+	for(i = 0; i < pool_count; i++) {
+		while((s = pool[i].stack)) {
+			pool[i].stack = _POOL_NODE_NEXT(s);
+			free(_POOL_NODE_PTR(s));
+		}
+	}
+	free((void*)pool);
+	pool = 0;
+	pool_count = 0;
+}
+
+static char* _memory_allocate(unsigned s) {
+	int i = 0;
+	_pool_t* pl = 0;
+	char* result = 0;
+
+	if(pool_count) {
+		for(i = 0; i < pool_count; i++) {
+			pl = &pool[i];
+			if(s == pl->size) {
+				if(pl->stack) {
+					result = pl->stack;
+					pl->stack = _POOL_NODE_NEXT(result);
+					_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
+
+					return result;
+				} else {
+					result = _POOL_NODE_ALLOC(s);
+					_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
+
+					return result;
+				}
+			}
+		}
+	}
+
+	result = _POOL_NODE_ALLOC(s);
+	_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)0;
+
+	return result;
+}
+
+static void _memory_free(char* p) {
+	int i = 0;
+	_pool_t* pl = 0;
+
+	if(pool_count) {
+		for(i = 0; i < pool_count; i++) {
+			pl = &pool[i];
+			if(_POOL_NODE_SIZE(p) == pl->size) {
+				_POOL_NODE_NEXT(p) = pl->stack;
+				pl->stack = p;
+
+				return;
+			}
+		}
+	}
+
+	_POOL_NODE_FREE(p);
+}
+
+#endif /* _USE_MEM_POOL */
+
+/* ========================================================} */
+
+/*
+** {========================================================
+** Code manipulation
+*/
+
 typedef struct _code_line_t {
 	char** lines;
 	int count;
 	int size;
 } _code_line_t;
-
-static struct mb_interpreter_t* bas = 0;
 
 static _code_line_t* c = 0;
 
@@ -191,58 +358,12 @@ static int _save_file(const char* path, const char* txt) {
 	return 0;
 }
 
-static int beep(struct mb_interpreter_t* s, void** l) {
-	int result = MB_FUNC_OK;
+/* ========================================================} */
 
-	mb_assert(s && l);
-
-	mb_check(mb_attempt_func_begin(s, l));
-	mb_check(mb_attempt_func_end(s, l));
-
-	putchar('\a');
-
-	return result;
-}
-
-static void _on_stepped(struct mb_interpreter_t* s, int p, unsigned short row, unsigned short col) {
-	mb_unrefvar(s);
-	mb_unrefvar(p);
-	mb_unrefvar(row);
-	mb_unrefvar(col);
-}
-
-static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, int p, unsigned short row, unsigned short col, int abort_code) {
-	mb_unrefvar(s);
-	mb_unrefvar(p);
-	if(SE_NO_ERR != e) {
-		printf("Error:\n    [LINE] %d, [COL] %d,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d\n", row, col, e, m, abort_code);
-	}
-}
-
-static void _on_startup(void) {
-	c = _create_code();
-
-	mb_init();
-
-	mb_open(&bas);
-	mb_debug_set_stepped_handler(bas, _on_stepped);
-	mb_set_error_handler(bas, _on_error);
-
-	mb_reg_fun(bas, beep);
-}
-
-static void _on_exit(void) {
-	mb_close(&bas);
-
-	mb_dispose();
-
-	_destroy_code(c);
-	c = 0;
-
-#if defined _MSC_VER && !defined _WIN64
-	if(0 != _CrtDumpMemoryLeaks()) { _asm { int 3 } }
-#endif /* _MSC_VER && !_WIN64 */
-}
+/*
+** {========================================================
+** Interactive commands
+*/
 
 static void _clear_screen(void) {
 #ifdef _MSC_VER
@@ -484,6 +605,97 @@ static int _do_line(void) {
 	return result;
 }
 
+/* ========================================================} */
+
+/*
+** {========================================================
+** Scripting interfaces
+*/
+
+static int beep(struct mb_interpreter_t* s, void** l) {
+	int result = MB_FUNC_OK;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_func_begin(s, l));
+	mb_check(mb_attempt_func_end(s, l));
+
+	putchar('\a');
+
+	return result;
+}
+
+/* ========================================================} */
+
+/*
+** {========================================================
+** Callbacks and handlers
+*/
+
+static void _on_stepped(struct mb_interpreter_t* s, int p, unsigned short row, unsigned short col) {
+	mb_unrefvar(s);
+	mb_unrefvar(p);
+	mb_unrefvar(row);
+	mb_unrefvar(col);
+}
+
+static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, int p, unsigned short row, unsigned short col, int abort_code) {
+	mb_unrefvar(s);
+	mb_unrefvar(p);
+	if(SE_NO_ERR != e) {
+		printf("Error:\n    [LINE] %d, [COL] %d,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d\n", row, col, e, m, abort_code);
+	}
+}
+
+/* ========================================================} */
+
+/*
+** {========================================================
+** Initialization and disposing
+*/
+
+static void _on_startup(void) {
+#ifdef _USE_MEM_POOL
+	_open_mem_pool();
+
+	mb_set_memory_manager(_memory_allocate, _memory_free);
+#endif /* _USE_MEM_POOL */
+
+	c = _create_code();
+
+	mb_init();
+
+	mb_open(&bas);
+	mb_debug_set_stepped_handler(bas, _on_stepped);
+	mb_set_error_handler(bas, _on_error);
+
+	mb_reg_fun(bas, beep);
+}
+
+static void _on_exit(void) {
+	mb_close(&bas);
+
+	mb_dispose();
+
+	_destroy_code(c);
+	c = 0;
+
+#ifdef _USE_MEM_POOL
+	_close_mem_pool();
+#endif /* _USE_MEM_POOL */
+
+#if defined _MSC_VER && !defined _WIN64
+	if(0 != _CrtDumpMemoryLeaks()) { _asm { int 3 } }
+#endif /* _MSC_VER && !_WIN64 */
+}
+
+/* ========================================================} */
+
+/*
+** {========================================================
+** Entry
+*/
+
 int main(int argc, char* argv[]) {
 	int status = 0;
 
@@ -510,3 +722,5 @@ int main(int argc, char* argv[]) {
 
 	return 0;
 }
+
+/* ========================================================} */

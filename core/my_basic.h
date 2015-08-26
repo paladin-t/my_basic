@@ -243,6 +243,8 @@ typedef struct mb_value_t {
 	mb_value_u value;
 } mb_value_t;
 
+typedef unsigned short mb_mem_tag_t;
+
 typedef int (* mb_func_t)(struct mb_interpreter_t*, void**);
 typedef void (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, int, unsigned short, unsigned short);
 typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, int, unsigned short, unsigned short, int);
