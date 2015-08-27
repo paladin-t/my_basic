@@ -134,6 +134,7 @@ static void _open_mem_pool(void) {
 	szs[7] = MB_SIZEOF_VAR;
 	szs[8] = MB_SIZEOF_LBL;
 
+	/* Find all unduplicated sizes */
 	for(i = 0; i < N; i++) {
 		s = szs[i];
 		for(j = 0; j < N; j++) {
@@ -166,15 +167,16 @@ static void _close_mem_pool(void) {
 	for(i = 0; i < pool_count; i++) {
 		while((s = pool[i].stack)) {
 			pool[i].stack = _POOL_NODE_NEXT(s);
-			free(_POOL_NODE_PTR(s));
+			_POOL_NODE_FREE(s);
 		}
 	}
+
 	free((void*)pool);
 	pool = 0;
 	pool_count = 0;
 }
 
-static char* _memory_allocate(unsigned s) {
+static char* _pop_mem(unsigned s) {
 	int i = 0;
 	_pool_t* pl = 0;
 	char* result = 0;
@@ -184,12 +186,14 @@ static char* _memory_allocate(unsigned s) {
 			pl = &pool[i];
 			if(s == pl->size) {
 				if(pl->stack) {
+					/* Pop from stack */
 					result = pl->stack;
 					pl->stack = _POOL_NODE_NEXT(result);
 					_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
 
 					return result;
 				} else {
+					/* Create a new node */
 					result = _POOL_NODE_ALLOC(s);
 					_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
 
@@ -199,13 +203,14 @@ static char* _memory_allocate(unsigned s) {
 		}
 	}
 
+	/* Allocate directly */
 	result = _POOL_NODE_ALLOC(s);
 	_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)0;
 
 	return result;
 }
 
-static void _memory_free(char* p) {
+static void _push_mem(char* p) {
 	int i = 0;
 	_pool_t* pl = 0;
 
@@ -213,6 +218,7 @@ static void _memory_free(char* p) {
 		for(i = 0; i < pool_count; i++) {
 			pl = &pool[i];
 			if(_POOL_NODE_SIZE(p) == pl->size) {
+				/* Push to stack */
 				_POOL_NODE_NEXT(p) = pl->stack;
 				pl->stack = p;
 
@@ -221,6 +227,7 @@ static void _memory_free(char* p) {
 		}
 	}
 
+	/* Free directly */
 	_POOL_NODE_FREE(p);
 }
 
@@ -658,7 +665,7 @@ static void _on_startup(void) {
 #ifdef _USE_MEM_POOL
 	_open_mem_pool();
 
-	mb_set_memory_manager(_memory_allocate, _memory_free);
+	mb_set_memory_manager(_pop_mem, _push_mem);
 #endif /* _USE_MEM_POOL */
 
 	c = _create_code();
