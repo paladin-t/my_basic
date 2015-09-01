@@ -215,6 +215,8 @@ typedef enum mb_error_e {
 	SE_RN_MOD_BY_ZERO,
 	SE_RN_INVALID_EXPRESSION,
 	SE_RN_OUT_OF_MEMORY,
+	SE_RN_DONT_SUSPEND_IN_A_ROUTINE,
+	SE_RN_ROUTINE_EXPECTED,
 	/** Extended abort */
 	SE_EA_EXTENDED_ABORT,
 	/** Extra */

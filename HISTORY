@@ -1,3 +1,6 @@
+Sep. 1 2015
+Added support for user customized routine by DEF/ENDDEF
+
 Aug. 26 2015
 Added a memory pool to interpreter shell in main.c
 
@@ -203,12 +206,12 @@ Apr. 15 2011
 Fixed garbage collection and _label_t disposing bugs
 
 Apr. 14 2011
-Fixed some list / comparison operator bugs
+Fixed some list/comparison operator bugs
 
 Feb. 15 2011
 Improved portability on Cocoa
 Improved portability on VC++ 6.0
-Fixed a suspend / resume bug
+Fixed a suspend/resume bug
 
 Feb. 9 2011
 Fixed struct mb_interpreter_t declaration warnings on gcc

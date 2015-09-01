@@ -6,7 +6,7 @@ Copyright (C) 2011 - 2015 [Wang Renxin](https://twitter.com/wangrenxin)
 
 ## Introduction
 
-MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in pure C with about 6000 lines of source code. Its grammar is similar to structured BASIC in early era, but without line number. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file. You can combine MY-BASIC with an existing C, C++, Objective-C, etc. project easily, scripting driven can make your projects more powerful, elegant and neat.
+MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in pure C with about 7000 lines of source code. Its grammar is similar to structured BASIC in early era, but without line number. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file. You can combine MY-BASIC with an existing C, C++, Objective-C, etc. project easily, scripting driven can make your projects more powerful, elegant and neat.
 
 ## Main features
 

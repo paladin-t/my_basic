@@ -91,6 +91,8 @@ extern const size_t MB_SIZEOF_FUN;
 extern const size_t MB_SIZEOF_ARR;
 extern const size_t MB_SIZEOF_VAR;
 extern const size_t MB_SIZEOF_LBL;
+extern const size_t MB_SIZEOF_RTN;
+extern const size_t MB_SIZEOF_CLS;
 
 typedef unsigned _pool_chunk_size_t;
 
@@ -115,9 +117,9 @@ static _pool_t* pool = 0;
 #define _POOL_NODE_FREE(s) free(_POOL_NODE_PTR(s))
 
 static void _open_mem_pool(void) {
-#define N 9
+#define N 11
 	size_t szs[N];
-	size_t lst[N] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	size_t lst[N];
 	int i = 0;
 	int j = 0;
 	size_t s = 0;
@@ -133,6 +135,10 @@ static void _open_mem_pool(void) {
 	szs[6] = MB_SIZEOF_ARR;
 	szs[7] = MB_SIZEOF_VAR;
 	szs[8] = MB_SIZEOF_LBL;
+	szs[9] = MB_SIZEOF_RTN;
+	szs[10] = MB_SIZEOF_CLS;
+
+	memset(lst, 0, sizeof(lst));
 
 	/* Find all unduplicated sizes */
 	for(i = 0; i < N; i++) {
