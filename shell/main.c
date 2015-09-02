@@ -43,6 +43,7 @@
 
 #ifdef _MSC_VER
 #	pragma warning(disable : 4127)
+#	pragma warning(disable : 4706)
 #	pragma warning(disable : 4996)
 #endif /* _MSC_VER */
 
@@ -265,7 +266,9 @@ static _code_line_t* _create_code(void) {
 
 static void _destroy_code(_code_line_t* code) {
 	int i = 0;
+
 	mb_assert(code);
+
 	for(i = 0; i < code->count; ++i) {
 		free(code->lines[i]);
 	}
@@ -275,7 +278,9 @@ static void _destroy_code(_code_line_t* code) {
 
 static void _clear_code(_code_line_t* code) {
 	int i = 0;
+
 	mb_assert(code);
+
 	for(i = 0; i < code->count; ++i) {
 		free(code->lines[i]);
 	}
@@ -285,7 +290,9 @@ static void _clear_code(_code_line_t* code) {
 static void _append_line(_code_line_t* code, char* txt) {
 	int l = 0;
 	char* buf = 0;
+
 	mb_assert(code && txt);
+
 	if(code->count + 1 == code->size) {
 		code->size += _LINE_INC_STEP;
 		code->lines = (char**)realloc(code->lines, sizeof(char*) * code->size);
@@ -301,7 +308,9 @@ static void _append_line(_code_line_t* code, char* txt) {
 static char* _get_code(_code_line_t* code) {
 	char* result = 0;
 	int i = 0;
+
 	mb_assert(code);
+
 	result = (char*)malloc((_MAX_LINE_LENGTH + 2) * code->count + 1);
 	result[0] = '\0';
 	for(i = 0; i < code->count; ++i) {
@@ -316,7 +325,9 @@ static char* _get_code(_code_line_t* code) {
 static void _set_code(_code_line_t* code, char* txt) {
 	char* cursor = 0;
 	char _c = '\0';
+
 	mb_assert(code);
+
 	if(!txt)
 		return;
 
@@ -340,7 +351,9 @@ static char* _load_file(const char* path) {
 	char* result = 0;
 	long curpos = 0;
 	long l = 0;
+
 	mb_assert(path);
+
 	fp = fopen(path, "rb");
 	if(fp) {
 		curpos = ftell(fp);
@@ -359,7 +372,9 @@ static char* _load_file(const char* path) {
 
 static int _save_file(const char* path, const char* txt) {
 	FILE* fp = 0;
+
 	mb_assert(path && txt);
+
 	fp = fopen(path, "wb");
 	if(fp) {
 		fwrite(txt, sizeof(char), strlen(txt), fp);
@@ -395,7 +410,9 @@ static int _new_program(void) {
 static void _list_program(const char* sn, const char* cn) {
 	long lsn = 0;
 	long lcn = 0;
+
 	mb_assert(sn && cn);
+
 	lsn = atoi(sn);
 	lcn = atoi(cn);
 	if(lsn == 0 && lcn == 0) {
@@ -430,7 +447,9 @@ static void _list_program(const char* sn, const char* cn) {
 static void _edit_program(const char* no) {
 	char line[_MAX_LINE_LENGTH];
 	long lno = 0;
+
 	mb_assert(no);
+
 	lno = atoi(no);
 	if(lno < 1 || lno > c->count) {
 		printf("Line number %ld out of bound.\n", lno);
@@ -449,7 +468,9 @@ static void _insert_program(const char* no) {
 	char line[_MAX_LINE_LENGTH];
 	long lno = 0;
 	int i = 0;
+
 	mb_assert(no);
+
 	lno = atoi(no);
 	if(lno < 1 || lno > c->count) {
 		printf("Line number %ld out of bound.\n", lno);
@@ -474,7 +495,9 @@ static void _insert_program(const char* no) {
 static void _alter_program(const char* no) {
 	long lno = 0;
 	long i = 0;
+
 	mb_assert(no);
+
 	lno = atoi(no);
 	if(lno < 1 || lno > c->count) {
 		printf("Line number %ld out of bound.\n", lno);
@@ -652,8 +675,9 @@ static void _on_stepped(struct mb_interpreter_t* s, int p, unsigned short row, u
 	mb_unrefvar(col);
 }
 
-static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, int p, unsigned short row, unsigned short col, int abort_code) {
+static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f, int p, unsigned short row, unsigned short col, int abort_code) {
 	mb_unrefvar(s);
+	mb_unrefvar(f);
 	mb_unrefvar(p);
 	if(SE_NO_ERR != e) {
 		printf("Error:\n    [LINE] %d, [COL] %d,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d\n", row, col, e, m, abort_code);

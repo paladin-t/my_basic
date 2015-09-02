@@ -215,7 +215,9 @@ typedef enum mb_error_e {
 	SE_RN_MOD_BY_ZERO,
 	SE_RN_INVALID_EXPRESSION,
 	SE_RN_OUT_OF_MEMORY,
+	SE_RN_WRONG_FUNCTION_REACHED,
 	SE_RN_DONT_SUSPEND_IN_A_ROUTINE,
+	SE_RN_DONT_MIX_INSTRUCTIONAL_AND_STRUCTURED,
 	SE_RN_ROUTINE_EXPECTED,
 	/** Extended abort */
 	SE_EA_EXTENDED_ABORT,
@@ -249,7 +251,7 @@ typedef unsigned short mb_mem_tag_t;
 
 typedef int (* mb_func_t)(struct mb_interpreter_t*, void**);
 typedef void (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, int, unsigned short, unsigned short);
-typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, int, unsigned short, unsigned short, int);
+typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, char*, int, unsigned short, unsigned short, int);
 typedef int (* mb_print_func_t)(const char*, ...);
 typedef int (* mb_input_func_t)(char*, int);
 typedef char* (* mb_memory_allocate_func_t)(unsigned s);

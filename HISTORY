@@ -1,3 +1,8 @@
+Sep. 2 2015
+Added sub routine type insurance
+Prompted more friendly dummy function message
+Polished code and document
+
 Sep. 1 2015
 Added support for user customized routine by DEF/ENDDEF
 
