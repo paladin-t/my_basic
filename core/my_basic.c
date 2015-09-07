@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 66
+#define _VER_REVISION 67
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment the line below to treat warning as error */
@@ -365,14 +365,19 @@ typedef struct _parsing_context_t {
 	_object_t* last_symbol;
 	_parsing_state_e parsing_state;
 	_symbol_state_e symbol_state;
+	unsigned short routine_state;
+	unsigned short routine_params_state;
 	int parsing_pos;
 	unsigned short parsing_row;
 	unsigned short parsing_col;
 } _parsing_context_t;
 
 /* Running context */
+#define _SCOPE_META_ROOT 'ROOT'
+
 typedef struct _running_context_t {
 	struct _running_context_t* prev;
+	unsigned meta;
 	_ht_node_t* var_dict;
 	_var_t* next_loop_var;
 	mb_value_t intermediate_value;
@@ -731,6 +736,8 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 		} \
 	} while(0)
 
+#define _OUTTER_SCOPE(__s) ((__s)->prev ? (__s)->prev : (__s))
+
 static void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* func);
 
 static mb_print_func_t _get_printer(mb_interpreter_t* s);
@@ -771,8 +778,14 @@ static char* _extract_string(_object_t* obj);
 
 static void _init_instance(mb_interpreter_t* s, _class_t* instance, char* n);
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n);
-static void _end_of_scope(mb_interpreter_t* s);
-static _ls_node_t* _search_var_in_scope_chain(mb_interpreter_t* s, char* n);
+static void _begin_routine(mb_interpreter_t* s);
+static void _end_routine(mb_interpreter_t* s);
+static void _begin_routine_parameter_list(mb_interpreter_t* s);
+static void _end_routine_parameter_list(mb_interpreter_t* s);
+static _running_context_t* _push_scope(mb_interpreter_t* s, _running_context_t* p);
+static _running_context_t* _pop_scope(mb_interpreter_t* s);
+static _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s);
+static _ls_node_t* _search_var_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, char* n);
 
 static int _dispose_object(_object_t* obj);
 static int _destroy_object(void* data, void* extra);
@@ -1766,7 +1779,8 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 				} else if(c->type == _DT_ROUTINE) {
 					ast = ast->prev;
 					result = _eval_routine(s, &ast, c->data.routine);
-					ast = ast->prev;
+					if(ast)
+						ast = ast->prev;
 					if(result != MB_FUNC_OK) {
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 					}
@@ -1811,10 +1825,15 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					_ls_pushback(opnd, arr_elem);
 					f++;
 				} else {
-					if(c->type == _DT_VAR && ast) {
-						_object_t* _err_var = (_object_t*)(ast->data);
-						if(_IS_FUNC(_err_var, _core_open_bracket)) {
-							_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+					if(c->type == _DT_VAR) {
+						_ls_node_t* cs = _search_var_in_scope_chain(s, 0, c->data.variable->name);
+						if(cs)
+							c = (_object_t*)(cs->data);
+						if(ast) {
+							_object_t* _err_var = (_object_t*)(ast->data);
+							if(_IS_FUNC(_err_var, _core_open_bracket)) {
+								_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+							}
 						}
 					}
 					if(f) {
@@ -1927,6 +1946,7 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 	mb_value_t arg;
 	_ls_node_t* pars = 0;
 	_var_t* var = 0;
+	_ls_node_t* rnode = 0;
 	_running_context_t* running = 0;
 
 	mb_assert(s && l && r);
@@ -1938,11 +1958,17 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 	pars = r->parameters;
 	if(pars) {
 		pars = pars->next;
-		while(pars) {
+		while(pars && mb_has_arg(s, (void**)l)) {
 			mb_check(mb_pop_value(s, (void**)l, &arg));
 
 			var = (_var_t*)(pars->data);
 			pars = pars->next;
+
+			_push_scope(s, r->scope);
+			rnode = _search_var_in_scope_chain(s, 0, var->name);
+			if(rnode)
+				var = ((_object_t*)(rnode->data))->data.variable;
+			_pop_scope(s);
 
 			result = _public_value_to_internal_object(&arg, var->data);
 			if(result != MB_FUNC_OK)
@@ -1955,8 +1981,7 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 	ast = (_ls_node_t*)(*l);
 	_ls_pushback(s->sub_stack, ast);
 
-	r->scope->prev = s->running_context;
-	running = s->running_context = r->scope;
+	running = _push_scope(s, r->scope);
 
 	*l = r->entry;
 
@@ -1992,8 +2017,7 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 		}
 	} while(ast);
 
-	s->running_context = running->prev;
-	running->prev = 0;
+	_pop_scope(s);
 
 	s->running_context->intermediate_value = running->intermediate_value;
 
@@ -2249,7 +2273,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
 		break;
 	case _DT_ARRAY:
-		glbsyminscope = _search_var_in_scope_chain(s, sym);
+		glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
 			(*obj)->data.array = ((_object_t*)(glbsyminscope->data))->data.array;
 			(*obj)->ref = true;
@@ -2273,7 +2297,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
 		break;
 	case _DT_CLASS:
-		glbsyminscope = _search_var_in_scope_chain(s, sym);
+		glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_CLASS) {
 			(*obj)->data.instance = ((_object_t*)(glbsyminscope->data))->data.instance;
 			(*obj)->ref = true;
@@ -2295,18 +2319,28 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
 		break;
 	case _DT_ROUTINE:
-		glbsyminscope = _search_var_in_scope_chain(s, sym);
+		glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ROUTINE) {
 			(*obj)->data.routine = ((_object_t*)(glbsyminscope->data))->data.routine;
 			(*obj)->ref = true;
 			*delsym = true;
+			if(running != (*obj)->data.routine->scope &&
+				context->routine_state &&
+				_IS_FUNC(context->last_symbol, _core_def)) {
+				_push_scope(s, (*obj)->data.routine->scope);
+			}
 		} else {
+			_running_context_t* tba = 0;
 			tmp.routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
 			_init_routine(s, tmp.routine, sym);
+			_push_scope(s, tmp.routine->scope);
 			(*obj)->data.routine = tmp.routine;
 
-			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
+			tba = _get_scope_for_add_routine(s);
+			ul = _ht_set_or_insert(tba->var_dict, sym, *obj);
 			mb_assert(ul);
+			if(tba != _OUTTER_SCOPE(running))
+				_pop_scope(s);
 
 			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
 			memset(*obj, 0, sizeof(_object_t));
@@ -2317,7 +2351,10 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
 		break;
 	case _DT_VAR:
-		glbsyminscope = _search_var_in_scope_chain(s, sym);
+		if(context->routine_params_state)
+			glbsyminscope = _ht_find(running->var_dict, sym);
+		else
+			glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
 			(*obj)->data.variable = ((_object_t*)(glbsyminscope->data))->data.variable;
 			(*obj)->ref = true;
@@ -2426,14 +2463,14 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 
 		goto _exit;
 	}
-	/* string */
+	/* String */
 	if(sym[0] == '"' && sym[_sl - 1] == '"' && _sl >= 2) {
 		result = _DT_STRING;
 
 		goto _exit;
 	}
 	/* _array_t */
-	glbsyminscope = _search_var_in_scope_chain(s, sym);
+	glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
 	if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
 		tmp.obj = (_object_t*)(glbsyminscope->data);
 		memcpy(*value, &(tmp.obj->data.array->type), sizeof(tmp.obj->data.array->type));
@@ -2459,7 +2496,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	/* _class_t */
 	if(context->last_symbol && context->last_symbol->type == _DT_FUNC) {
 		if(context->last_symbol->data.func->pointer == _core_class) {
-			glbsyminscope = _search_var_in_scope_chain(s, sym);
+			glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
 			if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
 				tmp.obj = (_object_t*)(glbsyminscope->data);
 				if(!tmp.obj->ref) {
@@ -2479,13 +2516,17 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	}
 	/* _routine_t */
 	if(context->last_symbol && context->last_symbol->type == _DT_FUNC) {
-		glbsyminscope = _search_var_in_scope_chain(s, sym);
+		glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
+			if(context->last_symbol->data.func->pointer == _core_def)
+				_begin_routine(s);
 			result = _DT_ROUTINE;
 
 			goto _exit;
 		}
 		if(context->last_symbol->data.func->pointer == _core_def || context->last_symbol->data.func->pointer == _core_call) {
+			if(context->last_symbol->data.func->pointer == _core_def)
+				_begin_routine(s);
 			if(!_is_identifier_char(sym[0])) {
 				result = _DT_NIL;
 
@@ -2500,6 +2541,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 				tmp.obj->type = _DT_ROUTINE;
 				tmp.obj->data.routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
 				_init_routine(s, tmp.obj->data.routine, sym);
+				_push_scope(s, tmp.obj->data.routine->scope);
 				_ht_set_or_insert(running->var_dict, sym, tmp.obj);
 			}
 
@@ -2507,7 +2549,8 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 
 			goto _exit;
 		} else if(context->last_symbol->data.func->pointer == _core_enddef) {
-			_end_of_scope(s);
+			_end_routine(s);
+			_pop_scope(s);
 		}
 	}
 	/* _func_t */
@@ -2526,6 +2569,15 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	lclsyminscope = _ht_find(s->local_func_dict, sym);
 	glbsyminscope = _ht_find(s->global_func_dict, sym);
 	if(lclsyminscope || glbsyminscope) {
+		if(context->last_symbol && context->last_symbol->type == _DT_ROUTINE) {
+			if(_sl == 1 && sym[0] == '(')
+				_begin_routine_parameter_list(s);
+		}
+		if(context->routine_params_state) {
+			if(_sl == 1 && sym[0] == ')')
+				_end_routine_parameter_list(s);
+		}
+
 		ptr = lclsyminscope ? (intptr_t)lclsyminscope->data : (intptr_t)glbsyminscope->data;
 		memcpy(*value, &ptr, sizeof(intptr_t));
 
@@ -2542,14 +2594,14 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 
 		goto _exit;
 	}
-	/* separator */
+	/* Separator */
 	if(_sl == 1 && _is_separator(sym[0])) {
 		result = _DT_SEP;
 
 		goto _exit;
 	}
 	/* _var_t */
-	glbsyminscope = _search_var_in_scope_chain(s, sym);
+	glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
 	if(glbsyminscope) {
 		if(((_object_t*)glbsyminscope->data)->type != _DT_LABEL) {
 			memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
@@ -2562,7 +2614,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	/* _label_t */
 	if(context->current_char == ':') {
 		if(!context->last_symbol || _IS_EOS(context->last_symbol)) {
-			glbsyminscope = _search_var_in_scope_chain(s, sym);
+			glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
 			if(glbsyminscope) {
 				memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
 			}
@@ -2579,7 +2631,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			goto _exit;
 		}
 	}
-	/* else */
+	/* Otherwise */
 	result = _DT_VAR;
 
 _exit:
@@ -3085,13 +3137,60 @@ void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n) {
 	routine->scope = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
 	memset(routine->scope, 0, sizeof(_running_context_t));
 	routine->scope->var_dict = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
-
-	routine->scope->prev = running;
-	s->running_context = routine->scope;
 }
 
-void _end_of_scope(mb_interpreter_t* s) {
-	/* Finish encapsule a scope */
+void _begin_routine(mb_interpreter_t* s) {
+	/* Begin parsing a routine */
+	_parsing_context_t* context = 0;
+
+	mb_assert(s);
+
+	context = s->parsing_context;
+	context->routine_state++;
+}
+
+void _end_routine(mb_interpreter_t* s) {
+	/* End parsing a routine */
+	_parsing_context_t* context = 0;
+
+	mb_assert(s);
+
+	context = s->parsing_context;
+	context->routine_state--;
+}
+
+void _begin_routine_parameter_list(mb_interpreter_t* s) {
+	/* Begin parsing parameter list of a routine */
+	_parsing_context_t* context = 0;
+
+	mb_assert(s);
+
+	context = s->parsing_context;
+	context->routine_params_state++;
+}
+
+void _end_routine_parameter_list(mb_interpreter_t* s) {
+	/* End parsing parameter list of a routine */
+	_parsing_context_t* context = 0;
+
+	mb_assert(s);
+
+	context = s->parsing_context;
+	context->routine_params_state--;
+}
+
+_running_context_t* _push_scope(mb_interpreter_t* s, _running_context_t* p) {
+	/* Push encapsule a scope */
+	mb_assert(s);
+
+	p->prev = s->running_context;
+	s->running_context = p;
+
+	return s->running_context;
+}
+
+_running_context_t* _pop_scope(mb_interpreter_t* s) {
+	/* Pop encapsule a scope */
 	_running_context_t* running = 0;
 
 	mb_assert(s);
@@ -3099,18 +3198,43 @@ void _end_of_scope(mb_interpreter_t* s) {
 	running = s->running_context;
 	s->running_context = running->prev;
 	running->prev = 0;
+
+	return s->running_context;
 }
 
-_ls_node_t* _search_var_in_scope_chain(mb_interpreter_t* s, char* n) {
+_running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s) {
+	/* Get a scope to add a routine */
+	_running_context_t* running = 0;
+
+	mb_assert(s);
+
+	running = s->running_context;
+	while(running) {
+		if(running->meta)
+			break;
+
+		running = running->prev;
+	}
+
+	return running;
+}
+
+_ls_node_t* _search_var_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, char* n) {
 	/* Try to search a variable in a scope chain */
 	_ls_node_t* result = 0;
 	_running_context_t* running = 0;
 
 	mb_assert(s && n);
 
-	running = s->running_context;
+	if(scope)
+		running = scope;
+	else
+		running = s->running_context;
 	while(running && !result) {
 		result = _ht_find(running->var_dict, n);
+		if(result)
+			break;
+
 		running = running->prev;
 	}
 
@@ -3935,6 +4059,7 @@ int mb_open(struct mb_interpreter_t** s) {
 
 	running = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
 	memset(running, 0, sizeof(_running_context_t));
+	running->meta = _SCOPE_META_ROOT;
 	(*s)->running_context = running;
 	global_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
 	running->var_dict = global_scope;
@@ -4576,11 +4701,6 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l) {
 	};
 	status = _parse_char(s, MB_EOS, context->parsing_pos, context->parsing_row, context->parsing_col);
 
-	if(s->running_context->prev) {
-		while(s->running_context->prev)
-			s->running_context = s->running_context->prev;
-	}
-
 _exit:
 	context->parsing_state = _PS_NORMAL;
 
@@ -4638,6 +4758,9 @@ int mb_run(struct mb_interpreter_t* s) {
 	_running_context_t* running = 0;
 
 	running = s->running_context;
+
+	while(s->running_context->prev)
+		s->running_context = s->running_context->prev;
 
 	if(s->parsing_context)
 		safe_free(s->parsing_context);
@@ -4728,7 +4851,7 @@ int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 
 	running = s->running_context;
 
-	v = _search_var_in_scope_chain(s, (char*)n);
+	v = _search_var_in_scope_chain(s, 0, (char*)n);
 	if(v) {
 		obj = (_object_t*)(v->data);
 		mb_assert(obj->type == _DT_VAR);
@@ -4756,7 +4879,7 @@ int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
 
 	running = s->running_context;
 
-	v = _search_var_in_scope_chain(s, (char*)n);
+	v = _search_var_in_scope_chain(s, 0, (char*)n);
 	if(v) {
 		obj = (_object_t*)(v->data);
 		mb_assert(obj->type == _DT_VAR);
@@ -6041,12 +6164,10 @@ int _core_def(mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 	_var_t* var = 0;
+	_ls_node_t*  rnode = 0;
 	_routine_t* routine = 0;
-	_running_context_t* scope = 0;
 
 	mb_assert(s && l);
-
-	scope = s->running_context;
 
 	ast = (_ls_node_t*)(*l);
 	ast = ast->next;
@@ -6066,9 +6187,15 @@ int _core_def(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 	obj = (_object_t*)(ast->data);
 	while(!_IS_FUNC(obj, _core_close_bracket)) {
-		var = obj->data.variable;
-		routine->parameters = _ls_create();
-		_ls_pushback(routine->parameters, var);
+		if(obj->type == _DT_VAR) {
+			var = obj->data.variable;
+			rnode = _search_var_in_scope_chain(s, routine->scope, var->name);
+			if(rnode)
+				var = ((_object_t*)(rnode->data))->data.variable;
+			if(!routine->parameters)
+				routine->parameters = _ls_create();
+			_ls_pushback(routine->parameters, var);
+		}
 
 		ast = ast->next;
 		obj = (_object_t*)(ast->data);

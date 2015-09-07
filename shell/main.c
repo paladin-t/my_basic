@@ -750,8 +750,11 @@ int main(int argc, char* argv[]) {
 			status = _do_line();
 		} while(_NO_END(status));
 	} else if(argc == 2) {
-		if(mb_load_file(bas, argv[1]) == MB_FUNC_OK)
+		if(mb_load_file(bas, argv[1]) == MB_FUNC_OK) {
 			mb_run(bas);
+		} else {
+			printf("Invalid file\n");
+		}
 	} else {
 		printf("Unknown arguments\n");
 		_show_tip();
