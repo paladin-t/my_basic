@@ -1,3 +1,7 @@
+Sep. 8 2015
+Fixed a type parsing of sub routine bug
+Fixed a scope processing bug
+
 Sep. 6 2015
 Improved sub routine
 
