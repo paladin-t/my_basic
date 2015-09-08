@@ -78,7 +78,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 67
+#define _VER_REVISION 68
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment the line below to treat warning as error */
@@ -2479,53 +2479,49 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 
 		goto _exit;
 	}
-	if(context->last_symbol && context->last_symbol->type == _DT_FUNC) {
-		if(context->last_symbol->data.func->pointer == _core_dim) {
+	if(context->last_symbol && _IS_FUNC(context->last_symbol, _core_dim)) {
 #ifdef MB_SIMPLE_ARRAY
-			en = (sym[_sl - 1] == '$' ? _DT_STRING : _DT_REAL);
+		en = (sym[_sl - 1] == '$' ? _DT_STRING : _DT_REAL);
 #else /* MB_SIMPLE_ARRAY */
-			en = _DT_REAL;
+		en = _DT_REAL;
 #endif /* MB_SIMPLE_ARRAY */
-			memcpy(*value, &en, sizeof(en));
+		memcpy(*value, &en, sizeof(en));
 
-			result = _DT_ARRAY;
+		result = _DT_ARRAY;
 
-			goto _exit;
-		}
+		goto _exit;
 	}
 	/* _class_t */
-	if(context->last_symbol && context->last_symbol->type == _DT_FUNC) {
-		if(context->last_symbol->data.func->pointer == _core_class) {
-			glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
-			if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
-				tmp.obj = (_object_t*)(glbsyminscope->data);
-				if(!tmp.obj->ref) {
-					_ht_remove(running->var_dict, sym, _ls_cmp_extra_string);
-					_dispose_object(tmp.obj);
-				}
-				tmp.obj->type = _DT_CLASS;
-				tmp.obj->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
-				_init_instance(s, tmp.obj->data.instance, sym);
-				_ht_set_or_insert(running->var_dict, sym, tmp.obj);
+	if(context->last_symbol && _IS_FUNC(context->last_symbol, _core_class)) {
+		glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
+		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
+			tmp.obj = (_object_t*)(glbsyminscope->data);
+			if(!tmp.obj->ref) {
+				_ht_remove(running->var_dict, sym, _ls_cmp_extra_string);
+				_dispose_object(tmp.obj);
 			}
-
-			result = _DT_CLASS;
-
-			goto _exit;
+			tmp.obj->type = _DT_CLASS;
+			tmp.obj->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
+			_init_instance(s, tmp.obj->data.instance, sym);
+			_ht_set_or_insert(running->var_dict, sym, tmp.obj);
 		}
+
+		result = _DT_CLASS;
+
+		goto _exit;
 	}
 	/* _routine_t */
-	if(context->last_symbol && context->last_symbol->type == _DT_FUNC) {
+	if(context->last_symbol) {
 		glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
-			if(context->last_symbol->data.func->pointer == _core_def)
+			if(_IS_FUNC(context->last_symbol, _core_def))
 				_begin_routine(s);
 			result = _DT_ROUTINE;
 
 			goto _exit;
 		}
-		if(context->last_symbol->data.func->pointer == _core_def || context->last_symbol->data.func->pointer == _core_call) {
-			if(context->last_symbol->data.func->pointer == _core_def)
+		if(_IS_FUNC(context->last_symbol, _core_def) || _IS_FUNC(context->last_symbol, _core_call)) {
+			if(_IS_FUNC(context->last_symbol, _core_def))
 				_begin_routine(s);
 			if(!_is_identifier_char(sym[0])) {
 				result = _DT_NIL;
@@ -2548,7 +2544,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			result = _DT_ROUTINE;
 
 			goto _exit;
-		} else if(context->last_symbol->data.func->pointer == _core_enddef) {
+		} else if(_IS_FUNC(context->last_symbol, _core_enddef)) {
 			_end_routine(s);
 			_pop_scope(s);
 		}
@@ -2624,12 +2620,10 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			goto _exit;
 		}
 	}
-	if(context->last_symbol && context->last_symbol->type == _DT_FUNC) {
-		if(context->last_symbol->data.func->pointer == _core_goto || context->last_symbol->data.func->pointer == _core_gosub) {
-			result = _DT_LABEL;
+	if(context->last_symbol && (_IS_FUNC(context->last_symbol, _core_goto) || _IS_FUNC(context->last_symbol, _core_gosub))) {
+		result = _DT_LABEL;
 
-			goto _exit;
-		}
+		goto _exit;
 	}
 	/* Otherwise */
 	result = _DT_VAR;
@@ -3673,7 +3667,7 @@ int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t) {
 		obj = (_object_t*)(ast->data);
 		*l = ast;
 		ast = ast->next;
-	} while(!(obj->type == _DT_FUNC && obj->data.func->pointer == f) && obj->type != t);
+	} while(!(_IS_FUNC(obj, f)) && obj->type != t);
 
 _exit:
 	return result;
@@ -4759,9 +4753,6 @@ int mb_run(struct mb_interpreter_t* s) {
 
 	running = s->running_context;
 
-	while(s->running_context->prev)
-		s->running_context = s->running_context->prev;
-
 	if(s->parsing_context)
 		safe_free(s->parsing_context);
 
@@ -4771,6 +4762,8 @@ int mb_run(struct mb_interpreter_t* s) {
 		s->suspent_point = 0;
 	} else {
 		mb_assert(!s->no_eat_comma_mark);
+		while(s->running_context->prev)
+			s->running_context = s->running_context->prev;
 		ast = s->ast;
 		ast = ast->next;
 		if(!ast) {
