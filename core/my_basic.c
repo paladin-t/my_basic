@@ -3600,6 +3600,11 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 		_handle_error_on_obj(s, SE_RN_INVALID_EXPRESSION, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 
 		break;
+	case _DT_ROUTINE:
+		ast = ast->prev;
+		result = _core_call(s, (void**)(&ast));
+
+		break;
 	default:
 		break;
 	}
@@ -6134,7 +6139,8 @@ int _core_call(mb_interpreter_t* s, void** l) {
 
 	_eval_routine(s, &ast, routine);
 
-	ast = ast->prev;
+	if(ast)
+		ast = ast->prev;
 
 	*l = ast;
 
