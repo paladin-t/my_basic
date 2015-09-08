@@ -39,9 +39,11 @@ MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in p
 
 ### Use standalone interpreter binary
 
-This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [OS X](output/my_basic_mac), it's efficient to download it and have a first impressive playground.
+This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [OS X](output/my_basic_mac), it's efficient to download it and have a first impressive playground. Or you could make a build as follow.
 
-To compile an interpreter binary for your own platform, please follow the steps.
+* Open the Visual Studio solution `my_basic.sln` on Windows, open the XCode solution `my_basic_mac.xcodeproj` on OS X, or use the `makefile` with "make" toolchain to build an interpreter binary
+
+To compile an interpreter binary for your own platform manually, please follow the steps.
 
 * Retrieve at least `core` and `shell` folders for minimum build
 * Setup your compile toolchain configuration
