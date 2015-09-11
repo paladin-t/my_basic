@@ -52,6 +52,7 @@ extern "C" {
 #	pragma warning(push)
 #	pragma warning(disable : 4127)
 #	pragma warning(disable : 4305)
+#	pragma warning(disable : 4996)
 #endif /* _MSC_VER */
 
 #ifdef __APPLE__
@@ -78,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 68
+#define _VER_REVISION 69
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment the line below to treat warning as error */
@@ -211,6 +212,7 @@ static const char* _ERR_DESC[] = {
 	"Don't suspend in a routine",
 	"Don't mix instructional and structured sub routines",
 	"Routine expected",
+	"Duplicate routine",
 	/** Extended abort */
 	"Extended abort"
 };
@@ -365,6 +367,7 @@ typedef struct _parsing_context_t {
 	_object_t* last_symbol;
 	_parsing_state_e parsing_state;
 	_symbol_state_e symbol_state;
+	unsigned short class_state;
 	unsigned short routine_state;
 	unsigned short routine_params_state;
 	int parsing_pos;
@@ -776,7 +779,9 @@ static bool_t _is_array(void* obj);
 static bool_t _is_string(void* obj);
 static char* _extract_string(_object_t* obj);
 
-static void _init_instance(mb_interpreter_t* s, _class_t* instance, char* n);
+static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n);
+static void _begin_class(mb_interpreter_t* s);
+static void _end_class(mb_interpreter_t* s);
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n);
 static void _begin_routine(mb_interpreter_t* s);
 static void _end_routine(mb_interpreter_t* s);
@@ -843,11 +848,21 @@ static int _close_std_lib(mb_interpreter_t* s);
 
 #ifdef _MSC_VER
 #	if _MSC_VER < 1300
-#		define _do_nothing(__s, __l, __exit, __result) do { static int i = 0; ++i; printf("Unaccessable function called %d times\n", i); mb_unrefvar(__s); mb_unrefvar(__l); mb_unrefvar(__result); goto _exit; } while(0)
+#		define _do_nothing(__s, __l, __exit, __result) \
+			do { \
+				_ls_node_t* ast = 0; static int i = 0; ++i; \
+				printf("Unaccessable function called %d times\n", i); \
+				ast = (_ls_node_t*)(*(__l)); \
+				_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, 0, DON(ast), MB_FUNC_ERR, __exit, __result); \
+			} while(0)
 #	endif /* _MSC_VER < 1300 */
 #endif /* _MSC_VER */
 #ifndef _do_nothing
-#	define _do_nothing(__s, __l, __exit, __result) do { _ls_node_t* ast = (_ls_node_t*)(*(__l)); _handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, (char*)MB_FUNC, DON(ast), MB_FUNC_ERR, __exit, __result); } while(0);
+#	define _do_nothing(__s, __l, __exit, __result) \
+		do { \
+			_ls_node_t* ast = (_ls_node_t*)(*(__l)); \
+			_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, (char*)MB_FUNC, DON(ast), MB_FUNC_ERR, __exit, __result); \
+		} while(0);
 #endif /* _do_nothing */
 
 /** Core lib */
@@ -1971,6 +1986,7 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 			_pop_scope(s);
 
 			result = _public_value_to_internal_object(&arg, var->data);
+			var->data->ref = true;
 			if(result != MB_FUNC_OK)
 				goto _exit;
 		}
@@ -2302,9 +2318,15 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			(*obj)->data.instance = ((_object_t*)(glbsyminscope->data))->data.instance;
 			(*obj)->ref = true;
 			*delsym = true;
+			if(running != (*obj)->data.instance->scope &&
+				context->class_state &&
+				_IS_FUNC(context->last_symbol, _core_class)) {
+				_push_scope(s, (*obj)->data.instance->scope);
+			}
 		} else {
 			tmp.instance = (_class_t*)mb_malloc(sizeof(_class_t));
-			_init_instance(s, tmp.instance, sym);
+			_init_class(s, tmp.instance, sym);
+			_push_scope(s, tmp.instance->scope);
 			(*obj)->data.instance = tmp.instance;
 
 			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
@@ -2492,23 +2514,43 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 		goto _exit;
 	}
 	/* _class_t */
-	if(context->last_symbol && _IS_FUNC(context->last_symbol, _core_class)) {
+	if(context->last_symbol) {
 		glbsyminscope = _search_var_in_scope_chain(s, 0, sym);
-		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
-			tmp.obj = (_object_t*)(glbsyminscope->data);
-			if(!tmp.obj->ref) {
-				_ht_remove(running->var_dict, sym, _ls_cmp_extra_string);
-				_dispose_object(tmp.obj);
-			}
-			tmp.obj->type = _DT_CLASS;
-			tmp.obj->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
-			_init_instance(s, tmp.obj->data.instance, sym);
-			_ht_set_or_insert(running->var_dict, sym, tmp.obj);
+		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_CLASS) {
+			if(_IS_FUNC(context->last_symbol, _core_class))
+				_begin_class(s);
+			result = _DT_CLASS;
+
+			goto _exit;
 		}
+		if(_IS_FUNC(context->last_symbol, _core_class)) {
+			if(_IS_FUNC(context->last_symbol, _core_class))
+				_begin_class(s);
+			if(!_is_identifier_char(sym[0])) {
+				result = _DT_NIL;
 
-		result = _DT_CLASS;
+				goto _exit;
+			}
+			if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
+				tmp.obj = (_object_t*)(glbsyminscope->data);
+				if(!tmp.obj->ref) {
+					_ht_remove(running->var_dict, sym, _ls_cmp_extra_string);
+					_dispose_object(tmp.obj);
+				}
+				tmp.obj->type = _DT_CLASS;
+				tmp.obj->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
+				_init_class(s, tmp.obj->data.instance, sym);
+				_init_class(s, tmp.obj->data.instance, sym);
+				_ht_set_or_insert(running->var_dict, sym, tmp.obj);
+			}
 
-		goto _exit;
+			result = _DT_CLASS;
+
+			goto _exit;
+		} else if(_IS_FUNC(context->last_symbol, _core_endclass)) {
+			_end_class(s);
+			_pop_scope(s);
+		}
 	}
 	/* _routine_t */
 	if(context->last_symbol) {
@@ -3108,14 +3150,39 @@ char* _extract_string(_object_t* obj) {
 	return result;
 }
 
-void _init_instance(mb_interpreter_t* s, _class_t* instance, char* n) {
+void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	/* Initialize an instance */
+	_running_context_t* running = 0;
+
 	mb_assert(s && instance && n);
+
+	running = s->running_context;
 
 	memset(instance, 0, sizeof(_class_t));
 	instance->name = n;
 	instance->scope = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
 	memset(instance->scope, 0, sizeof(_running_context_t));
+	instance->scope->var_dict = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
+}
+
+void _begin_class(mb_interpreter_t* s) {
+	/* Begin parsing a class */
+	_parsing_context_t* context = 0;
+
+	mb_assert(s);
+
+	context = s->parsing_context;
+	context->class_state++;
+}
+
+void _end_class(mb_interpreter_t* s) {
+	/* End parsing a class */
+	_parsing_context_t* context = 0;
+
+	mb_assert(s);
+
+	context = s->parsing_context;
+	context->class_state--;
 }
 
 void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n) {
@@ -3280,6 +3347,16 @@ int _dispose_object(_object_t* obj) {
 		}
 
 		break;
+	case _DT_CLASS:
+		if(!obj->ref) {
+			safe_free(obj->data.instance->name);
+			_ht_foreach(obj->data.instance->scope->var_dict, _destroy_object);
+			_ht_destroy(obj->data.instance->scope->var_dict);
+			safe_free(obj->data.instance->scope);
+			safe_free(obj->data.instance);
+		}
+
+		break;
 	case _DT_ROUTINE:
 		if(!obj->ref) {
 			safe_free(obj->data.routine->name);
@@ -3289,13 +3366,6 @@ int _dispose_object(_object_t* obj) {
 			if(obj->data.routine->parameters)
 				_ls_destroy(obj->data.routine->parameters);
 			safe_free(obj->data.routine);
-		}
-
-		break;
-	case _DT_CLASS:
-		if(!obj->ref) {
-			safe_free(obj->data.instance->scope);
-			safe_free(obj->data.instance);
 		}
 
 		break;
@@ -3598,6 +3668,10 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 	case _DT_REAL: /* Fall through */
 	case _DT_STRING:
 		_handle_error_on_obj(s, SE_RN_INVALID_EXPRESSION, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+
+		break;
+	case _DT_CLASS:
+		mb_assert(0 && "Not implemented");
 
 		break;
 	case _DT_ROUTINE:
@@ -6161,12 +6235,15 @@ int _core_def(mb_interpreter_t* s, void** l) {
 	/* DEF statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
+	_running_context_t* running = 0;
 	_object_t* obj = 0;
 	_var_t* var = 0;
 	_ls_node_t*  rnode = 0;
 	_routine_t* routine = 0;
 
 	mb_assert(s && l);
+
+	running = s->running_context;
 
 	ast = (_ls_node_t*)(*l);
 	ast = ast->next;
@@ -6176,6 +6253,9 @@ int _core_def(mb_interpreter_t* s, void** l) {
 	obj = (_object_t*)(ast->data);
 	if(!_IS_ROUTINE(obj)) {
 		_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+	}
+	if(obj->data.routine->entry) {
+		_handle_error_on_obj(s, SE_RN_DUPLICATE_ROUTINE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	routine = (_routine_t*)(((_object_t*)(ast->data))->data.routine);
 	ast = ast->next;
@@ -6233,17 +6313,32 @@ _exit:
 }
 
 int _core_class(mb_interpreter_t* s, void** l) {
-	/* OBJ statement */
+	/* CLASS statement */
 	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
+	_running_context_t* running = 0;
 
-	_do_nothing(s, l, _exit, result);
+	mb_assert(s && l);
+
+	running = s->running_context;
+
+	ast = (_ls_node_t*)(*l);
+	ast = ast->next;
+
+	_using_jump_set_of_structured(s, ast, _exit, result);
+
+	_skip_to(s, &ast, _core_endclass, _DT_NIL);
+
+	ast = ast->next;
 
 _exit:
+	*l = ast;
+
 	return result;
 }
 
 int _core_endclass(mb_interpreter_t* s, void** l) {
-	/* ENDOBJ statement */
+	/* ENDCLASS statement */
 	int result = MB_FUNC_OK;
 
 	_do_nothing(s, l, _exit, result);
@@ -7132,7 +7227,12 @@ int _std_input(mb_interpreter_t* s, void** l) {
 	ast = (_ls_node_t*)(*l);
 	obj = (_object_t*)(ast->data);
 
-	if(!obj || obj->type != _DT_VAR) {
+	if(!obj || obj->type == _DT_EOS) {
+		_get_inputer(s)(line, sizeof(line));
+
+		goto _exit;
+	}
+	if(obj->type != _DT_VAR) {
 		_handle_error_on_obj(s, SE_RN_VARIABLE_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	if(obj->data.variable->data->type == _DT_INT || obj->data.variable->data->type == _DT_REAL) {

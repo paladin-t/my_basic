@@ -1,7 +1,14 @@
+Sep. 11 2015
+Added a duplicate sub routine error handling
+Added optional argument support for INPUT statement
+Fixed a variable multiple freeing bug in sub routine
+Polished document
+
 Sep. 8 2015
 Fixed a type parsing of sub routine bug
 Fixed a scope processing bug
 Fixed a sub routine invoking bug without leading CALL statement or result receiver
+Added a makefile
 
 Sep. 6 2015
 Improved sub routine
@@ -12,7 +19,7 @@ Prompted more friendly dummy function message
 Polished code and document
 
 Sep. 1 2015
-Added support for user customized routine by DEF/ENDDEF
+Added support for user customized sub routine by DEF/ENDDEF
 
 Aug. 26 2015
 Added a memory pool to interpreter shell in main.c
@@ -56,7 +63,7 @@ Changed mb_dispose_value as public
 
 Apr. 23 2015 Version 1.1
 Added debug APIs
-Added (nestable) multi line IF statement support
+Added (nestable) multiple line IF statement support
 
 Apr. 15 2015
 Added mb_pop_usertype, mb_push_usertype to support user defined type
@@ -102,12 +109,12 @@ Added an mb_remove_reserved_func function which allows a user to disable/remove 
 
 May. 22 2014
 Fixed a crash bug when missing colon in a combined line, thanks to Michael P. Welch for pointing it out
-Fixed a missing lexical cursor stepping bug in INPUT function
+Fixed a missing lexical cursor stepping bug in INPUT statement
 
 Mar. 17 2014
 Added an XCode project
 Added a safe stdin reader function mb_gets
-Fixed a crash bug in INPUT function
+Fixed a crash bug in INPUT statement
 
 Feb. 17 2014
 Added mod by zero processing
@@ -119,7 +126,7 @@ Jul. 19 2013
 Fixed a crash bug in _execute_statement, thanks to Jon Mayo for pointing it out
 
 Feb. 25 2013
-Fixed a cross routine multi-statement execution bug, thanks to Bruce Kendall for pointing it out
+Fixed a cross routine multiple statement execution bug, thanks to Bruce Kendall for pointing it out
 Fixed a memory corruption bug when loading a script file
 
 Jan. 9 2013

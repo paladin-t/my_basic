@@ -1,18 +1,18 @@
 ![](resource/icon.ico)
 
-Copyright (C) 2011 - 2015 [Wang Renxin](https://twitter.com/wangrenxin)
+Copyright (C) 2011 - 2015 [Wang Renxin](https://twitter.com/wangrenxin). All rights reserved.
 
 [LinkedIn](https://cn.linkedin.com/pub/wang-renxin/43/494/20)
 
-Why are existing script interpreters so complex? Why is it so difficult to integrate with them? Why not try MY-BASIC today!
+Why are existing script interpreters so complex? Why is it so difficult to integrate with them? Why not try MY-BASIC today! Scripting should be simple and enjoyable.
 
 ## Introduction
 
-MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in pure C with about 7000 lines of source code. Its grammar is similar to structured BASIC. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file. You can combine MY-BASIC with an existing C, C++, Objective-C, etc. project easily, scripting driven can make your projects more powerful, elegant and neat.
+MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in pure C with about 7000 lines of source code. Its grammar is similar to structured BASIC. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file. You are able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, etc. Scripting driven can make your projects more powerful, elegant and neat.
 
 ## Main features
 
-* It is free
+* It is totally free to use MY-BASIC for individual or commercial purpose under the MIT license
 * Written in clean ANSI C, source code portable
 * With most common BASIC syntax
 * Small (within memory usage less than 128KB) and fast
@@ -26,10 +26,22 @@ MY-BASIC is a tiny cross-platform easy extendable BASIC interpreter written in p
 * Standard string functions
 * Debug APIs
 * High expansibility, easy to use APIs, easy to write customized scripting interfaces
-* It's able to use it as a standalone interpreter, or integrate it with existing C, C++, Objective-C, etc. projects
+* It's able to use it as a standalone interpreter, or integrate it with existing projects in C, C++, Objective-C, etc.
 * It's able to learn how to build an interpreter from scratch from MY-BASIC
 * It's able to build your own dialect based on MY-BASIC
 * More features/modules under developing
+
+## Scripting at a glance
+
+Come along with a traditional "hello world" script in MY-BASIC:
+
+	def foo(a, b)
+		print a + " " + b;
+	enddef
+
+	foo("Hello", "world!")
+
+	input
 
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
@@ -57,7 +69,7 @@ You can definitely [link with MY-BASIC as a lib](https://github.com/paladin-t/my
 
 For more details about using MY-BASIC when it's already integrated with exist projects, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf).
 
-## [WIKI](https://github.com/paladin-t/my_basic/wiki)
+## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
 * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
 * [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
