@@ -58,50 +58,65 @@ extern "C" {
 #	pragma pack(1)
 #endif /* MB_COMPACT_MODE */
 
+#ifndef MB_CONVERT_TO_INT_LEVEL_NONE
+#	define MB_CONVERT_TO_INT_LEVEL_NONE 0
+#endif /* MB_CONVERT_TO_INT_LEVEL_NONE */
+
+#ifndef MB_CONVERT_TO_INT_LEVEL_ALL
+#	define MB_CONVERT_TO_INT_LEVEL_ALL 1
+#endif /* MB_CONVERT_TO_INT_LEVEL_ALL */
+
+#ifndef MB_CONVERT_TO_INT_LEVEL
+#	define MB_CONVERT_TO_INT_LEVEL MB_CONVERT_TO_INT_LEVEL_ALL
+#endif /* MB_CONVERT_TO_INT_LEVEL */
+
 #ifndef true
 #	define true (!0)
-#endif
+#endif /* true */
 #ifndef false
 #	define false (0)
-#endif
+#endif /* false */
 
 #ifndef bool_t
 #	define bool_t int
-#endif
+#endif /* bool_t */
 #ifndef int_t
 #	define int_t int
-#endif
+#endif /* int_t */
 #ifndef real_t
 #	define real_t float
-#endif
+#endif /* real_t */
 
 #ifndef mb_strtol
 #	define mb_strtol(__s, __e, __r) strtol((__s), (__e), (__r))
-#endif
+#endif /* mb_strtol */
 #ifndef mb_strtod
 #	define mb_strtod(__s, __e) strtod((__s), (__e))
-#endif
+#endif /* mb_strtod */
 
 #ifndef MB_INT_FMT
 #	define MB_INT_FMT "%d"
-#endif
+#endif /* MB_INT_FMT */
 #ifndef MB_REAL_FMT
 #	define MB_REAL_FMT "%g"
-#endif
+#endif /* MB_REAL_FMT */
 
 #ifndef MB_FNAN
 #	define MB_FNAN 0xffc00000
-#endif
+#endif /* MB_FNAN */
 #ifndef MB_FINF
 #	define MB_FINF 0x7f800000
-#endif
+#endif /* MB_FINF */
 
 #ifndef MB_EOS
 #	define MB_EOS '\n'
-#endif
+#endif /* MB_EOS */
+#ifndef MB_NIL
+#	define MB_NIL "nil"
+#endif /* MB_NIL */
 #ifndef MB_NULL_STRING
 #	define MB_NULL_STRING "(empty)"
-#endif
+#endif /* MB_NULL_STRING */
 
 #ifndef _MSC_VER
 #	ifndef _strcmpi
@@ -162,6 +177,20 @@ extern "C" {
 #ifndef mb_rem_res_fun
 #	define mb_rem_res_fun(__s, __f) mb_remove_reserved_func(__s, #__f)
 #endif /* mb_rem_res_fun */
+
+#ifndef mb_convert_to_int_if_posible
+#	if MB_CONVERT_TO_INT_LEVEL == MB_CONVERT_TO_INT_LEVEL_NONE
+#		define mb_convert_to_int_if_posible(__v) ((void)(__v))
+#	else /* MB_CONVERT_TO_INT_LEVEL == MB_CONVERT_TO_INT_LEVEL_NONE */
+#		define mb_convert_to_int_if_posible(__v) \
+			do { \
+				if((__v).type == MB_DT_REAL && (real_t)(int_t)(__v).value.float_point == (__v).value.float_point) { \
+					(__v).type = MB_DT_INT; \
+					(__v).value.integer = (int_t)(__v).value.float_point; \
+				} \
+			} while(0)
+#	endif /* MB_CONVERT_TO_INT_LEVEL == MB_CONVERT_TO_INT_LEVEL_NONE */
+#endif /* mb_convert_to_int_if_posible */
 
 struct mb_interpreter_t;
 

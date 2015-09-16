@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 69
+#define _VER_REVISION 70
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 
 /* Uncomment the line below to treat warning as error */
@@ -338,11 +338,9 @@ const size_t MB_SIZEOF_CLS = sizeof(_class_t);
 #ifdef MB_ENABLE_SOURCE_TRACE
 static const _object_t _OBJ_INT_UNIT = { _DT_INT, 1, false, 0, 0, 0 };
 static const _object_t _OBJ_INT_ZERO = { _DT_INT, 0, false, 0, 0, 0 };
-static const _object_t _OBJ_NIL = { _DT_NIL, 0, false, 0, 0, 0 };
 #else /* MB_ENABLE_SOURCE_TRACE */
 static const _object_t _OBJ_INT_UNIT = { _DT_INT, 1, false, 0 };
 static const _object_t _OBJ_INT_ZERO = { _DT_INT, 0, false, 0 };
-static const _object_t _OBJ_NIL = { _DT_NIL, 0, false, 0 };
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
 static _object_t* _OBJ_BOOL_TRUE = 0;
@@ -471,6 +469,18 @@ static _object_t* _exp_assign = 0;
 		} \
 	} while(0)
 
+#if MB_CONVERT_TO_INT_LEVEL == MB_CONVERT_TO_INT_LEVEL_NONE
+#	define _convert_to_int_if_posible(__o) ((void)(__o))
+#else /* MB_CONVERT_TO_INT_LEVEL == MB_CONVERT_TO_INT_LEVEL_NONE */
+#	define _convert_to_int_if_posible(__o) \
+		do { \
+			if((__o)->type == _DT_REAL && (real_t)(int_t)(__o)->data.float_point == (__o)->data.float_point) { \
+				(__o)->type = _DT_INT; \
+				(__o)->data.integer = (int_t)(__o)->data.float_point; \
+			} \
+		} while(0)
+#endif /* MB_CONVERT_TO_INT_LEVEL == MB_CONVERT_TO_INT_LEVEL_NONE */
+
 #define _instruct_common(__tuple) \
 	_object_t opndv1; \
 	_object_t opndv2; \
@@ -496,10 +506,7 @@ static _object_t* _exp_assign = 0;
 				opndv1.type == _DT_INT ? opndv1.data.integer : opndv1.data.float_point, \
 				opndv2.type == _DT_INT ? opndv2.data.integer : opndv2.data.float_point); \
 		} \
-		if(val->type == _DT_REAL && (real_t)(int_t)val->data.float_point == val->data.float_point) { \
-			val->type = _DT_INT; \
-			val->data.integer = (int_t)val->data.float_point; \
-		} \
+		_convert_to_int_if_posible(val); \
 	} while(0)
 #define _instruct_num_op_num(__optr, __tuple) \
 	do { \
@@ -518,10 +525,28 @@ static _object_t* _exp_assign = 0;
 				((opndv1.type == _DT_INT ? opndv1.data.integer : opndv1.data.float_point) __optr \
 				(opndv2.type == _DT_INT ? opndv2.data.integer : opndv2.data.float_point)); \
 		} \
-		if(val->type == _DT_REAL && (real_t)(int_t)val->data.float_point == val->data.float_point) { \
-			val->type = _DT_INT; \
-			val->data.integer = (int_t)val->data.float_point; \
+		_convert_to_int_if_posible(val); \
+	} while(0)
+#define _instruct_num_op_num_allow_nil(__optr, __tuple) \
+	do { \
+		_instruct_common(__tuple) \
+		if(opndv1.type == _DT_NIL) { opndv1.type = _DT_INT; opndv1.data.integer = 0; } \
+		if(opndv2.type == _DT_NIL) { opndv2.type = _DT_INT; opndv2.data.integer = 0; } \
+		if(opndv1.type == _DT_INT && opndv2.type == _DT_INT) { \
+			if((real_t)(opndv1.data.integer __optr opndv2.data.integer) == (real_t)opndv1.data.integer __optr (real_t)opndv2.data.integer) { \
+				val->type = _DT_INT; \
+				val->data.integer = opndv1.data.integer __optr opndv2.data.integer; \
+			} else { \
+				val->type = _DT_REAL; \
+				val->data.float_point = (real_t)((real_t)opndv1.data.integer __optr (real_t)opndv2.data.integer); \
+			} \
+		} else { \
+			val->type = _DT_REAL; \
+			val->data.float_point = (real_t) \
+				((opndv1.type == _DT_INT ? opndv1.data.integer : opndv1.data.float_point) __optr \
+				(opndv2.type == _DT_INT ? opndv2.data.integer : opndv2.data.float_point)); \
 		} \
+		_convert_to_int_if_posible(val); \
 	} while(0)
 #define _instruct_int_op_int(__optr, __tuple) \
 	do { \
@@ -589,6 +614,21 @@ static _object_t* _exp_assign = 0;
 		val->type = _DT_INT; \
 		val->data.integer = __r; \
 	} while(0)
+
+#define _math_calculate_fun_real(__s, __l, __a, __f, __exit, __result) \
+	switch((__a).type) { \
+	case MB_DT_INT: \
+		(__a).value.float_point = (real_t)__f((real_t)(__a).value.integer); \
+		(__a).type = MB_DT_REAL; \
+		break; \
+	case MB_DT_REAL: \
+		(__a).value.float_point = (real_t)__f((__a).value.float_point); \
+		break; \
+	default: \
+		_handle_error_on_obj(__s, SE_RN_NUMBER_EXPECTED, 0, ((__l) && *(__l)) ? ((_object_t*)(((_tuple3_t*)(*(__l)))->e1)) : 0, MB_FUNC_WARNING, __exit, __result); \
+		break; \
+	} \
+	mb_convert_to_int_if_posible(__a);
 
 #define _using_jump_set_of_instructional(__s, __obj, __exit, __result) \
 	do { \
@@ -1909,7 +1949,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	}
 
 	c = (_object_t*)(_ls_popback(opnd));
-	if(!c || !(c->type == _DT_INT || c->type == _DT_REAL || c->type == _DT_STRING || c->type == _DT_VAR || c->type == _DT_USERTYPE || c->type == _DT_ARRAY)) {
+	if(!c || !(c->type == _DT_NIL || c->type == _DT_INT || c->type == _DT_REAL || c->type == _DT_STRING || c->type == _DT_VAR || c->type == _DT_USERTYPE || c->type == _DT_ARRAY)) {
 		_set_current_error(s, SE_RN_INVALID_DATA_TYPE, 0);
 		result = MB_FUNC_ERR;
 
@@ -2254,8 +2294,13 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	(*obj)->type = type;
 	switch(type) {
 	case _DT_NIL:
-		safe_free(*obj);
-		*obj = 0;
+		memcpy(tmp.any, value, sizeof(_raw_t));
+		if(tmp.integer) { /* Nil type */
+			(*obj)->type = _DT_NIL;
+		} else { /* End of line character */
+			safe_free(*obj);
+			*obj = 0;
+		}
 		safe_free(sym);
 
 		break;
@@ -2488,6 +2533,15 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	/* String */
 	if(sym[0] == '"' && sym[_sl - 1] == '"' && _sl >= 2) {
 		result = _DT_STRING;
+
+		goto _exit;
+	}
+	/* Nil */
+	if(!strcmp(sym, "NIL")) {
+		tmp.integer = ~0;
+		memcpy(*value, tmp.any, sizeof(_raw_t));
+
+		result = _DT_NIL;
 
 		goto _exit;
 	}
@@ -3490,6 +3544,8 @@ bool_t _is_internal_object(_object_t* obj) {
 _data_e _public_type_to_internal_type(mb_data_e t) {
 	/* Convert a public mb_data_e type to an internal _data_e */
 	switch(t) {
+	case MB_DT_NIL:
+		return _DT_NIL;
 	case MB_DT_INT:
 		return _DT_INT;
 	case MB_DT_REAL:
@@ -3506,6 +3562,8 @@ _data_e _public_type_to_internal_type(mb_data_e t) {
 mb_data_e _internal_type_to_public_type(_data_e t) {
 	/* Convert an internal mb_data_e type to a public _data_e */
 	switch(t) {
+	case _DT_NIL:
+		return MB_DT_NIL;
 	case _DT_INT:
 		return MB_DT_INT;
 	case _DT_REAL:
@@ -3526,6 +3584,11 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	mb_assert(pbl && itn);
 
 	switch(pbl->type) {
+	case MB_DT_NIL:
+		itn->type = _DT_NIL;
+		itn->data.integer = false;
+
+		break;
 	case MB_DT_INT:
 		itn->type = _DT_INT;
 		itn->data.integer = pbl->value.integer;
@@ -3567,6 +3630,11 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 	mb_assert(pbl && itn);
 
 	switch(itn->type) {
+	case _DT_NIL:
+		pbl->type = MB_DT_NIL;
+		pbl->value.integer = false;
+
+		break;
 	case _DT_INT:
 		pbl->type = MB_DT_INT;
 		pbl->value.integer = itn->data.integer;
@@ -4538,6 +4606,7 @@ int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val) {
 
 	arg.type = MB_DT_REAL;
 	arg.value.float_point = val;
+	mb_convert_to_int_if_posible(arg);
 	mb_check(mb_push_value(s, l, arg));
 
 	return result;
@@ -5218,6 +5287,7 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 
 		break;
 	}
+
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
@@ -5408,7 +5478,7 @@ int _core_and(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_instruct_num_op_num(&&, l);
+	_instruct_num_op_num_allow_nil(&&, l);
 
 	return result;
 }
@@ -5419,7 +5489,7 @@ int _core_or(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_instruct_num_op_num(||, l);
+	_instruct_num_op_num_allow_nil(||, l);
 
 	return result;
 }
@@ -5438,6 +5508,11 @@ int _core_not(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_func_end(s, l));
 
 	switch(arg.type) {
+	case MB_DT_NIL:
+		arg.value.integer = true;
+		arg.type = MB_DT_INT;
+
+		break;
 	case MB_DT_INT:
 		arg.value.integer = (int_t)(!arg.value.integer);
 
@@ -5448,6 +5523,9 @@ int _core_not(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+		arg.value.integer = false;
+		arg.type = MB_DT_INT;
+
 		break;
 	}
 	mb_check(mb_push_int(s, l, arg.value.integer));
@@ -5639,7 +5717,6 @@ _elseif:
 	result = _calc_expression(s, &ast, &val);
 	if(result != MB_FUNC_OK)
 		goto _exit;
-	mb_assert(val->type == _DT_INT);
 
 	obj = (_object_t*)(ast->data);
 	if(val->data.integer) {
@@ -5966,7 +6043,6 @@ _loop_begin:
 	result = _calc_expression(s, &ast, &loop_cond_ptr);
 	if(result != MB_FUNC_OK)
 		goto _exit;
-	mb_assert(loop_cond_ptr->type == _DT_INT);
 
 	if(loop_cond_ptr->data.integer) {
 		/* Keep looping */
@@ -6066,7 +6142,6 @@ _loop_begin:
 	result = _calc_expression(s, &ast, &loop_cond_ptr);
 	if(result != MB_FUNC_OK)
 		goto _exit;
-	mb_assert(loop_cond_ptr->type == _DT_INT);
 
 	if(loop_cond_ptr->data.integer) {
 		/* End looping */
@@ -6402,6 +6477,7 @@ int _std_abs(mb_interpreter_t* s, void** l) {
 
 		break;
 	}
+
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
@@ -6455,21 +6531,8 @@ int _std_sqr(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	switch(arg.type) {
-	case MB_DT_INT:
-		arg.value.float_point = (real_t)sqrt((real_t)arg.value.integer);
-		arg.type = MB_DT_REAL;
+	_math_calculate_fun_real(s, l, arg, sqrt, _exit, result);
 
-		break;
-	case MB_DT_REAL:
-		arg.value.float_point = (real_t)sqrt(arg.value.float_point);
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
-
-		break;
-	}
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
@@ -6641,21 +6704,8 @@ int _std_sin(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	switch(arg.type) {
-	case MB_DT_INT:
-		arg.value.float_point = (real_t)sin((real_t)arg.value.integer);
-		arg.type = MB_DT_REAL;
+	_math_calculate_fun_real(s, l, arg, sin, _exit, result);
 
-		break;
-	case MB_DT_REAL:
-		arg.value.float_point = (real_t)sin(arg.value.float_point);
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
-
-		break;
-	}
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
@@ -6675,21 +6725,8 @@ int _std_cos(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	switch(arg.type) {
-	case MB_DT_INT:
-		arg.value.float_point = (real_t)cos((real_t)arg.value.integer);
-		arg.type = MB_DT_REAL;
+	_math_calculate_fun_real(s, l, arg, cos, _exit, result);
 
-		break;
-	case MB_DT_REAL:
-		arg.value.float_point = (real_t)cos(arg.value.float_point);
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
-
-		break;
-	}
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
@@ -6709,21 +6746,8 @@ int _std_tan(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	switch(arg.type) {
-	case MB_DT_INT:
-		arg.value.float_point = (real_t)tan((real_t)arg.value.integer);
-		arg.type = MB_DT_REAL;
+	_math_calculate_fun_real(s, l, arg, tan, _exit, result);
 
-		break;
-	case MB_DT_REAL:
-		arg.value.float_point = (real_t)tan(arg.value.float_point);
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
-
-		break;
-	}
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
@@ -6743,21 +6767,8 @@ int _std_asin(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	switch(arg.type) {
-	case MB_DT_INT:
-		arg.value.float_point = (real_t)asin((real_t)arg.value.integer);
-		arg.type = MB_DT_REAL;
+	_math_calculate_fun_real(s, l, arg, asin, _exit, result);
 
-		break;
-	case MB_DT_REAL:
-		arg.value.float_point = (real_t)asin(arg.value.float_point);
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
-
-		break;
-	}
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
@@ -6777,21 +6788,8 @@ int _std_acos(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	switch(arg.type) {
-	case MB_DT_INT:
-		arg.value.float_point = (real_t)acos((real_t)arg.value.integer);
-		arg.type = MB_DT_REAL;
+	_math_calculate_fun_real(s, l, arg, acos, _exit, result);
 
-		break;
-	case MB_DT_REAL:
-		arg.value.float_point = (real_t)acos(arg.value.float_point);
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
-
-		break;
-	}
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
@@ -6811,21 +6809,8 @@ int _std_atan(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	switch(arg.type) {
-	case MB_DT_INT:
-		arg.value.float_point = (real_t)atan((real_t)arg.value.integer);
-		arg.type = MB_DT_REAL;
+	_math_calculate_fun_real(s, l, arg, atan, _exit, result);
 
-		break;
-	case MB_DT_REAL:
-		arg.value.float_point = (real_t)atan(arg.value.float_point);
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
-
-		break;
-	}
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
@@ -6845,21 +6830,8 @@ int _std_exp(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	switch(arg.type) {
-	case MB_DT_INT:
-		arg.value.float_point = (real_t)exp((real_t)arg.value.integer);
-		arg.type = MB_DT_REAL;
+	_math_calculate_fun_real(s, l, arg, exp, _exit, result);
 
-		break;
-	case MB_DT_REAL:
-		arg.value.float_point = (real_t)exp(arg.value.float_point);
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
-
-		break;
-	}
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
@@ -6879,21 +6851,8 @@ int _std_log(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	switch(arg.type) {
-	case MB_DT_INT:
-		arg.value.float_point = (real_t)log((real_t)arg.value.integer);
-		arg.type = MB_DT_REAL;
+	_math_calculate_fun_real(s, l, arg, log, _exit, result);
 
-		break;
-	case MB_DT_REAL:
-		arg.value.float_point = (real_t)log(arg.value.float_point);
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
-
-		break;
-	}
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
@@ -7149,6 +7108,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 	obj = (_object_t*)(ast->data);
 	do {
 		switch(obj->type) {
+		case _DT_NIL: /* Fall through */
 		case _DT_INT: /* Fall through */
 		case _DT_REAL: /* Fall through */
 		case _DT_STRING: /* Fall through */
@@ -7156,7 +7116,9 @@ int _std_print(mb_interpreter_t* s, void** l) {
 		case _DT_ARRAY: /* Fall through */
 		case _DT_FUNC:
 			result = _calc_expression(s, &ast, &val_ptr);
-			if(val_ptr->type == _DT_INT) {
+			if(val_ptr->type == _DT_NIL) {
+				_get_printer(s)(MB_NIL);
+			} else if(val_ptr->type == _DT_INT) {
 				_get_printer(s)(MB_INT_FMT, val_ptr->data.integer);
 			} else if(val_ptr->type == _DT_REAL) {
 				_get_printer(s)(MB_REAL_FMT, val_ptr->data.float_point);

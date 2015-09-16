@@ -43,6 +43,8 @@ Come along with a traditional "hello world" script in MY-BASIC:
 
 	input
 
+Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especially the "**Programming with BASIC**" section) to get more details about how to program in MY-BASIC.
+
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
 ![](https://github.com/paladin-t/my_basic/blob/master/interpreter%20workflow%20diagram.png)
