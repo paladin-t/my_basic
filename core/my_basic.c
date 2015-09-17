@@ -7116,7 +7116,8 @@ int _std_print(mb_interpreter_t* s, void** l) {
 		case _DT_STRING: /* Fall through */
 		case _DT_VAR: /* Fall through */
 		case _DT_ARRAY: /* Fall through */
-		case _DT_FUNC:
+		case _DT_FUNC: /* Fall through */
+		case _DT_ROUTINE:
 			result = _calc_expression(s, &ast, &val_ptr);
 			if(val_ptr->type == _DT_NIL) {
 				_get_printer(s)(MB_NIL);
