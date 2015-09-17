@@ -447,6 +447,7 @@ static void _list_program(const char* sn, const char* cn) {
 static void _edit_program(const char* no) {
 	char line[_MAX_LINE_LENGTH];
 	long lno = 0;
+	int l = 0;
 
 	mb_assert(no);
 
@@ -460,8 +461,11 @@ static void _edit_program(const char* no) {
 	memset(line, 0, _MAX_LINE_LENGTH);
 	printf("%ld]", lno + 1);
 	mb_gets(line, _MAX_LINE_LENGTH);
-	c->lines[lno] = (char*)realloc(c->lines[lno], strlen(line) + 1);
+	l = (int)strlen(line);
+	c->lines[lno] = (char*)realloc(c->lines[lno], l + 2);
 	strcpy(c->lines[lno], line);
+	c->lines[lno][l] = '\n';
+	c->lines[lno][l + 1] = '\0';
 }
 
 static void _insert_program(const char* no) {
