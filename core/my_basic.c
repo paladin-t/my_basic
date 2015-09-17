@@ -527,11 +527,13 @@ static _object_t* _exp_assign = 0;
 		} \
 		_convert_to_int_if_posible(val); \
 	} while(0)
-#define _instruct_num_op_num_allow_nil(__optr, __tuple) \
+#define _instruct_bool_op_bool(__optr, __tuple) \
 	do { \
 		_instruct_common(__tuple) \
 		if(opndv1.type == _DT_NIL) { opndv1.type = _DT_INT; opndv1.data.integer = 0; } \
+		else if(opndv1.type != _DT_INT && opndv1.type != _DT_REAL) { opndv1.type = _DT_INT; opndv1.data.integer = 1; } \
 		if(opndv2.type == _DT_NIL) { opndv2.type = _DT_INT; opndv2.data.integer = 0; } \
+		else if(opndv2.type != _DT_INT && opndv2.type != _DT_REAL) { opndv2.type = _DT_INT; opndv2.data.integer = 1; } \
 		if(opndv1.type == _DT_INT && opndv2.type == _DT_INT) { \
 			if((real_t)(opndv1.data.integer __optr opndv2.data.integer) == (real_t)opndv1.data.integer __optr (real_t)opndv2.data.integer) { \
 				val->type = _DT_INT; \
@@ -1732,7 +1734,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 		if(c->type == _DT_STRING) {
 			if(ast->next) {
 				_object_t* _fsn = (_object_t*)ast->next->data;
-				if(_IS_FUNC(_fsn, _core_add))
+				if(_IS_FUNC(_fsn, _core_add) || _IS_FUNC(_fsn, _core_and) || _IS_FUNC(_fsn, _core_or))
 					break;
 			}
 
@@ -5478,7 +5480,7 @@ int _core_and(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_instruct_num_op_num_allow_nil(&&, l);
+	_instruct_bool_op_bool(&&, l);
 
 	return result;
 }
@@ -5489,7 +5491,7 @@ int _core_or(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_instruct_num_op_num_allow_nil(||, l);
+	_instruct_bool_op_bool(||, l);
 
 	return result;
 }
