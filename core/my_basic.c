@@ -837,6 +837,7 @@ static _ls_node_t* _search_var_in_scope_chain(mb_interpreter_t* s, _running_cont
 static int _dispose_object(_object_t* obj);
 static int _destroy_object(void* data, void* extra);
 static int _destroy_object_non_syntax(void* data, void* extra);
+static int _destroy_object_capsule_only(void* data, void* extra);
 static int _remove_source_object(void* data, void* extra);
 static int _compare_numbers(const _object_t* first, const _object_t* second);
 static bool_t _is_internal_object(_object_t* obj);
@@ -3489,6 +3490,22 @@ int _destroy_object_non_syntax(void* data, void* extra) {
 	}
 
 _exit:
+	result = _OP_RESULT_DEL_NODE;
+
+	return result;
+}
+
+int _destroy_object_capsule_only(void* data, void* extra) {
+	/* Destroy only the capsule (wrapper) of a syntax object */
+	int result = _OP_RESULT_NORMAL;
+	_object_t* obj = 0;
+	mb_unrefvar(extra);
+
+	mb_assert(data);
+
+	obj = (_object_t*)data;
+	safe_free(obj);
+
 	result = _OP_RESULT_DEL_NODE;
 
 	return result;
@@ -6262,6 +6279,11 @@ int _core_return(mb_interpreter_t* s, void** l) {
 		ast = ast->next;
 		mb_check(mb_pop_value(s, (void**)(&ast), &arg));
 		mb_check(mb_push_value(s, (void**)(&ast), arg));
+
+		if(arg.type == MB_DT_STRING) {
+			_ls_foreach(s->temp_values, _destroy_object_capsule_only);
+			_ls_clear(s->temp_values);
+		}
 	}
 	ast = (_ls_node_t*)_ls_popback(sub_stack);
 	if(!ast) {
