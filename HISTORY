@@ -1,3 +1,8 @@
+Sep. 17 2015
+Allowed string in a boolean expression
+Added support for sub routine in PRINT
+Fixed a repeated disposing bug when suing sub routine
+
 Sep. 16 2015
 Added Nil type handling, including assignment, boolean operation, serialization, etc.
 Added an MB_CONVERT_TO_INT_LEVEL macro, would convert float to integer as much as possible if this macro was enabled
@@ -6,7 +11,7 @@ Polished document
 Sep. 11 2015
 Added a duplicate sub routine error handling
 Added optional argument support for INPUT statement
-Fixed a variable multiple freeing bug in sub routine
+Fixed a repeated disposing bug of a variable in sub routine
 Polished document
 
 Sep. 8 2015
@@ -96,7 +101,7 @@ Fixed a crash bug when a script begins with a meaningless negtive number
 Mar. 25 2015
 Changed _strupr macro to mb_strupr function
 Added an mb_memdup function
-Fixed an intermediate value disposing more than once bug
+Fixed a repeated disposing bug of an intermediate value
 
 Dec. 17 2014
 Fixed a calculation crash bug
