@@ -2164,7 +2164,7 @@ bool_t _is_identifier_char(char c) {
 	/* Determine whether a char is an identifier char */
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 		(c == '_') ||
-		(c >= '0' && c <= '9') ||
+		(c >= '0' && c <= '9') || (c == '.') ||
 		(c == '$');
 }
 
