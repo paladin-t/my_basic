@@ -1,3 +1,7 @@
+Sep. 18 2015
+Fixed a float number parsing bug, thanks to Cybermonkey342 for pointing it out
+Added directly expression evaluation shell command
+
 Sep. 17 2015
 Allowed string in a boolean expression
 Added support for sub routine in PRINT

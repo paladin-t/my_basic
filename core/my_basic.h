@@ -50,18 +50,9 @@ extern "C" {
 #	define MB_ENABLE_SOURCE_TRACE
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
-#ifndef MB_COMPACT_MODE
-#	define MB_COMPACT_MODE
-#endif /* MB_COMPACT_MODE */
-
-#ifdef MB_COMPACT_MODE
-#	pragma pack(1)
-#endif /* MB_COMPACT_MODE */
-
 #ifndef MB_CONVERT_TO_INT_LEVEL_NONE
 #	define MB_CONVERT_TO_INT_LEVEL_NONE 0
 #endif /* MB_CONVERT_TO_INT_LEVEL_NONE */
-
 #ifndef MB_CONVERT_TO_INT_LEVEL_ALL
 #	define MB_CONVERT_TO_INT_LEVEL_ALL 1
 #endif /* MB_CONVERT_TO_INT_LEVEL_ALL */
@@ -69,6 +60,14 @@ extern "C" {
 #ifndef MB_CONVERT_TO_INT_LEVEL
 #	define MB_CONVERT_TO_INT_LEVEL MB_CONVERT_TO_INT_LEVEL_ALL
 #endif /* MB_CONVERT_TO_INT_LEVEL */
+
+#ifndef MB_COMPACT_MODE
+#	define MB_COMPACT_MODE
+#endif /* MB_COMPACT_MODE */
+
+#ifdef MB_COMPACT_MODE
+#	pragma pack(1)
+#endif /* MB_COMPACT_MODE */
 
 #ifndef true
 #	define true (!0)
@@ -261,6 +260,7 @@ typedef enum mb_data_e {
 	MB_DT_REAL = 1 << 2,
 	MB_DT_STRING = 1 << 3,
 	MB_DT_USERTYPE = 1 << 4,
+	MB_DT_CLASS = 1 << 5,
 	MB_DT_ARRAY = 1 << 12
 } mb_data_e;
 
@@ -269,6 +269,7 @@ typedef union mb_value_u {
 	real_t float_point;
 	char* string;
 	void* usertype;
+	void* instance;
 	void* array;
 } mb_value_u;
 

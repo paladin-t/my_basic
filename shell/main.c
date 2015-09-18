@@ -63,6 +63,14 @@
 ** Common declarations
 */
 
+#ifdef _MSC_VER
+#	define _BIN_FILE_NAME "my_basic"
+#elif defined __APPLE__
+#	define _BIN_FILE_NAME "my_basic_mac"
+#else
+#	define _BIN_FILE_NAME "my_basic_bin"
+#endif
+
 #define _USE_MEM_POOL /* Comment this macro to disable memory pool */
 
 #define _MAX_LINE_LENGTH 256
@@ -527,14 +535,14 @@ static void _load_program(const char* path) {
 			printf("Load done. %d lines loaded.\n", c->count);
 		}
 	} else {
-		printf("Cannot load file \"%s\"\n", path);
+		printf("Cannot load file \"%s\".\n", path);
 	}
 }
 
 static void _save_program(const char* path) {
 	char* txt = _get_code(c);
 	if(!_save_file(path, txt)) {
-		printf("Cannot save file \"%s\"\n", path);
+		printf("Cannot save file \"%s\".\n", path);
 	} else {
 		if(c->count == 1) {
 			printf("Save done. %d line saved.\n", c->count);
@@ -561,7 +569,11 @@ static void _show_tip(void) {
 }
 
 static void _show_help(void) {
-	printf("Commands:\n");
+	printf("Parameters:\n");
+	printf("  %s - Start interactive mode without arguments.\n", _BIN_FILE_NAME);
+	printf("  %s *.* - Load and run a file.\n", _BIN_FILE_NAME);
+	printf("  %s -e \"expr\" - Evaluate an expression directly.\n", _BIN_FILE_NAME);
+	printf("Interactive commands:\n");
 	printf("  CLS   - Clear screen\n");
 	printf("  NEW   - Clear current program\n");
 	printf("  RUN   - Run current program\n");
@@ -649,6 +661,100 @@ static int _do_line(void) {
 
 /*
 ** {========================================================
+** Parameter processing
+*/
+
+#define _CHECK_ARG(__c, __i, __e) \
+	do { \
+		if(__c <= __i + 1) { \
+			printf(__e); \
+			return; \
+		} \
+	} while(0)
+
+static void _run_file(char* path) {
+	if(mb_load_file(bas, path) == MB_FUNC_OK) {
+		mb_run(bas);
+	} else {
+		printf("Invalid file or error code.\n");
+	}
+}
+
+static void _evaluate_expression(char* p) {
+	char pr[8];
+	int l = 0;
+	int k = 0;
+	bool_t a = true;
+	char* e = 0;
+
+	const char* const print = "PRINT ";
+
+	if(!p) {
+		printf("Invalid expression.\n");
+
+		return;
+	}
+
+	l = (int)strlen(p);
+	k = (int)strlen(print);
+	if(l >= k) {
+		memcpy(pr, p, k);
+		pr[k] = '\0';
+		if(_str_eq(pr, print))
+			a = false;
+	}
+	if(a) {
+		e = (char*)malloc(l + k + 1);
+		memcpy(e, print, k);
+		memcpy(e + k, p, l);
+		e[l + k] = '\0';
+		p = e;
+	}
+	if(mb_load_string(bas, p) == MB_FUNC_OK) {
+		mb_run(bas);
+	} else {
+		printf("Invalid expression.\n");
+	}
+	if(a) {
+		free(e);
+	}
+}
+
+static void _process_parameters(int argc, char* argv[]) {
+	int i = 1;
+	char* p = 0;
+	char m = '\0';
+
+	while(i < argc) {
+		if(!memcmp(argv[i], "-", 1)) {
+			if(!memcmp(argv[i] + 1, "e", 1)) {
+				m = 'e';
+				_CHECK_ARG(argc, i, "-e: Expression expected.\n");
+				p = argv[++i];
+			} else {
+				printf("Unknown argument: %s.\n", argv[i]);
+			}
+		} else {
+			p = argv[i];
+		}
+
+		i++;
+	}
+
+	switch(m) {
+	case '\0':
+		_run_file(p);
+		break;
+	case 'e':
+		_evaluate_expression(p);
+		break;
+	}
+}
+
+/* ========================================================} */
+
+/*
+** {========================================================
 ** Scripting interfaces
 */
 
@@ -684,7 +790,7 @@ static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f
 	mb_unrefvar(f);
 	mb_unrefvar(p);
 	if(SE_NO_ERR != e) {
-		printf("Error:\n    [LINE] %d, [COL] %d,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d\n", row, col, e, m, abort_code);
+		printf("Error:\n    [LINE] %d, [COL] %d,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d.\n", row, col, e, m, abort_code);
 	}
 }
 
@@ -753,14 +859,10 @@ int main(int argc, char* argv[]) {
 		do {
 			status = _do_line();
 		} while(_NO_END(status));
-	} else if(argc == 2) {
-		if(mb_load_file(bas, argv[1]) == MB_FUNC_OK) {
-			mb_run(bas);
-		} else {
-			printf("Invalid file\n");
-		}
+	} else if(argc >= 2) {
+		_process_parameters(argc, argv);
 	} else {
-		printf("Unknown arguments\n");
+		printf("Unknown arguments.\n");
 		_show_tip();
 	}
 
