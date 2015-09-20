@@ -66,6 +66,7 @@
 				OutputFile="$(OutDir)\$(ProjectName)_d.exe"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
+				ProgramDatabaseFile="$(OutDir)\$(ProjectName)_d.pdb"
 				SubSystem="1"
 				TargetMachine="1"
 			/>
@@ -141,6 +142,7 @@
 				Name="VCLinkerTool"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
+				ProgramDatabaseFile="$(OutDir)\$(ProjectName).pdb"
 				SubSystem="1"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
@@ -269,6 +271,26 @@
 			</File>
 			<File
 				RelativePath=".\sample\sample04.bas"
+				>
+				<FileConfiguration
+					Name="debug|Win32"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="release|Win32"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\sample\sample05.bas"
 				>
 				<FileConfiguration
 					Name="debug|Win32"

@@ -67,9 +67,9 @@
 #	define _BIN_FILE_NAME "my_basic"
 #elif defined __APPLE__
 #	define _BIN_FILE_NAME "my_basic_mac"
-#else
+#else /* _MSC_VER */
 #	define _BIN_FILE_NAME "my_basic_bin"
-#endif
+#endif /* _MSC_VER */
 
 #define _USE_MEM_POOL /* Comment this macro to disable memory pool */
 

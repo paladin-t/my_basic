@@ -1,3 +1,8 @@
+Sep. 20 2015
+Added array manipulation ability to script, it's able to assign an array to a variable or use it as a scripting interface argument
+Added recursive sub routine support
+Fixed a wrong argument detection bug in mb_has_arg
+
 Sep. 18 2015
 Fixed a float number parsing bug, thanks to Cybermonkey342 for pointing it out
 Added directly expression evaluation shell command
