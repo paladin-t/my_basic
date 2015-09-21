@@ -1,27 +1,27 @@
 /*
- ** This source file is part of MY-BASIC
- **
- ** For the latest info, see https://github.com/paladin-t/my_basic/
- **
- ** Copyright (C) 2011 - 2015 Wang Renxin
- **
- ** Permission is hereby granted, free of charge, to any person obtaining a copy of
- ** this software and associated documentation files (the "Software"), to deal in
- ** the Software without restriction, including without limitation the rights to
- ** use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- ** the Software, and to permit persons to whom the Software is furnished to do so,
- ** subject to the following conditions:
- **
- ** The above copyright notice and this permission notice shall be included in all
- ** copies or substantial portions of the Software.
- **
- ** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- ** IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- ** FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- ** COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- ** IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- ** CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+** This source file is part of MY-BASIC
+**
+** For the latest info, see https://github.com/paladin-t/my_basic/
+**
+** Copyright (C) 2011 - 2015 Wang Renxin
+**
+** Permission is hereby granted, free of charge, to any person obtaining a copy of
+** this software and associated documentation files (the "Software"), to deal in
+** the Software without restriction, including without limitation the rights to
+** use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+** the Software, and to permit persons to whom the Software is furnished to do so,
+** subject to the following conditions:
+**
+** The above copyright notice and this permission notice shall be included in all
+** copies or substantial portions of the Software.
+**
+** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+** IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+** FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+** COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+** IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+** CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
 
 #ifdef _MSC_VER
 #	ifndef _CRT_SECURE_NO_WARNINGS
@@ -60,9 +60,9 @@
 #endif /* __POCC__ */
 
 /*
- ** {========================================================
- ** Common declarations
- */
+** {========================================================
+** Common declarations
+*/
 
 #ifdef _MSC_VER
 #	define _BIN_FILE_NAME "my_basic"
@@ -86,9 +86,9 @@ static struct mb_interpreter_t* bas = 0;
 /* ========================================================} */
 
 /*
- ** {========================================================
- ** Common
- */
+** {========================================================
+** Common
+*/
 
 #ifndef _printf
 #	define _printf printf
@@ -97,9 +97,9 @@ static struct mb_interpreter_t* bas = 0;
 /* ========================================================} */
 
 /*
- ** {========================================================
- ** Memory manipulation
- */
+** {========================================================
+** Memory manipulation
+*/
 
 #ifdef _USE_MEM_POOL
 
@@ -263,9 +263,9 @@ static void _push_mem(char* p) {
 /* ========================================================} */
 
 /*
- ** {========================================================
- ** Code manipulation
- */
+** {========================================================
+** Code manipulation
+*/
 
 typedef struct _code_line_t {
 	char** lines;
@@ -409,9 +409,9 @@ static int _save_file(const char* path, const char* txt) {
 /* ========================================================} */
 
 /*
- ** {========================================================
- ** Interactive commands
- */
+** {========================================================
+** Interactive commands
+*/
 
 static void _clear_screen(void) {
 #ifdef _MSC_VER
@@ -672,17 +672,17 @@ static int _do_line(void) {
 /* ========================================================} */
 
 /*
- ** {========================================================
- ** Parameter processing
- */
+** {========================================================
+** Parameter processing
+*/
 
 #define _CHECK_ARG(__c, __i, __e) \
-do { \
-	if(__c <= __i + 1) { \
-		_printf(__e); \
-		return; \
-	} \
-} while(0)
+	do { \
+		if(__c <= __i + 1) { \
+			_printf(__e); \
+			return; \
+		} \
+	} while(0)
 
 static void _run_file(char* path) {
 	if(mb_load_file(bas, path) == MB_FUNC_OK) {
@@ -754,21 +754,21 @@ static void _process_parameters(int argc, char* argv[]) {
 	}
 
 	switch(m) {
-		case '\0':
-			_run_file(p);
-			break;
-		case 'e':
-			_evaluate_expression(p);
-			break;
+	case '\0':
+		_run_file(p);
+		break;
+	case 'e':
+		_evaluate_expression(p);
+		break;
 	}
 }
 
 /* ========================================================} */
 
 /*
- ** {========================================================
- ** Scripting interfaces
- */
+** {========================================================
+** Scripting interfaces
+*/
 
 static int beep(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
@@ -786,9 +786,9 @@ static int beep(struct mb_interpreter_t* s, void** l) {
 /* ========================================================} */
 
 /*
- ** {========================================================
- ** Callbacks and handlers
- */
+** {========================================================
+** Callbacks and handlers
+*/
 
 static void _on_stepped(struct mb_interpreter_t* s, int p, unsigned short row, unsigned short col) {
 	mb_unrefvar(s);
@@ -809,9 +809,9 @@ static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f
 /* ========================================================} */
 
 /*
- ** {========================================================
- ** Initialization and disposing
- */
+** {========================================================
+** Initialization and disposing
+*/
 
 static void _on_startup(void) {
 #ifdef _USE_MEM_POOL
@@ -851,9 +851,9 @@ static void _on_exit(void) {
 /* ========================================================} */
 
 /*
- ** {========================================================
- ** Entry
- */
+** {========================================================
+** Entry
+*/
 
 int main(int argc, char* argv[]) {
 	int status = 0;
@@ -877,7 +877,7 @@ int main(int argc, char* argv[]) {
 		_printf("Unknown arguments.\n");
 		_show_tip();
 	}
-	
+
 	return 0;
 }
 
