@@ -7030,18 +7030,37 @@ _exit:
 int _std_len(mb_interpreter_t* s, void** l) {
 	/* Get the length of a string */
 	int result = MB_FUNC_OK;
-	char* arg = 0;
+	_ls_node_t* ast = 0;
+	mb_value_t arg;
+	_array_t* arr = 0;
 
 	mb_assert(s && l);
 
+	ast = (_ls_node_t*)(*l);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
-	mb_check(mb_pop_string(s, l, &arg));
+	mb_check(mb_pop_value(s, l, &arg));
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	mb_check(mb_push_int(s, l, (int_t)strlen(arg)));
+	switch(arg.type) {
+	case MB_DT_STRING:
+		mb_check(mb_push_int(s, l, (int_t)strlen(arg.value.string)));
 
+		break;
+	case MB_DT_ARRAY:
+		arr = (_array_t*)arg.value.array;
+		mb_check(mb_push_int(s, l, (int_t)arr->count));
+
+		break;
+	default:
+		_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+
+_exit:
 	return result;
 }
 
