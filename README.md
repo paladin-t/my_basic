@@ -80,20 +80,24 @@ For more details about using MY-BASIC when it's already integrated with exist pr
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
-* [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
-* [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
-* [Link with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC)
-* [Customize a memory allocator](https://github.com/paladin-t/my_basic/wiki/Customize-a-memory-allocator)
-* [Redirect PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
-* [Redefine int_t and real_t](https://github.com/paladin-t/my_basic/wiki/Redefine-int_t-and-real_t)
-* [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
-* [Manipulate an array](https://github.com/paladin-t/my_basic/wiki/Manipulate-an-array)
-* [Customize macros](https://github.com/paladin-t/my_basic/wiki/Customize-macros)
-* [Write a debugger](https://github.com/paladin-t/my_basic/wiki/Write-a-debugger)
+* Principles
+ * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
+ * [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
+* Integration
+ * [Link with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC)
+ * [Write a debugger](https://github.com/paladin-t/my_basic/wiki/Write-a-debugger)
+* Customization
+ * [Customize a memory allocator](https://github.com/paladin-t/my_basic/wiki/Customize-a-memory-allocator)
+ * [Redirect PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
+ * [Redefine int_t and real_t](https://github.com/paladin-t/my_basic/wiki/Redefine-int_t-and-real_t)
+ * [Customize macros](https://github.com/paladin-t/my_basic/wiki/Customize-macros)
+ * [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
+ * [Manipulate an array](https://github.com/paladin-t/my_basic/wiki/Manipulate-an-array)
 * [More scripting APIs](https://github.com/paladin-t/my_basic/wiki/More-scripting-APIs)
  * [String matching module](https://github.com/paladin-t/my_basic/wiki/String-matching-module)
  * [File module](https://github.com/paladin-t/my_basic/wiki/File-module)
  * [Bit operation module](https://github.com/paladin-t/my_basic/wiki/Bit-operation-module)
+ * [Miscellaneous module](https://github.com/paladin-t/my_basic/wiki/Miscellaneous-module)
 * [FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
 
 ## References
