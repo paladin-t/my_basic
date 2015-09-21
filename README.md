@@ -91,6 +91,7 @@ For more details about using MY-BASIC when it's already integrated with exist pr
 * [Customize macros](https://github.com/paladin-t/my_basic/wiki/Customize-macros)
 * [Write a debugger](https://github.com/paladin-t/my_basic/wiki/Write-a-debugger)
 * [More scripting APIs](https://github.com/paladin-t/my_basic/wiki/More-scripting-APIs)
+ * [String matching module](https://github.com/paladin-t/my_basic/wiki/String-matching-module)
  * [File module](https://github.com/paladin-t/my_basic/wiki/File-module)
  * [Bit operation module](https://github.com/paladin-t/my_basic/wiki/Bit-operation-module)
 * [FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
