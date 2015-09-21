@@ -1,27 +1,27 @@
 /*
-** This source file is part of MY-BASIC
-**
-** For the latest info, see https://github.com/paladin-t/my_basic/
-**
-** Copyright (C) 2011 - 2015 Wang Renxin
-**
-** Permission is hereby granted, free of charge, to any person obtaining a copy of
-** this software and associated documentation files (the "Software"), to deal in
-** the Software without restriction, including without limitation the rights to
-** use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-** the Software, and to permit persons to whom the Software is furnished to do so,
-** subject to the following conditions:
-**
-** The above copyright notice and this permission notice shall be included in all
-** copies or substantial portions of the Software.
-**
-** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-** IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-** FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-** COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-** IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-** CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+ ** This source file is part of MY-BASIC
+ **
+ ** For the latest info, see https://github.com/paladin-t/my_basic/
+ **
+ ** Copyright (C) 2011 - 2015 Wang Renxin
+ **
+ ** Permission is hereby granted, free of charge, to any person obtaining a copy of
+ ** this software and associated documentation files (the "Software"), to deal in
+ ** the Software without restriction, including without limitation the rights to
+ ** use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ ** the Software, and to permit persons to whom the Software is furnished to do so,
+ ** subject to the following conditions:
+ **
+ ** The above copyright notice and this permission notice shall be included in all
+ ** copies or substantial portions of the Software.
+ **
+ ** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ ** IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ ** FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ ** COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ ** IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ ** CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifdef _MSC_VER
 #	ifndef _CRT_SECURE_NO_WARNINGS
@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #ifdef _MSC_VER
 #	pragma warning(disable : 4127)
@@ -59,9 +60,9 @@
 #endif /* __POCC__ */
 
 /*
-** {========================================================
-** Common declarations
-*/
+ ** {========================================================
+ ** Common declarations
+ */
 
 #ifdef _MSC_VER
 #	define _BIN_FILE_NAME "my_basic"
@@ -85,9 +86,20 @@ static struct mb_interpreter_t* bas = 0;
 /* ========================================================} */
 
 /*
-** {========================================================
-** Memory manipulation
-*/
+ ** {========================================================
+ ** Common
+ */
+
+#ifndef _printf
+#	define _printf printf
+#endif /* _printf */
+
+/* ========================================================} */
+
+/*
+ ** {========================================================
+ ** Memory manipulation
+ */
 
 #ifdef _USE_MEM_POOL
 
@@ -251,9 +263,9 @@ static void _push_mem(char* p) {
 /* ========================================================} */
 
 /*
-** {========================================================
-** Code manipulation
-*/
+ ** {========================================================
+ ** Code manipulation
+ */
 
 typedef struct _code_line_t {
 	char** lines;
@@ -397,9 +409,9 @@ static int _save_file(const char* path, const char* txt) {
 /* ========================================================} */
 
 /*
-** {========================================================
-** Interactive commands
-*/
+ ** {========================================================
+ ** Interactive commands
+ */
 
 static void _clear_screen(void) {
 #ifdef _MSC_VER
@@ -426,18 +438,18 @@ static void _list_program(const char* sn, const char* cn) {
 	if(lsn == 0 && lcn == 0) {
 		long i = 0;
 		for(i = 0; i < c->count; ++i) {
-			printf("%ld]%s", i + 1, c->lines[i]);
+			_printf("%ld]%s", i + 1, c->lines[i]);
 		}
 	} else {
 		long i = 0;
 		long e = 0;
 		if(lsn < 1 || lsn > c->count) {
-			printf("Line number %ld out of bound.\n", lsn);
+			_printf("Line number %ld out of bound.\n", lsn);
 
 			return;
 		}
 		if(lcn < 0) {
-			printf("Invalid line count %ld.\n", lcn);
+			_printf("Invalid line count %ld.\n", lcn);
 
 			return;
 		}
@@ -447,7 +459,7 @@ static void _list_program(const char* sn, const char* cn) {
 			if(i >= c->count)
 				break;
 
-			printf("%ld]%s\n", i + 1, c->lines[i]);
+			_printf("%ld]%s\n", i + 1, c->lines[i]);
 		}
 	}
 }
@@ -461,13 +473,13 @@ static void _edit_program(const char* no) {
 
 	lno = atoi(no);
 	if(lno < 1 || lno > c->count) {
-		printf("Line number %ld out of bound.\n", lno);
+		_printf("Line number %ld out of bound.\n", lno);
 
 		return;
 	}
 	--lno;
 	memset(line, 0, _MAX_LINE_LENGTH);
-	printf("%ld]", lno + 1);
+	_printf("%ld]", lno + 1);
 	mb_gets(line, _MAX_LINE_LENGTH);
 	l = (int)strlen(line);
 	c->lines[lno] = (char*)realloc(c->lines[lno], l + 2);
@@ -485,13 +497,13 @@ static void _insert_program(const char* no) {
 
 	lno = atoi(no);
 	if(lno < 1 || lno > c->count) {
-		printf("Line number %ld out of bound.\n", lno);
+		_printf("Line number %ld out of bound.\n", lno);
 
 		return;
 	}
 	--lno;
 	memset(line, 0, _MAX_LINE_LENGTH);
-	printf("%ld]", lno + 1);
+	_printf("%ld]", lno + 1);
 	mb_gets(line, _MAX_LINE_LENGTH);
 	if(c->count + 1 == c->size) {
 		c->size += _LINE_INC_STEP;
@@ -512,7 +524,7 @@ static void _alter_program(const char* no) {
 
 	lno = atoi(no);
 	if(lno < 1 || lno > c->count) {
-		printf("Line number %ld out of bound.\n", lno);
+		_printf("Line number %ld out of bound.\n", lno);
 
 		return;
 	}
@@ -530,24 +542,24 @@ static void _load_program(const char* path) {
 		_set_code(c, txt);
 		free(txt);
 		if(c->count == 1) {
-			printf("Load done. %d line loaded.\n", c->count);
+			_printf("Load done. %d line loaded.\n", c->count);
 		} else {
-			printf("Load done. %d lines loaded.\n", c->count);
+			_printf("Load done. %d lines loaded.\n", c->count);
 		}
 	} else {
-		printf("Cannot load file \"%s\".\n", path);
+		_printf("Cannot load file \"%s\".\n", path);
 	}
 }
 
 static void _save_program(const char* path) {
 	char* txt = _get_code(c);
 	if(!_save_file(path, txt)) {
-		printf("Cannot save file \"%s\".\n", path);
+		_printf("Cannot save file \"%s\".\n", path);
 	} else {
 		if(c->count == 1) {
-			printf("Save done. %d line saved.\n", c->count);
+			_printf("Save done. %d line saved.\n", c->count);
 		} else {
-			printf("Save done. %d lines saved.\n", c->count);
+			_printf("Save done. %d lines saved.\n", c->count);
 		}
 	}
 	free(txt);
@@ -555,41 +567,41 @@ static void _save_program(const char* path) {
 
 static void _kill_program(const char* path) {
 	if(!unlink(path)) {
-		printf("Delete file \"%s\" successfully.\n", path);
+		_printf("Delete file \"%s\" successfully.\n", path);
 	} else {
-		printf("Delete file \"%s\" failed.\n", path);
+		_printf("Delete file \"%s\" failed.\n", path);
 	}
 }
 
 static void _show_tip(void) {
-	printf("MY-BASIC Interpreter Shell - %s.\n", mb_ver_string());
-	printf("Copyright (C) 2011 - 2015 Wang Renxin. All Rights Reserved.\n");
-	printf("For more information, see https://github.com/paladin-t/my_basic/.\n");
-	printf("Input HELP and hint enter to view help information.\n");
+	_printf("MY-BASIC Interpreter Shell - %s.\n", mb_ver_string());
+	_printf("Copyright (C) 2011 - 2015 Wang Renxin. All Rights Reserved.\n");
+	_printf("For more information, see https://github.com/paladin-t/my_basic/.\n");
+	_printf("Input HELP and hint enter to view help information.\n");
 }
 
 static void _show_help(void) {
-	printf("Parameters:\n");
-	printf("  %s - Start interactive mode without arguments.\n", _BIN_FILE_NAME);
-	printf("  %s *.* - Load and run a file.\n", _BIN_FILE_NAME);
-	printf("  %s -e \"expr\" - Evaluate an expression directly.\n", _BIN_FILE_NAME);
-	printf("Interactive commands:\n");
-	printf("  CLS   - Clear screen\n");
-	printf("  NEW   - Clear current program\n");
-	printf("  RUN   - Run current program\n");
-	printf("  BYE   - Quit interpreter\n");
-	printf("  LIST  - List current program\n");
-	printf("          Usage: LIST [l [n]], l is start line number, n is line count\n");
-	printf("  EDIT  - Edit (modify/insert/remove) a line in current program\n");
-	printf("          Usage: EDIT n, n is line number\n");
-	printf("                 EDIT -I n, insert a line before a given line, n is line number\n");
-	printf("                 EDIT -R n, remove a line, n is line number\n");
-	printf("  LOAD  - Load a file as current program\n");
-	printf("          Usage: LOAD *.*\n");
-	printf("  SAVE  - Save current program to a file\n");
-	printf("          Usage: SAVE *.*\n");
-	printf("  KILL  - Delete a file\n");
-	printf("          Usage: KILL *.*\n");
+	_printf("Parameters:\n");
+	_printf("  %s - Start interactive mode without arguments.\n", _BIN_FILE_NAME);
+	_printf("  %s *.* - Load and run a file.\n", _BIN_FILE_NAME);
+	_printf("  %s -e \"expr\" - Evaluate an expression directly.\n", _BIN_FILE_NAME);
+	_printf("Interactive commands:\n");
+	_printf("  CLS   - Clear screen\n");
+	_printf("  NEW   - Clear current program\n");
+	_printf("  RUN   - Run current program\n");
+	_printf("  BYE   - Quit interpreter\n");
+	_printf("  LIST  - List current program\n");
+	_printf("          Usage: LIST [l [n]], l is start line number, n is line count\n");
+	_printf("  EDIT  - Edit (modify/insert/remove) a line in current program\n");
+	_printf("          Usage: EDIT n, n is line number\n");
+	_printf("                 EDIT -I n, insert a line before a given line, n is line number\n");
+	_printf("                 EDIT -R n, remove a line, n is line number\n");
+	_printf("  LOAD  - Load a file as current program\n");
+	_printf("          Usage: LOAD *.*\n");
+	_printf("  SAVE  - Save current program to a file\n");
+	_printf("          Usage: SAVE *.*\n");
+	_printf("  KILL  - Delete a file\n");
+	_printf("          Usage: KILL *.*\n");
 }
 
 static int _do_line(void) {
@@ -600,7 +612,7 @@ static int _do_line(void) {
 	mb_assert(bas);
 
 	memset(line, 0, _MAX_LINE_LENGTH);
-	printf("]");
+	_printf("]");
 	mb_gets(line, _MAX_LINE_LENGTH);
 
 	memcpy(dup, line, _MAX_LINE_LENGTH);
@@ -621,7 +633,7 @@ static int _do_line(void) {
 		for(i = 0; i < c->count; ++i)
 			mb_load_string(bas, c->lines[i]);
 		result = mb_run(bas);
-		printf("\n");
+		_printf("\n");
 	} else if(_str_eq(line, "BYE")) {
 		result = MB_FUNC_BYE;
 	} else if(_str_eq(line, "LIST")) {
@@ -660,23 +672,23 @@ static int _do_line(void) {
 /* ========================================================} */
 
 /*
-** {========================================================
-** Parameter processing
-*/
+ ** {========================================================
+ ** Parameter processing
+ */
 
 #define _CHECK_ARG(__c, __i, __e) \
-	do { \
-		if(__c <= __i + 1) { \
-			printf(__e); \
-			return; \
-		} \
-	} while(0)
+do { \
+	if(__c <= __i + 1) { \
+		_printf(__e); \
+		return; \
+	} \
+} while(0)
 
 static void _run_file(char* path) {
 	if(mb_load_file(bas, path) == MB_FUNC_OK) {
 		mb_run(bas);
 	} else {
-		printf("Invalid file or error code.\n");
+		_printf("Invalid file or error code.\n");
 	}
 }
 
@@ -690,7 +702,7 @@ static void _evaluate_expression(char* p) {
 	const char* const print = "PRINT ";
 
 	if(!p) {
-		printf("Invalid expression.\n");
+		_printf("Invalid expression.\n");
 
 		return;
 	}
@@ -713,7 +725,7 @@ static void _evaluate_expression(char* p) {
 	if(mb_load_string(bas, p) == MB_FUNC_OK) {
 		mb_run(bas);
 	} else {
-		printf("Invalid expression.\n");
+		_printf("Invalid expression.\n");
 	}
 	if(a) {
 		free(e);
@@ -732,7 +744,7 @@ static void _process_parameters(int argc, char* argv[]) {
 				_CHECK_ARG(argc, i, "-e: Expression expected.\n");
 				p = argv[++i];
 			} else {
-				printf("Unknown argument: %s.\n", argv[i]);
+				_printf("Unknown argument: %s.\n", argv[i]);
 			}
 		} else {
 			p = argv[i];
@@ -742,21 +754,21 @@ static void _process_parameters(int argc, char* argv[]) {
 	}
 
 	switch(m) {
-	case '\0':
-		_run_file(p);
-		break;
-	case 'e':
-		_evaluate_expression(p);
-		break;
+		case '\0':
+			_run_file(p);
+			break;
+		case 'e':
+			_evaluate_expression(p);
+			break;
 	}
 }
 
 /* ========================================================} */
 
 /*
-** {========================================================
-** Scripting interfaces
-*/
+ ** {========================================================
+ ** Scripting interfaces
+ */
 
 static int beep(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
@@ -774,9 +786,9 @@ static int beep(struct mb_interpreter_t* s, void** l) {
 /* ========================================================} */
 
 /*
-** {========================================================
-** Callbacks and handlers
-*/
+ ** {========================================================
+ ** Callbacks and handlers
+ */
 
 static void _on_stepped(struct mb_interpreter_t* s, int p, unsigned short row, unsigned short col) {
 	mb_unrefvar(s);
@@ -790,16 +802,16 @@ static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f
 	mb_unrefvar(f);
 	mb_unrefvar(p);
 	if(SE_NO_ERR != e) {
-		printf("Error:\n    [LINE] %d, [COL] %d,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d.\n", row, col, e, m, abort_code);
+		_printf("Error:\n    [LINE] %d, [COL] %d,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d.\n", row, col, e, m, abort_code);
 	}
 }
 
 /* ========================================================} */
 
 /*
-** {========================================================
-** Initialization and disposing
-*/
+ ** {========================================================
+ ** Initialization and disposing
+ */
 
 static void _on_startup(void) {
 #ifdef _USE_MEM_POOL
@@ -839,9 +851,9 @@ static void _on_exit(void) {
 /* ========================================================} */
 
 /*
-** {========================================================
-** Entry
-*/
+ ** {========================================================
+ ** Entry
+ */
 
 int main(int argc, char* argv[]) {
 	int status = 0;
@@ -862,10 +874,10 @@ int main(int argc, char* argv[]) {
 	} else if(argc >= 2) {
 		_process_parameters(argc, argv);
 	} else {
-		printf("Unknown arguments.\n");
+		_printf("Unknown arguments.\n");
 		_show_tip();
 	}
-
+	
 	return 0;
 }
 

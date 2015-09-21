@@ -79,8 +79,12 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 72
+#define _VER_REVISION 73
+#define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
+#define _STRINGIZE(A) _MAKE_STRINGIZE(A)
+#define _MAKE_STRINGIZE(A) #A
+#define _MB_VERSION_STRING _STRINGIZE(_VER_MAJOR._VER_MINOR._VER_REVISION _VER_SUFFIX)
 
 /* Uncomment the line below to treat warning as error */
 /*#define _WARING_AS_ERROR*/
@@ -407,6 +411,7 @@ typedef struct mb_interpreter_t {
 	_parsing_context_t* parsing_context;
 	_running_context_t* running_context;
 	unsigned char jump_set;
+	_routine_t* last_routine;
 	_ls_node_t* sub_stack;
 	_ls_node_t* temp_values;
 	_ls_node_t* suspent_point;
@@ -985,11 +990,11 @@ static int _std_log(mb_interpreter_t* s, void** l);
 static int _std_asc(mb_interpreter_t* s, void** l);
 static int _std_chr(mb_interpreter_t* s, void** l);
 static int _std_left(mb_interpreter_t* s, void** l);
-static int _std_len(mb_interpreter_t* s, void** l);
 static int _std_mid(mb_interpreter_t* s, void** l);
 static int _std_right(mb_interpreter_t* s, void** l);
 static int _std_str(mb_interpreter_t* s, void** l);
 static int _std_val(mb_interpreter_t* s, void** l);
+static int _std_len(mb_interpreter_t* s, void** l);
 static int _std_print(mb_interpreter_t* s, void** l);
 static int _std_input(mb_interpreter_t* s, void** l);
 
@@ -1075,11 +1080,12 @@ static const _func_t _std_libs[] = {
 	{ "ASC", _std_asc },
 	{ "CHR", _std_chr },
 	{ "LEFT", _std_left },
-	{ "LEN", _std_len },
 	{ "MID", _std_mid },
 	{ "RIGHT", _std_right },
 	{ "STR", _std_str },
 	{ "VAL", _std_val },
+
+	{ "LEN", _std_len },
 
 	{ "PRINT", _std_print },
 	{ "INPUT", _std_input }
@@ -1839,6 +1845,8 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					memset(c, 0, sizeof(_object_t));
 					_ls_pushback(garbage, c);
 					result = _public_value_to_internal_object(&running->intermediate_value, c);
+					if(c->type == _DT_STRING)
+						c->ref = true;
 					if(result != MB_FUNC_OK)
 						goto _exit;
 					if(f) {
@@ -2018,8 +2026,26 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 	_var_t* var = 0;
 	_ls_node_t* rnode = 0;
 	_running_context_t* running = 0;
+	_routine_t* lastr = 0;
 
 	mb_assert(s && l && r);
+
+	if(s->last_routine && (s->last_routine->name == r->name || !strcmp(s->last_routine->name, r->name))) {
+		ast = (_ls_node_t*)(*l);
+		_skip_to(s, &ast, 0, _DT_EOS);
+		if(ast && ((_object_t*)(ast->data))->type == _DT_EOS)
+			ast = ast->next;
+		if(_IS_FUNC((_object_t*)(ast->data), _core_enddef)) { /* Tail recursion optimization */
+			*l = r->entry;
+			if(*l)
+				*l = (*l)->next;
+
+			goto _tail;
+		}
+	}
+
+	lastr = s->last_routine;
+	s->last_routine = r;
 
 	running = s->running_context;
 
@@ -2094,6 +2120,9 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 	s->running_context->intermediate_value = running->intermediate_value;
 
 _exit:
+	s->last_routine = lastr;
+
+_tail:
 	return result;
 }
 
@@ -3846,6 +3875,8 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 			ast = (_ls_node_t*)_ls_popback(sub_stack);
 		} else if(obj && obj->type == _DT_FUNC && (_is_operator(obj->data.func->pointer) || _is_flow(obj->data.func->pointer))) {
 			ast = ast->next;
+		} else if(obj && obj->type == _DT_FUNC) {
+			/* Do nothing */
 		} else if(obj && obj->type != _DT_FUNC) {
 			ast = ast->next;
 		} else {
@@ -4162,11 +4193,7 @@ unsigned int mb_ver(void) {
 
 const char* mb_ver_string(void) {
 	/* Get the version text of this MY-BASIC system */
-	static char buf[32] = { '\0' };
-	if(!buf[0])
-		sprintf(buf, "%d.%d.%04d", _VER_MAJOR, _VER_MINOR, _VER_REVISION);
-
-	return buf;
+	return _MB_VERSION_STRING;
 }
 
 int mb_init(void) {
@@ -4353,6 +4380,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
 	mb_assert(s);
 
 	(*s)->jump_set = _JMP_NIL;
+	(*s)->last_routine = 0;
 	(*s)->no_eat_comma_mark = 0;
 	(*s)->last_error = SE_NO_ERR;
 	(*s)->last_error_func = 0;
@@ -6344,12 +6372,14 @@ int _core_return(mb_interpreter_t* s, void** l) {
 	if(running->prev) {
 		ast = (_ls_node_t*)(*l);
 		ast = ast->next;
-		mb_check(mb_pop_value(s, (void**)(&ast), &arg));
-		mb_check(mb_push_value(s, (void**)(&ast), arg));
+		if(mb_has_arg(s, (void**)(&ast))) {
+			mb_check(mb_pop_value(s, (void**)(&ast), &arg));
+			mb_check(mb_push_value(s, (void**)(&ast), arg));
 
-		if(arg.type == MB_DT_STRING) {
-			_ls_foreach(s->temp_values, _destroy_object_capsule_only);
-			_ls_clear(s->temp_values);
+			if(arg.type == MB_DT_STRING) {
+				_ls_foreach(s->temp_values, _destroy_object_capsule_only);
+				_ls_clear(s->temp_values);
+			}
 		}
 	}
 	ast = (_ls_node_t*)_ls_popback(sub_stack);
@@ -7027,43 +7057,6 @@ _exit:
 	return result;
 }
 
-int _std_len(mb_interpreter_t* s, void** l) {
-	/* Get the length of a string */
-	int result = MB_FUNC_OK;
-	_ls_node_t* ast = 0;
-	mb_value_t arg;
-	_array_t* arr = 0;
-
-	mb_assert(s && l);
-
-	ast = (_ls_node_t*)(*l);
-
-	mb_check(mb_attempt_open_bracket(s, l));
-
-	mb_check(mb_pop_value(s, l, &arg));
-
-	mb_check(mb_attempt_close_bracket(s, l));
-
-	switch(arg.type) {
-	case MB_DT_STRING:
-		mb_check(mb_push_int(s, l, (int_t)strlen(arg.value.string)));
-
-		break;
-	case MB_DT_ARRAY:
-		arr = (_array_t*)arg.value.array;
-		mb_check(mb_push_int(s, l, (int_t)arr->count));
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
-
-		break;
-	}
-
-_exit:
-	return result;
-}
-
 int _std_mid(mb_interpreter_t* s, void** l) {
 	/* Get a number of characters from a given position of a string */
 	int result = MB_FUNC_OK;
@@ -7189,6 +7182,43 @@ int _std_val(mb_interpreter_t* s, void** l) {
 		goto _exit;
 	}
 	result = MB_FUNC_ERR;
+
+_exit:
+	return result;
+}
+
+int _std_len(mb_interpreter_t* s, void** l) {
+	/* Get the length of a string or an array */
+	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
+	mb_value_t arg;
+	_array_t* arr = 0;
+
+	mb_assert(s && l);
+
+	ast = (_ls_node_t*)(*l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_pop_value(s, l, &arg));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	switch(arg.type) {
+	case MB_DT_STRING:
+		mb_check(mb_push_int(s, l, (int_t)strlen(arg.value.string)));
+
+		break;
+	case MB_DT_ARRAY:
+		arr = (_array_t*)arg.value.array;
+		mb_check(mb_push_int(s, l, (int_t)arr->count));
+
+		break;
+	default:
+		_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
 
 _exit:
 	return result;

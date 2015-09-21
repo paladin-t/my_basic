@@ -1,3 +1,9 @@
+Sep. 21 2015
+Implemented tail recursion optimization in sub routine
+Added array length gain in LEN function
+Fixed a crash bug when returning nothing in a sub routine
+Polished document
+
 Sep. 20 2015
 Added array manipulation ability to script, it's able to assign an array to a variable or use it as a scripting interface argument
 Added recursive sub routine support
@@ -10,7 +16,7 @@ Added directly expression evaluation shell command
 Sep. 17 2015
 Allowed string in a boolean expression
 Added support for sub routine in PRINT
-Fixed a repeated disposing bug when suing sub routine
+Fixed a repeated disposing bug when using sub routine
 
 Sep. 16 2015
 Added Nil type handling, including assignment, boolean operation, serialization, etc.
