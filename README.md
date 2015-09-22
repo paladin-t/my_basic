@@ -16,9 +16,10 @@ MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter writt
 * Lightweight (within memory usage less than 128KB) and fast
 * Case-insensitive tokenization
 * Integer, float point, string, boolean, user defined data types with array support, etc.
+* Multiple file support by `IMPORT` statement
 * Structured `IF-THEN-ELSEIF-ELSE-ENDIF` support
 * Structured `FOR-TO-STEP-NEXT/WHILE-WEND/DO-UNTIL` support
-* Structured user costomized sub routine definition by `DEF/ENDDEF` support
+* Structured user costomized sub routine definition by `DEF/ENDDEF` support, including tail recursion optimization
 * `GOTO/GOSUB-RETURN` support
 * Standard numeric functions, and standard string functions
 * Debug APIs
