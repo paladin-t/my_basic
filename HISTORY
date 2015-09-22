@@ -1,3 +1,6 @@
+Sep. 22 2015
+Added mb_get_var, mb_get_var_value and mb_set_var_value
+
 Sep. 21 2015
 Implemented tail recursion optimization in sub routine
 Added array length gain in LEN function
