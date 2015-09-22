@@ -798,6 +798,8 @@ static void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* func);
 static mb_print_func_t _get_printer(mb_interpreter_t* s);
 static mb_input_func_t _get_inputer(mb_interpreter_t* s);
 
+static char* _load_file(const char* f, const char* prefix);
+
 static bool_t _is_blank(char c);
 static bool_t _is_newline(char c);
 static bool_t _is_separator(char c);
@@ -968,6 +970,7 @@ static int _core_endclass(mb_interpreter_t* s, void** l);
 #ifdef MB_ENABLE_ALLOC_STAT
 static int _core_mem(mb_interpreter_t* s, void** l);
 #endif /* MB_ENABLE_ALLOC_STAT */
+static int _core_import(mb_interpreter_t* s, void** l);
 static int _core_end(mb_interpreter_t* s, void** l);
 
 /** Std lib */
@@ -1056,6 +1059,7 @@ static const _func_t _core_libs[] = {
 	{ "MEM", _core_mem },
 #endif /* MB_ENABLE_ALLOC_STAT */
 
+	{ "IMPORT", _core_import },
 	{ "END", _core_end }
 };
 
@@ -2172,6 +2176,37 @@ mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 	return mb_gets;
 }
 
+char* _load_file(const char* f, const char* prefix) {
+	/* Read all content of a file into a buffer */
+	FILE* fp = 0;
+	char* buf = 0;
+	long curpos = 0;
+	long l = 0;
+	long i = 0;
+
+	fp = fopen(f, "rb");
+	if(fp) {
+		curpos = ftell(fp);
+		fseek(fp, 0L, SEEK_END);
+		l = ftell(fp);
+		fseek(fp, curpos, SEEK_SET);
+		if(prefix) {
+			i = strlen(prefix);
+			l += i;
+		}
+		buf = (char*)mb_malloc((size_t)(l + 1));
+		mb_assert(buf);
+		if(prefix) {
+			memcpy(buf, prefix, i);
+		}
+		fread(buf + i, 1, l, fp);
+		fclose(fp);
+		buf[l] = '\0';
+	}
+
+	return buf;
+}
+
 bool_t _is_blank(char c) {
 	/* Determine whether a char is a blank */
 	return (' ' == c) || ('\t' == c);
@@ -2578,6 +2613,38 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	/* String */
 	if(sym[0] == '"' && sym[_sl - 1] == '"' && _sl >= 2) {
 		result = _DT_STRING;
+
+		if(context->last_symbol && _IS_FUNC(context->last_symbol, _core_import)) {
+			int n = context->current_symbol_nonius;
+			char current_symbol[_SINGLE_SYMBOL_MAX_LENGTH + 1];
+			char* buf = 0;
+			memcpy(current_symbol, context->current_symbol, sizeof(current_symbol));
+			memset(context->current_symbol, 0, sizeof(current_symbol));
+			context->current_symbol_nonius = 0;
+			context->last_symbol = 0;
+			sym[_sl - 1] = '\0';
+			context->parsing_state = _PS_NORMAL;
+			buf = _load_file(sym + 1, ":");
+			if(buf) {
+				mb_load_string(s, buf);
+				safe_free(buf);
+			} else {
+				_set_current_error(s, SE_PS_FILE_OPEN_FAILED, 0);
+				if(s->error_handler) {
+					(s->error_handler)(s, s->last_error, (char*)mb_get_error_desc(s->last_error),
+						s->last_error_func,
+						s->last_error_pos,
+						s->last_error_row,
+						s->last_error_col,
+						result);
+				}
+			}
+			context->parsing_state = _PS_STRING;
+			sym[_sl - 1] = '\"';
+			context->current_symbol_nonius = n;
+			memcpy(context->current_symbol, current_symbol, sizeof(current_symbol));
+			result = _DT_NIL;
+		}
 
 		goto _exit;
 	}
@@ -5022,10 +5089,7 @@ _exit:
 int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 	/* Load a script file */
 	int result = MB_FUNC_OK;
-	FILE* fp = 0;
 	char* buf = 0;
-	long curpos = 0;
-	long l = 0;
 	_parsing_context_t* context = 0;
 
 	mb_assert(s);
@@ -5034,18 +5098,8 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 
 	s->parsing_context = context = _reset_parsing_context(s->parsing_context);
 
-	fp = fopen(f, "rb");
-	if(fp) {
-		curpos = ftell(fp);
-		fseek(fp, 0L, SEEK_END);
-		l = ftell(fp);
-		fseek(fp, curpos, SEEK_SET);
-		buf = (char*)mb_malloc((size_t)(l + 1));
-		mb_assert(buf);
-		fread(buf, 1, l, fp);
-		fclose(fp);
-		buf[l] = '\0';
-
+	buf = _load_file(f, 0);
+	if(buf) {
 		result = mb_load_string(s, buf);
 		safe_free(buf);
 
@@ -6623,6 +6677,19 @@ int _core_mem(mb_interpreter_t* s, void** l) {
 	return result;
 }
 #endif /* MB_ENABLE_ALLOC_STAT */
+
+int _core_import(mb_interpreter_t* s, void** l) {
+	/* IMPORT statement */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_func_begin(s, l));
+
+	mb_check(mb_attempt_func_end(s, l));
+
+	return result;
+}
 
 int _core_end(mb_interpreter_t* s, void** l) {
 	/* END statement */
