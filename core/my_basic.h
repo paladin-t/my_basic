@@ -316,6 +316,10 @@ MBAPI int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val);
 MBAPI int mb_push_string(struct mb_interpreter_t* s, void** l, char* val);
 MBAPI int mb_push_usertype(struct mb_interpreter_t* s, void** l, void* val);
 MBAPI int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
+
+MBAPI int mb_get_var(struct mb_interpreter_t* s, void** l, void** v);
+MBAPI int mb_get_var_value(struct mb_interpreter_t* s, void* v, mb_value_t* val);
+MBAPI int mb_set_var_value(struct mb_interpreter_t* s, void* v, mb_value_t val);
 MBAPI int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int c, void** a);
 MBAPI int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* i);
 MBAPI int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t* val);
