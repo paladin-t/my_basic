@@ -4758,6 +4758,72 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	return result;
 }
 
+int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
+	/* Get a token literally, store it in an argument if it's a variable */
+	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
+	_object_t* obj = 0;
+
+	mb_assert(s && l);
+
+	if(v) *v = 0;
+
+	ast = (_ls_node_t*)(*l);
+	if(ast) {
+		obj = (_object_t*)(ast->data);
+		if(_IS_SEP(obj, ',')) {
+			ast = ast->next;
+			obj = (_object_t*)(ast->data);
+		}
+		ast = ast->next;
+	}
+
+	if(obj && obj->type == _DT_VAR) {
+		if(v)
+			*v = obj;
+	}
+
+_exit:
+	*l = ast;
+
+	return result;
+}
+
+int mb_get_var_value(struct mb_interpreter_t* s, void* v, mb_value_t* val) {
+	/* Get the value of a variable */
+	int result = MB_FUNC_OK;
+	_object_t* obj = 0;
+
+	mb_assert(s);
+
+	if(!val || !v) goto _exit;
+
+	obj = (_object_t*)v;
+	if(obj->type != _DT_VAR) goto _exit;
+
+	_internal_object_to_public_value(obj->data.variable->data, val);
+
+_exit:
+	return result;
+}
+
+int mb_set_var_value(struct mb_interpreter_t* s, void* v, mb_value_t val) {
+	/* Set the value of a variable */
+	int result = MB_FUNC_OK;
+	_object_t* obj = 0;
+
+	mb_assert(s);
+
+	if(!v) goto _exit;
+	obj = (_object_t*)v;
+	if(obj->type != _DT_VAR) goto _exit;
+
+	_public_value_to_internal_object(&val, obj->data.variable->data);
+
+_exit:
+	return result;
+}
+
 int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int c, void** a) {
 	/* Create an array */
 	int result = MB_FUNC_OK;
