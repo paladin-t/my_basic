@@ -1,8 +1,6 @@
 ![](resource/icon.ico)
 
-Copyright (C) 2011 - 2015 [Wang Renxin](https://twitter.com/wangrenxin). All rights reserved.
-
-[LinkedIn](https://cn.linkedin.com/pub/wang-renxin/43/494/20)
+Copyright (C) 2011 - 2015 [Wang Renxin](https://cn.linkedin.com/pub/wang-renxin/43/494/20). All rights reserved.
 
 Why are existing script interpreters so complex? Why is it so difficult to integrate with them? Why not try MY-BASIC today! Scripting should be simple and enjoyable.
 
