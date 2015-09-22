@@ -4783,7 +4783,6 @@ int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
 			*v = obj;
 	}
 
-_exit:
 	*l = ast;
 
 	return result;
