@@ -574,7 +574,7 @@ static void _kill_program(const char* path) {
 }
 
 static void _show_tip(void) {
-	_printf("MY-BASIC Interpreter Shell - %s.\n", mb_ver_string());
+	_printf("MY-BASIC Interpreter Shell - %s\n", mb_ver_string());
 	_printf("Copyright (C) 2011 - 2015 Wang Renxin. All Rights Reserved.\n");
 	_printf("For more information, see https://github.com/paladin-t/my_basic/.\n");
 	_printf("Input HELP and hint enter to view help information.\n");
@@ -582,9 +582,9 @@ static void _show_tip(void) {
 
 static void _show_help(void) {
 	_printf("Parameters:\n");
-	_printf("  %s - Start interactive mode without arguments.\n", _BIN_FILE_NAME);
-	_printf("  %s *.* - Load and run a file.\n", _BIN_FILE_NAME);
-	_printf("  %s -e \"expr\" - Evaluate an expression directly.\n", _BIN_FILE_NAME);
+	_printf("  %s           - Start interactive mode without arguments\n", _BIN_FILE_NAME);
+	_printf("  %s *.*       - Load and run a file\n", _BIN_FILE_NAME);
+	_printf("  %s -e \"expr\" - Evaluate an expression directly\n", _BIN_FILE_NAME);
 	_printf("Interactive commands:\n");
 	_printf("  CLS   - Clear screen\n");
 	_printf("  NEW   - Clear current program\n");
@@ -873,9 +873,6 @@ int main(int argc, char* argv[]) {
 		} while(_NO_END(status));
 	} else if(argc >= 2) {
 		_process_parameters(argc, argv);
-	} else {
-		_printf("Unknown arguments.\n");
-		_show_tip();
 	}
 
 	return 0;
