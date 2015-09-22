@@ -34,14 +34,16 @@ MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter writt
 
 Come along with a traditional "hello world" script in MY-BASIC:
 
-	print "What is your name: "
-	input n$
+~~~~~~~~~~bas
+print "What is your name: "
+input n$
 
-	def foo(a, b)
-		return a + " " + b + " by " + n$ + "."
-	enddef
+def foo(a, b)
+	return a + " " + b + " by " + n$ + "."
+enddef
 
-	print foo("Hello", "world");
+print foo("Hello", "world");
+~~~~~~~~~~
 
 Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especially the "**Programming with BASIC**" section) to get more details about how to program in MY-BASIC.
 
