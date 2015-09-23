@@ -2199,7 +2199,7 @@ char* _load_file(const char* f, const char* prefix) {
 		if(prefix) {
 			memcpy(buf, prefix, i);
 		}
-		(void)fread(buf + i, 1, l, fp);
+		fread(buf + i, 1, l, fp);
 		fclose(fp);
 		buf[l] = '\0';
 	}
