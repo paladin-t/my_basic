@@ -4,6 +4,10 @@ Copyright (C) 2011 - 2015 [Wang Renxin](https://cn.linkedin.com/pub/wang-renxin/
 
 Why are existing script interpreters so complex? Why is it so difficult to integrate with them? Why not try MY-BASIC today! Scripting should be simple and enjoyable.
 
+## Build status
+
+[![Build Status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
+
 ## Contents
 
 * [Introduction](#introduction)
