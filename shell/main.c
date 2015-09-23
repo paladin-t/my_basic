@@ -382,7 +382,7 @@ static char* _load_file(const char* path) {
 		fseek(fp, curpos, SEEK_SET);
 		result = (char*)malloc((size_t)(l + 1));
 		mb_assert(result);
-		fread(result, 1, l, fp);
+		(void)fread(result, 1, l, fp);
 		fclose(fp);
 		result[l] = '\0';
 	}
@@ -415,9 +415,9 @@ static int _save_file(const char* path, const char* txt) {
 
 static void _clear_screen(void) {
 #ifdef _MSC_VER
-	system("cls");
+	(void)system("cls");
 #else /* _MSC_VER */
-	system("clear");
+	(void)system("clear");
 #endif /* _MSC_VER */
 }
 
