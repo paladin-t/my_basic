@@ -2041,7 +2041,6 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 	_running_context_t* running = 0;
 	_routine_t* lastr = 0;
 	mb_value_t inte;
-	_object_t* temp_obj = 0;
 
 	mb_assert(s && l && r);
 
@@ -5943,7 +5942,6 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 	_running_context_t* running = 0;
-	_ls_node_t* scp = 0;
 	_var_t* var = 0;
 	_array_t* arr = 0;
 	unsigned int arr_idx = 0;
