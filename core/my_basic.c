@@ -732,7 +732,7 @@ static void _ht_destroy(_ht_node_t* ht);
 #ifdef MB_ENABLE_ALLOC_STAT
 static volatile size_t _mb_allocated = 0;
 #else /* MB_ENABLE_ALLOC_STAT */
-static volatile size_t _mb_allocated = (size_t)(~0);
+static const size_t _mb_allocated = (size_t)(~0);
 #endif /* MB_ENABLE_ALLOC_STAT */
 
 static mb_memory_allocate_func_t _mb_allocate_func = 0;
