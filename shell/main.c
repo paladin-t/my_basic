@@ -33,7 +33,7 @@
 #ifdef _MSC_VER
 #	include <crtdbg.h>
 #	include <conio.h>
-#elif !defined __BORLANDC__
+#elif !defined __BORLANDC__ && !defined __TINYC__
 #	include <unistd.h>
 #endif /* _MSC_VER */
 #include <assert.h>
