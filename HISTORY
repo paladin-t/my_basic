@@ -1,3 +1,7 @@
+Sep. 28 2015
+Fixed a compatibility bug with scope meta info
+Improved compatibility with PellesC
+
 Sep. 24 2015
 Fixed bugs in a recursive sub routine, thanks to John for pointing it out
 Fixed identifier lookup bugs
