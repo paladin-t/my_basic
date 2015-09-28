@@ -1,6 +1,6 @@
 Sep. 28 2015
-Fixed a compatibility bug with scope meta info
-Improved compatibility with PellesC
+Fixed a compatibility bug with scope meta info, thanks to Cybermonkey342 and John for pointing it out
+Improved compatibility with TCC
 
 Sep. 24 2015
 Fixed bugs in a recursive sub routine, thanks to John for pointing it out
