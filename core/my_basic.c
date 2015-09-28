@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 74
+#define _VER_REVISION 75
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -378,8 +378,8 @@ typedef struct _parsing_context_t {
 } _parsing_context_t;
 
 /* Running context */
-#define _SCOPE_META_ROOT 'ROOT'
-#define _SCOPE_META_REF 'REFS'
+#define _SCOPE_META_ROOT (1 << 0)
+#define _SCOPE_META_REF (1 << 1)
 
 typedef struct _running_context_t {
 	struct _running_context_t* prev;
