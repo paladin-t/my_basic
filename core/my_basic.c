@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 75
+#define _VER_REVISION 76
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -112,6 +112,7 @@ extern "C" {
 #endif /* toupper */
 
 #define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
+#define TON(__t) (((__t) && *(__t)) ? ((_object_t*)(((_tuple3_t*)(*(__t)))->e1)) : 0)
 
 #define _IS_EOS(__o) (__o && ((_object_t*)(__o))->type == _DT_EOS)
 #define _IS_SEP(__o, __c) (((_object_t*)(__o))->type == _DT_SEP && ((_object_t*)(__o))->data.separator == __c)
@@ -178,6 +179,7 @@ static const char* _ERR_DESC[] = {
 	"Syntax error",
 	"Invalid data type",
 	"Type does not match",
+	"Invalid string",
 	"Illegal bound",
 	"Too much dimensions",
 	"Operation failed",
@@ -746,6 +748,13 @@ static size_t mb_memtest(void*p, size_t s);
 static char* mb_strupr(char* s);
 
 #define safe_free(__p) do { if(__p) { mb_free(__p); __p = 0; } else { mb_assert(0 && "Memory already released"); } } while(0)
+
+/** Unicode handling */
+#ifdef MB_ENABLE_UNICODE
+static int mb_uu_ischar(char* ch);
+static int mb_uu_strlen(char* ch);
+static int mb_uu_substr(char* ch, int begin, int count, char** o);
+#endif /* MB_ENABLE_UNICODE */
 
 /** Expression processing */
 static bool_t _is_operator(mb_func_t op);
@@ -1534,6 +1543,120 @@ char* mb_strupr(char* s) {
 	return t;
 }
 
+/** Unicode handling */
+#ifdef MB_ENABLE_UNICODE
+int mb_uu_ischar(char* ch) {
+	/* Determine whether a buffer is a UTF8 encoded character, and return _TAKEn bytes */
+#define _TAKE(__ch, __c, __r) do { __c = *__ch++; __r++; } while(0)
+#define _COPY(__ch, __c, __r, __cp) do { _TAKE(__ch, __c, __r); __cp = (__cp << 6) | ((unsigned char)__c & 0x3Fu); } while(0)
+#define _TRANS(__m, __cp, __g) do { __cp &= ((__g[(unsigned char)c] & __m) != 0); } while(0)
+#define _TAIL(__ch, __c, __r, __cp, __g) do { _COPY(__ch, __c, __r, __cp); _TRANS(0x70, __cp, __g); } while(0)
+	static const unsigned char range[] = {
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
+		0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40,
+		0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+		0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+		8, 8, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+		10, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 3, 3, 11, 6, 6, 6, 5, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8
+	};
+
+	int result = 0;
+	unsigned codepoint = 0;
+	unsigned char type = 0;
+	char c = 0;
+
+	if(!ch)
+		return 0;
+
+	_TAKE(ch, c, result);
+	if(!(c & 0x80)) {
+		codepoint = (unsigned char)c;
+
+		return 1;
+	}
+
+	type = range[(unsigned char)c];
+	codepoint = (0xFF >> type) & (unsigned char)c;
+
+	switch (type) {
+	case 2: _TAIL(ch, c, result, codepoint, range); return result;
+	case 3: _TAIL(ch, c, result, codepoint, range); _TAIL(ch, c, result, codepoint, range); return result;
+	case 4: _COPY(ch, c, result, codepoint); _TRANS(0x50, codepoint, range); _TAIL(ch, c, result, codepoint, range); return result;
+	case 5: _COPY(ch, c, result, codepoint); _TRANS(0x10, codepoint, range); _TAIL(ch, c, result, codepoint, range); _TAIL(ch, c, result, codepoint, range); return result;
+	case 6: _TAIL(ch, c, result, codepoint, range); _TAIL(ch, c, result, codepoint, range); _TAIL(ch, c, result, codepoint, range); return result;
+	case 10: _COPY(ch, c, result, codepoint); _TRANS(0x20, codepoint, range); _TAIL(ch, c, result, codepoint, range); return result;
+	case 11: _COPY(ch, c, result, codepoint); _TRANS(0x60, codepoint, range); _TAIL(ch, c, result, codepoint, range); _TAIL(ch, c, result, codepoint, range); return result;
+	default: return 0;
+	}
+#undef _TAKE
+#undef _COPY
+#undef _TRANS
+#undef _TAIL
+}
+
+int mb_uu_strlen(char* ch) {
+	/* Tell how many UTF8 character are there in a string */
+	int result = 0;
+
+	if(!ch)
+		return 0;
+
+	while(*ch) {
+		int t = mb_uu_ischar(ch);
+		if(t <= 0) return t;
+		ch += t;
+		result++;
+	}
+
+	return result;
+}
+
+int mb_uu_substr(char* ch, int begin, int count, char** o) {
+	/* Retrieve a sub string of a UTF8 string */
+	int cnt = 0;
+	char* b = 0;
+	char* e = 0;
+	int l = 0;
+
+	if(!ch || begin < 0 || count <= 0 || !o)
+		return -1;
+
+	while(*ch) {
+		int t = mb_uu_ischar(ch);
+		if(t <= 0) return t;
+		if(cnt == begin) {
+			b = ch;
+
+			break;
+		}
+		ch += t;
+		cnt++;
+	}
+	while(*ch) {
+		int t = mb_uu_ischar(ch);
+		if(t <= 0) return t;
+		if(cnt == begin + count) {
+			e = ch;
+
+			break;
+		}
+		ch += t;
+		e = ch;
+		cnt++;
+	}
+	l = e - b;
+	*o = (char*)mb_malloc(l + 1);
+	memcpy(*o, b, l);
+	(*o)[l] = '\0';
+
+	return l;
+}
+#endif /* MB_ENABLE_UNICODE */
+
 /** Expression processing */
 bool_t _is_operator(mb_func_t op) {
 	/* Determine whether a function is an operator */
@@ -2250,7 +2373,9 @@ char* _load_file(const char* f, const char* prefix) {
 
 bool_t _is_blank(char c) {
 	/* Determine whether a character is a blank */
-	return (' ' == c) || ('\t' == c);
+	return (' ' == c) || ('\t' == c) ||
+		(-17 == c) || (-69 == c) || (-65 == c) ||
+		(-2 == c) || (-1 == c);
 }
 
 bool_t _is_newline(char c) {
@@ -5561,7 +5686,7 @@ int _core_add(mb_interpreter_t* s, void** l) {
 		if(_is_string(((_tuple3_t*)(*l))->e1) && _is_string(((_tuple3_t*)(*l))->e2)) {
 			_instruct_connect_strings(l);
 		} else {
-			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 		}
 	} else {
 		_instruct_num_op_num(+, l);
@@ -5686,7 +5811,7 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 
 		break;
 	}
@@ -5709,7 +5834,7 @@ int _core_equal(mb_interpreter_t* s, void** l) {
 			_instruct_compare_strings(==, l);
 		} else {
 			_set_tuple3_result(l, 0);
-			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
 	} else {
 		_instruct_num_op_num(==, l);
@@ -5740,7 +5865,7 @@ int _core_less(mb_interpreter_t* s, void** l) {
 			} else {
 				_set_tuple3_result(l, 1);
 			}
-			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
 	} else {
 		_instruct_num_op_num(<, l);
@@ -5771,7 +5896,7 @@ int _core_greater(mb_interpreter_t* s, void** l) {
 			} else {
 				_set_tuple3_result(l, 0);
 			}
-			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
 	} else {
 		_instruct_num_op_num(>, l);
@@ -5802,7 +5927,7 @@ int _core_less_equal(mb_interpreter_t* s, void** l) {
 			} else {
 				_set_tuple3_result(l, 1);
 			}
-			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
 	} else {
 		_instruct_num_op_num(<=, l);
@@ -5833,7 +5958,7 @@ int _core_greater_equal(mb_interpreter_t* s, void** l) {
 			} else {
 				_set_tuple3_result(l, 0);
 			}
-			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
 	} else {
 		_instruct_num_op_num(>=, l);
@@ -5860,7 +5985,7 @@ int _core_not_equal(mb_interpreter_t* s, void** l) {
 			_instruct_compare_strings(!=, l);
 		} else {
 			_set_tuple3_result(l, 1);
-			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
 	} else {
 		_instruct_num_op_num(!=, l);
@@ -6908,7 +7033,7 @@ int _std_abs(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 
 		break;
 	}
@@ -6943,7 +7068,7 @@ int _std_sgn(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 
 		break;
 	}
@@ -6998,7 +7123,7 @@ int _std_floor(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 
 		break;
 	}
@@ -7032,7 +7157,7 @@ int _std_ceil(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 
 		break;
 	}
@@ -7066,7 +7191,7 @@ int _std_fix(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 
 		break;
 	}
@@ -7100,7 +7225,7 @@ int _std_round(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
-		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, (l && *l) ? ((_object_t*)(((_tuple3_t*)(*l))->e1)) : 0, MB_FUNC_WARNING, _exit, result);
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 
 		break;
 	}
@@ -7298,6 +7423,7 @@ int _std_asc(mb_interpreter_t* s, void** l) {
 	/* Get the ASCII code of a character */
 	int result = MB_FUNC_OK;
 	char* arg = 0;
+	int_t val = 0;
 
 	mb_assert(s && l);
 
@@ -7312,7 +7438,8 @@ int _std_asc(mb_interpreter_t* s, void** l) {
 
 		goto _exit;
 	}
-	mb_check(mb_push_int(s, l, (int_t)arg[0]));
+	memcpy(&val, arg, strlen(arg));
+	mb_check(mb_push_int(s, l, val));
 
 _exit:
 	return result;
@@ -7332,9 +7459,9 @@ int _std_chr(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	chr = (char*)mb_malloc(2);
-	memset(chr, 0, 2);
-	chr[0] = (char)arg;
+	chr = (char*)mb_malloc(sizeof(arg) + 1);
+	memset(chr, 0, sizeof(arg) + 1);
+	memcpy(chr, &arg, sizeof(arg));
 	mb_check(mb_push_string(s, l, chr));
 	_mark_lazy_destroy_string(s, chr);
 
@@ -7363,9 +7490,15 @@ int _std_left(mb_interpreter_t* s, void** l) {
 		goto _exit;
 	}
 
+#ifdef MB_ENABLE_UNICODE
+	if(mb_uu_substr(arg, 0, count, &sub) <= 0) {
+		_handle_error_on_obj(s, SE_RN_INVALID_STRING, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+#else /* MB_ENABLE_UNICODE */
 	sub = (char*)mb_malloc(count + 1);
 	memcpy(sub, arg, count);
 	sub[count] = '\0';
+#endif /* MB_ENABLE_UNICODE */
 	mb_check(mb_push_string(s, l, sub));
 	_mark_lazy_destroy_string(s, sub);
 
@@ -7397,9 +7530,15 @@ int _std_mid(mb_interpreter_t* s, void** l) {
 		goto _exit;
 	}
 
+#ifdef MB_ENABLE_UNICODE
+	if(mb_uu_substr(arg + start, 0, count, &sub) <= 0) {
+		_handle_error_on_obj(s, SE_RN_INVALID_STRING, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+#else /* MB_ENABLE_UNICODE */
 	sub = (char*)mb_malloc(count + 1);
 	memcpy(sub, arg + start, count);
 	sub[count] = '\0';
+#endif /* MB_ENABLE_UNICODE */
 	mb_check(mb_push_string(s, l, sub));
 	_mark_lazy_destroy_string(s, sub);
 
@@ -7429,9 +7568,15 @@ int _std_right(mb_interpreter_t* s, void** l) {
 		goto _exit;
 	}
 
+#ifdef MB_ENABLE_UNICODE
+	if(mb_uu_substr(arg + (mb_uu_strlen(arg) - count), 0, count, &sub) <= 0) {
+		_handle_error_on_obj(s, SE_RN_INVALID_STRING, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+#else /* MB_ENABLE_UNICODE */
 	sub = (char*)mb_malloc(count + 1);
 	memcpy(sub, arg + (strlen(arg) - count), count);
 	sub[count] = '\0';
+#endif /* MB_ENABLE_UNICODE */
 	mb_check(mb_push_string(s, l, sub));
 	_mark_lazy_destroy_string(s, sub);
 
@@ -7525,7 +7670,11 @@ int _std_len(mb_interpreter_t* s, void** l) {
 
 	switch(arg.type) {
 	case MB_DT_STRING:
+#ifdef MB_ENABLE_UNICODE
+		mb_check(mb_push_int(s, l, (int_t)mb_uu_strlen(arg.value.string)));
+#else /* MB_ENABLE_UNICODE */
 		mb_check(mb_push_int(s, l, (int_t)strlen(arg.value.string)));
+#endif /* MB_ENABLE_UNICODE */
 
 		break;
 	case MB_DT_ARRAY:
