@@ -1,3 +1,6 @@
+Sep. 29 2015
+Added UTF8 support for string manipulation
+
 Sep. 28 2015
 Fixed a compatibility bug with scope meta info, thanks to Cybermonkey342 and John for pointing it out
 Improved compatibility with TCC
