@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 76
+#define _VER_REVISION 77
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -180,6 +180,7 @@ static const char* _ERR_DESC[] = {
 	"Invalid data type",
 	"Type does not match",
 	"Invalid string",
+	"Index out of bound",
 	"Illegal bound",
 	"Too much dimensions",
 	"Operation failed",
@@ -1636,6 +1637,7 @@ int mb_uu_substr(char* ch, int begin, int count, char** o) {
 		ch += t;
 		cnt++;
 	}
+
 	while(*ch) {
 		int t = mb_uu_ischar(ch);
 		if(t <= 0) return t;
@@ -1648,6 +1650,10 @@ int mb_uu_substr(char* ch, int begin, int count, char** o) {
 		e = ch;
 		cnt++;
 	}
+
+	if(!(*ch) && (cnt != begin + count))
+		return -1;
+
 	l = e - b;
 	*o = (char*)mb_malloc(l + 1);
 	memcpy(*o, b, l);
@@ -7491,8 +7497,15 @@ int _std_left(mb_interpreter_t* s, void** l) {
 	}
 
 #ifdef MB_ENABLE_UNICODE
-	if(mb_uu_substr(arg, 0, count, &sub) <= 0) {
+	switch(mb_uu_substr(arg, 0, count, &sub)) {
+	case 0:
 		_handle_error_on_obj(s, SE_RN_INVALID_STRING, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	case -1:
+		_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
 	}
 #else /* MB_ENABLE_UNICODE */
 	sub = (char*)mb_malloc(count + 1);
@@ -7531,8 +7544,15 @@ int _std_mid(mb_interpreter_t* s, void** l) {
 	}
 
 #ifdef MB_ENABLE_UNICODE
-	if(mb_uu_substr(arg + start, 0, count, &sub) <= 0) {
+	switch(mb_uu_substr(arg, start, count, &sub)) {
+	case 0:
 		_handle_error_on_obj(s, SE_RN_INVALID_STRING, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	case -1:
+		_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
 	}
 #else /* MB_ENABLE_UNICODE */
 	sub = (char*)mb_malloc(count + 1);
@@ -7569,8 +7589,15 @@ int _std_right(mb_interpreter_t* s, void** l) {
 	}
 
 #ifdef MB_ENABLE_UNICODE
-	if(mb_uu_substr(arg + (mb_uu_strlen(arg) - count), 0, count, &sub) <= 0) {
+	switch(mb_uu_substr(arg, mb_uu_strlen(arg) - count, count, &sub)) {
+	case 0:
 		_handle_error_on_obj(s, SE_RN_INVALID_STRING, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	case -1:
+		_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
 	}
 #else /* MB_ENABLE_UNICODE */
 	sub = (char*)mb_malloc(count + 1);
