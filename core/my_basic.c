@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 78
+#define _VER_REVISION 79
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -5272,6 +5272,7 @@ int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 	_ls_node_t* ast = 0;
 	_ls_node_t* tmp = 0;
 	_object_t* obj = 0;
+	int nested = 0;
 
 	mb_assert(s && l);
 
@@ -5285,7 +5286,13 @@ int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 		obj = (_object_t*)(ast->data);
 		*l = ast;
 		ast = ast->next;
-	} while(!_IS_FUNC(obj, _core_if) && !_IS_FUNC(obj, _core_elseif) && !_IS_FUNC(obj, _core_else) && !_IS_FUNC(obj, _core_endif));
+		if(_IS_FUNC((_object_t*)(ast->data), _core_if)) {
+			++nested;
+		} else if(nested && _IS_FUNC((_object_t*)(ast->data), _core_endif)) {
+			--nested;
+			ast = ast->next;
+		}
+	} while(nested || (!_IS_FUNC(obj, _core_elseif) && !_IS_FUNC(obj, _core_else) && !_IS_FUNC(obj, _core_endif)));
 
 _exit:
 	return result;

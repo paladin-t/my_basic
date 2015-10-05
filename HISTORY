@@ -3,6 +3,7 @@ Added a LIST collection
 Added a DICT collection
 Added TYPE statement
 Added an mb_get_type_string function
+Fixed a wrong evaluation bug in nested IF statements, thanks to Julien Krief for pointing it out
 
 Sep. 30 2015
 Improved UTF8 string manipulation
