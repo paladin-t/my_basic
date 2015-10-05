@@ -20,7 +20,7 @@ Why are existing script interpreters so complex? Why is it so difficult to integ
 
 ## Introduction
 
-MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 7000 lines of source code. Its grammar is similar to structured BASIC. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file. You are able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, etc. Scripting driven can make your projects more powerful, elegant and neat.
+MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 10,000 lines of source code. Its grammar is similar to structured BASIC. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file. You are able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, etc. Scripting driven can make your projects more powerful, elegant and neat.
 
 ## Main features
 
@@ -36,6 +36,7 @@ MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter writt
 * Structured user costomized sub routine definition by `DEF/ENDDEF` support, including tail recursion optimization
 * `GOTO/GOSUB-RETURN` support
 * Standard numeric functions, and standard string functions
+* Collection manipulation functions for `LIST` and `DICT`
 * Debug APIs
 * Customizable memory pool
 * High expansibility, easy to use APIs, easy to write customized scripting interfaces

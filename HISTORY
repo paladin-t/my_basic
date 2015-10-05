@@ -1,3 +1,9 @@
+Oct. 5 2015
+Added a LIST collection
+Added a DICT collection
+Added TYPE statement
+Added an mb_get_type_string function
+
 Sep. 30 2015
 Improved UTF8 string manipulation
 

@@ -42,6 +42,10 @@ extern "C" {
 #	define MB_MAX_DIMENSION_COUNT 4
 #endif /* MB_MAX_DIMENSION_COUNT */
 
+#ifndef MB_ENABLE_COLLECTION_LIB
+#	define MB_ENABLE_COLLECTION_LIB
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
 #ifndef MB_ENABLE_ALLOC_STAT
 #	define MB_ENABLE_ALLOC_STAT
 #endif /* MB_ENABLE_ALLOC_STAT */
@@ -215,6 +219,7 @@ typedef enum mb_error_e {
 	SE_RN_TYPE_NOT_MATCH,
 	SE_RN_INVALID_STRING,
 	SE_RN_INDEX_OUT_OF_BOUND,
+	SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX,
 	SE_RN_ILLEGAL_BOUND,
 	SE_RN_DIMENSION_TOO_MUCH,
 	SE_RN_OPERATION_FAILED,
@@ -254,6 +259,11 @@ typedef enum mb_error_e {
 	SE_RN_DONT_MIX_INSTRUCTIONAL_AND_STRUCTURED,
 	SE_RN_ROUTINE_EXPECTED,
 	SE_RN_DUPLICATE_ROUTINE,
+	SE_RN_COLLECTION_EXPECTED,
+	SE_RN_ITERATOR_EXPECTED,
+	SE_RN_COLLECTION_OR_ITERATOR_EXPECTED,
+	SE_RN_INVALID_ITERATOR,
+	SE_RN_EMPTY_COLLECTION,
 	/** Extended abort */
 	SE_EA_EXTENDED_ABORT,
 	/** Extra */
@@ -262,21 +272,35 @@ typedef enum mb_error_e {
 
 typedef enum mb_data_e {
 	MB_DT_NIL = 0,
-	MB_DT_INT = 1 << 1,
-	MB_DT_REAL = 1 << 2,
-	MB_DT_STRING = 1 << 3,
-	MB_DT_USERTYPE = 1 << 4,
-	MB_DT_CLASS = 1 << 5,
-	MB_DT_ARRAY = 1 << 12
+	MB_DT_UNKNOWN = 1 << 1,
+	MB_DT_TYPE = 1 << 2,
+	MB_DT_INT = 1 << 3,
+	MB_DT_REAL = 1 << 4,
+	MB_DT_STRING = 1 << 5,
+	MB_DT_USERTYPE = 1 << 6,
+	MB_DT_ARRAY = 1 << 12,
+#ifdef MB_ENABLE_COLLECTION_LIB
+	MB_DT_LIST = 1 << 13,
+	MB_DT_LIST_IT = 1 << 14,
+	MB_DT_DICT = 1 << 15,
+	MB_DT_DICT_IT = 1 << 16
+#endif /* MB_ENABLE_COLLECTION_LIB */
 } mb_data_e;
 
 typedef union mb_value_u {
+	mb_data_e type;
 	int_t integer;
 	real_t float_point;
 	char* string;
 	void* usertype;
 	void* instance;
 	void* array;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	void* list;
+	void* list_it;
+	void* dict;
+	void* dict_it;
+#endif /* MB_ENABLE_COLLECTION_LIB */
 } mb_value_u;
 
 typedef struct mb_value_t {
@@ -342,6 +366,7 @@ MBAPI int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* va
 MBAPI int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val);
 MBAPI int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t h);
 
+MBAPI const char* mb_get_type_string(mb_data_e t);
 MBAPI mb_error_e mb_get_last_error(struct mb_interpreter_t* s);
 MBAPI const char* mb_get_error_desc(mb_error_e err);
 MBAPI int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h);

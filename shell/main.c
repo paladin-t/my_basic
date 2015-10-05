@@ -131,6 +131,8 @@ static int pool_count = 0;
 
 static _pool_t* pool = 0;
 
+static long alloc_count = 0;
+
 #define _POOL_NODE_ALLOC(size) (((char*)malloc(sizeof(_pool_tag_t) + size)) + sizeof(_pool_tag_t))
 #define _POOL_NODE_PTR(s) (s - sizeof(_pool_tag_t))
 #define _POOL_NODE_NEXT(s) (*((void**)(s - sizeof(_pool_tag_t))))
@@ -217,12 +219,14 @@ static char* _pop_mem(unsigned s) {
 					result = pl->stack;
 					pl->stack = _POOL_NODE_NEXT(result);
 					_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
+					++alloc_count;
 
 					return result;
 				} else {
 					/* Create a new node */
 					result = _POOL_NODE_ALLOC(s);
 					_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
+					++alloc_count;
 
 					return result;
 				}
@@ -233,6 +237,7 @@ static char* _pop_mem(unsigned s) {
 	/* Allocate directly */
 	result = _POOL_NODE_ALLOC(s);
 	_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)0;
+	++alloc_count;
 
 	return result;
 }
@@ -240,6 +245,10 @@ static char* _pop_mem(unsigned s) {
 static void _push_mem(char* p) {
 	int i = 0;
 	_pool_t* pl = 0;
+
+	if(--alloc_count < 0) {
+		mb_assert(0 && "Multiple free");
+	}
 
 	if(pool_count) {
 		for(i = 0; i < pool_count; i++) {
@@ -840,6 +849,9 @@ static void _on_exit(void) {
 	c = 0;
 
 #ifdef _USE_MEM_POOL
+	if(alloc_count > 0) {
+		mb_assert(0 && "Memory leak");
+	}
 	_close_mem_pool();
 #endif /* _USE_MEM_POOL */
 
