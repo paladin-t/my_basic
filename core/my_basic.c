@@ -8964,6 +8964,16 @@ int _std_print(mb_interpreter_t* s, void** l) {
 				}
 			} else if(val_ptr->type == _DT_TYPE) {
 				_get_printer(s)(mb_get_type_string(val_ptr->data.type));
+#ifdef MB_ENABLE_COLLECTION_LIB
+			} else if(val_ptr->type == _DT_LIST) {
+				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
+			} else if(val_ptr->type == _DT_LIST_IT) {
+				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
+			} else if(val_ptr->type == _DT_DICT) {
+				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
+			} else if(val_ptr->type == _DT_DICT_IT) {
+				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
+#endif /* MB_ENABLE_COLLECTION_LIB */
 			}
 			if(result != MB_FUNC_OK)
 				goto _exit;
