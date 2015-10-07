@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 79
+#define _VER_REVISION 80
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -555,13 +555,15 @@ static _object_t* _exp_assign = 0;
 		} while(0)
 #endif /* MB_CONVERT_TO_INT_LEVEL == MB_CONVERT_TO_INT_LEVEL_NONE */
 
-#define _instruct_common(__tuple) \
+#define _instruct_head(__tuple) \
 	_object_t opndv1; \
 	_object_t opndv2; \
 	_tuple3_t* tpptr = (_tuple3_t*)(*__tuple); \
 	_object_t* opnd1 = (_object_t*)(tpptr->e1); \
 	_object_t* opnd2 = (_object_t*)(tpptr->e2); \
-	_object_t* val = (_object_t*)(tpptr->e3); \
+	_object_t* val = (_object_t*)(tpptr->e3);
+#define _instruct_common(__tuple) \
+	_instruct_head(__tuple) \
 	opndv1.type = (opnd1->type == _DT_INT || (opnd1->type == _DT_VAR && opnd1->data.variable->data->type == _DT_INT)) ? \
 		_DT_INT : _DT_REAL; \
 	opndv1.data = opnd1->type == _DT_VAR ? opnd1->data.variable->data->data : opnd1->data; \
@@ -579,25 +581,6 @@ static _object_t* _exp_assign = 0;
 			val->data.float_point = (real_t)__optr( \
 				opndv1.type == _DT_INT ? opndv1.data.integer : opndv1.data.float_point, \
 				opndv2.type == _DT_INT ? opndv2.data.integer : opndv2.data.float_point); \
-		} \
-		_convert_to_int_if_posible(val); \
-	} while(0)
-#define _instruct_num_op_num(__optr, __tuple) \
-	do { \
-		_instruct_common(__tuple) \
-		if(opndv1.type == _DT_INT && opndv2.type == _DT_INT) { \
-			if((real_t)(opndv1.data.integer __optr opndv2.data.integer) == (real_t)opndv1.data.integer __optr (real_t)opndv2.data.integer) { \
-				val->type = _DT_INT; \
-				val->data.integer = opndv1.data.integer __optr opndv2.data.integer; \
-			} else { \
-				val->type = _DT_REAL; \
-				val->data.float_point = (real_t)((real_t)opndv1.data.integer __optr (real_t)opndv2.data.integer); \
-			} \
-		} else { \
-			val->type = _DT_REAL; \
-			val->data.float_point = (real_t) \
-				((opndv1.type == _DT_INT ? opndv1.data.integer : opndv1.data.float_point) __optr \
-				(opndv2.type == _DT_INT ? opndv2.data.integer : opndv2.data.float_point)); \
 		} \
 		_convert_to_int_if_posible(val); \
 	} while(0)
@@ -635,6 +618,39 @@ static _object_t* _exp_assign = 0;
 			val->data.integer = \
 				((opndv1.type == _DT_INT ? opndv1.data.integer : (int_t)(opndv1.data.float_point)) __optr \
 				(opndv2.type == _DT_INT ? opndv2.data.integer : (int_t)(opndv2.data.float_point))); \
+		} \
+	} while(0)
+#define _instruct_num_op_num(__optr, __tuple) \
+	do { \
+		_instruct_common(__tuple) \
+		if(opndv1.type == _DT_INT && opndv2.type == _DT_INT) { \
+			if((real_t)(opndv1.data.integer __optr opndv2.data.integer) == (real_t)opndv1.data.integer __optr (real_t)opndv2.data.integer) { \
+				val->type = _DT_INT; \
+				val->data.integer = opndv1.data.integer __optr opndv2.data.integer; \
+			} else { \
+				val->type = _DT_REAL; \
+				val->data.float_point = (real_t)((real_t)opndv1.data.integer __optr (real_t)opndv2.data.integer); \
+			} \
+		} else { \
+			val->type = _DT_REAL; \
+			val->data.float_point = (real_t) \
+				((opndv1.type == _DT_INT ? opndv1.data.integer : opndv1.data.float_point) __optr \
+				(opndv2.type == _DT_INT ? opndv2.data.integer : opndv2.data.float_point)); \
+		} \
+		_convert_to_int_if_posible(val); \
+	} while(0)
+#define _instruct_obj_op_obj(__optr, __tuple) \
+	do { \
+		_instruct_head(__tuple); \
+		opndv1.type = opnd1->type == _DT_VAR ? opnd1->data.variable->data->type : opnd1->type; \
+		opndv1.data = opnd1->type == _DT_VAR ? opnd1->data.variable->data->data : opnd1->data; \
+		opndv2.type = opnd2->type == _DT_VAR ? opnd2->data.variable->data->type : opnd2->type; \
+		opndv2.data = opnd2->type == _DT_VAR ? opnd2->data.variable->data->data : opnd2->data; \
+		val->type = _DT_INT; \
+		if(opndv1.type == opndv2.type) { \
+			val->data.integer = (int_t)(mb_memcmp(&opndv1.data, &opndv2.data, sizeof(_raw_t)) __optr 0); \
+		} else { \
+			val->data.integer = (int_t)(opndv1.type __optr opndv2.type); \
 		} \
 	} while(0)
 #define _instruct_connect_strings(__tuple) \
@@ -754,7 +770,6 @@ static bool_t _ls_empty(_ls_node_t* list);
 static void _ls_clear(_ls_node_t* list);
 static void _ls_destroy(_ls_node_t* list);
 static int _ls_free_extra(void* data, void* extra);
-
 #define _LS_FOREACH(L, O, P, E) \
 	do { \
 		_ls_node_t* __lst = L; \
@@ -816,7 +831,8 @@ static mb_memory_free_func_t _mb_free_func = 0;
 static void* mb_malloc(size_t s);
 static void mb_free(void* p);
 
-static size_t mb_memtest(void*p, size_t s);
+static int mb_memcmp(void* l, void* r, size_t s);
+static size_t mb_memtest(void* p, size_t s);
 
 static char* mb_strupr(char* s);
 
@@ -915,6 +931,7 @@ static void _clear_array(_array_t* arr);
 static void _destroy_array(_array_t* arr);
 static bool_t _is_array(void* obj);
 
+static bool_t _is_number(void* obj);
 static bool_t _is_string(void* obj);
 static char* _extract_string(_object_t* obj);
 
@@ -1857,7 +1874,20 @@ void mb_free(void* p) {
 		free(p);
 }
 
-size_t mb_memtest(void*p, size_t s) {
+int mb_memcmp(void* l, void* r, size_t s) {
+	char* lc = (char*)l;
+	char* rc = (char*)r;
+	size_t i = 0;
+
+	for(i = 0; i < s; i++) {
+		if(lc[i] < rc[i]) return -1;
+		else if(lc[i] > rc[i]) return 1;
+	}
+
+	return 0;
+}
+
+size_t mb_memtest(void* p, size_t s) {
 	size_t result = 0;
 	size_t i = 0;
 	for(i = 0; i < s; i++)
@@ -3796,6 +3826,22 @@ bool_t _is_array(void* obj) {
 		result = true;
 	else if(o->type == _DT_VAR)
 		result = o->data.variable->data->type == _DT_ARRAY;
+
+	return result;
+}
+
+bool_t _is_number(void* obj) {
+	/* Determine if an object is a number */
+	bool_t result = false;
+	_object_t* o = 0;
+
+	mb_assert(obj);
+
+	o = (_object_t*)obj;
+	if(o->type == _DT_INT || o->type == _DT_REAL)
+		result = true;
+	else if(o->type == _DT_VAR)
+		result = o->data.variable->data->type == _DT_INT || o->data.variable->data->type == _DT_REAL;
 
 	return result;
 }
@@ -6892,13 +6938,15 @@ int _core_equal(mb_interpreter_t* s, void** l) {
 			_set_tuple3_result(l, 0);
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else {
+	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
 		_instruct_num_op_num(==, l);
 		tpr = (_tuple3_t*)(*l);
 		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
 			((_object_t*)(tpr->e3))->type = _DT_INT;
 			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
 		}
+	} else {
+		_instruct_obj_op_obj(==, l);
 	}
 
 _exit:
@@ -6923,13 +6971,15 @@ int _core_less(mb_interpreter_t* s, void** l) {
 			}
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else {
+	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
 		_instruct_num_op_num(<, l);
 		tpr = (_tuple3_t*)(*l);
 		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
 			((_object_t*)(tpr->e3))->type = _DT_INT;
 			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
 		}
+	} else {
+		_instruct_obj_op_obj(<, l);
 	}
 
 _exit:
@@ -6954,13 +7004,15 @@ int _core_greater(mb_interpreter_t* s, void** l) {
 			}
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else {
+	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
 		_instruct_num_op_num(>, l);
 		tpr = (_tuple3_t*)(*l);
 		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
 			((_object_t*)(tpr->e3))->type = _DT_INT;
 			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
 		}
+	} else {
+		_instruct_obj_op_obj(>, l);
 	}
 
 _exit:
@@ -6985,13 +7037,15 @@ int _core_less_equal(mb_interpreter_t* s, void** l) {
 			}
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else {
+	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
 		_instruct_num_op_num(<=, l);
 		tpr = (_tuple3_t*)(*l);
 		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
 			((_object_t*)(tpr->e3))->type = _DT_INT;
 			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
 		}
+	} else {
+		_instruct_obj_op_obj(<=, l);
 	}
 
 _exit:
@@ -7016,13 +7070,15 @@ int _core_greater_equal(mb_interpreter_t* s, void** l) {
 			}
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else {
+	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
 		_instruct_num_op_num(>=, l);
 		tpr = (_tuple3_t*)(*l);
 		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
 			((_object_t*)(tpr->e3))->type = _DT_INT;
 			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
 		}
+	} else {
+		_instruct_obj_op_obj(>=, l);
 	}
 
 _exit:
@@ -7043,13 +7099,15 @@ int _core_not_equal(mb_interpreter_t* s, void** l) {
 			_set_tuple3_result(l, 1);
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else {
+	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
 		_instruct_num_op_num(!=, l);
 		tpr = (_tuple3_t*)(*l);
 		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
 			((_object_t*)(tpr->e3))->type = _DT_INT;
 			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
 		}
+	} else {
+		_instruct_obj_op_obj(!=, l);
 	}
 
 _exit:
@@ -7209,10 +7267,26 @@ int _core_let(mb_interpreter_t* s, void** l) {
 		}
 	}
 #ifdef MB_ENABLE_COLLECTION_LIB
-	if(val->type == _DT_LIST) {
+	switch(val->type) {
+	case _DT_LIST:
 		_ref(&val->data.list->ref, val->data.list);
-	} else if(val->type == _DT_DICT) {
+
+		break;
+	case _DT_DICT:
 		_ref(&val->data.dict->ref, val->data.dict);
+
+		break;
+	case _DT_LIST_IT: /* Fall through */
+	case _DT_DICT_IT:
+		safe_free(val);
+
+		_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+
+		break;
+	default:
+		/* Do nothing */
+
+		break;
 	}
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	safe_free(val);
@@ -8047,11 +8121,11 @@ int _core_type(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	mb_check(mb_attempt_func_begin(s, l));
+	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
 
-	mb_check(mb_attempt_func_end(s, l));
+	mb_check(mb_attempt_close_bracket(s, l));
 
 	if(arg.type == MB_DT_STRING) {
 		for(i = 0; i < sizeof(mb_data_e) * 8; i++) {
@@ -8726,35 +8800,59 @@ _exit:
 }
 
 int _std_val(mb_interpreter_t* s, void** l) {
-	/* Get the number format of a string */
+	/* Get the number format of a string, or get the value of a dictionary iterator */
 	int result = MB_FUNC_OK;
 	char* conv_suc = 0;
-	mb_value_t val;
-	char* arg = 0;
+	mb_value_t arg;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	_object_t ocoi;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+	mb_value_t ret;
 
 	mb_assert(s && l);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
-	mb_check(mb_pop_string(s, l, &arg));
+	mb_check(mb_pop_value(s, l, &arg));
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	val.value.integer = (int_t)mb_strtol(arg, &conv_suc, 0);
-	if(*conv_suc == '\0') {
-		val.type = MB_DT_INT;
-		mb_check(mb_push_value(s, l, val));
+	switch(arg.type) {
+	case MB_DT_STRING:
+		ret.value.integer = (int_t)mb_strtol(arg.value.string, &conv_suc, 0);
+		if(*conv_suc == '\0') {
+			ret.type = MB_DT_INT;
+			mb_check(mb_push_value(s, l, ret));
 
-		goto _exit;
-	}
-	val.value.float_point = (real_t)mb_strtod(arg, &conv_suc);
-	if(*conv_suc == '\0') {
-		val.type = MB_DT_REAL;
-		mb_check(mb_push_value(s, l, val));
+			goto _exit;
+		}
+		ret.value.float_point = (real_t)mb_strtod(arg.value.string, &conv_suc);
+		if(*conv_suc == '\0') {
+			ret.type = MB_DT_REAL;
+			mb_check(mb_push_value(s, l, ret));
 
-		goto _exit;
+			goto _exit;
+		}
+		result = MB_FUNC_ERR;
+
+		break;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	case MB_DT_DICT_IT:
+		_public_value_to_internal_object(&arg, &ocoi);
+		if(ocoi.data.dict_it && ocoi.data.dict_it->curr_node && ocoi.data.dict_it->curr_node->data) {
+			_internal_object_to_public_value(ocoi.data.dict_it->curr_node->data, &ret);
+			mb_check(mb_push_value(s, l, ret));
+		} else {
+			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
+		break;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+	default:
+		_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
 	}
-	result = MB_FUNC_ERR;
 
 _exit:
 	return result;

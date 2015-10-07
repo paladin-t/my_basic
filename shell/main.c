@@ -102,7 +102,6 @@ static struct mb_interpreter_t* bas = 0;
 */
 
 #ifdef _USE_MEM_POOL
-
 extern const size_t MB_SIZEOF_INT;
 extern const size_t MB_SIZEOF_PTR;
 extern const size_t MB_SIZEOF_LSN;
@@ -266,7 +265,6 @@ static void _push_mem(char* p) {
 	/* Free directly */
 	_POOL_NODE_FREE(p);
 }
-
 #endif /* _USE_MEM_POOL */
 
 /* ========================================================} */
