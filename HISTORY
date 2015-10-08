@@ -1,3 +1,7 @@
+Oct. 8 2015
+Fixed an iterator validation bug
+Fixed an iterator assignment issue
+
 Oct. 7 2015
 Added non number data comparison
 Improved collection stability
