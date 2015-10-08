@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 80
+#define _VER_REVISION 81
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -294,7 +294,7 @@ typedef struct _ref_t {
 	_unref_func_t on_unref;
 } _ref_t;
 
-typedef unsigned short _lock_t;
+typedef short _lock_t;
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 typedef struct _list_t {
@@ -305,6 +305,7 @@ typedef struct _list_t {
 
 typedef struct _list_it_t {
 	_list_t* list;
+	bool_t locking;
 	_ls_node_t* curr;
 } _list_it_t;
 
@@ -316,6 +317,7 @@ typedef struct _dict_t {
 
 typedef struct _dict_it_t {
 	_dict_t* dict;
+	bool_t locking;
 	unsigned int curr_bucket;
 	_ls_node_t* curr_node;
 } _dict_it_t;
@@ -940,10 +942,10 @@ static _list_t* _create_list(void);
 static void _destroy_list(_list_t* c);
 static _dict_t* _create_dict(void);
 static void _destroy_dict(_dict_t* c);
-static _list_it_t* _create_list_it(_list_t* coll);
+static _list_it_t* _create_list_it(_list_t* coll, bool_t lock);
 static bool_t _destroy_list_it(_list_it_t* it);
 static _list_it_t* _move_list_it_next(_list_it_t* it);
-static _dict_it_t* _create_dict_it(_dict_t* coll);
+static _dict_it_t* _create_dict_it(_dict_t* coll, bool_t lock);
 static bool_t _destroy_dict_it(_dict_it_t* it);
 static _dict_it_t* _move_dict_it_next(_dict_it_t* it);
 static void _unref_list(_ref_t* ref, void* data);
@@ -961,6 +963,9 @@ static void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t *val);
 static bool_t _remove_dict(_dict_t* coll, mb_value_t* key);
 static bool_t _find_dict(_dict_t* coll, mb_value_t* val, mb_value_t* oval);
 static void _clear_dict(_dict_t* coll);
+static bool_t _invalid_list_it(_list_it_t* it);
+static bool_t _invalid_dict_it(_dict_it_t* it);
+static bool_t _assign_with_it(_object_t* tgt, _object_t* src);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 static bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
@@ -3451,7 +3456,7 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 					_handle_error(s, SE_PS_INVALID_CHAR, 0, pos, row, col, MB_FUNC_ERR, _exit, result);
 				}
 			} else {
-				mb_assert(0 && "Impossible here");
+				mb_assert(0 && "Impossible");
 			}
 		}
 	} else if(context->parsing_state == _PS_STRING) {
@@ -3722,7 +3727,7 @@ int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigne
 		mb_assert(0 && "Unsupported");
 	}
 
-	goto _exit; /* Avoid an unreferenced warning */
+	goto _exit; /* Avoid an unreferenced label warning */
 
 _exit:
 	return result;
@@ -3916,7 +3921,7 @@ void _destroy_dict(_dict_t* c) {
 	safe_free(c);
 }
 
-_list_it_t* _create_list_it(_list_t* coll) {
+_list_it_t* _create_list_it(_list_t* coll, bool_t lock) {
 	/* Create an iterator of a list */
 	_list_it_t* result = 0;
 
@@ -3925,8 +3930,10 @@ _list_it_t* _create_list_it(_list_t* coll) {
 	result = (_list_it_t*)mb_malloc(sizeof(_list_it_t));
 	memset(result, 0, sizeof(_list_it_t));
 	result->list = coll;
+	result->locking = lock;
 	result->curr = coll->list;
-	_lock_ref_object(&coll->lock, &coll->ref, coll);
+	if(lock)
+		_lock_ref_object(&coll->lock, &coll->ref, coll);
 
 	return result;
 }
@@ -3950,10 +3957,8 @@ _list_it_t* _move_list_it_next(_list_it_t* it) {
 	if(!it || !it->list || !it->list->list || !it->curr)
 		goto _exit;
 
-	if(!it->list->lock)
-		goto _exit;
-
-	it->curr = it->curr->next;
+	if(it->list->lock)
+		it->curr = it->curr->next;
 
 	if(it->curr)
 		result = it;
@@ -3962,7 +3967,7 @@ _exit:
 	return result;
 }
 
-_dict_it_t* _create_dict_it(_dict_t* coll) {
+_dict_it_t* _create_dict_it(_dict_t* coll, bool_t lock) {
 	/* Create an iterator of a dictionary */
 	_dict_it_t* result = 0;
 
@@ -3971,9 +3976,11 @@ _dict_it_t* _create_dict_it(_dict_t* coll) {
 	result = (_dict_it_t*)mb_malloc(sizeof(_dict_it_t));
 	memset(result, 0, sizeof(_dict_it_t));
 	result->dict = coll;
+	result->locking = lock;
 	result->curr_bucket = 0;
 	result->curr_node = (_ls_node_t*)(intptr_t)~0;
-	_lock_ref_object(&coll->lock, &coll->ref, coll);
+	if(lock)
+		_lock_ref_object(&coll->lock, &coll->ref, coll);
 
 	return result;
 }
@@ -4250,6 +4257,57 @@ void _clear_dict(_dict_t* coll) {
 
 	_write_on_ref_object(&coll->lock, &coll->ref, coll);
 }
+
+bool_t _invalid_list_it(_list_it_t* it) {
+	/* Determin whether a list iterator is invalid */
+	if(!it) return false;
+
+	return it && it->list && it->list->lock <= 0;
+}
+
+bool_t _invalid_dict_it(_dict_it_t* it) {
+	/* Determin whether a dictionary iterator is invalid */
+	if(!it) return true;
+
+	return it && it->dict && it->dict->lock <= 0;
+}
+
+bool_t _assign_with_it(_object_t* tgt, _object_t* src) {
+	/* Assign an iterator to another object */
+	mb_assert(tgt && src);
+
+	if(src->type != _DT_LIST_IT && src->type != _DT_DICT_IT)
+		return false;
+
+	switch(src->type) {
+	case _DT_LIST_IT:
+		if(src->data.list_it->locking) {
+			tgt->data.list_it = _create_list_it(src->data.list_it->list, true);
+		} else {
+			tgt->data = src->data;
+			tgt->data.list_it->locking = true;
+			_lock_ref_object(&tgt->data.list_it->list->lock, &tgt->data.list_it->list->ref, tgt->data.list_it->list);
+		}
+
+		break;
+	case _DT_DICT_IT:
+		if(src->data.dict_it->locking) {
+			tgt->data.dict_it = _create_dict_it(src->data.dict_it->dict, true);
+		} else {
+			tgt->data = src->data;
+			tgt->data.dict_it->locking = true;
+			_lock_ref_object(&tgt->data.dict_it->dict->lock, &tgt->data.dict_it->dict->ref, tgt->data.dict_it->dict);
+		}
+
+		break;
+	default:
+		mb_assert(0 && "Impossible");
+
+		break;
+	}
+
+	return true;
+}
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
@@ -4257,7 +4315,10 @@ bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 	mb_assert(lk);
 
 	_ref(ref, obj);
-	++(*lk);
+	if(*lk >= 0)
+		++(*lk);
+	else
+		--(*lk);
 
 	return true;
 }
@@ -4267,8 +4328,10 @@ bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 	bool_t result = true;
 	mb_assert(lk);
 
-	if(*lk)
+	if(*lk > 0)
 		--(*lk);
+	else if(*lk < 0)
+		++(*lk);
 	else
 		result = false;
 	_unref(ref, obj);
@@ -4284,8 +4347,8 @@ bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 
 	mb_assert(lk);
 
-	if(*lk)
-		*lk = 0;
+	if(*lk > 0)
+		*lk = -(*lk);
 	else
 		result = false;
 
@@ -7232,7 +7295,14 @@ int _core_let(mb_interpreter_t* s, void** l) {
 		if(val->type != _DT_ANY) {
 			_dispose_object(var->data);
 			var->data->type = val->type;
+#ifdef MB_ENABLE_COLLECTION_LIB
+			if(val->type == _DT_LIST_IT || val->type == _DT_DICT_IT)
+				_assign_with_it(var->data, val);
+			else
+				var->data->data = val->data;
+#else /* MB_ENABLE_COLLECTION_LIB */
 			var->data->data = val->data;
+#endif /* MB_ENABLE_COLLECTION_LIB */
 			var->data->ref = val->ref;
 		}
 	} else if(arr) {
@@ -7256,6 +7326,8 @@ int _core_let(mb_interpreter_t* s, void** l) {
 			break;
 		default:
 			mb_assert(0 && "Unsupported");
+			safe_free(val);
+			_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 
 			break;
 		}
@@ -7274,13 +7346,6 @@ int _core_let(mb_interpreter_t* s, void** l) {
 		break;
 	case _DT_DICT:
 		_ref(&val->data.dict->ref, val->data.dict);
-
-		break;
-	case _DT_LIST_IT: /* Fall through */
-	case _DT_DICT_IT:
-		safe_free(val);
-
-		_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 
 		break;
 	default:
@@ -9589,14 +9654,14 @@ int _coll_iterator(mb_interpreter_t* s, void** l) {
 	switch(coll.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);
-		lit = _create_list_it(ocoll.data.list);
+		lit = _create_list_it(ocoll.data.list, false);
 		ret.type = MB_DT_LIST_IT;
 		ret.value.list_it = lit;
 
 		break;
 	case MB_DT_DICT:
 		_public_value_to_internal_object(&coll, &ocoll);
-		dit = _create_dict_it(ocoll.data.dict);
+		dit = _create_dict_it(ocoll.data.dict, false);
 		ret.type = MB_DT_DICT_IT;
 		ret.value.list_it = dit;
 
@@ -9634,7 +9699,9 @@ int _coll_move_next(mb_interpreter_t* s, void** l) {
 	case MB_DT_LIST_IT:
 		_public_value_to_internal_object(&it, &oit);
 		oit.data.list_it = _move_list_it_next(oit.data.list_it);
-		if(oit.data.list_it) {
+		if(_invalid_list_it(oit.data.list_it)) {
+			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		} else if(oit.data.list_it) {
 			ret.type = MB_DT_INT;
 			ret.value.integer = 1;
 		} else {
@@ -9645,7 +9712,9 @@ int _coll_move_next(mb_interpreter_t* s, void** l) {
 	case MB_DT_DICT_IT:
 		_public_value_to_internal_object(&it, &oit);
 		oit.data.dict_it = _move_dict_it_next(oit.data.dict_it);
-		if(oit.data.dict_it) {
+		if(_invalid_dict_it(oit.data.dict_it)) {
+			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		} else if(oit.data.dict_it) {
 			ret.type = MB_DT_INT;
 			ret.value.integer = 1;
 		} else {
