@@ -847,14 +847,13 @@ static void _on_exit(void) {
 	c = 0;
 
 #ifdef _USE_MEM_POOL
-	if(alloc_count > 0) {
-		mb_assert(0 && "Memory leak");
-	}
 	_close_mem_pool();
 #endif /* _USE_MEM_POOL */
 
 #if defined _MSC_VER && !defined _WIN64
 	if(0 != _CrtDumpMemoryLeaks()) { _asm { int 3 } }
+#elif defined _USE_MEM_POOL
+	if(alloc_count > 0) { mb_assert(0 && "Memory leak"); }
 #endif /* _MSC_VER && !_WIN64 */
 }
 
