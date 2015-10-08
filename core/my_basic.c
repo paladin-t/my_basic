@@ -9161,6 +9161,11 @@ int _coll_list(mb_interpreter_t* s, void** l) {
 	while(mb_has_arg(s, l)) {
 		mb_check(mb_pop_value(s, l, &arg));
 
+		if(arg.type == MB_DT_ARRAY) {
+			_destroy_list(coll);
+			_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
 		_push_list(coll, &arg);
 	}
 
@@ -9170,6 +9175,7 @@ int _coll_list(mb_interpreter_t* s, void** l) {
 	arg.value.list = coll;
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -9190,6 +9196,11 @@ int _coll_dict(mb_interpreter_t* s, void** l) {
 		mb_check(mb_pop_value(s, l, &arg));
 		mb_check(mb_pop_value(s, l, &val));
 
+		if(arg.type == MB_DT_ARRAY || val.type == MB_DT_ARRAY) {
+			_destroy_dict(coll);
+			_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
 		_set_dict(coll, &arg, &val);
 	}
 
@@ -9199,6 +9210,7 @@ int _coll_dict(mb_interpreter_t* s, void** l) {
 	arg.value.dict = coll;
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -9221,6 +9233,10 @@ int _coll_push(mb_interpreter_t* s, void** l) {
 
 	while(mb_has_arg(s, l)) {
 		mb_check(mb_pop_value(s, l, &arg));
+
+		if(arg.type == MB_DT_ARRAY) {
+			_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
 
 		_push_list(olst.data.list, &arg);
 	}
@@ -9331,6 +9347,9 @@ int _coll_insert(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
+	if(arg.type == MB_DT_ARRAY) {
+		_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
 	if(lst.type != MB_DT_LIST) {
 		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
@@ -9509,6 +9528,9 @@ int _coll_set(mb_interpreter_t* s, void** l) {
 			mb_check(mb_pop_int(s, l, &idx));
 			mb_check(mb_pop_value(s, l, &val));
 
+			if(val.type == MB_DT_ARRAY) {
+				_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
+			}
 			if(!_set_list(ocoll.data.list, idx, &val, &oval)) {
 				_destroy_object(oval, 0);
 
@@ -9522,6 +9544,10 @@ int _coll_set(mb_interpreter_t* s, void** l) {
 		while(mb_has_arg(s, l)) {
 			mb_check(mb_pop_value(s, l, &key));
 			mb_check(mb_pop_value(s, l, &val));
+
+			if(val.type == MB_DT_ARRAY) {
+				_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
+			}
 
 			_set_dict(ocoll.data.dict, &key, &val);
 		}
