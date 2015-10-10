@@ -1,3 +1,6 @@
+Oct. 10 2015
+Improved stability for nested IF statement
+
 Oct. 8 2015
 Fixed an iterator validation bug
 Fixed an iterator assignment issue

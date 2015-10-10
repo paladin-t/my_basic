@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 81
+#define _VER_REVISION 82
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -199,6 +199,7 @@ static const char* _ERR_DESC[] = {
 	"Open bracket expected",
 	"Close bracket expected",
 	"Array subscript expected",
+	"Nested too deep",
 	"Structure not completed",
 	"Function expected",
 	"Variable or array identifier expected",
@@ -5382,6 +5383,7 @@ int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 	_ls_node_t* tmp = 0;
 	_object_t* obj = 0;
 	int nested = 0;
+	unsigned mask = 0;
 
 	mb_assert(s && l);
 
@@ -5389,16 +5391,26 @@ int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 	mb_assert(ast && ast->prev);
 	do {
 		if(!ast) {
-			_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(tmp), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_SYNTAX, 0, TON(l), MB_FUNC_ERR, _exit, result);
 		}
 		tmp = ast;
 		obj = (_object_t*)(ast->data);
 		*l = ast;
 		ast = ast->next;
 		if(ast && _IS_FUNC((_object_t*)(ast->data), _core_if)) {
-			++nested;
-		} else if(ast && nested && _IS_FUNC((_object_t*)(ast->data), _core_endif)) {
-			--nested;
+			if(++nested > sizeof(mask) * 8) {
+				_handle_error_on_obj(s, SE_RN_NESTED_TOO_DEEP, 0, TON(l), MB_FUNC_ERR, _exit, result);
+			}
+		} else if(ast && nested && _IS_FUNC((_object_t*)(ast->data), _core_then)) {
+			if(!(ast && ast->next && _IS_EOS(ast->next->data)))
+				mask |= 1 << (nested - 1);
+		} else if(ast && nested &&
+			(((mask & (1 << (nested - 1))) && _IS_EOS(ast->data)) ||
+			(!(mask & (1 << (nested - 1))) && _IS_FUNC((_object_t*)(ast->data), _core_endif)))
+		) {
+			if(--nested < 0) {
+				_handle_error_on_obj(s, SE_RN_STRUCTURE_NOT_COMPLETED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+			}
 			ast = ast->next;
 		}
 	} while(nested || (!_IS_FUNC(obj, _core_elseif) && !_IS_FUNC(obj, _core_else) && !_IS_FUNC(obj, _core_endif)));
