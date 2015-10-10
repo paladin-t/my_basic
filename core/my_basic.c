@@ -5395,9 +5395,9 @@ int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 		obj = (_object_t*)(ast->data);
 		*l = ast;
 		ast = ast->next;
-		if(_IS_FUNC((_object_t*)(ast->data), _core_if)) {
+		if(ast && _IS_FUNC((_object_t*)(ast->data), _core_if)) {
 			++nested;
-		} else if(nested && _IS_FUNC((_object_t*)(ast->data), _core_endif)) {
+		} else if(ast && nested && _IS_FUNC((_object_t*)(ast->data), _core_endif)) {
 			--nested;
 			ast = ast->next;
 		}
