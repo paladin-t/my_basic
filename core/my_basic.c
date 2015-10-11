@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 82
+#define _VER_REVISION 83
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -302,6 +302,9 @@ typedef struct _list_t {
 	_ref_t ref;
 	_ls_node_t* list;
 	_lock_t lock;
+	_ls_node_t* cached_node;
+	int cached_index;
+	unsigned int count;
 } _list_t;
 
 typedef struct _list_it_t {
@@ -762,7 +765,6 @@ static _ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp);
 static _ls_node_t* _ls_back(_ls_node_t* node);
 static _ls_node_t* _ls_pushback(_ls_node_t* list, void* data);
 static void* _ls_popback(_ls_node_t* list);
-static _ls_node_t* _ls_at(_ls_node_t* list, int index);
 static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data);
 static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op);
 static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
@@ -956,10 +958,12 @@ static bool_t _pop_list(_list_t* coll, mb_value_t* val, mb_interpreter_t* s);
 static bool_t _insert_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval);
 static bool_t _set_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval);
 static bool_t _remove_at_list(_list_t* coll, int_t idx);
+static _ls_node_t* _node_at_list(_list_t* coll, int index);
 static bool_t _at_list(_list_t* coll, int_t idx, mb_value_t* oval);
 static bool_t _find_list(_list_t* coll, mb_value_t* val);
 static void _clear_list(_list_t* coll);
 static void _sort_list(_list_t* coll);
+static void _invalidate_list_cache(_list_t* coll);
 static void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t *val);
 static bool_t _remove_dict(_dict_t* coll, mb_value_t* key);
 static bool_t _find_dict(_dict_t* coll, mb_value_t* val, mb_value_t* oval);
@@ -1404,23 +1408,6 @@ void* _ls_popback(_ls_node_t* list) {
 		tmp->prev->next = 0;
 		safe_free(tmp);
 	}
-
-	return result;
-}
-
-_ls_node_t* _ls_at(_ls_node_t* list, int index) {
-	_ls_node_t* result = 0;
-	_ls_node_t* tmp = 0;
-
-	mb_assert(list);
-
-	tmp = list->next;
-	while(tmp && index) {
-		tmp = tmp->next;
-		--index;
-	}
-	if(tmp)
-		result = tmp;
 
 	return result;
 }
@@ -4051,8 +4038,10 @@ void _push_list(_list_t* coll, mb_value_t* val) {
 
 	_create_internal_object_from_public_value(val, &oarg);
 	_ls_pushback(coll->list, oarg);
+	coll->count++;
 
 	_write_on_ref_object(&coll->lock, &coll->ref, coll);
+	_invalidate_list_cache(coll);
 }
 
 bool_t _pop_list(_list_t* coll, mb_value_t* val, mb_interpreter_t* s) {
@@ -4065,11 +4054,13 @@ bool_t _pop_list(_list_t* coll, mb_value_t* val, mb_interpreter_t* s) {
 	if(oval) {
 		_internal_object_to_public_value(oval, val);
 		_destroy_object_capsule_only(oval, 0);
+		coll->count--;
 
 		if(val->type == MB_DT_STRING)
 			_mark_lazy_destroy_string(s, val->value.string);
 
 		_write_on_ref_object(&coll->lock, &coll->ref, coll);
+		_invalidate_list_cache(coll);
 
 		return true;
 	} else {
@@ -4090,7 +4081,9 @@ bool_t _insert_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval)
 		*oval = oarg;
 
 	if(_ls_insert_at(coll->list, (int)idx, oarg)) {
+		coll->count++;
 		_write_on_ref_object(&coll->lock, &coll->ref, coll);
+		_invalidate_list_cache(coll);
 
 		return true;
 	}
@@ -4105,7 +4098,7 @@ bool_t _set_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval) {
 
 	mb_assert(coll && val);
 
-	result = _ls_at(coll->list, (int)idx);
+	result = _node_at_list(coll, (int)idx);
 	if(result) {
 		if(result->data)
 			_destroy_object(result->data, 0);
@@ -4115,6 +4108,7 @@ bool_t _set_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval) {
 		result->data = oarg;
 
 		_write_on_ref_object(&coll->lock, &coll->ref, coll);
+		_invalidate_list_cache(coll);
 	}
 
 	return !!(result && result->data);
@@ -4127,14 +4121,53 @@ bool_t _remove_at_list(_list_t* coll, int_t idx) {
 
 	mb_assert(coll);
 
-	node = _ls_at(coll->list, (int)idx);
+	node = _node_at_list(coll, (int)idx);
 	if(node) {
 		if(node->data) {
 			_ls_remove(coll->list, node, _destroy_object);
+			coll->count--;
 
 			_write_on_ref_object(&coll->lock, &coll->ref, coll);
+			_invalidate_list_cache(coll);
 
 			result = true;
+		}
+	}
+
+	return result;
+}
+
+_ls_node_t* _node_at_list(_list_t* coll, int index) {
+	/* Get a node at a specific index in a list */
+	_ls_node_t* result = 0;
+	_ls_node_t* tmp = 0;
+	int idx = index;
+
+	mb_assert(coll);
+
+	if(index >= 0 && index < (int)coll->count) {
+		if(coll->cached_node && !(index < coll->cached_index / 2)) {
+			while(index != coll->cached_index) {
+				if(index > coll->cached_index) {
+					coll->cached_node = coll->cached_node->next;
+					coll->cached_index++;
+				} else if(index < coll->cached_index) {
+					coll->cached_node = coll->cached_node->prev;
+					coll->cached_node--;
+				}
+			}
+			result = coll->cached_node;
+		} else {
+			tmp = coll->list->next;
+			while(tmp && idx) {
+				tmp = tmp->next;
+				--idx;
+			}
+			if(tmp) {
+				result = tmp;
+				coll->cached_node = tmp;
+				coll->cached_index = index;
+			}
 		}
 	}
 
@@ -4147,7 +4180,7 @@ bool_t _at_list(_list_t* coll, int_t idx, mb_value_t* oval) {
 
 	mb_assert(coll && oval);
 
-	result = _ls_at(coll->list, idx);
+	result = _node_at_list(coll, idx);
 	if(oval && result && result->data)
 		_internal_object_to_public_value(result->data, oval);
 
@@ -4174,8 +4207,10 @@ void _clear_list(_list_t* coll) {
 
 	_ls_foreach(coll->list, _destroy_object);
 	_ls_clear(coll->list);
+	coll->count = 0;
 
 	_write_on_ref_object(&coll->lock, &coll->ref, coll);
+	_invalidate_list_cache(coll);
 }
 
 void _sort_list(_list_t* coll) {
@@ -4185,6 +4220,15 @@ void _sort_list(_list_t* coll) {
 	_ls_sort(coll->list, (_ls_compare)_ht_cmp_object);
 
 	_write_on_ref_object(&coll->lock, &coll->ref, coll);
+	_invalidate_list_cache(coll);
+}
+
+void _invalidate_list_cache(_list_t* coll) {
+	/* Invalidate cached list index */
+	mb_assert(coll);
+
+	coll->cached_node = 0;
+	coll->cached_index = 0;
 }
 
 void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t *val) {
@@ -8973,7 +9017,7 @@ int _std_len(mb_interpreter_t* s, void** l) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case MB_DT_LIST:
 		lst = (_list_t*)arg.value.list;
-		mb_check(mb_push_int(s, l, (int_t)_ls_count(lst->list)));
+		mb_check(mb_push_int(s, l, (int_t)lst->count));
 		_assign_public_value(&arg, 0);
 
 		break;
