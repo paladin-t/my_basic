@@ -1,5 +1,6 @@
 Oct. 12 2015
 Avoided cycle importing
+Improved memory pool
 
 Oct. 11 2015
 Added a CLONE statement/function for collections
