@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 83
+#define _VER_REVISION 84
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -272,18 +272,6 @@ typedef struct _var_t {
 	struct _object_t* data;
 } _var_t;
 
-typedef struct _array_t {
-	char* name;
-	_data_e type;
-#ifndef MB_SIMPLE_ARRAY
-	_data_e* types;
-#endif /* MB_SIMPLE_ARRAY */
-	void* raw;
-	unsigned int count;
-	int dimension_count;
-	int dimensions[MB_MAX_DIMENSION_COUNT];
-} _array_t;
-
 struct _ref_t;
 
 typedef void (* _unref_func_t)(struct _ref_t*, void*);
@@ -296,6 +284,18 @@ typedef struct _ref_t {
 } _ref_t;
 
 typedef short _lock_t;
+
+typedef struct _array_t {
+	char* name;
+	_data_e type;
+#ifndef MB_SIMPLE_ARRAY
+	_data_e* types;
+#endif /* MB_SIMPLE_ARRAY */
+	void* raw;
+	unsigned int count;
+	int dimension_count;
+	int dimensions[MB_MAX_DIMENSION_COUNT];
+} _array_t;
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 typedef struct _list_t {
@@ -434,6 +434,7 @@ typedef enum _symbol_state_e {
 } _symbol_state_e;
 
 typedef struct _parsing_context_t {
+	_ls_node_t* imported;
 	char current_char;
 	char current_symbol[_SINGLE_SYMBOL_MAX_LENGTH + 1];
 	int current_symbol_nonius;
@@ -913,7 +914,7 @@ static mb_print_func_t _get_printer(mb_interpreter_t* s);
 static mb_input_func_t _get_inputer(mb_interpreter_t* s);
 
 /** Parsing helpers */
-static char* _load_file(const char* f, const char* prefix);
+static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix);
 
 static bool_t _is_blank(char c);
 static bool_t _is_newline(char c);
@@ -1022,6 +1023,7 @@ static int _destroy_object_not_compile_time(void* data, void* extra);
 static int _destroy_object_capsule_only(void* data, void* extra);
 static int _do_nothing_on_object(void* data, void* extra);
 static int _remove_source_object(void* data, void* extra);
+static int _destroy_memory(void* data, void* extra);
 static int _compare_numbers(const _object_t* first, const _object_t* second);
 static bool_t _is_internal_object(_object_t* obj);
 static _data_e _public_type_to_internal_type(mb_data_e t);
@@ -1032,6 +1034,8 @@ static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t*
 static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s);
 static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch);
 static void _assign_public_value(mb_value_t* tgt, mb_value_t* src);
+static int _clear_scope_chain(mb_interpreter_t* s);
+static int _dispose_scope_chain(mb_interpreter_t* s);
 
 static void _stepped(mb_interpreter_t* s, _ls_node_t* ast);
 static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l);
@@ -1040,8 +1044,7 @@ static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l);
 static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func);
 
 static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context);
-static int _clear_scope_chain(mb_interpreter_t* s);
-static int _dispose_scope_chain(mb_interpreter_t* s);
+static void _destroy_parsing_context(_parsing_context_t** context);
 
 static int _register_func(mb_interpreter_t* s, const char* n, mb_func_t f, bool_t local);
 static int _remove_func(mb_interpreter_t* s, const char* n, bool_t local);
@@ -2729,32 +2732,45 @@ mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 	return mb_gets;
 }
 
-char* _load_file(const char* f, const char* prefix) {
+char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
 	/* Read all content of a file into a buffer */
 	FILE* fp = 0;
 	char* buf = 0;
 	long curpos = 0;
 	long l = 0;
 	long i = 0;
+	_parsing_context_t* context = 0;
 
-	fp = fopen(f, "rb");
-	if(fp) {
-		curpos = ftell(fp);
-		fseek(fp, 0L, SEEK_END);
-		l = ftell(fp);
-		fseek(fp, curpos, SEEK_SET);
-		if(prefix) {
-			i = (long)strlen(prefix);
-			l += i;
+	mb_assert(s);
+
+	context = (_parsing_context_t*)s->parsing_context;
+
+	if(_ls_find(context->imported, (void*)f, (_ls_compare)_ht_cmp_string)) {
+		buf = (char*)f;
+	} else {
+		buf = (char*)mb_memdup((char*)f, strlen(f) + 1);
+		_ls_pushback(context->imported, buf);
+		buf = 0;
+
+		fp = fopen(f, "rb");
+		if(fp) {
+			curpos = ftell(fp);
+			fseek(fp, 0L, SEEK_END);
+			l = ftell(fp);
+			fseek(fp, curpos, SEEK_SET);
+			if(prefix) {
+				i = (long)strlen(prefix);
+				l += i;
+			}
+			buf = (char*)mb_malloc((size_t)(l + 1));
+			mb_assert(buf);
+			if(prefix) {
+				memcpy(buf, prefix, i);
+			}
+			fread(buf + i, 1, l, fp);
+			fclose(fp);
+			buf[l] = '\0';
 		}
-		buf = (char*)mb_malloc((size_t)(l + 1));
-		mb_assert(buf);
-		if(prefix) {
-			memcpy(buf, prefix, i);
-		}
-		fread(buf + i, 1, l, fp);
-		fclose(fp);
-		buf[l] = '\0';
 	}
 
 	return buf;
@@ -3179,10 +3195,12 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			context->last_symbol = 0;
 			sym[_sl - 1] = '\0';
 			context->parsing_state = _PS_NORMAL;
-			buf = _load_file(sym + 1, ":");
+			buf = _load_file(s, sym + 1, ":");
 			if(buf) {
-				mb_load_string(s, buf);
-				safe_free(buf);
+				if(buf != sym + 1) {
+					mb_load_string(s, buf);
+					safe_free(buf);
+				}
 			} else {
 				_set_current_error(s, SE_PS_FILE_OPEN_FAILED, 0);
 				if(s->error_handler) {
@@ -5104,6 +5122,18 @@ int _remove_source_object(void* data, void* extra) {
 	return result;
 }
 
+int _destroy_memory(void* data, void* extra) {
+	/* Destroy a chunk of memory */
+	int result = _OP_RESULT_NORMAL;
+	mb_unrefvar(extra);
+
+	mb_assert(data);
+
+	safe_free(data);
+
+	return result;
+}
+
 int _compare_numbers(const _object_t* first, const _object_t* second) {
 	/* Compare two numbers in two _object_t */
 	int result = 0;
@@ -5435,6 +5465,57 @@ void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
 	memcpy(tgt, src, sizeof(mb_value_t));
 }
 
+int _clear_scope_chain(mb_interpreter_t* s) {
+	/* Clear a scope chain */
+	int result = 0;
+	_running_context_t* running = 0;
+	_running_context_t* prev = 0;
+	_ht_node_t* global_scope = 0;
+
+	mb_assert(s);
+
+	running = s->running_context;
+	while(running) {
+		prev = running->prev;
+
+		global_scope = running->var_dict;
+		_ht_foreach(global_scope, _destroy_object);
+		_ht_clear(global_scope);
+
+		result++;
+		running = prev;
+	}
+
+	return result;
+}
+
+int _dispose_scope_chain(mb_interpreter_t* s) {
+	/* Dispose a scope chain */
+	int result = 0;
+	_running_context_t* running = 0;
+	_running_context_t* prev = 0;
+	_ht_node_t* global_scope = 0;
+
+	mb_assert(s);
+
+	running = s->running_context;
+	while(running) {
+		prev = running->prev;
+
+		global_scope = running->var_dict;
+		_ht_foreach(global_scope, _destroy_object);
+		_ht_clear(global_scope);
+		_ht_destroy(global_scope);
+		mb_dispose_value(s, running->intermediate_value);
+		safe_free(running);
+
+		result++;
+		running = prev;
+	}
+
+	return result;
+}
+
 void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
 	/* Called each step */
 	_object_t* obj = 0;
@@ -5653,63 +5734,33 @@ _exit:
 
 _parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
 	/* Reset the parsing context of a MY-BASIC environment */
+	_ls_node_t* imp = 0;
+
 	if(!context)
 		context = (_parsing_context_t*)mb_malloc(sizeof(_parsing_context_t));
+	else
+		imp = context->imported;
 	memset(context, 0, sizeof(_parsing_context_t));
 	context->parsing_row = 1;
+	if(!imp)
+		imp = _ls_create();
+	context->imported = imp;
 
 	return context;
 }
 
-int _clear_scope_chain(mb_interpreter_t* s) {
-	/* Clear a scope chain */
-	int result = 0;
-	_running_context_t* running = 0;
-	_running_context_t* prev = 0;
-	_ht_node_t* global_scope = 0;
+void _destroy_parsing_context(_parsing_context_t** context) {
+	/* Destroy the parsing context of a MY-BASIC environment */
+	if(!context || !(*context))
+		return;
 
-	mb_assert(s);
-
-	running = s->running_context;
-	while(running) {
-		prev = running->prev;
-
-		global_scope = running->var_dict;
-		_ht_foreach(global_scope, _destroy_object);
-		_ht_clear(global_scope);
-
-		result++;
-		running = prev;
+	if(*context) {
+		if((*context)->imported) {
+			_ls_foreach((*context)->imported, _destroy_memory);
+			_ls_destroy((*context)->imported);
+		}
+		safe_free(*context);
 	}
-
-	return result;
-}
-
-int _dispose_scope_chain(mb_interpreter_t* s) {
-	/* Dispose a scope chain */
-	int result = 0;
-	_running_context_t* running = 0;
-	_running_context_t* prev = 0;
-	_ht_node_t* global_scope = 0;
-
-	mb_assert(s);
-
-	running = s->running_context;
-	while(running) {
-		prev = running->prev;
-
-		global_scope = running->var_dict;
-		_ht_foreach(global_scope, _destroy_object);
-		_ht_clear(global_scope);
-		_ht_destroy(global_scope);
-		mb_dispose_value(s, running->intermediate_value);
-		safe_free(running);
-
-		result++;
-		running = prev;
-	}
-
-	return result;
 }
 
 int _register_func(mb_interpreter_t* s, const char* n, mb_func_t f, bool_t local) {
@@ -5978,7 +6029,6 @@ int mb_open(struct mb_interpreter_t** s) {
 	int result = MB_FUNC_OK;
 	_ht_node_t* local_scope = 0;
 	_ht_node_t* global_scope = 0;
-	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
 
 	*s = (mb_interpreter_t*)mb_malloc(sizeof(mb_interpreter_t));
@@ -5992,7 +6042,7 @@ int mb_open(struct mb_interpreter_t** s) {
 	global_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, _ls_free_extra);
 	(*s)->global_func_dict = global_scope;
 
-	(*s)->parsing_context = context = _reset_parsing_context((*s)->parsing_context);
+	(*s)->parsing_context = _reset_parsing_context((*s)->parsing_context);
 
 	(*s)->temp_values = _ls_create();
 	(*s)->lazy_destroy_objects = _ls_create();
@@ -6026,11 +6076,8 @@ int mb_close(struct mb_interpreter_t** s) {
 	_ht_node_t* local_scope = 0;
 	_ht_node_t* global_scope = 0;
 	_ls_node_t* ast;
-	_parsing_context_t* context = 0;
 
 	mb_assert(s);
-
-	context = (*s)->parsing_context;
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 	_close_coll_lib(*s);
@@ -6051,9 +6098,7 @@ int mb_close(struct mb_interpreter_t** s) {
 	_ls_foreach((*s)->lazy_destroy_objects, _destroy_object);
 	_ls_destroy((*s)->lazy_destroy_objects);
 
-	if(context) {
-		safe_free(context);
-	}
+	_destroy_parsing_context(&(*s)->parsing_context);
 
 	global_scope = (*s)->global_func_dict;
 	_ht_foreach(global_scope, _ls_free_extra);
@@ -6743,7 +6788,7 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 
 	s->parsing_context = context = _reset_parsing_context(s->parsing_context);
 
-	buf = _load_file(f, 0);
+	buf = _load_file(s, f, 0);
 	if(buf) {
 		result = mb_load_string(s, buf);
 		safe_free(buf);
@@ -6770,8 +6815,7 @@ int mb_run(struct mb_interpreter_t* s) {
 
 	running = s->running_context;
 
-	if(s->parsing_context)
-		safe_free(s->parsing_context);
+	_destroy_parsing_context(&s->parsing_context);
 
 	if(s->suspent_point) {
 		ast = s->suspent_point;
