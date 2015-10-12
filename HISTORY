@@ -1,3 +1,6 @@
+Oct. 12 2015
+Avoided cycle importing
+
 Oct. 11 2015
 Added a CLONE statement/function for collections
 Optimized LIST indexing
