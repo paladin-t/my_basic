@@ -4372,6 +4372,7 @@ int _clone_to_list(void* data, void* extra, _list_t* coll) {
 	/* Clone an object to a list */
 	_object_t* obj = 0;
 	_object_t* tgt = 0;
+	mb_unrefvar(extra);
 
 	mb_assert(data && coll);
 
@@ -4801,7 +4802,6 @@ _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
 int _clone_object(_object_t* obj, _object_t* tgt) {
 	/* Clone the data of an object */
 	int result = 0;
-	_var_t* var = 0;
 
 	mb_assert(obj && tgt);
 
