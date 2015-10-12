@@ -384,11 +384,19 @@ typedef struct _object_t {
 
 #define _MB_MEM_TAG_SIZE (sizeof(mb_mem_tag_t))
 
+const size_t MB_SIZEOF_4BYTES = 4;
+const size_t MB_SIZEOF_8BYTES = 8;
+const size_t MB_SIZEOF_32BYTES = 32;
+const size_t MB_SIZEOF_64BYTES = 64;
+const size_t MB_SIZEOF_128BYTES = 128;
+const size_t MB_SIZEOF_256BYTES = 256;
+const size_t MB_SIZEOF_512BYTES = 512;
 #ifdef MB_ENABLE_ALLOC_STAT
 const size_t MB_SIZEOF_INT = _MB_MEM_TAG_SIZE + sizeof(int);
 const size_t MB_SIZEOF_PTR = _MB_MEM_TAG_SIZE + sizeof(intptr_t);
 const size_t MB_SIZEOF_LSN = _MB_MEM_TAG_SIZE + sizeof(_ls_node_t);
 const size_t MB_SIZEOF_HTN = _MB_MEM_TAG_SIZE + sizeof(_ht_node_t);
+const size_t MB_SIZEOF_HTA = _MB_MEM_TAG_SIZE + sizeof(_ht_node_t*) * _HT_ARRAY_SIZE_DEFAULT;
 const size_t MB_SIZEOF_OBJ = _MB_MEM_TAG_SIZE + sizeof(_object_t);
 const size_t MB_SIZEOF_FUN = _MB_MEM_TAG_SIZE + sizeof(_func_t);
 const size_t MB_SIZEOF_ARR = _MB_MEM_TAG_SIZE + sizeof(_array_t);
@@ -401,6 +409,7 @@ const size_t MB_SIZEOF_INT = sizeof(int);
 const size_t MB_SIZEOF_PTR = sizeof(intptr_t);
 const size_t MB_SIZEOF_LSN = sizeof(_ls_node_t);
 const size_t MB_SIZEOF_HTN = sizeof(_ht_node_t);
+const size_t MB_SIZEOF_HTA = sizeof(_ht_node_t*) * _HT_ARRAY_SIZE_DEFAULT;
 const size_t MB_SIZEOF_OBJ = sizeof(_object_t);
 const size_t MB_SIZEOF_FUN = sizeof(_func_t);
 const size_t MB_SIZEOF_ARR = sizeof(_array_t);
