@@ -102,10 +102,18 @@ static struct mb_interpreter_t* bas = 0;
 */
 
 #ifdef _USE_MEM_POOL
+extern const size_t MB_SIZEOF_4BYTES;
+extern const size_t MB_SIZEOF_8BYTES;
+extern const size_t MB_SIZEOF_32BYTES;
+extern const size_t MB_SIZEOF_64BYTES;
+extern const size_t MB_SIZEOF_128BYTES;
+extern const size_t MB_SIZEOF_256BYTES;
+extern const size_t MB_SIZEOF_512BYTES;
 extern const size_t MB_SIZEOF_INT;
 extern const size_t MB_SIZEOF_PTR;
 extern const size_t MB_SIZEOF_LSN;
 extern const size_t MB_SIZEOF_HTN;
+extern const size_t MB_SIZEOF_HTA;
 extern const size_t MB_SIZEOF_OBJ;
 extern const size_t MB_SIZEOF_FUN;
 extern const size_t MB_SIZEOF_ARR;
@@ -131,6 +139,7 @@ static int pool_count = 0;
 static _pool_t* pool = 0;
 
 static long alloc_count = 0;
+static long alloc_bytes = 0;
 
 #define _POOL_NODE_ALLOC(size) (((char*)malloc(sizeof(_pool_tag_t) + size)) + sizeof(_pool_tag_t))
 #define _POOL_NODE_PTR(s) (s - sizeof(_pool_tag_t))
@@ -139,7 +148,7 @@ static long alloc_count = 0;
 #define _POOL_NODE_FREE(s) free(_POOL_NODE_PTR(s))
 
 static void _open_mem_pool(void) {
-#define N 11
+#define N 19
 	size_t szs[N];
 	size_t lst[N];
 	int i = 0;
@@ -148,17 +157,25 @@ static void _open_mem_pool(void) {
 
 	pool_count = 0;
 
-	szs[0] = MB_SIZEOF_INT;
-	szs[1] = MB_SIZEOF_PTR;
-	szs[2] = MB_SIZEOF_LSN;
-	szs[3] = MB_SIZEOF_HTN;
-	szs[4] = MB_SIZEOF_OBJ;
-	szs[5] = MB_SIZEOF_FUN;
-	szs[6] = MB_SIZEOF_ARR;
-	szs[7] = MB_SIZEOF_VAR;
-	szs[8] = MB_SIZEOF_LBL;
-	szs[9] = MB_SIZEOF_RTN;
-	szs[10] = MB_SIZEOF_CLS;
+	szs[0] = MB_SIZEOF_4BYTES;
+	szs[1] = MB_SIZEOF_8BYTES;
+	szs[2] = MB_SIZEOF_32BYTES;
+	szs[3] = MB_SIZEOF_64BYTES;
+	szs[4] = MB_SIZEOF_128BYTES;
+	szs[5] = MB_SIZEOF_256BYTES;
+	szs[6] = MB_SIZEOF_512BYTES;
+	szs[7] = MB_SIZEOF_INT;
+	szs[8] = MB_SIZEOF_PTR;
+	szs[9] = MB_SIZEOF_LSN;
+	szs[10] = MB_SIZEOF_HTN;
+	szs[11] = MB_SIZEOF_HTA;
+	szs[12] = MB_SIZEOF_OBJ;
+	szs[13] = MB_SIZEOF_FUN;
+	szs[14] = MB_SIZEOF_ARR;
+	szs[15] = MB_SIZEOF_VAR;
+	szs[16] = MB_SIZEOF_LBL;
+	szs[17] = MB_SIZEOF_RTN;
+	szs[18] = MB_SIZEOF_CLS;
 
 	memset(lst, 0, sizeof(lst));
 
@@ -209,23 +226,24 @@ static char* _pop_mem(unsigned s) {
 	_pool_t* pl = 0;
 	char* result = 0;
 
+	++alloc_count;
+	alloc_bytes += s;
+
 	if(pool_count) {
 		for(i = 0; i < pool_count; i++) {
 			pl = &pool[i];
-			if(s == pl->size) {
+			if(s <= pl->size) {
 				if(pl->stack) {
 					/* Pop from stack */
 					result = pl->stack;
 					pl->stack = _POOL_NODE_NEXT(result);
 					_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
-					++alloc_count;
 
 					return result;
 				} else {
 					/* Create a new node */
-					result = _POOL_NODE_ALLOC(s);
+					result = _POOL_NODE_ALLOC(pl->size);
 					_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
-					++alloc_count;
 
 					return result;
 				}
@@ -235,8 +253,7 @@ static char* _pop_mem(unsigned s) {
 
 	/* Allocate directly */
 	result = _POOL_NODE_ALLOC(s);
-	_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)0;
-	++alloc_count;
+	_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
 
 	return result;
 }
@@ -248,11 +265,12 @@ static void _push_mem(char* p) {
 	if(--alloc_count < 0) {
 		mb_assert(0 && "Multiple free");
 	}
+	alloc_bytes -= _POOL_NODE_SIZE(p);
 
 	if(pool_count) {
 		for(i = 0; i < pool_count; i++) {
 			pl = &pool[i];
-			if(_POOL_NODE_SIZE(p) == pl->size) {
+			if(_POOL_NODE_SIZE(p) <= pl->size) {
 				/* Push to stack */
 				_POOL_NODE_NEXT(p) = pl->stack;
 				pl->stack = p;
@@ -695,7 +713,7 @@ static void _run_file(char* path) {
 	if(mb_load_file(bas, path) == MB_FUNC_OK) {
 		mb_run(bas);
 	} else {
-		_printf("Invalid file or error code.\n");
+		_printf("Invalid file or wrong program.\n");
 	}
 }
 
@@ -853,7 +871,7 @@ static void _on_exit(void) {
 #if defined _MSC_VER && !defined _WIN64
 	if(0 != _CrtDumpMemoryLeaks()) { _asm { int 3 } }
 #elif defined _USE_MEM_POOL
-	if(alloc_count > 0) { mb_assert(0 && "Memory leak"); }
+	if(alloc_count > 0 || alloc_bytes > 0) { mb_assert(0 && "Memory leak"); }
 #endif /* _MSC_VER && !_WIN64 */
 }
 
