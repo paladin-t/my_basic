@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 84
+#define _VER_REVISION 85
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -286,6 +286,7 @@ typedef struct _ref_t {
 typedef short _lock_t;
 
 typedef struct _array_t {
+	_ref_t ref;
 	char* name;
 	_data_e type;
 #ifndef MB_SIMPLE_ARRAY
@@ -947,14 +948,16 @@ static void _set_error_pos(mb_interpreter_t* s, int pos, unsigned short row, uns
 static int_t _get_size_of(_data_e type);
 static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected);
 
+static _array_t* _create_array(const char* n, _data_e t);
+static void _destroy_array(_array_t* arr);
+static void _init_array(_array_t* arr);
 static int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c);
-static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index);
+static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index, bool_t* literally);
 static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
 static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
-static void _init_array(_array_t* arr);
 static void _clear_array(_array_t* arr);
-static void _destroy_array(_array_t* arr);
 static bool_t _is_array(void* obj);
+static void _unref_array(_ref_t* ref, void* data);
 
 static bool_t _is_number(void* obj);
 static bool_t _is_string(void* obj);
@@ -1021,7 +1024,7 @@ static _running_context_t* _push_scope(mb_interpreter_t* s, _running_context_t* 
 static _running_context_t* _pop_scope(mb_interpreter_t* s);
 static _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s);
 static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, char* n);
-static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i);
+static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o);
 static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i);
 
 static int _clone_object(_object_t* obj, _object_t* tgt);
@@ -2332,7 +2335,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 						f++;
 					} else {
 						ast = ast->prev;
-						result = _get_array_index(s, &ast, &arr_idx);
+						result = _get_array_index(s, &ast, &arr_idx, 0);
 						if(result != MB_FUNC_OK) {
 							_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 						}
@@ -2400,7 +2403,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					f++;
 				} else if(c->type == _DT_VAR && c->data.variable->data->type == _DT_ARRAY) {
 					ast = ast->prev;
-					result = _get_array_index(s, &ast, &arr_idx);
+					result = _get_array_index(s, &ast, &arr_idx, 0);
 					if(result != MB_FUNC_OK) {
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 					}
@@ -2532,12 +2535,15 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 		_try_clear_intermediate_value(c, 0, s);
 
 #ifdef MB_ENABLE_COLLECTION_LIB
-		if(c->type == _DT_LIST || c->type == _DT_DICT || c->type == _DT_LIST_IT || c->type == _DT_DICT_IT)
+		if(c->type == _DT_ARRAY || c->type == _DT_LIST || c->type == _DT_DICT || c->type == _DT_LIST_IT || c->type == _DT_DICT_IT)
 			_destroy_object_capsule_only(c, 0);
 		else
 			_destroy_object(c, 0);
 #else /* MB_ENABLE_COLLECTION_LIB */
-		_destroy_object(c, 0);
+		if(c->type == _DT_ARRAY)
+			_destroy_object_capsule_only(c, 0);
+		else
+			_destroy_object(c, 0);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	}
 
@@ -3000,9 +3006,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			(*obj)->ref = true;
 			*delsym = true;
 		} else {
-			tmp.array = (_array_t*)mb_malloc(sizeof(_array_t));
-			memset(tmp.array, 0, sizeof(_array_t));
-			tmp.array->name = sym;
+			tmp.array = _create_array(sym, _DT_ANY);
 			memcpy(&tmp.array->type, value, sizeof(tmp.array->type));
 			(*obj)->data.array = tmp.array;
 
@@ -3561,6 +3565,63 @@ bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected) {
 	return result;
 }
 
+_array_t* _create_array(const char* n, _data_e t) {
+	/* Create an array */
+	_array_t* result = (_array_t*)mb_malloc(sizeof(_array_t));
+	memset(result, 0, sizeof(_array_t));
+	result->type = t;
+	result->name = (char*)n;
+	_create_ref(&result->ref, _unref_array);
+	_ref(&result->ref, result);
+
+	return result;
+}
+
+void _destroy_array(_array_t* arr) {
+	/* Destroy an array */
+	mb_assert(arr);
+
+	_clear_array(arr);
+	if(arr->name) {
+		safe_free(arr->name);
+	}
+#ifndef MB_SIMPLE_ARRAY
+	if(arr->types) {
+		safe_free(arr->types);
+	}
+#endif /* MB_SIMPLE_ARRAY */
+	_destroy_ref(&arr->ref);
+	safe_free(arr);
+}
+
+void _init_array(_array_t* arr) {
+	/* Initialize an array */
+	int elemsize = 0;
+
+	mb_assert(arr);
+
+#ifdef MB_SIMPLE_ARRAY
+	elemsize = (int)_get_size_of(arr->type);
+#else /* MB_SIMPLE_ARRAY */
+	elemsize = (int)_get_size_of(_DT_ANY);
+#endif /* MB_SIMPLE_ARRAY */
+	mb_assert(arr->count > 0);
+	mb_assert(!arr->raw);
+	arr->raw = (void*)mb_malloc(elemsize * arr->count);
+	if(arr->raw) {
+		memset(arr->raw, 0, elemsize * arr->count);
+	}
+#ifndef MB_SIMPLE_ARRAY
+	arr->types = (_data_e*)mb_malloc(sizeof(_data_e) * arr->count);
+	if(arr->types) {
+		unsigned int ul = 0;
+		for(ul = 0; ul < arr->count; ++ul) {
+			arr->types[ul] = _DT_INT;
+		}
+	}
+#endif /* MB_SIMPLE_ARRAY */
+}
+
 int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c) {
 	/* Calculate the index, used when interactive with host */
 	int result = 0;
@@ -3591,7 +3652,7 @@ _exit:
 	return result;
 }
 
-int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index) {
+int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index, bool_t* literally) {
 	/* Calculate the index, used when walking through an AST */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -3607,6 +3668,8 @@ int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index) {
 
 	subscript_ptr = &subscript;
 
+	if(literally) *literally = false;
+
 	/* Array name */
 	ast = (_ls_node_t*)(*l);
 	if(!ast || !_is_array(ast->data)) {
@@ -3616,6 +3679,12 @@ int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index) {
 		arr = (_object_t*)(ast->data);
 	else
 		arr = ((_object_t*)(ast->data))->data.variable->data;
+	/* = */
+	if(literally && ast->next && _IS_FUNC((_object_t*)(ast->next->data), _core_equal)) {
+		*literally = true;
+
+		goto _exit;
+	}
 	/* ( */
 	if(!ast->next || ((_object_t*)(ast->next->data))->type != _DT_FUNC || ((_object_t*)(ast->next->data))->data.func->pointer != _core_open_bracket) {
 		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, 0,
@@ -3657,6 +3726,9 @@ int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index) {
 		++dcount;
 	}
 	*index = idx;
+	if(!arr->data.array->raw) {
+		_handle_error_on_obj(s, SE_RN_ARRAY_OUT_OF_BOUND, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+	}
 
 _exit:
 	*l = ast;
@@ -3763,34 +3835,6 @@ _exit:
 	return result;
 }
 
-void _init_array(_array_t* arr) {
-	/* Initialize an array */
-	int elemsize = 0;
-
-	mb_assert(arr);
-
-#ifdef MB_SIMPLE_ARRAY
-	elemsize = (int)_get_size_of(arr->type);
-#else /* MB_SIMPLE_ARRAY */
-	elemsize = (int)_get_size_of(_DT_ANY);
-#endif /* MB_SIMPLE_ARRAY */
-	mb_assert(arr->count > 0);
-	mb_assert(!arr->raw);
-	arr->raw = (void*)mb_malloc(elemsize * arr->count);
-	if(arr->raw) {
-		memset(arr->raw, 0, elemsize * arr->count);
-	}
-#ifndef MB_SIMPLE_ARRAY
-	arr->types = (_data_e*)mb_malloc(sizeof(_data_e) * arr->count);
-	if(arr->types) {
-		unsigned int ul = 0;
-		for(ul = 0; ul < arr->count; ++ul) {
-			arr->types[ul] = _DT_INT;
-		}
-	}
-#endif /* MB_SIMPLE_ARRAY */
-}
-
 void _clear_array(_array_t* arr) {
 	/* Clear an array */
 	char* str = 0;
@@ -3833,22 +3877,6 @@ void _clear_array(_array_t* arr) {
 	}
 }
 
-void _destroy_array(_array_t* arr) {
-	/* Destroy an array */
-	mb_assert(arr);
-
-	_clear_array(arr);
-	if(arr->name) {
-		safe_free(arr->name);
-	}
-#ifndef MB_SIMPLE_ARRAY
-	if(arr->types) {
-		safe_free(arr->types);
-	}
-#endif /* MB_SIMPLE_ARRAY */
-	safe_free(arr);
-}
-
 bool_t _is_array(void* obj) {
 	/* Determine if an object is an array value or an array variable */
 	bool_t result = false;
@@ -3863,6 +3891,12 @@ bool_t _is_array(void* obj) {
 		result = o->data.variable->data->type == _DT_ARRAY;
 
 	return result;
+}
+
+void _unref_array(_ref_t* ref, void* data) {
+	/* Unreference an array */
+	if(!(*(ref->count)))
+		_destroy_array((_array_t*)data);
 }
 
 bool_t _is_number(void* obj) {
@@ -4407,10 +4441,20 @@ int _clone_to_list(void* data, void* extra, _list_t* coll) {
 	obj = (_object_t*)data;
 	_clone_object(obj, tgt);
 	_push_list(coll, 0, tgt);
-	if(tgt->type == _DT_LIST)
+	switch(tgt->type) {
+	case _DT_ARRAY:
+		_ref(&tgt->data.array->ref, tgt->data.array);
+
+		break;
+	case _DT_LIST:
 		_ref(&tgt->data.list->ref, tgt->data.list);
-	else if(tgt->type == _DT_DICT)
+
+		break;
+	case _DT_DICT:
 		_ref(&tgt->data.dict->ref, tgt->data.dict);
+
+		break;
+	}
 
 	return 1;
 }
@@ -4433,14 +4477,34 @@ int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 	_clone_object(vobj, vtgt);
 
 	_set_dict(coll, 0, 0, ktgt, vtgt);
-	if(ktgt->type == _DT_LIST)
+	switch(ktgt->type) {
+	case _DT_ARRAY:
+		_ref(&ktgt->data.array->ref, ktgt->data.array);
+
+		break;
+	case _DT_LIST:
 		_ref(&ktgt->data.list->ref, ktgt->data.list);
-	else if(ktgt->type == _DT_DICT)
+
+		break;
+	case _DT_DICT:
 		_ref(&ktgt->data.dict->ref, ktgt->data.dict);
-	if(vtgt->type == _DT_LIST)
+
+		break;
+	}
+	switch(vtgt->type) {
+	case _DT_ARRAY:
+		_ref(&vtgt->data.array->ref, vtgt->data.array);
+
+		break;
+	case _DT_LIST:
 		_ref(&vtgt->data.list->ref, vtgt->data.list);
-	else if(vtgt->type == _DT_DICT)
+
+		break;
+	case _DT_DICT:
 		_ref(&vtgt->data.dict->ref, vtgt->data.dict);
+
+		break;
+	}
 
 	return 1;
 }
@@ -4788,7 +4852,7 @@ _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_cont
 	return result;
 }
 
-_array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i) {
+_array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o) {
 	/* Try to search an array in a scope chain */
 	_object_t* obj = 0;
 	_ls_node_t* scp = 0;
@@ -4800,8 +4864,10 @@ _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i) {
 	scp = _search_identifier_in_scope_chain(s, 0, result->name);
 	if(scp) {
 		obj = (_object_t*)(scp->data);
-		if(obj && obj->type == _DT_ARRAY)
+		if(obj && obj->type == _DT_ARRAY) {
 			result = obj->data.array;
+			if(o) *o = obj;
+		}
 	}
 
 	return result;
@@ -4853,6 +4919,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 		break;
 	case _DT_ARRAY:
 		tgt->data.array = obj->data.array;
+		mb_assert(0 && "Not implemented");
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -4953,7 +5020,7 @@ int _dispose_object(_object_t* obj) {
 		break;
 	case _DT_ARRAY:
 		if(!obj->ref)
-			_destroy_array(obj->data.array);
+			_unref(&obj->data.array->ref, obj->data.array);
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -5286,6 +5353,7 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	case MB_DT_ARRAY:
 		itn->type = _DT_ARRAY;
 		itn->data.array = pbl->value.array;
+		itn->ref = false;
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -5450,21 +5518,41 @@ void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
 
 	if(src) {
 		_public_value_to_internal_object(src, &obj);
+		switch(obj.type) {
+		case _DT_ARRAY:
+			_ref(&obj.data.array->ref, obj.data.array);
+
+			break;
 #ifdef MB_ENABLE_COLLECTION_LIB
-		if(obj.type == _DT_LIST)
+		case _DT_LIST:
 			_ref(&obj.data.list->ref, obj.data.list);
-		else if(obj.type == _DT_DICT)
+
+			break;
+		case _DT_DICT:
 			_ref(&obj.data.dict->ref, obj.data.dict);
+
+			break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+		}
 	}
 
 	_public_value_to_internal_object(tgt, &obj);
+	switch(obj.type) {
+	case _DT_ARRAY:
+		_unref(&obj.data.array->ref, obj.data.array);
+
+		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
-	if(obj.type == _DT_LIST)
+	case _DT_LIST:
 		_unref(&obj.data.list->ref, obj.data.list);
-	else if(obj.type == _DT_DICT)
+
+		break;
+	case _DT_DICT:
 		_unref(&obj.data.dict->ref, obj.data.dict);
+
+		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+	}
 
 	if(!src) {
 		nil.type = MB_DT_NIL;
@@ -6429,6 +6517,8 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 		val_ptr = (_object_t*)mb_malloc(sizeof(_object_t));
 		memcpy(val_ptr, &val_obj, sizeof(_object_t));
 		_ls_pushback(s->temp_values, val_ptr);
+	} else if(val_ptr->type == _DT_ARRAY) {
+		_ref(&val_ptr->data.array->ref, val_ptr->data.array);
 #ifdef MB_ENABLE_COLLECTION_LIB
 	} else if(val_ptr->type == _DT_LIST) {
 		_ref(&val_ptr->data.list->ref, val_ptr->data.list);
@@ -6594,6 +6684,7 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 	_data_e type = _DT_NIL;
 	int j = 0;
 	int n = 0;
+	mb_unrefvar(t);
 
 	mb_assert(s && l && d && a);
 
@@ -6612,10 +6703,7 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 	type = _DT_REAL;
 #endif /* MB_SIMPLE_ARRAY */
 
-	arr = (_array_t*)mb_malloc(sizeof(_array_t));
-	memset(arr, 0, sizeof(_array_t));
-	arr->type = type;
-	arr->name = 0;
+	arr = _create_array(0, type);
 	for(j = 0; j < c; j++) {
 		n = d[j];
 		arr->dimensions[arr->dimension_count++] = n;
@@ -6631,6 +6719,8 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 		arr->count = 0;
 	}
 	*a = arr;
+
+	goto _exit; /* Avoid an unreferenced label warning */
 
 _exit:
 	return result;
@@ -7511,7 +7601,9 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	_running_context_t* running = 0;
 	_var_t* var = 0;
 	_array_t* arr = 0;
+	_object_t* arr_obj = 0;
 	unsigned int arr_idx = 0;
+	bool_t literally = false;
 	_object_t* val = 0;
 
 	mb_assert(s && l);
@@ -7527,13 +7619,15 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	}
 	obj = (_object_t*)(ast->data);
 	if(obj->type == _DT_ARRAY) {
-		arr = _search_array_in_scope_chain(s, obj->data.array);
-		result = _get_array_index(s, &ast, &arr_idx);
+		arr_obj = obj;
+		arr = _search_array_in_scope_chain(s, obj->data.array, &arr_obj);
+		result = _get_array_index(s, &ast, &arr_idx, &literally);
 		if(result != MB_FUNC_OK)
 			goto _exit;
 	} else if(obj->type == _DT_VAR && obj->data.variable->data->type == _DT_ARRAY) {
-		arr = _search_array_in_scope_chain(s, obj->data.variable->data->data.array);
-		result = _get_array_index(s, &ast, &arr_idx);
+		arr_obj = obj->data.variable->data;
+		arr = _search_array_in_scope_chain(s, obj->data.variable->data->data.array, &arr_obj);
+		result = _get_array_index(s, &ast, &arr_idx, &literally);
 		if(result != MB_FUNC_OK)
 			goto _exit;
 	} else if(obj->type == _DT_VAR) {
@@ -7570,6 +7664,20 @@ int _core_let(mb_interpreter_t* s, void** l) {
 #endif /* MB_ENABLE_COLLECTION_LIB */
 			var->data->ref = val->ref;
 		}
+	} else if(arr && literally) {
+		if(val->type != _DT_ANY) {
+			_unref(&arr_obj->data.array->ref, arr_obj->data.array);
+			arr_obj->type = val->type;
+#ifdef MB_ENABLE_COLLECTION_LIB
+			if(val->type == _DT_LIST_IT || val->type == _DT_DICT_IT)
+				_assign_with_it(arr_obj, val);
+			else
+				arr_obj->data = val->data;
+#else /* MB_ENABLE_COLLECTION_LIB */
+			arr_obj->data = val->data;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+			arr_obj->ref = val->ref;
+		}
 	} else if(arr) {
 		mb_value_u _val;
 		switch(val->type) {
@@ -7603,8 +7711,12 @@ int _core_let(mb_interpreter_t* s, void** l) {
 			safe_free(val->data.string);
 		}
 	}
-#ifdef MB_ENABLE_COLLECTION_LIB
 	switch(val->type) {
+	case _DT_ARRAY:
+		_ref(&val->data.array->ref, val->data.array);
+
+		break;
+#ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST:
 		_ref(&val->data.list->ref, val->data.list);
 
@@ -7617,8 +7729,8 @@ int _core_let(mb_interpreter_t* s, void** l) {
 		/* Do nothing */
 
 		break;
-	}
 #endif /* MB_ENABLE_COLLECTION_LIB */
+	}
 	safe_free(val);
 
 _exit:
@@ -7682,6 +7794,7 @@ int _core_dim(mb_interpreter_t* s, void** l) {
 	}
 	/* Create or modify raw data */
 	_clear_array(arr->data.array);
+	dummy.ref = arr->data.array->ref;
 	*(arr->data.array) = dummy;
 	_init_array(arr->data.array);
 	if(!arr->data.array->raw) {
@@ -9294,6 +9407,8 @@ int _std_print(mb_interpreter_t* s, void** l) {
 				}
 			} else if(val_ptr->type == _DT_TYPE) {
 				_get_printer(s)(mb_get_type_string(val_ptr->data.type));
+			} else if(val_ptr->type == _DT_ARRAY) {
+				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
 #ifdef MB_ENABLE_COLLECTION_LIB
 			} else if(val_ptr->type == _DT_LIST) {
 				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
@@ -9425,12 +9540,6 @@ int _coll_list(mb_interpreter_t* s, void** l) {
 
 	while(mb_has_arg(s, l)) {
 		mb_check(mb_pop_value(s, l, &arg));
-
-		if(arg.type == MB_DT_ARRAY) {
-			_destroy_list(coll);
-			_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
-		}
-
 		_push_list(coll, &arg, 0);
 	}
 
@@ -9460,12 +9569,6 @@ int _coll_dict(mb_interpreter_t* s, void** l) {
 	while(mb_has_arg(s, l)) {
 		mb_check(mb_pop_value(s, l, &arg));
 		mb_check(mb_pop_value(s, l, &val));
-
-		if(arg.type == MB_DT_ARRAY || val.type == MB_DT_ARRAY) {
-			_destroy_dict(coll);
-			_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
-		}
-
 		_set_dict(coll, &arg, &val, 0, 0);
 	}
 
@@ -9498,11 +9601,6 @@ int _coll_push(mb_interpreter_t* s, void** l) {
 
 	while(mb_has_arg(s, l)) {
 		mb_check(mb_pop_value(s, l, &arg));
-
-		if(arg.type == MB_DT_ARRAY) {
-			_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
-		}
-
 		_push_list(olst.data.list, &arg, 0);
 	}
 
@@ -9612,9 +9710,6 @@ int _coll_insert(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	if(arg.type == MB_DT_ARRAY) {
-		_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
-	}
 	if(lst.type != MB_DT_LIST) {
 		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
@@ -9792,10 +9887,6 @@ int _coll_set(mb_interpreter_t* s, void** l) {
 		while(mb_has_arg(s, l)) {
 			mb_check(mb_pop_int(s, l, &idx));
 			mb_check(mb_pop_value(s, l, &val));
-
-			if(val.type == MB_DT_ARRAY) {
-				_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
-			}
 			if(!_set_list(ocoll.data.list, idx, &val, &oval)) {
 				_destroy_object(oval, 0);
 
@@ -9809,11 +9900,6 @@ int _coll_set(mb_interpreter_t* s, void** l) {
 		while(mb_has_arg(s, l)) {
 			mb_check(mb_pop_value(s, l, &key));
 			mb_check(mb_pop_value(s, l, &val));
-
-			if(val.type == MB_DT_ARRAY) {
-				_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
-			}
-
 			_set_dict(ocoll.data.dict, &key, &val, 0, 0);
 		}
 
