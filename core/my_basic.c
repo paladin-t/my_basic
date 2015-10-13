@@ -996,6 +996,24 @@ static bool_t _invalid_dict_it(_dict_it_t* it);
 static bool_t _assign_with_it(_object_t* tgt, _object_t* src);
 static int _clone_to_list(void* data, void* extra, _list_t* coll);
 static int _clone_to_dict(void* data, void* extra, _dict_t* coll);
+#define _UNREF_COLL(__o) \
+	case _DT_LIST: \
+		_unref(&(__o)->data.list->ref, (__o)->data.list); \
+		break; \
+	case _DT_DICT: \
+		_unref(&(__o)->data.dict->ref, (__o)->data.dict); \
+		break;
+#define _UNREF_ARRAY(__o) \
+	case _DT_ARRAY: \
+		if(!(__o)->ref) \
+			_unref(&(__o)->data.array->ref, (__o)->data.array); \
+		break;
+#define _UNREF_IF_IS_COLL(__o) \
+	switch((__o)->type) { \
+	_UNREF_COLL(__o) \
+	_UNREF_ARRAY(__o) \
+	default: break; \
+	}
 #endif /* MB_ENABLE_COLLECTION_LIB */
 static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 static bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
@@ -5030,16 +5048,9 @@ int _dispose_object(_object_t* obj) {
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
-	case _DT_LIST:
-		_unref(&obj->data.list->ref, obj->data.list);
-
-		break;
+	_UNREF_COLL(obj)
 	case _DT_LIST_IT:
 		_destroy_list_it(obj->data.list_it);
-
-		break;
-	case _DT_DICT:
-		_unref(&obj->data.dict->ref, obj->data.dict);
 
 		break;
 	case _DT_DICT_IT:
@@ -5551,14 +5562,7 @@ void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
-	case _DT_LIST:
-		_unref(&obj.data.list->ref, obj.data.list);
-
-		break;
-	case _DT_DICT:
-		_unref(&obj.data.dict->ref, obj.data.dict);
-
-		break;
+	_UNREF_COLL(&obj)
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	default: /* Do nothing */
 		break;
@@ -9626,6 +9630,7 @@ int _coll_pop(mb_interpreter_t* s, void** l) {
 	mb_value_t lst;
 	mb_value_t val;
 	_object_t olst;
+	_object_t ocoll;
 
 	mb_assert(s && l);
 
@@ -9642,6 +9647,8 @@ int _coll_pop(mb_interpreter_t* s, void** l) {
 	_public_value_to_internal_object(&lst, &olst);
 	if(_pop_list(olst.data.list, &val, s)) {
 		mb_check(mb_push_value(s, l, val));
+		_public_value_to_internal_object(&val, &ocoll);
+		_UNREF_IF_IS_COLL(&ocoll);
 
 		_assign_public_value(&lst, 0);
 	} else {
