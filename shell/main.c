@@ -147,6 +147,15 @@ static long alloc_bytes = 0;
 #define _POOL_NODE_SIZE(s) (*((_pool_chunk_size_t*)(s - sizeof(_pool_tag_t))))
 #define _POOL_NODE_FREE(s) free(_POOL_NODE_PTR(s))
 
+static int _cmp_size_t(const void* l, const void* r) {
+	size_t* pl = (size_t*)l;
+	size_t* pr = (size_t*)r;
+
+	if(*pl > *pr) return 1;
+	else if(*pl < *pr) return -1;
+	else return 0;
+}
+
 static void _open_mem_pool(void) {
 #define N 19
 	size_t szs[N];
@@ -193,6 +202,7 @@ static void _open_mem_pool(void) {
 			}
 		}
 	}
+	qsort(lst, pool_count, sizeof(lst[0]), _cmp_size_t);
 
 	pool = (_pool_t*)malloc(sizeof(_pool_t) * pool_count);
 	for(i = 0; i < pool_count; i++) {
