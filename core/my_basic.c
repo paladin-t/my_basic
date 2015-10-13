@@ -4454,6 +4454,8 @@ int _clone_to_list(void* data, void* extra, _list_t* coll) {
 		_ref(&tgt->data.dict->ref, tgt->data.dict);
 
 		break;
+	default: /* Do nothing */
+		break;
 	}
 
 	return 1;
@@ -4490,6 +4492,8 @@ int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 		_ref(&ktgt->data.dict->ref, ktgt->data.dict);
 
 		break;
+	default: /* Do nothing */
+		break;
 	}
 	switch(vtgt->type) {
 	case _DT_ARRAY:
@@ -4503,6 +4507,8 @@ int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 	case _DT_DICT:
 		_ref(&vtgt->data.dict->ref, vtgt->data.dict);
 
+		break;
+	default: /* Do nothing */
 		break;
 	}
 
@@ -5533,6 +5539,8 @@ void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
 
 			break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+		default: /* Do nothing */
+			break;
 		}
 	}
 
@@ -5552,6 +5560,8 @@ void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+	default: /* Do nothing */
+		break;
 	}
 
 	if(!src) {
@@ -7725,11 +7735,9 @@ int _core_let(mb_interpreter_t* s, void** l) {
 		_ref(&val->data.dict->ref, val->data.dict);
 
 		break;
-	default:
-		/* Do nothing */
-
-		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+	default: /* Do nothing */
+		break;
 	}
 	safe_free(val);
 
@@ -9549,7 +9557,6 @@ int _coll_list(mb_interpreter_t* s, void** l) {
 	arg.value.list = coll;
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
@@ -9578,7 +9585,6 @@ int _coll_dict(mb_interpreter_t* s, void** l) {
 	arg.value.dict = coll;
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
