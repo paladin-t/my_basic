@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 85
+#define _VER_REVISION 86
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -281,9 +281,18 @@ typedef unsigned int _ref_count_t;
 typedef struct _ref_t {
 	_ref_count_t* count;
 	_unref_func_t on_unref;
+	_data_e type;
+	struct mb_interpreter_t* s;
 } _ref_t;
 
 typedef short _lock_t;
+
+#ifdef MB_ENABLE_GC
+typedef struct _gc_t {
+	_ht_node_t* table;
+	int_t collecting;
+} _gc_t;
+#endif /* MB_ENABLE_GC */
 
 typedef struct _array_t {
 	_ref_t ref;
@@ -497,6 +506,9 @@ typedef struct mb_interpreter_t {
 	int schedule_suspend_tag;
 	_ls_node_t* temp_values;
 	_ls_node_t* lazy_destroy_objects;
+#ifdef MB_ENABLE_GC
+	_gc_t gc;
+#endif /* MB_ENABLE_GC */
 	int_t no_eat_comma_mark;
 	_ls_node_t* skip_to_eoi;
 	_ls_node_t* in_neg_expr;
@@ -816,10 +828,16 @@ static int _ls_free_extra(void* data, void* extra);
 static unsigned int _ht_hash_object(void* ht, void* d);
 static unsigned int _ht_hash_string(void* ht, void* d);
 static unsigned int _ht_hash_int(void* ht, void* d);
+#ifdef MB_ENABLE_GC
+static unsigned int _ht_hash_ref(void* ht, void* d);
+#endif /* MB_ENABLE_GC */
 
 static int _ht_cmp_object(void* d1, void* d2);
 static int _ht_cmp_string(void* d1, void* d2);
 static int _ht_cmp_int(void* d1, void* d2);
+#ifdef MB_ENABLE_GC
+static int _ht_cmp_ref(void* d1, void* d2);
+#endif /* MB_ENABLE_GC */
 
 static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra);
 static _ls_node_t* _ht_find(_ht_node_t* ht, void* key);
@@ -829,6 +847,7 @@ static unsigned int _ht_foreach(_ht_node_t* ht, _ht_operation op);
 static unsigned int _ht_count(_ht_node_t* ht);
 static void _ht_clear(_ht_node_t* ht);
 static void _ht_destroy(_ht_node_t* ht);
+static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht);
 #define _HT_FOREACH(H, O, P, E) \
 	do { \
 		_ls_node_t* __bucket = 0; \
@@ -948,7 +967,7 @@ static void _set_error_pos(mb_interpreter_t* s, int pos, unsigned short row, uns
 static int_t _get_size_of(_data_e type);
 static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected);
 
-static _array_t* _create_array(const char* n, _data_e t);
+static _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s);
 static void _destroy_array(_array_t* arr);
 static void _init_array(_array_t* arr);
 static int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c);
@@ -963,10 +982,20 @@ static bool_t _is_number(void* obj);
 static bool_t _is_string(void* obj);
 static char* _extract_string(_object_t* obj);
 
+#ifdef MB_ENABLE_GC
+static void _gc_add(_ref_t* ref, void* data);
+static void _gc_remove(_ref_t* ref, void* data);
+static int _gc_add_reachable(void* data, void* extra, _ht_node_t* gc);
+static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht);
+static int _gc_destroy_garbage(void* data, void* extra);
+static void _gc_try_trigger(mb_interpreter_t* s);
+static void _gc_collect_garbage(mb_interpreter_t* s);
+#endif /* MB_ENABLE_GC */
+
 #ifdef MB_ENABLE_COLLECTION_LIB
-static _list_t* _create_list(void);
+static _list_t* _create_list(mb_interpreter_t* s);
 static void _destroy_list(_list_t* c);
-static _dict_t* _create_dict(void);
+static _dict_t* _create_dict(mb_interpreter_t* s);
 static void _destroy_dict(_dict_t* c);
 static _list_it_t* _create_list_it(_list_t* coll, bool_t lock);
 static bool_t _destroy_list_it(_list_it_t* it);
@@ -1021,7 +1050,7 @@ static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 
 static unsigned _ref(_ref_t* ref, void* data);
 static unsigned _unref(_ref_t* ref, void* data);
-static void _create_ref(_ref_t* ref, _unref_func_t dtor);
+static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s);
 static void _destroy_ref(_ref_t* ref);
 
 static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n);
@@ -1051,6 +1080,7 @@ static int _destroy_object(void* data, void* extra);
 static int _destroy_object_with_extra(void* data, void* extra);
 static int _destroy_object_not_compile_time(void* data, void* extra);
 static int _destroy_object_capsule_only(void* data, void* extra);
+static int _destroy_object_capsule_only_with_extra(void* data, void* extra);
 static int _do_nothing_on_object(void* data, void* extra);
 static int _remove_source_object(void* data, void* extra);
 static int _destroy_memory(void* data, void* extra);
@@ -1697,6 +1727,21 @@ unsigned int _ht_hash_int(void* ht, void* d) {
 	return result;
 }
 
+#ifdef MB_ENABLE_GC
+unsigned int _ht_hash_ref(void* ht, void* d) {
+	unsigned int result = 0;
+	_ht_node_t* self = (_ht_node_t*)ht;
+	_ref_t* ref = *(_ref_t**)d;
+
+	mb_assert(ht);
+
+	result = (unsigned int)(intptr_t)ref;
+	result %= self->array_size;
+
+	return result;
+}
+#endif /* MB_ENABLE_GC */
+
 int _ht_cmp_object(void* d1, void* d2) {
 	_object_t* o1 = (_object_t*)d1;
 	_object_t* o2 = (_object_t*)d2;
@@ -1742,6 +1787,21 @@ int _ht_cmp_int(void* d1, void* d2) {
 
 	return result;
 }
+
+#ifdef MB_ENABLE_GC
+int _ht_cmp_ref(void* d1, void* d2) {
+	_ref_t* r1 = *(_ref_t**)d1;
+	_ref_t* r2 = *(_ref_t**)d2;
+	int_t i = (intptr_t)r1 - (intptr_t)r2;
+	int result = 0;
+	if(i < 0)
+		result = -1;
+	else if(i > 0)
+		result = 1;
+
+	return result;
+}
+#endif /* MB_ENABLE_GC */
 
 _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra) {
 	const unsigned int array_size = size ? size : _HT_ARRAY_SIZE_DEFAULT;
@@ -1874,6 +1934,16 @@ void _ht_destroy(_ht_node_t* ht) {
 
 	safe_free(ht->array);
 	safe_free(ht);
+}
+
+int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht) {
+	int result = _OP_RESULT_NORMAL;
+	mb_unrefvar(data);
+
+	if(_ht_find(ht, extra))
+		_ht_remove(ht, extra, 0);
+
+	return result;
 }
 
 /** Memory manipulations */
@@ -3024,7 +3094,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			(*obj)->ref = true;
 			*delsym = true;
 		} else {
-			tmp.array = _create_array(sym, _DT_ANY);
+			tmp.array = _create_array(sym, _DT_ANY, s);
 			memcpy(&tmp.array->type, value, sizeof(tmp.array->type));
 			(*obj)->data.array = tmp.array;
 
@@ -3583,13 +3653,13 @@ bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected) {
 	return result;
 }
 
-_array_t* _create_array(const char* n, _data_e t) {
+_array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s) {
 	/* Create an array */
 	_array_t* result = (_array_t*)mb_malloc(sizeof(_array_t));
 	memset(result, 0, sizeof(_array_t));
 	result->type = t;
 	result->name = (char*)n;
-	_create_ref(&result->ref, _unref_array);
+	_create_ref(&result->ref, _unref_array, _DT_ARRAY, s);
 	_ref(&result->ref, result);
 
 	return result;
@@ -3966,13 +4036,167 @@ char* _extract_string(_object_t* obj) {
 	return result;
 }
 
+#ifdef MB_ENABLE_GC
+void _gc_add(_ref_t* ref, void* data) {
+	/* Add a referenced object to GC */
+	mb_assert(ref && data);
+
+	if(!ref->s->gc.table)
+		return;
+
+	if(ref->s->gc.collecting)
+		return;
+
+	if(ref->count)
+		_ht_set_or_insert(ref->s->gc.table, ref, data);
+}
+
+void _gc_remove(_ref_t* ref, void* data) {
+	/* Remove a referenced object from GC */
+	mb_unrefvar(data);
+
+	mb_assert(ref && data);
+
+	_ht_remove(ref->s->gc.table, ref, 0);
+}
+
+int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht) {
+	/* Get reachable objects */
+	int result = _OP_RESULT_NORMAL;
+	_object_t* obj = 0;
+	_var_t* var = 0;
+	mb_unrefvar(extra);
+
+	mb_assert(data && ht);
+
+	obj = (_object_t*)data;
+	if(_is_internal_object(obj))
+		goto _exit;
+	switch(obj->type) {
+	case _DT_VAR:
+		var = (_var_t*)(obj->data.variable);
+		_gc_add_reachable(var->data, extra, ht);
+
+		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
-_list_t* _create_list(void) {
+	case _DT_LIST:
+		if(!_ht_find(ht, &obj->data.list->ref)) {
+			_ht_set_or_insert(ht, &obj->data.list->ref, obj->data.list);
+			_LS_FOREACH(obj->data.list->list, _do_nothing_on_object, _gc_add_reachable, ht);
+		}
+
+		break;
+	case _DT_DICT:
+		if(!_ht_find(ht, &obj->data.dict->ref)) {
+			_ht_set_or_insert(ht, &obj->data.dict->ref, obj->data.dict);
+			_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _gc_add_reachable, ht);
+		}
+
+		break;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+	default: /* Do nothing */
+		break;
+	}
+
+_exit:
+	return result;
+}
+
+void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
+	/* Get all reachable referenced objects */
+	_running_context_t* running = 0;
+	_ht_node_t* global_scope = 0;
+
+	mb_assert(s && ht);
+
+	running = s->running_context;
+	while(running) {
+		global_scope = running->var_dict;
+		if(global_scope) {
+			_HT_FOREACH(global_scope, _do_nothing_on_object, _gc_add_reachable, ht);
+		}
+
+		running = running->prev;
+	}
+}
+
+int _gc_destroy_garbage(void* data, void* extra) {
+	/* Destroy a garbage */
+	int result = _OP_RESULT_NORMAL;
+	_ref_t* ref = 0;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	_list_t* lst = 0;
+	_dict_t* dct = 0;
+#endif /* #ifdef MB_ENABLE_COLLECTION_LIB */
+
+	mb_assert(data && extra);
+
+	ref = (_ref_t*)extra;
+	switch(ref->type) {
+#ifdef MB_ENABLE_COLLECTION_LIB
+	case _DT_LIST:
+		lst = (_list_t*)data;
+		_ls_foreach(lst->list, _destroy_object_capsule_only);
+		_ls_clear(lst->list);
+		lst->count = 0;
+
+		break;
+	case _DT_DICT:
+		dct = (_dict_t*)data;
+		_ht_foreach(dct->dict, _destroy_object_capsule_only_with_extra);
+		_ht_clear(dct->dict);
+
+		break;
+#endif /* #ifdef MB_ENABLE_COLLECTION_LIB */
+	default:
+		break;
+	}
+	_unref(ref, data);
+
+	result = _OP_RESULT_DEL_NODE;
+
+	return result;
+}
+
+void _gc_try_trigger(mb_interpreter_t* s) {
+	/* Try trigger garbage collection */
+	mb_assert(s);
+
+	if(s->gc.table->count >= MB_GC_GARBAGE_THRESHOLD)
+		_gc_collect_garbage(s);
+}
+
+void _gc_collect_garbage(mb_interpreter_t* s) {
+	/* Collect all garbage */
+	_ht_node_t* valid = 0;
+
+	mb_assert(s);
+
+	/* Avoid infinity loop */
+	if(s->gc.collecting) return;
+	s->gc.collecting++;
+	/* Get reachable information */
+	valid = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
+	_gc_get_reachable(s, valid);
+	/* Get unreachable information */
+	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, s->gc.table);
+	/* Collect garbage */
+	_ht_foreach(s->gc.table, _gc_destroy_garbage);
+	/* Tidy */
+	_ht_clear(s->gc.table);
+	_ht_clear(valid);
+	_ht_destroy(valid);
+	s->gc.collecting--;
+}
+#endif /* MB_ENABLE_GC */
+
+#ifdef MB_ENABLE_COLLECTION_LIB
+_list_t* _create_list(mb_interpreter_t* s) {
 	/* Create a list */
 	_list_t* result = (_list_t*)mb_malloc(sizeof(_list_t));
 	memset(result, 0, sizeof(_list_t));
 	result->list = _ls_create();
-	_create_ref(&result->ref, _unref_list);
+	_create_ref(&result->ref, _unref_list, _DT_LIST, s);
 
 	return result;
 }
@@ -3985,12 +4209,12 @@ void _destroy_list(_list_t* c) {
 	safe_free(c);
 }
 
-_dict_t* _create_dict(void) {
+_dict_t* _create_dict(mb_interpreter_t* s) {
 	/* Create a dictionary */
 	_dict_t* result = (_dict_t*)mb_malloc(sizeof(_dict_t));
 	memset(result, 0, sizeof(_dict_t));
 	result->dict = _ht_create(0, _ht_cmp_object, _ht_hash_object, _destroy_object_with_extra);
-	_create_ref(&result->ref, _unref_dict);
+	_create_ref(&result->ref, _unref_dict, _DT_DICT, s);
 
 	return result;
 }
@@ -4591,12 +4815,19 @@ unsigned _unref(_ref_t* ref, void* data) {
 	unsigned result = 0;
 
 	result = --(*(ref->count));
+#ifdef MB_ENABLE_GC
+	_gc_add(ref, data);
 	ref->on_unref(ref, data);
+	if(!ref->count)
+		_gc_remove(ref, data);
+#else /* MB_ENABLE_GC */
+	ref->on_unref(ref, data);
+#endif /* MB_ENABLE_GC */
 
 	return result;
 }
 
-void _create_ref(_ref_t* ref, _unref_func_t dtor) {
+void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s) {
 	/* Create a reference stub */
 	if(ref->count)
 		return;
@@ -4604,6 +4835,8 @@ void _create_ref(_ref_t* ref, _unref_func_t dtor) {
 	ref->count = (unsigned*)mb_malloc(sizeof(unsigned));
 	*(ref->count) = 0;
 	ref->on_unref = dtor;
+	ref->type = t;
+	ref->s = s;
 }
 
 void _destroy_ref(_ref_t* ref) {
@@ -4948,7 +5181,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST:
-		tgt->data.list = _create_list();
+		tgt->data.list = _create_list(obj->data.list->ref.s);
 		_LS_FOREACH(obj->data.list->list, _do_nothing_on_object, _clone_to_list, tgt->data.list);
 
 		break;
@@ -4957,7 +5190,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 
 		break;
 	case _DT_DICT:
-		tgt->data.dict = _create_dict();
+		tgt->data.dict = _create_dict(obj->data.dict->ref.s);
 		_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _clone_to_dict, tgt->data.dict);
 
 		break;
@@ -5188,6 +5421,25 @@ int _destroy_object_capsule_only(void* data, void* extra) {
 	mb_assert(data);
 
 	obj = (_object_t*)data;
+	safe_free(obj);
+
+	result = _OP_RESULT_DEL_NODE;
+
+	return result;
+}
+
+int _destroy_object_capsule_only_with_extra(void* data, void* extra) {
+	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well */
+	int result = _OP_RESULT_NORMAL;
+	_object_t* obj = 0;
+	mb_unrefvar(extra);
+
+	mb_assert(data);
+
+	obj = (_object_t*)data;
+	safe_free(obj);
+
+	obj = (_object_t*)extra;
 	safe_free(obj);
 
 	result = _OP_RESULT_DEL_NODE;
@@ -5614,6 +5866,7 @@ int _dispose_scope_chain(mb_interpreter_t* s) {
 		prev = running->prev;
 
 		global_scope = running->var_dict;
+		running->var_dict = 0;
 		_ht_foreach(global_scope, _destroy_object);
 		_ht_clear(global_scope);
 		_ht_destroy(global_scope);
@@ -6145,6 +6398,10 @@ int mb_open(struct mb_interpreter_t** s) {
 	*s = (mb_interpreter_t*)mb_malloc(sizeof(mb_interpreter_t));
 	memset(*s, 0, sizeof(mb_interpreter_t));
 
+#ifdef MB_ENABLE_GC
+	(*s)->gc.table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
+#endif /* MB_ENABLE_GC */
+
 	(*s)->in_neg_expr = _ls_create();
 
 	local_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, _ls_free_extra);
@@ -6222,6 +6479,12 @@ int mb_close(struct mb_interpreter_t** s) {
 	_ls_destroy((*s)->in_neg_expr);
 
 	_close_constant(*s);
+
+#ifdef MB_ENABLE_GC
+	_gc_collect_garbage(*s);
+	_ht_destroy((*s)->gc.table);
+	(*s)->gc.table = 0;
+#endif /* MB_ENABLE_GC */
 
 	safe_free(*s);
 	*s = 0;
@@ -6623,6 +6886,10 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	running = s->running_context;
 	_assign_public_value(&running->intermediate_value, &val);
 
+#ifdef MB_ENABLE_GC
+	_gc_try_trigger(s);
+#endif /* MB_ENABLE_GC */
+
 	return result;
 }
 
@@ -6717,7 +6984,7 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 	type = _DT_REAL;
 #endif /* MB_SIMPLE_ARRAY */
 
-	arr = _create_array(0, type);
+	arr = _create_array(0, type, s);
 	for(j = 0; j < c; j++) {
 		n = d[j];
 		arr->dimensions[arr->dimension_count++] = n;
@@ -9548,7 +9815,7 @@ int _coll_list(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
-	coll = _create_list();
+	coll = _create_list(s);
 
 	while(mb_has_arg(s, l)) {
 		mb_check(mb_pop_value(s, l, &arg));
@@ -9575,7 +9842,7 @@ int _coll_dict(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
-	coll = _create_dict();
+	coll = _create_dict(s);
 
 	while(mb_has_arg(s, l)) {
 		mb_check(mb_pop_value(s, l, &arg));
