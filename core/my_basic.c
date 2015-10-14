@@ -4041,6 +4041,9 @@ void _gc_add(_ref_t* ref, void* data) {
 	/* Add a referenced object to GC */
 	mb_assert(ref && data);
 
+	if(ref->type == _DT_ARRAY)
+		return;
+
 	if(!ref->s->gc.table)
 		return;
 
