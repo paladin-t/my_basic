@@ -46,6 +46,14 @@ extern "C" {
 #	define MB_ENABLE_COLLECTION_LIB
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
+#ifndef MB_ENABLE_GC
+#	define MB_ENABLE_GC
+#endif /* MB_ENABLE_GC */
+
+#ifndef MB_GC_GARBAGE_THRESHOLD
+#	define MB_GC_GARBAGE_THRESHOLD 16
+#endif /* MB_GC_GARBAGE_THRESHOLD */
+
 #ifndef MB_ENABLE_ALLOC_STAT
 #	define MB_ENABLE_ALLOC_STAT
 #endif /* MB_ENABLE_ALLOC_STAT */
