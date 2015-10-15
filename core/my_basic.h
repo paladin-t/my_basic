@@ -287,6 +287,7 @@ typedef enum mb_data_e {
 	MB_DT_REAL = 1 << 4,
 	MB_DT_STRING = 1 << 5,
 	MB_DT_USERTYPE = 1 << 6,
+	MB_DT_USERTYPE_REF = 1 << 7,
 	MB_DT_ARRAY = 1 << 12,
 #ifdef MB_ENABLE_COLLECTION_LIB
 	MB_DT_LIST = 1 << 13,
@@ -302,7 +303,7 @@ typedef union mb_value_u {
 	real_t float_point;
 	char* string;
 	void* usertype;
-	void* instance;
+	void* usertype_ref;
 	void* array;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	void* list;
@@ -320,6 +321,8 @@ typedef struct mb_value_t {
 typedef unsigned short mb_mem_tag_t;
 
 typedef int (* mb_func_t)(struct mb_interpreter_t*, void**);
+typedef void (* mb_unref_func_t)(struct mb_interpreter_t*, void*);
+typedef void* (* mb_clone_func_t)(struct mb_interpreter_t*, void*);
 typedef void (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, int, unsigned short, unsigned short);
 typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, char*, int, unsigned short, unsigned short, int);
 typedef int (* mb_print_func_t)(const char*, ...);
@@ -363,6 +366,7 @@ MBAPI int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* 
 MBAPI int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* i);
 MBAPI int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t* val);
 MBAPI int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t val);
+MBAPI int mb_ref_value(struct mb_interpreter_t* s, void* val, mb_unref_func_t un, mb_clone_func_t cl, mb_value_t* out);
 MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 
 MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l);
