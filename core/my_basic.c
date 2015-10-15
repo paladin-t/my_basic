@@ -298,8 +298,11 @@ typedef struct _gc_t {
 typedef struct _usertype_ref_t {
 	_ref_t ref;
 	void* usertype;
-	mb_unref_func_t unref;
+	mb_dtor_func_t unref;
 	mb_clone_func_t clone;
+	mb_hash_func_t hash;
+	mb_cmp_func_t cmp;
+	mb_fmt_func_t fmt;
 } _usertype_ref_t;
 
 typedef struct _array_t {
@@ -990,7 +993,7 @@ static void _gc_try_trigger(mb_interpreter_t* s);
 static void _gc_collect_garbage(mb_interpreter_t* s);
 #endif /* MB_ENABLE_GC */
 
-static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_unref_func_t un, mb_clone_func_t cl);
+static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
 static void _destroy_usertype_ref(_usertype_ref_t* c);
 static void _unref_usertype_ref(_ref_t* ref, void* data);
 
@@ -1707,6 +1710,13 @@ unsigned int _ht_hash_object(void* ht, void* d) {
 		result = 5 * h + _ht_hash_string(ht, o->data.string);
 
 		break;
+	case _DT_USERTYPE_REF:
+		if(o->data.usertype_ref->hash) {
+			h = 5 * h + o->data.usertype_ref->hash(o->data.usertype_ref->ref.s, o->data.usertype_ref->usertype);
+
+			break;
+		}
+		/* Fall through */
 	default:
 		for(i = 0; i < sizeof(_raw_t); ++i)
 			h = 5 * h + o->data.raw[i];
@@ -1774,6 +1784,17 @@ int _ht_cmp_object(void* d1, void* d2) {
 	switch(o1->type) {
 	case _DT_STRING:
 		return _ht_cmp_string(o1->data.string, o2->data.string);
+	case _DT_USERTYPE_REF:
+		if(o1->data.usertype_ref->cmp) {
+			o1->data.usertype_ref->cmp(o1->data.usertype_ref->ref.s, o1->data.usertype_ref->usertype, o2->data.usertype_ref->usertype);
+
+			break;
+		} else if(o2->data.usertype_ref->cmp) {
+			o2->data.usertype_ref->cmp(o1->data.usertype_ref->ref.s, o1->data.usertype_ref->usertype, o2->data.usertype_ref->usertype);
+
+			break;
+		}
+		/* Fall through */
 	default:
 		for(i = 0; i < sizeof(_raw_t); ++i) {
 			if(o1->data.raw[i] < o2->data.raw[i])
@@ -3885,13 +3906,16 @@ void _gc_collect_garbage(mb_interpreter_t* s) {
 }
 #endif /* MB_ENABLE_GC */
 
-_usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_unref_func_t un, mb_clone_func_t cl) {
+_usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft) {
 	/* Create a referenced usertype */
 	_usertype_ref_t* result = (_usertype_ref_t*)mb_malloc(sizeof(_usertype_ref_t));
 	memset(result, 0, sizeof(_usertype_ref_t));
 	result->usertype = val;
 	result->unref = un;
 	result->clone = cl;
+	result->hash = hs;
+	result->cmp = cp;
+	result->fmt = ft;
 	_create_ref(&result->ref, _unref_usertype_ref, _DT_USERTYPE_REF, s);
 
 	return result;
@@ -5240,7 +5264,8 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 		tgt->data.usertype_ref = _create_usertype_ref(
 			obj->data.usertype_ref->ref.s,
 			obj->data.usertype_ref->clone(obj->data.usertype_ref->ref.s, obj->data.usertype_ref->usertype),
-			obj->data.usertype_ref->unref, obj->data.usertype_ref->clone
+			obj->data.usertype_ref->unref, obj->data.usertype_ref->clone,
+			obj->data.usertype_ref->hash, obj->data.usertype_ref->cmp, obj->data.usertype_ref->fmt
 		);
 
 		break;
@@ -7183,7 +7208,7 @@ _exit:
 	return result;
 }
 
-int mb_ref_value(struct mb_interpreter_t* s, void* val, mb_unref_func_t un, mb_clone_func_t cl, mb_value_t* out) {
+int mb_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft) {
 	/* Create a referenced usertype value */
 	int result = MB_FUNC_OK;
 	_usertype_ref_t* ref = 0;
@@ -7191,7 +7216,7 @@ int mb_ref_value(struct mb_interpreter_t* s, void* val, mb_unref_func_t un, mb_c
 	mb_assert(s && out);
 
 	if(out) {
-		ref = _create_usertype_ref(s, val, un, cl);
+		ref = _create_usertype_ref(s, val, un, cl, hs, cp, ft);
 		out->type = MB_DT_USERTYPE_REF;
 		out->value.usertype_ref = ref;
 	}
@@ -9800,20 +9825,15 @@ int _std_print(mb_interpreter_t* s, void** l) {
 				if(!val_ptr->ref && val_ptr->data.string) {
 					safe_free(val_ptr->data.string);
 				}
+			} else if(val_ptr->type == _DT_USERTYPE_REF) {
+				if(val_ptr->data.usertype_ref->fmt)
+					val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _get_printer(s));
+				else
+					_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
 			} else if(val_ptr->type == _DT_TYPE) {
 				_get_printer(s)(mb_get_type_string(val_ptr->data.type));
-			} else if(val_ptr->type == _DT_ARRAY) {
+			} else {
 				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
-#ifdef MB_ENABLE_COLLECTION_LIB
-			} else if(val_ptr->type == _DT_LIST) {
-				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
-			} else if(val_ptr->type == _DT_LIST_IT) {
-				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
-			} else if(val_ptr->type == _DT_DICT) {
-				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
-			} else if(val_ptr->type == _DT_DICT_IT) {
-				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
-#endif /* MB_ENABLE_COLLECTION_LIB */
 			}
 			if(result != MB_FUNC_OK)
 				goto _exit;
