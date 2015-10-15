@@ -321,12 +321,15 @@ typedef struct mb_value_t {
 typedef unsigned short mb_mem_tag_t;
 
 typedef int (* mb_func_t)(struct mb_interpreter_t*, void**);
-typedef void (* mb_unref_func_t)(struct mb_interpreter_t*, void*);
-typedef void* (* mb_clone_func_t)(struct mb_interpreter_t*, void*);
 typedef void (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, int, unsigned short, unsigned short);
 typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, char*, int, unsigned short, unsigned short, int);
 typedef int (* mb_print_func_t)(const char*, ...);
 typedef int (* mb_input_func_t)(char*, int);
+typedef void (* mb_dtor_func_t)(struct mb_interpreter_t*, void*);
+typedef void* (* mb_clone_func_t)(struct mb_interpreter_t*, void*);
+typedef unsigned int (* mb_hash_func_t)(struct mb_interpreter_t*, void*);
+typedef int (* mb_cmp_func_t)(struct mb_interpreter_t*, void*, void*);
+typedef void (* mb_fmt_func_t)(struct mb_interpreter_t*, void*, mb_print_func_t);
 typedef char* (* mb_memory_allocate_func_t)(unsigned s);
 typedef void (* mb_memory_free_func_t)(char* p);
 
@@ -366,7 +369,7 @@ MBAPI int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* 
 MBAPI int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* i);
 MBAPI int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t* val);
 MBAPI int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t val);
-MBAPI int mb_ref_value(struct mb_interpreter_t* s, void* val, mb_unref_func_t un, mb_clone_func_t cl, mb_value_t* out);
+MBAPI int mb_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
 MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 
 MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l);
