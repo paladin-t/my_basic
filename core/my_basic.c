@@ -298,7 +298,7 @@ typedef struct _gc_t {
 typedef struct _usertype_ref_t {
 	_ref_t ref;
 	void* usertype;
-	mb_dtor_func_t unref;
+	mb_dtor_func_t dtor;
 	mb_clone_func_t clone;
 	mb_hash_func_t hash;
 	mb_cmp_func_t cmp;
@@ -3911,7 +3911,7 @@ _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_fu
 	_usertype_ref_t* result = (_usertype_ref_t*)mb_malloc(sizeof(_usertype_ref_t));
 	memset(result, 0, sizeof(_usertype_ref_t));
 	result->usertype = val;
-	result->unref = un;
+	result->dtor = un;
 	result->clone = cl;
 	result->hash = hs;
 	result->cmp = cp;
@@ -3923,8 +3923,8 @@ _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_fu
 
 void _destroy_usertype_ref(_usertype_ref_t* c) {
 	/* Destroy a referenced usertype */
-	if(c->unref)
-		c->unref(c->ref.s, c->usertype);
+	if(c->dtor)
+		c->dtor(c->ref.s, c->usertype);
 	_destroy_ref(&c->ref);
 	safe_free(c);
 }
@@ -5264,7 +5264,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 		tgt->data.usertype_ref = _create_usertype_ref(
 			obj->data.usertype_ref->ref.s,
 			obj->data.usertype_ref->clone(obj->data.usertype_ref->ref.s, obj->data.usertype_ref->usertype),
-			obj->data.usertype_ref->unref, obj->data.usertype_ref->clone,
+			obj->data.usertype_ref->dtor, obj->data.usertype_ref->clone,
 			obj->data.usertype_ref->hash, obj->data.usertype_ref->cmp, obj->data.usertype_ref->fmt
 		);
 
