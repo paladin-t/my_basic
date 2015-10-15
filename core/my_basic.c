@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 86
+#define _VER_REVISION 87
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -246,6 +246,7 @@ typedef enum _data_e {
 	_DT_REAL,
 	_DT_STRING,
 	_DT_USERTYPE,
+	_DT_USERTYPE_REF,
 	_DT_FUNC,
 	_DT_VAR,
 	_DT_ARRAY,
@@ -293,6 +294,13 @@ typedef struct _gc_t {
 	int_t collecting;
 } _gc_t;
 #endif /* MB_ENABLE_GC */
+
+typedef struct _usertype_ref_t {
+	_ref_t ref;
+	void* usertype;
+	mb_unref_func_t unref;
+	mb_clone_func_t clone;
+} _usertype_ref_t;
 
 typedef struct _array_t {
 	_ref_t ref;
@@ -367,6 +375,7 @@ typedef struct _object_t {
 		real_t float_point;
 		char* string;
 		void* usertype;
+		_usertype_ref_t* usertype_ref;
 		_func_t* func;
 		_var_t* variable;
 		_array_t* array;
@@ -967,17 +976,6 @@ static void _set_error_pos(mb_interpreter_t* s, int pos, unsigned short row, uns
 static int_t _get_size_of(_data_e type);
 static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected);
 
-static _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s);
-static void _destroy_array(_array_t* arr);
-static void _init_array(_array_t* arr);
-static int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c);
-static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index, bool_t* literally);
-static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
-static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
-static void _clear_array(_array_t* arr);
-static bool_t _is_array(void* obj);
-static void _unref_array(_ref_t* ref, void* data);
-
 static bool_t _is_number(void* obj);
 static bool_t _is_string(void* obj);
 static char* _extract_string(_object_t* obj);
@@ -991,6 +989,31 @@ static int _gc_destroy_garbage(void* data, void* extra);
 static void _gc_try_trigger(mb_interpreter_t* s);
 static void _gc_collect_garbage(mb_interpreter_t* s);
 #endif /* MB_ENABLE_GC */
+
+static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_unref_func_t un, mb_clone_func_t cl);
+static void _destroy_usertype_ref(_usertype_ref_t* c);
+static void _unref_usertype_ref(_ref_t* ref, void* data);
+
+static _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s);
+static void _destroy_array(_array_t* arr);
+static void _init_array(_array_t* arr);
+static int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c);
+static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index, bool_t* literally);
+static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
+static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
+static void _clear_array(_array_t* arr);
+static bool_t _is_array(void* obj);
+static void _unref_array(_ref_t* ref, void* data);
+
+#define _UNREF_USERTYPE_REF(__o) \
+	case _DT_USERTYPE_REF: \
+		_unref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
+		break;
+#define _UNREF_ARRAY(__o) \
+	case _DT_ARRAY: \
+		if(!(__o)->ref) \
+			_unref(&(__o)->data.array->ref, (__o)->data.array); \
+		break;
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 static _list_t* _create_list(mb_interpreter_t* s);
@@ -1032,15 +1055,11 @@ static int _clone_to_dict(void* data, void* extra, _dict_t* coll);
 	case _DT_DICT: \
 		_unref(&(__o)->data.dict->ref, (__o)->data.dict); \
 		break;
-#define _UNREF_ARRAY(__o) \
-	case _DT_ARRAY: \
-		if(!(__o)->ref) \
-			_unref(&(__o)->data.array->ref, (__o)->data.array); \
-		break;
 #define _UNREF_IF_IS_COLL(__o) \
 	switch((__o)->type) { \
-	_UNREF_COLL(__o) \
+	_UNREF_USERTYPE_REF(__o) \
 	_UNREF_ARRAY(__o) \
+	_UNREF_COLL(__o) \
 	default: break; \
 	}
 #endif /* MB_ENABLE_COLLECTION_LIB */
@@ -2593,7 +2612,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 		c->type == _DT_LIST || c->type == _DT_LIST_IT || c->type == _DT_DICT || c->type == _DT_DICT_IT ||
 #endif /* MB_ENABLE_COLLECTION_LIB */
-		c->type == _DT_VAR || c->type == _DT_USERTYPE || c->type == _DT_ARRAY)) {
+		c->type == _DT_VAR || c->type == _DT_USERTYPE || c->type == _DT_USERTYPE_REF || c->type == _DT_ARRAY)) {
 		_set_current_error(s, SE_RN_INVALID_DATA_TYPE, 0);
 		result = MB_FUNC_ERR;
 
@@ -2623,12 +2642,12 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 		_try_clear_intermediate_value(c, 0, s);
 
 #ifdef MB_ENABLE_COLLECTION_LIB
-		if(c->type == _DT_ARRAY || c->type == _DT_LIST || c->type == _DT_DICT || c->type == _DT_LIST_IT || c->type == _DT_DICT_IT)
+		if(c->type == _DT_USERTYPE_REF || c->type == _DT_ARRAY || c->type == _DT_LIST || c->type == _DT_DICT || c->type == _DT_LIST_IT || c->type == _DT_DICT_IT)
 			_destroy_object_capsule_only(c, 0);
 		else
 			_destroy_object(c, 0);
 #else /* MB_ENABLE_COLLECTION_LIB */
-		if(c->type == _DT_ARRAY)
+		if(c->type == _DT_USERTYPE_REF || c->type == _DT_ARRAY)
 			_destroy_object_capsule_only(c, 0);
 		else
 			_destroy_object(c, 0);
@@ -3653,6 +3672,245 @@ bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected) {
 	return result;
 }
 
+bool_t _is_number(void* obj) {
+	/* Determine if an object is a number */
+	bool_t result = false;
+	_object_t* o = 0;
+
+	mb_assert(obj);
+
+	o = (_object_t*)obj;
+	if(o->type == _DT_INT || o->type == _DT_REAL)
+		result = true;
+	else if(o->type == _DT_VAR)
+		result = o->data.variable->data->type == _DT_INT || o->data.variable->data->type == _DT_REAL;
+
+	return result;
+}
+
+bool_t _is_string(void* obj) {
+	/* Determine if an object is a string value or a string variable */
+	bool_t result = false;
+	_object_t* o = 0;
+
+	mb_assert(obj);
+
+	o = (_object_t*)obj;
+	if(o->type == _DT_STRING)
+		result = true;
+	else if(o->type == _DT_VAR)
+		result = o->data.variable->data->type == _DT_STRING;
+
+	return result;
+}
+
+char* _extract_string(_object_t* obj) {
+	/* Extract a string from an object */
+	char* result = 0;
+
+	mb_assert(obj);
+
+	if(obj->type == _DT_STRING)
+		result = obj->data.string;
+	else if(obj->type == _DT_VAR && obj->data.variable->data->type == _DT_STRING)
+		result = obj->data.variable->data->data.string;
+
+	if(!result)
+		result = MB_NULL_STRING;
+
+	return result;
+}
+
+#ifdef MB_ENABLE_GC
+void _gc_add(_ref_t* ref, void* data) {
+	/* Add a referenced object to GC */
+	mb_assert(ref && data);
+
+	if(ref->type == _DT_ARRAY)
+		return;
+
+	if(!ref->s->gc.table)
+		return;
+
+	if(ref->s->gc.collecting)
+		return;
+
+	if(ref->count && *ref->count)
+		_ht_set_or_insert(ref->s->gc.table, ref, data);
+	else
+		_ht_remove(ref->s->gc.table, ref, 0);
+}
+
+void _gc_remove(_ref_t* ref, void* data) {
+	/* Remove a referenced object from GC */
+	mb_unrefvar(data);
+
+	mb_assert(ref && data);
+
+	_ht_remove(ref->s->gc.table, ref, 0);
+}
+
+int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht) {
+	/* Get reachable objects */
+	int result = _OP_RESULT_NORMAL;
+	_object_t* obj = 0;
+	_var_t* var = 0;
+	mb_unrefvar(extra);
+
+	mb_assert(data && ht);
+
+	obj = (_object_t*)data;
+	if(_is_internal_object(obj))
+		goto _exit;
+	switch(obj->type) {
+	case _DT_VAR:
+		var = (_var_t*)(obj->data.variable);
+		_gc_add_reachable(var->data, extra, ht);
+
+		break;
+	case _DT_USERTYPE_REF:
+		if(!_ht_find(ht, &obj->data.usertype_ref->ref))
+			_ht_set_or_insert(ht, &obj->data.usertype_ref->ref, obj->data.usertype_ref);
+
+		break;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	case _DT_LIST:
+		if(!_ht_find(ht, &obj->data.list->ref)) {
+			_ht_set_or_insert(ht, &obj->data.list->ref, obj->data.list);
+			_LS_FOREACH(obj->data.list->list, _do_nothing_on_object, _gc_add_reachable, ht);
+		}
+
+		break;
+	case _DT_DICT:
+		if(!_ht_find(ht, &obj->data.dict->ref)) {
+			_ht_set_or_insert(ht, &obj->data.dict->ref, obj->data.dict);
+			_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _gc_add_reachable, ht);
+		}
+
+		break;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+	default: /* Do nothing */
+		break;
+	}
+
+_exit:
+	return result;
+}
+
+void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
+	/* Get all reachable referenced objects */
+	_running_context_t* running = 0;
+	_ht_node_t* global_scope = 0;
+
+	mb_assert(s && ht);
+
+	running = s->running_context;
+	while(running) {
+		global_scope = running->var_dict;
+		if(global_scope) {
+			_HT_FOREACH(global_scope, _do_nothing_on_object, _gc_add_reachable, ht);
+		}
+
+		running = running->prev;
+	}
+}
+
+int _gc_destroy_garbage(void* data, void* extra) {
+	/* Destroy a garbage */
+	int result = _OP_RESULT_NORMAL;
+	_ref_t* ref = 0;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	_list_t* lst = 0;
+	_dict_t* dct = 0;
+#endif /* #ifdef MB_ENABLE_COLLECTION_LIB */
+
+	mb_assert(data && extra);
+
+	ref = (_ref_t*)extra;
+	switch(ref->type) {
+#ifdef MB_ENABLE_COLLECTION_LIB
+	case _DT_LIST:
+		lst = (_list_t*)data;
+		_ls_foreach(lst->list, _destroy_object_capsule_only);
+		_ls_clear(lst->list);
+		lst->count = 0;
+
+		break;
+	case _DT_DICT:
+		dct = (_dict_t*)data;
+		_ht_foreach(dct->dict, _destroy_object_capsule_only_with_extra);
+		_ht_clear(dct->dict);
+
+		break;
+#endif /* #ifdef MB_ENABLE_COLLECTION_LIB */
+	default:
+		break;
+	}
+	_unref(ref, data);
+
+	result = _OP_RESULT_DEL_NODE;
+
+	return result;
+}
+
+void _gc_try_trigger(mb_interpreter_t* s) {
+	/* Try trigger garbage collection */
+	mb_assert(s);
+
+	if(s->gc.table->count >= MB_GC_GARBAGE_THRESHOLD)
+		_gc_collect_garbage(s);
+}
+
+void _gc_collect_garbage(mb_interpreter_t* s) {
+	/* Collect all garbage */
+	_ht_node_t* valid = 0;
+
+	mb_assert(s);
+
+	/* Avoid infinity loop */
+	if(s->gc.collecting) return;
+	s->gc.collecting++;
+	/* Get reachable information */
+	valid = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
+	_gc_get_reachable(s, valid);
+	/* Get unreachable information */
+	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, s->gc.table);
+	/* Collect garbage */
+	_ht_foreach(s->gc.table, _gc_destroy_garbage);
+	/* Tidy */
+	_ht_clear(s->gc.table);
+	_ht_clear(valid);
+	_ht_destroy(valid);
+	s->gc.collecting--;
+}
+#endif /* MB_ENABLE_GC */
+
+_usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_unref_func_t un, mb_clone_func_t cl) {
+	/* Create a referenced usertype */
+	_usertype_ref_t* result = (_usertype_ref_t*)mb_malloc(sizeof(_usertype_ref_t));
+	memset(result, 0, sizeof(_usertype_ref_t));
+	result->usertype = val;
+	result->unref = un;
+	result->clone = cl;
+	_create_ref(&result->ref, _unref_usertype_ref, _DT_USERTYPE_REF, s);
+
+	return result;
+}
+
+void _destroy_usertype_ref(_usertype_ref_t* c) {
+	/* Destroy a referenced usertype */
+	if(c->unref)
+		c->unref(c->ref.s, c->usertype);
+	_destroy_ref(&c->ref);
+	safe_free(c);
+}
+
+void _unref_usertype_ref(_ref_t* ref, void* data) {
+	/* Unreference a referenced usertype */
+	if(!(*(ref->count)))
+		_destroy_usertype_ref((_usertype_ref_t*)data);
+}
+
 _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s) {
 	/* Create an array */
 	_array_t* result = (_array_t*)mb_malloc(sizeof(_array_t));
@@ -3986,212 +4244,6 @@ void _unref_array(_ref_t* ref, void* data) {
 	if(!(*(ref->count)))
 		_destroy_array((_array_t*)data);
 }
-
-bool_t _is_number(void* obj) {
-	/* Determine if an object is a number */
-	bool_t result = false;
-	_object_t* o = 0;
-
-	mb_assert(obj);
-
-	o = (_object_t*)obj;
-	if(o->type == _DT_INT || o->type == _DT_REAL)
-		result = true;
-	else if(o->type == _DT_VAR)
-		result = o->data.variable->data->type == _DT_INT || o->data.variable->data->type == _DT_REAL;
-
-	return result;
-}
-
-bool_t _is_string(void* obj) {
-	/* Determine if an object is a string value or a string variable */
-	bool_t result = false;
-	_object_t* o = 0;
-
-	mb_assert(obj);
-
-	o = (_object_t*)obj;
-	if(o->type == _DT_STRING)
-		result = true;
-	else if(o->type == _DT_VAR)
-		result = o->data.variable->data->type == _DT_STRING;
-
-	return result;
-}
-
-char* _extract_string(_object_t* obj) {
-	/* Extract a string from an object */
-	char* result = 0;
-
-	mb_assert(obj);
-
-	if(obj->type == _DT_STRING)
-		result = obj->data.string;
-	else if(obj->type == _DT_VAR && obj->data.variable->data->type == _DT_STRING)
-		result = obj->data.variable->data->data.string;
-
-	if(!result)
-		result = MB_NULL_STRING;
-
-	return result;
-}
-
-#ifdef MB_ENABLE_GC
-void _gc_add(_ref_t* ref, void* data) {
-	/* Add a referenced object to GC */
-	mb_assert(ref && data);
-
-	if(ref->type == _DT_ARRAY)
-		return;
-
-	if(!ref->s->gc.table)
-		return;
-
-	if(ref->s->gc.collecting)
-		return;
-
-	if(ref->count)
-		_ht_set_or_insert(ref->s->gc.table, ref, data);
-}
-
-void _gc_remove(_ref_t* ref, void* data) {
-	/* Remove a referenced object from GC */
-	mb_unrefvar(data);
-
-	mb_assert(ref && data);
-
-	_ht_remove(ref->s->gc.table, ref, 0);
-}
-
-int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht) {
-	/* Get reachable objects */
-	int result = _OP_RESULT_NORMAL;
-	_object_t* obj = 0;
-	_var_t* var = 0;
-	mb_unrefvar(extra);
-
-	mb_assert(data && ht);
-
-	obj = (_object_t*)data;
-	if(_is_internal_object(obj))
-		goto _exit;
-	switch(obj->type) {
-	case _DT_VAR:
-		var = (_var_t*)(obj->data.variable);
-		_gc_add_reachable(var->data, extra, ht);
-
-		break;
-#ifdef MB_ENABLE_COLLECTION_LIB
-	case _DT_LIST:
-		if(!_ht_find(ht, &obj->data.list->ref)) {
-			_ht_set_or_insert(ht, &obj->data.list->ref, obj->data.list);
-			_LS_FOREACH(obj->data.list->list, _do_nothing_on_object, _gc_add_reachable, ht);
-		}
-
-		break;
-	case _DT_DICT:
-		if(!_ht_find(ht, &obj->data.dict->ref)) {
-			_ht_set_or_insert(ht, &obj->data.dict->ref, obj->data.dict);
-			_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _gc_add_reachable, ht);
-		}
-
-		break;
-#endif /* MB_ENABLE_COLLECTION_LIB */
-	default: /* Do nothing */
-		break;
-	}
-
-_exit:
-	return result;
-}
-
-void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
-	/* Get all reachable referenced objects */
-	_running_context_t* running = 0;
-	_ht_node_t* global_scope = 0;
-
-	mb_assert(s && ht);
-
-	running = s->running_context;
-	while(running) {
-		global_scope = running->var_dict;
-		if(global_scope) {
-			_HT_FOREACH(global_scope, _do_nothing_on_object, _gc_add_reachable, ht);
-		}
-
-		running = running->prev;
-	}
-}
-
-int _gc_destroy_garbage(void* data, void* extra) {
-	/* Destroy a garbage */
-	int result = _OP_RESULT_NORMAL;
-	_ref_t* ref = 0;
-#ifdef MB_ENABLE_COLLECTION_LIB
-	_list_t* lst = 0;
-	_dict_t* dct = 0;
-#endif /* #ifdef MB_ENABLE_COLLECTION_LIB */
-
-	mb_assert(data && extra);
-
-	ref = (_ref_t*)extra;
-	switch(ref->type) {
-#ifdef MB_ENABLE_COLLECTION_LIB
-	case _DT_LIST:
-		lst = (_list_t*)data;
-		_ls_foreach(lst->list, _destroy_object_capsule_only);
-		_ls_clear(lst->list);
-		lst->count = 0;
-
-		break;
-	case _DT_DICT:
-		dct = (_dict_t*)data;
-		_ht_foreach(dct->dict, _destroy_object_capsule_only_with_extra);
-		_ht_clear(dct->dict);
-
-		break;
-#endif /* #ifdef MB_ENABLE_COLLECTION_LIB */
-	default:
-		break;
-	}
-	_unref(ref, data);
-
-	result = _OP_RESULT_DEL_NODE;
-
-	return result;
-}
-
-void _gc_try_trigger(mb_interpreter_t* s) {
-	/* Try trigger garbage collection */
-	mb_assert(s);
-
-	if(s->gc.table->count >= MB_GC_GARBAGE_THRESHOLD)
-		_gc_collect_garbage(s);
-}
-
-void _gc_collect_garbage(mb_interpreter_t* s) {
-	/* Collect all garbage */
-	_ht_node_t* valid = 0;
-
-	mb_assert(s);
-
-	/* Avoid infinity loop */
-	if(s->gc.collecting) return;
-	s->gc.collecting++;
-	/* Get reachable information */
-	valid = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
-	_gc_get_reachable(s, valid);
-	/* Get unreachable information */
-	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, s->gc.table);
-	/* Collect garbage */
-	_ht_foreach(s->gc.table, _gc_destroy_garbage);
-	/* Tidy */
-	_ht_clear(s->gc.table);
-	_ht_clear(valid);
-	_ht_destroy(valid);
-	s->gc.collecting--;
-}
-#endif /* MB_ENABLE_GC */
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 _list_t* _create_list(mb_interpreter_t* s) {
@@ -4687,6 +4739,10 @@ int _clone_to_list(void* data, void* extra, _list_t* coll) {
 	_clone_object(obj, tgt);
 	_push_list(coll, 0, tgt);
 	switch(tgt->type) {
+	case _DT_USERTYPE_REF:
+		_ref(&tgt->data.usertype_ref->ref, tgt->data.usertype_ref);
+
+		break;
 	case _DT_ARRAY:
 		_ref(&tgt->data.array->ref, tgt->data.array);
 
@@ -4725,6 +4781,10 @@ int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 
 	_set_dict(coll, 0, 0, ktgt, vtgt);
 	switch(ktgt->type) {
+	case _DT_USERTYPE_REF:
+		_ref(&ktgt->data.usertype_ref->ref, ktgt->data.usertype_ref);
+
+		break;
 	case _DT_ARRAY:
 		_ref(&ktgt->data.array->ref, ktgt->data.array);
 
@@ -4741,6 +4801,10 @@ int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 		break;
 	}
 	switch(vtgt->type) {
+	case _DT_USERTYPE_REF:
+		_ref(&vtgt->data.usertype_ref->ref, vtgt->data.usertype_ref);
+
+		break;
 	case _DT_ARRAY:
 		_ref(&vtgt->data.array->ref, vtgt->data.array);
 
@@ -5172,6 +5236,14 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 		tgt->data.string = mb_memdup(obj->data.string, (unsigned)strlen(obj->data.string) + 1);
 
 		break;
+	case _DT_USERTYPE_REF:
+		tgt->data.usertype_ref = _create_usertype_ref(
+			obj->data.usertype_ref->ref.s,
+			obj->data.usertype_ref->clone(obj->data.usertype_ref->ref.s, obj->data.usertype_ref->usertype),
+			obj->data.usertype_ref->unref, obj->data.usertype_ref->clone
+		);
+
+		break;
 	case _DT_FUNC:
 		tgt->data.func->name = mb_memdup(obj->data.func->name, (unsigned)strlen(obj->data.func->name) + 1);
 		tgt->data.func->pointer = obj->data.func->pointer;
@@ -5273,6 +5345,7 @@ int _dispose_object(_object_t* obj) {
 		}
 
 		break;
+	_UNREF_USERTYPE_REF(obj)
 	case _DT_FUNC:
 		safe_free(obj->data.func->name);
 		safe_free(obj->data.func);
@@ -5536,6 +5609,8 @@ _data_e _public_type_to_internal_type(mb_data_e t) {
 		return _DT_STRING;
 	case MB_DT_USERTYPE:
 		return _DT_USERTYPE;
+	case MB_DT_USERTYPE_REF:
+		return _DT_USERTYPE_REF;
 	case MB_DT_ARRAY:
 		return _DT_ARRAY;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -5568,6 +5643,8 @@ mb_data_e _internal_type_to_public_type(_data_e t) {
 		return MB_DT_STRING;
 	case _DT_USERTYPE:
 		return MB_DT_USERTYPE;
+	case _DT_USERTYPE_REF:
+		return MB_DT_USERTYPE_REF;
 	case _DT_ARRAY:
 		return MB_DT_ARRAY;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -5620,6 +5697,11 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	case MB_DT_USERTYPE:
 		itn->type = _DT_USERTYPE;
 		itn->data.usertype = pbl->value.usertype;
+
+		break;
+	case MB_DT_USERTYPE_REF:
+		itn->type = _DT_USERTYPE_REF;
+		itn->data.usertype_ref = pbl->value.usertype_ref;
 
 		break;
 	case MB_DT_ARRAY:
@@ -5694,6 +5776,11 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 	case _DT_USERTYPE:
 		pbl->type = MB_DT_USERTYPE;
 		pbl->value.usertype = itn->data.usertype;
+
+		break;
+	case _DT_USERTYPE_REF:
+		pbl->type = MB_DT_USERTYPE_REF;
+		pbl->value.usertype_ref = itn->data.usertype_ref;
 
 		break;
 	case _DT_ARRAY:
@@ -5791,6 +5878,10 @@ void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
 	if(src) {
 		_public_value_to_internal_object(src, &obj);
 		switch(obj.type) {
+		case _DT_USERTYPE_REF:
+			_ref(&obj.data.usertype_ref->ref, obj.data.usertype_ref);
+
+			break;
 		case _DT_ARRAY:
 			_ref(&obj.data.array->ref, obj.data.array);
 
@@ -5812,10 +5903,8 @@ void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
 
 	_public_value_to_internal_object(tgt, &obj);
 	switch(obj.type) {
-	case _DT_ARRAY:
-		_unref(&obj.data.array->ref, obj.data.array);
-
-		break;
+	_UNREF_USERTYPE_REF(&obj)
+	_UNREF_ARRAY(&obj)
 #ifdef MB_ENABLE_COLLECTION_LIB
 	_UNREF_COLL(&obj)
 #endif /* MB_ENABLE_COLLECTION_LIB */
@@ -6797,6 +6886,8 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 		val_ptr = (_object_t*)mb_malloc(sizeof(_object_t));
 		memcpy(val_ptr, &val_obj, sizeof(_object_t));
 		_ls_pushback(s->temp_values, val_ptr);
+	} else if(val_ptr->type == _DT_USERTYPE_REF) {
+		_ref(&val_ptr->data.usertype_ref->ref, val_ptr->data.usertype_ref);
 	} else if(val_ptr->type == _DT_ARRAY) {
 		_ref(&val_ptr->data.array->ref, val_ptr->data.array);
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -7092,6 +7183,22 @@ _exit:
 	return result;
 }
 
+int mb_ref_value(struct mb_interpreter_t* s, void* val, mb_unref_func_t un, mb_clone_func_t cl, mb_value_t* out) {
+	/* Create a referenced usertype value */
+	int result = MB_FUNC_OK;
+	_usertype_ref_t* ref = 0;
+
+	mb_assert(s && out);
+
+	if(out) {
+		ref = _create_usertype_ref(s, val, un, cl);
+		out->type = MB_DT_USERTYPE_REF;
+		out->value.usertype_ref = ref;
+	}
+
+	return result;
+}
+
 int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val) {
 	/* Dispose a value */
 	int result = MB_FUNC_OK;
@@ -7358,6 +7465,8 @@ const char* mb_get_type_string(mb_data_e t) {
 		return "STRING";
 	case MB_DT_USERTYPE:
 		return "USERTYPE";
+	case MB_DT_USERTYPE_REF:
+		return "USERTYPE_REF";
 	case MB_DT_ARRAY:
 		return "ARRAY";
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -7996,6 +8105,10 @@ int _core_let(mb_interpreter_t* s, void** l) {
 		}
 	}
 	switch(val->type) {
+	case _DT_USERTYPE_REF:
+		_ref(&val->data.usertype_ref->ref, val->data.usertype_ref);
+
+		break;
 	case _DT_ARRAY:
 		_ref(&val->data.array->ref, val->data.array);
 
