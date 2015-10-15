@@ -1832,7 +1832,7 @@ int _ht_cmp_int(void* d1, void* d2) {
 int _ht_cmp_ref(void* d1, void* d2) {
 	_ref_t* r1 = *(_ref_t**)d1;
 	_ref_t* r2 = *(_ref_t**)d2;
-	int_t i = (intptr_t)r1 - (intptr_t)r2;
+	intptr_t i = (intptr_t)r1 - (intptr_t)r2;
 	int result = 0;
 	if(i < 0)
 		result = -1;
@@ -2891,7 +2891,7 @@ char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
 	if(_ls_find(context->imported, (void*)f, (_ls_compare)_ht_cmp_string)) {
 		buf = (char*)f;
 	} else {
-		buf = (char*)mb_memdup((char*)f, strlen(f) + 1);
+		buf = (char*)mb_memdup((char*)f, (unsigned)(strlen(f) + 1));
 		_ls_pushback(context->imported, buf);
 		buf = 0;
 
