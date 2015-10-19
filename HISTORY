@@ -2,6 +2,9 @@ Oct. 19 2015
 Added a sub routine invoking function
 Added an mb_get_routine function
 Added an mb_eval_routine function
+Renamed old mb_ref_value to mb_make_ref_value
+Added a new mb_ref_value function
+Added an mb_unref_value function
 
 Oct. 15 2015
 Added referenced usertype support
