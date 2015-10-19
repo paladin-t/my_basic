@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 87
+#define _VER_REVISION 88
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -365,6 +365,9 @@ typedef struct _routine_t {
 	_ls_node_t* entry;
 	_ls_node_t* parameters;
 } _routine_t;
+
+typedef int (* _has_routine_arg)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, _routine_t*);
+typedef int (* _pop_routine_arg)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, _routine_t*, mb_value_t*);
 
 typedef union _raw_u { char c; int_t i; real_t r; void* p; } _raw_u;
 
@@ -910,7 +913,11 @@ static int _get_priority_index(mb_func_t op);
 static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opnd1, _object_t* opnd2, int* status);
 static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj);
 static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val);
-static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r);
+static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, _has_routine_arg has_arg, _pop_routine_arg pop_arg);
+static int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r);
+static int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_value_t* val);
+static int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r);
+static int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_value_t* val);
 static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 
 /** Handlers */
@@ -2512,7 +2519,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					f++;
 				} else if(c->type == _DT_ROUTINE) {
 					ast = ast->prev;
-					result = _eval_routine(s, &ast, c->data.routine);
+					result = _eval_routine(s, &ast, 0, 0, c->data.routine, _has_routine_lex_arg, _pop_routine_lex_arg);
 					if(ast)
 						ast = ast->prev;
 					if(result != MB_FUNC_OK) {
@@ -2688,7 +2695,7 @@ _exit:
 	return result;
 }
 
-int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
+int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, _has_routine_arg has_arg, _pop_routine_arg pop_arg) {
 	/* Evaluate a routine */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -2702,7 +2709,7 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 
 	mb_assert(s && l && r);
 
-	if(s->last_routine && !s->last_routine->parameters && (s->last_routine->name == r->name || !strcmp(s->last_routine->name, r->name))) {
+	if(!va && s->last_routine && !s->last_routine->parameters && (s->last_routine->name == r->name || !strcmp(s->last_routine->name, r->name))) {
 		ast = (_ls_node_t*)(*l);
 		_skip_to(s, &ast, 0, _DT_EOS);
 		if(ast && ((_object_t*)(ast->data))->type == _DT_EOS)
@@ -2719,16 +2726,19 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 	lastr = s->last_routine;
 	s->last_routine = r;
 
-	mb_check(mb_attempt_open_bracket(s, (void**)l));
+	if(!va) {
+		mb_check(mb_attempt_open_bracket(s, (void**)l));
+	}
 
 	if(r->parameters) {
+		unsigned ia = 0;
 		running = _push_weak_scope(s, r->scope, r);
 		if(running->meta == _SCOPE_META_REF) {
 			pars = r->parameters;
 			pars = pars->next;
-			while(pars && mb_has_arg(s, (void**)l)) {
+			while(pars && has_arg(s, (void**)l, va, ca, &ia, r)) {
 				_object_t* obj = 0;
-				mb_check(mb_pop_value(s, (void**)l, &arg));
+				mb_check(pop_arg(s, (void**)l, va, ca, &ia, r, &arg));
 
 				var = (_var_t*)(pars->data);
 				pars = pars->next;
@@ -2749,8 +2759,8 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 		} else {
 			pars = r->parameters;
 			pars = pars->next;
-			while(pars && mb_has_arg(s, (void**)l)) {
-				mb_check(mb_pop_value(s, (void**)l, &arg));
+			while(pars && has_arg(s, (void**)l, va, ca, &ia, r)) {
+				mb_check(pop_arg(s, (void**)l, va, ca, &ia, r, &arg));
 
 				var = (_var_t*)(pars->data);
 				pars = pars->next;
@@ -2774,7 +2784,9 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, _routine_t* r) {
 		running = _pop_weak_scope(s, running);
 	}
 
-	mb_check(mb_attempt_close_bracket(s, (void**)l));
+	if(!va) {
+		mb_check(mb_attempt_close_bracket(s, (void**)l));
+	}
 
 	ast = (_ls_node_t*)(*l);
 	_ls_pushback(s->sub_stack, ast);
@@ -2827,6 +2839,49 @@ _exit:
 
 _tail:
 	return result;
+}
+
+int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r) {
+	/* Detect if there is any more lexical argument */
+	mb_unrefvar(va);
+	mb_unrefvar(ca);
+	mb_unrefvar(ia);
+	mb_unrefvar(r);
+
+	return mb_has_arg(s, l);
+}
+
+int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_value_t* val) {
+	/* Pop a lexical argument */
+	mb_unrefvar(va);
+	mb_unrefvar(ca);
+	mb_unrefvar(ia);
+	mb_unrefvar(r);
+
+	return mb_pop_value(s, l, val);
+}
+
+int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r) {
+	/* Detect if there is any more argument in the argument list */
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(va);
+	mb_unrefvar(r);
+
+	return *ia < ca;
+}
+
+int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_value_t* val) {
+	/* Pop an argument from the argument list */
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(ca);
+	mb_unrefvar(r);
+
+	memcpy(val, &(va[*ia]), sizeof(mb_value_t));
+	(*ia)++;
+
+	return MB_FUNC_OK;
 }
 
 bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
@@ -5648,6 +5703,8 @@ _data_e _public_type_to_internal_type(mb_data_e t) {
 	case MB_DT_DICT_IT:
 		return _DT_DICT_IT;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+	case MB_DT_ROUTINE:
+		return _DT_ROUTINE;
 	default:
 		return _DT_NIL;
 	}
@@ -5682,6 +5739,8 @@ mb_data_e _internal_type_to_public_type(_data_e t) {
 	case _DT_DICT_IT:
 		return MB_DT_DICT_IT;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+	case _DT_ROUTINE:
+		return MB_DT_ROUTINE;
 	default:
 		return MB_DT_NIL;
 	}
@@ -5757,6 +5816,11 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+	case MB_DT_ROUTINE:
+		itn->type = _DT_ROUTINE;
+		itn->data.routine = pbl->value.routine;
+
+		break;
 	default:
 		result = MB_FUNC_ERR;
 
@@ -5835,6 +5899,11 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+	case _DT_ROUTINE:
+		pbl->type = MB_DT_ROUTINE;
+		pbl->value.routine = itn->data.routine;
+
+		break;
 	default:
 		result = MB_FUNC_ERR;
 
@@ -7235,6 +7304,48 @@ int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val) {
 
 	_assign_public_value(&val, 0);
 
+	return result;
+}
+
+int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val) {
+	/* Get a sub routine with a specific name */
+	int result = MB_FUNC_OK;
+	_object_t* obj = 0;
+	_ls_node_t* scp = 0;
+
+	mb_assert(s && l && n && val);
+
+	val->type = MB_DT_NIL;
+
+	scp = _search_identifier_in_scope_chain(s, 0, (char*)n);
+	if(scp) {
+		obj = (_object_t*)(scp->data);
+		if(obj) {
+			if(obj->type == _DT_ROUTINE) {
+				_internal_object_to_public_value(obj, val);
+			} else {
+				_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+			}
+		}
+	}
+
+_exit:
+	return result;
+}
+
+int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc) {
+	/* Evaluate a sub routine */
+	int result = MB_FUNC_OK;
+	_object_t obj;
+
+	if(val.type != MB_DT_ROUTINE) {
+		_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+
+	_public_value_to_internal_object(&val, &obj);
+	result = _eval_routine(s, (_ls_node_t**)l, args, argc, obj.data.routine, _has_routine_fun_arg, _pop_routine_fun_arg);
+
+_exit:
 	return result;
 }
 
@@ -8833,7 +8944,7 @@ int _core_call(mb_interpreter_t* s, void** l) {
 	obj = (_object_t*)(ast->data);
 	routine = (_routine_t*)(obj->data.routine);
 
-	_eval_routine(s, &ast, routine);
+	_eval_routine(s, &ast, 0, 0, routine, _has_routine_lex_arg, _pop_routine_lex_arg);
 
 	if(ast)
 		ast = ast->prev;
