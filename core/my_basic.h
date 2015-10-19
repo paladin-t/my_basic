@@ -273,6 +273,7 @@ typedef enum mb_error_e {
 	SE_RN_COLLECTION_OR_ITERATOR_EXPECTED,
 	SE_RN_INVALID_ITERATOR,
 	SE_RN_EMPTY_COLLECTION,
+	SE_RN_REFERENCED_EXPECTED,
 	/** Extended abort */
 	SE_EA_EXTENDED_ABORT,
 	/** Extra */
@@ -371,7 +372,9 @@ MBAPI int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* 
 MBAPI int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* i);
 MBAPI int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t* val);
 MBAPI int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t val);
-MBAPI int mb_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
+MBAPI int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
+MBAPI int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
+MBAPI int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 
 MBAPI int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val);
