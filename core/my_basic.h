@@ -293,8 +293,9 @@ typedef enum mb_data_e {
 	MB_DT_LIST = 1 << 13,
 	MB_DT_LIST_IT = 1 << 14,
 	MB_DT_DICT = 1 << 15,
-	MB_DT_DICT_IT = 1 << 16
+	MB_DT_DICT_IT = 1 << 16,
 #endif /* MB_ENABLE_COLLECTION_LIB */
+	MB_DT_ROUTINE = 1 << 24
 } mb_data_e;
 
 typedef union mb_value_u {
@@ -311,6 +312,7 @@ typedef union mb_value_u {
 	void* dict;
 	void* dict_it;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+	void* routine;
 } mb_value_u;
 
 typedef struct mb_value_t {
@@ -371,6 +373,9 @@ MBAPI int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* 
 MBAPI int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t val);
 MBAPI int mb_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
 MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
+
+MBAPI int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val);
+MBAPI int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc);
 
 MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l);
 MBAPI int mb_load_file(struct mb_interpreter_t* s, const char* f);
