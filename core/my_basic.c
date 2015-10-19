@@ -231,6 +231,7 @@ static const char* _ERR_DESC[] = {
 	"Collection or iterator expected",
 	"Invalid iterator",
 	"Empty collection",
+	"Referenced type expected",
 	/** Extended abort */
 	"Extended abort"
 };
@@ -7277,7 +7278,7 @@ _exit:
 	return result;
 }
 
-int mb_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft) {
+int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft) {
 	/* Create a referenced usertype value */
 	int result = MB_FUNC_OK;
 	_usertype_ref_t* ref = 0;
@@ -7290,6 +7291,40 @@ int mb_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor
 		out->value.usertype_ref = ref;
 	}
 
+	return result;
+}
+
+int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
+	/* Add reference to a value */
+	int result = MB_FUNC_OK;
+	_object_t obj;
+
+	mb_assert(s && l);
+
+	_public_value_to_internal_object(&val, &obj);
+	if(obj.type != _DT_USERTYPE_REF) {
+		_handle_error_on_obj(s, SE_RN_REFERENCED_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+	_ref(&obj.data.usertype_ref->ref, &obj.data.usertype_ref);
+
+_exit:
+	return result;
+}
+
+int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
+	/* Remove reference to a value */
+	int result = MB_FUNC_OK;
+	_object_t obj;
+
+	mb_assert(s && l);
+
+	_public_value_to_internal_object(&val, &obj);
+	if(obj.type != _DT_USERTYPE_REF) {
+		_handle_error_on_obj(s, SE_RN_REFERENCED_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+	_unref(&obj.data.usertype_ref->ref, &obj.data.usertype_ref);
+
+_exit:
 	return result;
 }
 
