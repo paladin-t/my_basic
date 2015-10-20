@@ -1,3 +1,8 @@
+Oct. 20 2015
+Added a SRND statement
+Added range support for RND statement
+Improved error handling
+
 Oct. 19 2015
 Added a sub routine invoking function
 Added an mb_get_routine function
