@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 88
+#define _VER_REVISION 89
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -1250,6 +1250,7 @@ static int _std_floor(mb_interpreter_t* s, void** l);
 static int _std_ceil(mb_interpreter_t* s, void** l);
 static int _std_fix(mb_interpreter_t* s, void** l);
 static int _std_round(mb_interpreter_t* s, void** l);
+static int _std_srnd(mb_interpreter_t* s, void** l);
 static int _std_rnd(mb_interpreter_t* s, void** l);
 static int _std_sin(mb_interpreter_t* s, void** l);
 static int _std_cos(mb_interpreter_t* s, void** l);
@@ -1359,6 +1360,7 @@ static const _func_t _std_libs[] = {
 	{ "CEIL", _std_ceil },
 	{ "FIX", _std_fix },
 	{ "ROUND", _std_round },
+	{ "SRND", _std_srnd },
 	{ "RND", _std_rnd },
 	{ "SIN", _std_sin },
 	{ "COS", _std_cos },
@@ -9409,19 +9411,64 @@ _exit:
 	return result;
 }
 
-int _std_rnd(mb_interpreter_t* s, void** l) {
-	/* Get a random value among 0 ~ 1 */
+int _std_srnd(mb_interpreter_t* s, void** l) {
+	/* Set a random seed */
 	int result = MB_FUNC_OK;
+	int_t seed = 0;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_pop_int(s, l, &seed));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	srand((unsigned int)seed);
+
+	return result;
+}
+
+int _std_rnd(mb_interpreter_t* s, void** l) {
+	/* Get a random value among 0 ~ 1 or among given bounds */
+	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
 	real_t rnd = (real_t)0.0f;
 
 	mb_assert(s && l);
 
-	mb_check(mb_attempt_func_begin(s, l));
-	mb_check(mb_attempt_func_end(s, l));
+	ast = (_ls_node_t*)(*l);
 
-	rnd = (real_t)(((real_t)(rand() % 101)) / 100.0f);
-	mb_check(mb_push_real(s, l, rnd));
+	if(ast && ast->next && _IS_FUNC(ast->next->data, _core_open_bracket)) {
+		int_t lw = 0;
+		int_t hg = 0;
+		mb_check(mb_attempt_open_bracket(s, l));
+		if(mb_has_arg(s, l)) {
+			mb_check(mb_pop_int(s, l, &hg));
+		}
+		if(mb_has_arg(s, l)) {
+			lw = hg;
+			mb_check(mb_pop_int(s, l, &hg));
+		}
+		mb_check(mb_attempt_close_bracket(s, l));
 
+		if(lw >= hg) {
+			_handle_error_on_obj(s, SE_RN_ILLEGAL_BOUND, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
+		rnd = (real_t)rand() / RAND_MAX * (hg - lw + (real_t)0.99999f) + lw; /* [low, high] */
+
+		mb_check(mb_push_int(s, l, (int_t)rnd));
+	} else {
+		mb_check(mb_attempt_func_begin(s, l));
+		mb_check(mb_attempt_func_end(s, l));
+
+		rnd = (real_t)(((real_t)(rand() % 101)) / 100.0f); /* [0.0, 1.0] */
+
+		mb_check(mb_push_real(s, l, rnd));
+	}
+
+_exit:
 	return result;
 }
 
