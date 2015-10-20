@@ -8487,7 +8487,9 @@ _elseif:
 	}
 
 _exit:
-	if(result != MB_SUB_RETURN) {
+	if(result == MB_SUB_RETURN) {
+		ast = ast->prev;
+	} else {
 		if(multi_line)
 			result = _skip_to(s, &ast, _core_endif, _DT_NIL);
 	}
