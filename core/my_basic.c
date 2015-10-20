@@ -6809,6 +6809,9 @@ int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
+	if(_IS_FUNC(ast->data, _core_open_bracket)) {
+		_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+	}
 
 _exit:
 	*l = ast;
