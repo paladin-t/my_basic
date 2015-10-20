@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 89
+#define _VER_REVISION 90
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -2784,6 +2784,9 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 				}
 			}
 		}
+		running = _pop_weak_scope(s, running);
+	} else {
+		running = _push_weak_scope(s, r->scope, r);
 		running = _pop_weak_scope(s, running);
 	}
 
