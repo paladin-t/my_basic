@@ -1,6 +1,7 @@
 Oct. 20 2015
 Added a SRND statement
 Added range support for RND statement
+Fixed a wrong processing bug when return in an IF statement chunk
 Improved error handling
 
 Oct. 19 2015
