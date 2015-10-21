@@ -2750,18 +2750,15 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 				mb_check(pop_arg(s, (void**)l, va, ca, &ia, r, &arg));
 			}
 
+			var = (_var_t*)(pars->data);
+			pars = pars->next;
 			if(running->meta == _SCOPE_META_REF) {
-				var = (_var_t*)(pars->data);
-				pars = pars->next;
 				obj = (_object_t*)(_ht_find(running->var_dict, var->name)->data);
 				var = obj->data.variable;
 
 				if(proc_ref)
 					var->data->ref = false;
 			} else {
-				var = (_var_t*)(pars->data);
-				pars = pars->next;
-
 				rnode = _search_identifier_in_scope_chain(s, running, var->name);
 				if(rnode)
 					var = ((_object_t*)(rnode->data))->data.variable;
