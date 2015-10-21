@@ -1,3 +1,7 @@
+Oct. 21 2015
+Fixed a reference count manipulation bug
+Fixed some uninitialized value issues
+
 Oct. 20 2015
 Added a SRND statement
 Added range support for RND statement
