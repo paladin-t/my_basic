@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 90
+#define _VER_REVISION 91
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -452,6 +452,7 @@ static const _object_t _OBJ_INT_ZERO = { _DT_INT, 0, false, 0, 0, 0 };
 static const _object_t _OBJ_INT_UNIT = { _DT_INT, 1, false, 0 };
 static const _object_t _OBJ_INT_ZERO = { _DT_INT, 0, false, 0 };
 #endif /* MB_ENABLE_SOURCE_TRACE */
+#define _MAKE_NIL(__o) do { memset((__o), 0, sizeof(_object_t)); (__o)->type = _DT_NIL; } while(0)
 
 static _object_t* _OBJ_BOOL_TRUE = 0;
 static _object_t* _OBJ_BOOL_FALSE = 0;
@@ -914,6 +915,7 @@ static int _get_priority_index(mb_func_t op);
 static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opnd1, _object_t* opnd2, int* status);
 static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj);
 static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val);
+static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, _has_routine_arg has_arg, _pop_routine_arg pop_arg, bool_t proc_ref);
 static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, _has_routine_arg has_arg, _pop_routine_arg pop_arg);
 static int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r);
 static int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_value_t* val);
@@ -1016,16 +1018,6 @@ static void _clear_array(_array_t* arr);
 static bool_t _is_array(void* obj);
 static void _unref_array(_ref_t* ref, void* data);
 
-#define _UNREF_USERTYPE_REF(__o) \
-	case _DT_USERTYPE_REF: \
-		_unref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
-		break;
-#define _UNREF_ARRAY(__o) \
-	case _DT_ARRAY: \
-		if(!(__o)->ref) \
-			_unref(&(__o)->data.array->ref, (__o)->data.array); \
-		break;
-
 #ifdef MB_ENABLE_COLLECTION_LIB
 static _list_t* _create_list(mb_interpreter_t* s);
 static void _destroy_list(_list_t* c);
@@ -1059,21 +1051,60 @@ static bool_t _invalid_dict_it(_dict_it_t* it);
 static bool_t _assign_with_it(_object_t* tgt, _object_t* src);
 static int _clone_to_list(void* data, void* extra, _list_t* coll);
 static int _clone_to_dict(void* data, void* extra, _dict_t* coll);
-#define _UNREF_COLL(__o) \
-	case _DT_LIST: \
-		_unref(&(__o)->data.list->ref, (__o)->data.list); \
-		break; \
-	case _DT_DICT: \
-		_unref(&(__o)->data.dict->ref, (__o)->data.dict); \
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
+#define _REF_USERTYPE_REF(__o) \
+	case _DT_USERTYPE_REF: \
+		_ref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
 		break;
-#define _UNREF_IF_IS_COLL(__o) \
+#define _UNREF_USERTYPE_REF(__o) \
+	case _DT_USERTYPE_REF: \
+		_unref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
+		break;
+#define _REF_ARRAY(__o) \
+	case _DT_ARRAY: \
+		if(!(__o)->ref) \
+			_ref(&(__o)->data.array->ref, (__o)->data.array); \
+		break;
+#define _UNREF_ARRAY(__o) \
+	case _DT_ARRAY: \
+		if(!(__o)->ref) \
+			_unref(&(__o)->data.array->ref, (__o)->data.array); \
+		break;
+#ifdef MB_ENABLE_COLLECTION_LIB
+#	define _REF_COLL(__o) \
+		case _DT_LIST: \
+			_ref(&(__o)->data.list->ref, (__o)->data.list); \
+			break; \
+		case _DT_DICT: \
+			_ref(&(__o)->data.dict->ref, (__o)->data.dict); \
+			break;
+#	define _UNREF_COLL(__o) \
+		case _DT_LIST: \
+			_unref(&(__o)->data.list->ref, (__o)->data.list); \
+			break; \
+		case _DT_DICT: \
+			_unref(&(__o)->data.dict->ref, (__o)->data.dict); \
+			break;
+#else /* MB_ENABLE_COLLECTION_LIB */
+#	define _REF_COLL(__o) ((void)(__o));
+#	define _UNREF_COLL(__o) ((void)(__o));
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#define _REF(__o) \
+	switch((__o)->type) { \
+	_REF_USERTYPE_REF(__o) \
+	_REF_ARRAY(__o) \
+	_REF_COLL(__o) \
+	default: break; \
+	}
+#define _UNREF(__o) \
 	switch((__o)->type) { \
 	_UNREF_USERTYPE_REF(__o) \
 	_UNREF_ARRAY(__o) \
 	_UNREF_COLL(__o) \
 	default: break; \
 	}
-#endif /* MB_ENABLE_COLLECTION_LIB */
+
 static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 static bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
@@ -1124,6 +1155,7 @@ static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t*
 static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s);
 static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch);
 static void _assign_public_value(mb_value_t* tgt, mb_value_t* src);
+static void _swap_public_value(mb_value_t* tgt, mb_value_t* src);
 static int _clear_scope_chain(mb_interpreter_t* s);
 static int _dispose_scope_chain(mb_interpreter_t* s);
 
@@ -2322,7 +2354,7 @@ _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opn
 		return result;
 
 	result = (_object_t*)mb_malloc(sizeof(_object_t));
-	memset(result, 0, sizeof(_object_t));
+	_MAKE_NIL(result);
 
 	memset(&tp, 0, sizeof(_tuple3_t));
 	tp.e1 = opnd1;
@@ -2454,7 +2486,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 				if(bracket_count) {
 					_object_t _cb;
 					_func_t _cbf;
-					memset(&_cb, 0, sizeof(_object_t));
+					_MAKE_NIL(&_cb);
 					_cb.type = _DT_FUNC;
 					_cb.data.func = &_cbf;
 					_cb.data.func->name = ")";
@@ -2480,7 +2512,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 						ast = ast->next;
 						_get_array_elem(s, c->data.array, arr_idx, &arr_val, &arr_type);
 						arr_elem = (_object_t*)mb_malloc(sizeof(_object_t));
-						memset(arr_elem, 0, sizeof(_object_t));
+						_MAKE_NIL(arr_elem);
 						_ls_pushback(garbage, arr_elem);
 						arr_elem->type = arr_type;
 						arr_elem->ref = true;
@@ -2508,7 +2540,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 					}
 					c = (_object_t*)mb_malloc(sizeof(_object_t));
-					memset(c, 0, sizeof(_object_t));
+					_MAKE_NIL(c);
 					_ls_pushback(garbage, c);
 					result = _public_value_to_internal_object(&running->intermediate_value, c);
 					if(c->type == _DT_STRING)
@@ -2529,7 +2561,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 					}
 					c = (_object_t*)mb_malloc(sizeof(_object_t));
-					memset(c, 0, sizeof(_object_t));
+					_MAKE_NIL(c);
 					_ls_pushback(garbage, c);
 					result = _public_value_to_internal_object(&running->intermediate_value, c);
 					if(result != MB_FUNC_OK)
@@ -2548,7 +2580,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					ast = ast->next;
 					_get_array_elem(s, c->data.variable->data->data.array, arr_idx, &arr_val, &arr_type);
 					arr_elem = (_object_t*)mb_malloc(sizeof(_object_t));
-					memset(arr_elem, 0, sizeof(_object_t));
+					_MAKE_NIL(arr_elem);
 					_ls_pushback(garbage, arr_elem);
 					arr_elem->type = arr_type;
 					arr_elem->ref = true;
@@ -2698,14 +2730,59 @@ _exit:
 	return result;
 }
 
-int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, _has_routine_arg has_arg, _pop_routine_arg pop_arg) {
-	/* Evaluate a routine */
+int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, _has_routine_arg has_arg, _pop_routine_arg pop_arg, bool_t proc_ref) {
+	/* Process arguments of a routine */
 	int result = MB_FUNC_OK;
-	_ls_node_t* ast = 0;
 	mb_value_t arg;
 	_ls_node_t* pars = 0;
 	_var_t* var = 0;
 	_ls_node_t* rnode = 0;
+	unsigned ia = 0;
+
+	if(r->parameters) {
+		mb_make_nil(arg);
+		pars = r->parameters;
+		pars = pars->next;
+		while(pars && (!has_arg || (has_arg && has_arg(s, (void**)l, va, ca, &ia, r)))) {
+			_object_t* obj = 0;
+			if(pop_arg) {
+				mb_make_nil(arg);
+				mb_check(pop_arg(s, (void**)l, va, ca, &ia, r, &arg));
+			}
+
+			if(running->meta == _SCOPE_META_REF) {
+				var = (_var_t*)(pars->data);
+				pars = pars->next;
+				obj = (_object_t*)(_ht_find(running->var_dict, var->name)->data);
+				var = obj->data.variable;
+
+				if(proc_ref)
+					var->data->ref = false;
+			} else {
+				var = (_var_t*)(pars->data);
+				pars = pars->next;
+
+				rnode = _search_identifier_in_scope_chain(s, running, var->name);
+				if(rnode)
+					var = ((_object_t*)(rnode->data))->data.variable;
+
+				if(proc_ref)
+					var->data->ref = true;
+			}
+
+			result = _public_value_to_internal_object(&arg, var->data);
+			if(result != MB_FUNC_OK)
+				break;
+		}
+	}
+
+	return result;
+}
+
+int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, _has_routine_arg has_arg, _pop_routine_arg pop_arg) {
+	/* Evaluate a routine */
+	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
 	_running_context_t* running = 0;
 	_routine_t* lastr = 0;
 	mb_value_t inte;
@@ -2733,62 +2810,17 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 		mb_check(mb_attempt_open_bracket(s, (void**)l));
 	}
 
-	if(r->parameters) {
-		unsigned ia = 0;
-		running = _push_weak_scope(s, r->scope, r);
-		if(running->meta == _SCOPE_META_REF) {
-			pars = r->parameters;
-			pars = pars->next;
-			while(pars && has_arg(s, (void**)l, va, ca, &ia, r)) {
-				_object_t* obj = 0;
-				mb_check(pop_arg(s, (void**)l, va, ca, &ia, r, &arg));
+	running = _push_weak_scope(s, r->scope, r);
+	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true);
+	if(result != MB_FUNC_OK) {
+		if(running->meta == _SCOPE_META_REF)
+			_unreference_scope(s, running);
+		else
+			_pop_weak_scope(s, running);
 
-				var = (_var_t*)(pars->data);
-				pars = pars->next;
-				obj = (_object_t*)(_ht_find(running->var_dict, var->name)->data);
-				var = obj->data.variable;
-
-				var->data->ref = false;
-				result = _public_value_to_internal_object(&arg, var->data);
-				if(result != MB_FUNC_OK) {
-					if(running->meta == _SCOPE_META_REF)
-						_unreference_scope(s, running);
-					else
-						_pop_weak_scope(s, running);
-
-					goto _exit;
-				}
-			}
-		} else {
-			pars = r->parameters;
-			pars = pars->next;
-			while(pars && has_arg(s, (void**)l, va, ca, &ia, r)) {
-				mb_check(pop_arg(s, (void**)l, va, ca, &ia, r, &arg));
-
-				var = (_var_t*)(pars->data);
-				pars = pars->next;
-
-				rnode = _search_identifier_in_scope_chain(s, running, var->name);
-				if(rnode)
-					var = ((_object_t*)(rnode->data))->data.variable;
-
-				var->data->ref = true;
-				result = _public_value_to_internal_object(&arg, var->data);
-				if(result != MB_FUNC_OK) {
-					if(running->meta == _SCOPE_META_REF)
-						_unreference_scope(s, running);
-					else
-						_pop_weak_scope(s, running);
-
-					goto _exit;
-				}
-			}
-		}
-		running = _pop_weak_scope(s, running);
-	} else {
-		running = _push_weak_scope(s, r->scope, r);
-		running = _pop_weak_scope(s, running);
+		goto _exit;
 	}
+	running = _pop_weak_scope(s, running);
 
 	if(!va) {
 		mb_check(mb_attempt_close_bracket(s, (void**)l));
@@ -2834,7 +2866,13 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 		}
 	} while(ast);
 
-	_assign_public_value(&inte, &running->intermediate_value);
+	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false);
+	if(result != MB_FUNC_OK)
+		goto _exit;
+
+	mb_make_nil(inte);
+
+	_swap_public_value(&inte, &running->intermediate_value);
 
 	_pop_scope(s);
 
@@ -3137,7 +3175,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	running = s->running_context;
 
 	*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-	memset(*obj, 0, sizeof(_object_t));
+	_MAKE_NIL(*obj);
 #ifdef MB_ENABLE_SOURCE_TRACE
 	(*obj)->source_pos = -1;
 	(*obj)->source_row = (*obj)->source_col = 0xffff;
@@ -3203,7 +3241,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			mb_assert(ul);
 
 			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-			memset(*obj, 0, sizeof(_object_t));
+			_MAKE_NIL(*obj);
 			(*obj)->type = type;
 			(*obj)->data.array = tmp.array;
 			(*obj)->ref = true;
@@ -3231,7 +3269,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			mb_assert(ul);
 
 			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-			memset(*obj, 0, sizeof(_object_t));
+			_MAKE_NIL(*obj);
 			(*obj)->type = type;
 			(*obj)->data.instance = tmp.instance;
 			(*obj)->ref = true;
@@ -3263,7 +3301,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 				_pop_scope(s);
 
 			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-			memset(*obj, 0, sizeof(_object_t));
+			_MAKE_NIL(*obj);
 			(*obj)->type = type;
 			(*obj)->data.routine = tmp.routine;
 			(*obj)->ref = true;
@@ -3284,7 +3322,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			memset(tmp.var, 0, sizeof(_var_t));
 			tmp.var->name = sym;
 			tmp.var->data = (_object_t*)mb_malloc(sizeof(_object_t));
-			memset(tmp.var->data, 0, sizeof(_object_t));
+			_MAKE_NIL(tmp.var->data);
 			tmp.var->data->type = (sym[strlen(sym) - 1] == '$') ? _DT_STRING : _DT_INT;
 			tmp.var->data->data.integer = 0;
 			(*obj)->data.variable = tmp.var;
@@ -3293,7 +3331,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			mb_assert(ul);
 
 			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-			memset(*obj, 0, sizeof(_object_t));
+			_MAKE_NIL(*obj);
 			(*obj)->type = type;
 			(*obj)->data.variable = tmp.var;
 			(*obj)->ref = true;
@@ -3317,7 +3355,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 				mb_assert(ul);
 
 				*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-				memset(*obj, 0, sizeof(_object_t));
+				_MAKE_NIL(*obj);
 				(*obj)->type = type;
 				(*obj)->data.label = tmp.label;
 				(*obj)->ref = true;
@@ -3904,7 +3942,7 @@ int _gc_destroy_garbage(void* data, void* extra) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 	_list_t* lst = 0;
 	_dict_t* dct = 0;
-#endif /* #ifdef MB_ENABLE_COLLECTION_LIB */
+#endif /* MB_ENABLE_COLLECTION_LIB */
 
 	mb_assert(data && extra);
 
@@ -3924,7 +3962,7 @@ int _gc_destroy_garbage(void* data, void* extra) {
 		_ht_clear(dct->dict);
 
 		break;
-#endif /* #ifdef MB_ENABLE_COLLECTION_LIB */
+#endif /* MB_ENABLE_COLLECTION_LIB */
 	default:
 		break;
 	}
@@ -4098,6 +4136,7 @@ int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index, b
 	mb_assert(s && l && index);
 
 	subscript_ptr = &subscript;
+	_MAKE_NIL(subscript_ptr);
 
 	if(literally) *literally = false;
 
@@ -4521,7 +4560,7 @@ bool_t _pop_list(_list_t* coll, mb_value_t* val, mb_interpreter_t* s) {
 
 		return true;
 	} else {
-		val->type = MB_DT_NIL;
+		mb_make_nil(*val);
 
 		return false;
 	}
@@ -4820,29 +4859,11 @@ int _clone_to_list(void* data, void* extra, _list_t* coll) {
 	mb_assert(data && coll);
 
 	tgt = (_object_t*)mb_malloc(sizeof(_object_t));
+	_MAKE_NIL(tgt);
 	obj = (_object_t*)data;
 	_clone_object(obj, tgt);
 	_push_list(coll, 0, tgt);
-	switch(tgt->type) {
-	case _DT_USERTYPE_REF:
-		_ref(&tgt->data.usertype_ref->ref, tgt->data.usertype_ref);
-
-		break;
-	case _DT_ARRAY:
-		_ref(&tgt->data.array->ref, tgt->data.array);
-
-		break;
-	case _DT_LIST:
-		_ref(&tgt->data.list->ref, tgt->data.list);
-
-		break;
-	case _DT_DICT:
-		_ref(&tgt->data.dict->ref, tgt->data.dict);
-
-		break;
-	default: /* Do nothing */
-		break;
-	}
+	_REF(tgt)
 
 	return 1;
 }
@@ -4857,54 +4878,18 @@ int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 	mb_assert(data && extra && coll);
 
 	ktgt = (_object_t*)mb_malloc(sizeof(_object_t));
+	_MAKE_NIL(ktgt);
 	kobj = (_object_t*)extra;
 	_clone_object(kobj, ktgt);
 
 	vtgt = (_object_t*)mb_malloc(sizeof(_object_t));
+	_MAKE_NIL(vtgt);
 	vobj = (_object_t*)data;
 	_clone_object(vobj, vtgt);
 
 	_set_dict(coll, 0, 0, ktgt, vtgt);
-	switch(ktgt->type) {
-	case _DT_USERTYPE_REF:
-		_ref(&ktgt->data.usertype_ref->ref, ktgt->data.usertype_ref);
-
-		break;
-	case _DT_ARRAY:
-		_ref(&ktgt->data.array->ref, ktgt->data.array);
-
-		break;
-	case _DT_LIST:
-		_ref(&ktgt->data.list->ref, ktgt->data.list);
-
-		break;
-	case _DT_DICT:
-		_ref(&ktgt->data.dict->ref, ktgt->data.dict);
-
-		break;
-	default: /* Do nothing */
-		break;
-	}
-	switch(vtgt->type) {
-	case _DT_USERTYPE_REF:
-		_ref(&vtgt->data.usertype_ref->ref, vtgt->data.usertype_ref);
-
-		break;
-	case _DT_ARRAY:
-		_ref(&vtgt->data.array->ref, vtgt->data.array);
-
-		break;
-	case _DT_LIST:
-		_ref(&vtgt->data.list->ref, vtgt->data.list);
-
-		break;
-	case _DT_DICT:
-		_ref(&vtgt->data.dict->ref, vtgt->data.dict);
-
-		break;
-	default: /* Do nothing */
-		break;
-	}
+	_REF(ktgt)
+	_REF(vtgt)
 
 	return 1;
 }
@@ -5108,12 +5093,12 @@ void _duplicate_parameter(void* data, void* extra, _running_context_t* running) 
 	memset(var, 0, sizeof(_var_t));
 	var->name = mb_memdup(ref->name, (unsigned)(strlen(ref->name) + 1));
 	var->data = (_object_t*)mb_malloc(sizeof(_object_t));
-	memset(var->data, 0, sizeof(_object_t));
+	_MAKE_NIL(var->data);
 	var->data->type = _DT_NIL;
 	var->data->data.integer = 0;
 
 	obj = (_object_t*)mb_malloc(sizeof(_object_t));
-	memset(obj, 0, sizeof(_object_t));
+	_MAKE_NIL(obj);
 	obj->type = _DT_VAR;
 	obj->data.variable = var;
 	obj->ref = false;
@@ -5307,7 +5292,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 
 	mb_assert(obj && tgt);
 
-	memset(tgt, 0, sizeof(_object_t));
+	_MAKE_NIL(tgt);
 	tgt->type = _DT_NIL;
 	if(_is_internal_object(obj))
 		goto _exit;
@@ -5431,19 +5416,15 @@ int _dispose_object(_object_t* obj) {
 		}
 
 		break;
-	_UNREF_USERTYPE_REF(obj)
 	case _DT_FUNC:
 		safe_free(obj->data.func->name);
 		safe_free(obj->data.func);
 
 		break;
-	case _DT_ARRAY:
-		if(!obj->ref)
-			_unref(&obj->data.array->ref, obj->data.array);
-
-		break;
-#ifdef MB_ENABLE_COLLECTION_LIB
+	_UNREF_USERTYPE_REF(obj)
+	_UNREF_ARRAY(obj)
 	_UNREF_COLL(obj)
+#ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST_IT:
 		_destroy_list_it(obj->data.list_it);
 
@@ -5758,6 +5739,8 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 
 	mb_assert(pbl && itn);
 
+	_UNREF(itn)
+
 	switch(pbl->type) {
 	case MB_DT_TYPE:
 		itn->type = _DT_TYPE;
@@ -5849,8 +5832,7 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 
 		break;
 	case _DT_NIL:
-		pbl->type = MB_DT_NIL;
-		pbl->value.integer = false;
+		mb_make_nil(*pbl);
 
 		break;
 	case _DT_INT:
@@ -5926,7 +5908,7 @@ int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn) 
 	mb_assert(pbl && itn);
 
 	*itn = (_object_t*)mb_malloc(sizeof(_object_t));
-	memset(*itn, 0, sizeof(_object_t));
+	_MAKE_NIL(*itn);
 	_public_value_to_internal_object(pbl, *itn);
 	if((*itn)->type == _DT_STRING) {
 		(*itn)->ref = false;
@@ -5950,8 +5932,9 @@ void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s)
 	obj = (_object_t*)data;
 	running = s->running_context;
 
-	if(obj->type == _DT_STRING && running->intermediate_value.type == MB_DT_STRING && obj->data.string == running->intermediate_value.value.string)
-		running->intermediate_value.type = MB_DT_NIL;
+	if(obj->type == _DT_STRING && running->intermediate_value.type == MB_DT_STRING && obj->data.string == running->intermediate_value.value.string) {
+		mb_make_nil(running->intermediate_value);
+	}
 }
 
 void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
@@ -5961,7 +5944,7 @@ void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
 	mb_assert(s && ch);
 
 	temp_obj = (_object_t*)mb_malloc(sizeof(_object_t));
-	memset(temp_obj, 0, sizeof(_object_t));
+	_MAKE_NIL(temp_obj);
 	temp_obj->type = _DT_STRING;
 	temp_obj->ref = false;
 	temp_obj->data.string = ch;
@@ -5975,49 +5958,26 @@ void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
 
 	mb_assert(tgt);
 
-	if(src) {
-		_public_value_to_internal_object(src, &obj);
-		switch(obj.type) {
-		case _DT_USERTYPE_REF:
-			_ref(&obj.data.usertype_ref->ref, obj.data.usertype_ref);
-
-			break;
-		case _DT_ARRAY:
-			_ref(&obj.data.array->ref, obj.data.array);
-
-			break;
-#ifdef MB_ENABLE_COLLECTION_LIB
-		case _DT_LIST:
-			_ref(&obj.data.list->ref, obj.data.list);
-
-			break;
-		case _DT_DICT:
-			_ref(&obj.data.dict->ref, obj.data.dict);
-
-			break;
-#endif /* MB_ENABLE_COLLECTION_LIB */
-		default: /* Do nothing */
-			break;
-		}
-	}
-
+	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(tgt, &obj);
-	switch(obj.type) {
-	_UNREF_USERTYPE_REF(&obj)
-	_UNREF_ARRAY(&obj)
-#ifdef MB_ENABLE_COLLECTION_LIB
-	_UNREF_COLL(&obj)
-#endif /* MB_ENABLE_COLLECTION_LIB */
-	default: /* Do nothing */
-		break;
-	}
+	_UNREF(&obj)
 
-	if(!src) {
-		nil.type = MB_DT_NIL;
-		nil.value.usertype = 0;
+	mb_make_nil(nil);
+	if(!src)
 		src = &nil;
-	}
 	memcpy(tgt, src, sizeof(mb_value_t));
+	*src = nil;
+}
+
+void _swap_public_value(mb_value_t* tgt, mb_value_t* src) {
+	/* Swap two public values */
+	mb_value_t tmp;
+
+	mb_assert(tgt && src);
+
+	tmp = *tgt;
+	*tgt = *src;
+	*src = tmp;
 }
 
 int _clear_scope_chain(mb_interpreter_t* s) {
@@ -6850,6 +6810,8 @@ int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val) {
 
 	mb_assert(s && l && val);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_pop_value(s, l, &arg));
 
 	switch(arg.type) {
@@ -6880,6 +6842,8 @@ int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val) {
 	real_t tmp = 0;
 
 	mb_assert(s && l && val);
+
+	mb_make_nil(arg);
 
 	mb_check(mb_pop_value(s, l, &arg));
 
@@ -6912,6 +6876,8 @@ int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val) {
 
 	mb_assert(s && l && val);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_pop_value(s, l, &arg));
 
 	switch(arg.type) {
@@ -6938,6 +6904,8 @@ int mb_pop_usertype(struct mb_interpreter_t* s, void** l, void** val) {
 	void* tmp = 0;
 
 	mb_assert(s && l && val);
+
+	mb_make_nil(arg);
 
 	mb_check(mb_pop_value(s, l, &arg));
 
@@ -6975,7 +6943,7 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 		inep = (int*)_ls_back(s->in_neg_expr)->data;
 
 	val_ptr = &val_obj;
-	memset(val_ptr, 0, sizeof(_object_t));
+	_MAKE_NIL(val_ptr);
 
 	ast = (_ls_node_t*)(*l);
 	result = _calc_expression(s, &ast, &val_ptr);
@@ -6989,17 +6957,8 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 		val_ptr = (_object_t*)mb_malloc(sizeof(_object_t));
 		memcpy(val_ptr, &val_obj, sizeof(_object_t));
 		_ls_pushback(s->temp_values, val_ptr);
-	} else if(val_ptr->type == _DT_USERTYPE_REF) {
-		_ref(&val_ptr->data.usertype_ref->ref, val_ptr->data.usertype_ref);
-	} else if(val_ptr->type == _DT_ARRAY) {
-		_ref(&val_ptr->data.array->ref, val_ptr->data.array);
-#ifdef MB_ENABLE_COLLECTION_LIB
-	} else if(val_ptr->type == _DT_LIST) {
-		_ref(&val_ptr->data.list->ref, val_ptr->data.list);
-	} else if(val_ptr->type == _DT_DICT) {
-		_ref(&val_ptr->data.dict->ref, val_ptr->data.dict);
-#endif /* MB_ENABLE_COLLECTION_LIB */
 	}
+	_REF(val_ptr)
 
 	if(s->no_eat_comma_mark < _NO_EAT_COMMA && (!inep || (inep && !(*inep)))) {
 		if(ast && _IS_SEP(ast->data, ','))
@@ -7077,11 +7036,16 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	/* Push an argument value */
 	int result = MB_FUNC_OK;
 	_running_context_t* running = 0;
+	_object_t obj;
 
 	mb_assert(s && l);
 
 	running = s->running_context;
 	_assign_public_value(&running->intermediate_value, &val);
+
+	_MAKE_NIL(&obj);
+	_public_value_to_internal_object(&running->intermediate_value, &obj);
+	_REF(&obj)
 
 #ifdef MB_ENABLE_GC
 	_gc_try_trigger(s);
@@ -7309,6 +7273,7 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 	mb_assert(s && l);
 
+	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
 	if(obj.type != _DT_USERTYPE_REF) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
@@ -7326,6 +7291,7 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 	mb_assert(s && l);
 
+	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
 	if(obj.type != _DT_USERTYPE_REF) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
@@ -7358,7 +7324,7 @@ int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 
 	mb_assert(s && l && n && val);
 
-	val->type = MB_DT_NIL;
+	mb_make_nil(*val);
 
 	scp = _search_identifier_in_scope_chain(s, 0, (char*)n);
 	if(scp) {
@@ -7385,6 +7351,7 @@ int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_val
 		_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
 
+	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
 	result = _eval_routine(s, (_ls_node_t**)l, args, argc, obj.data.routine, _has_routine_fun_arg, _pop_routine_fun_arg);
 
@@ -7585,8 +7552,9 @@ int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 		else
 			result = _internal_object_to_public_value(obj->data.variable->data, &tmp);
 	} else {
-		if(val)
-			val->type = MB_DT_NIL;
+		if(val) {
+			mb_make_nil(*val);
+		}
 		result = MB_DEBUG_ID_NOT_FOUND;
 	}
 
@@ -7884,6 +7852,8 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 	if(inep)
 		(*inep)++;
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_func_begin(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -8133,6 +8103,8 @@ int _core_not(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_func_begin(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -8219,7 +8191,7 @@ int _core_let(mb_interpreter_t* s, void** l) {
 
 	ast = ast->next;
 	val = (_object_t*)mb_malloc(sizeof(_object_t));
-	memset(val, 0, sizeof(_object_t));
+	_MAKE_NIL(val);
 	result = _calc_expression(s, &ast, &val);
 
 	if(var) {
@@ -8283,28 +8255,7 @@ int _core_let(mb_interpreter_t* s, void** l) {
 			safe_free(val->data.string);
 		}
 	}
-	switch(val->type) {
-	case _DT_USERTYPE_REF:
-		_ref(&val->data.usertype_ref->ref, val->data.usertype_ref);
-
-		break;
-	case _DT_ARRAY:
-		_ref(&val->data.array->ref, val->data.array);
-
-		break;
-#ifdef MB_ENABLE_COLLECTION_LIB
-	case _DT_LIST:
-		_ref(&val->data.list->ref, val->data.list);
-
-		break;
-	case _DT_DICT:
-		_ref(&val->data.dict->ref, val->data.dict);
-
-		break;
-#endif /* MB_ENABLE_COLLECTION_LIB */
-	default: /* Do nothing */
-		break;
-	}
+	_REF(val)
 	safe_free(val);
 
 _exit:
@@ -8403,7 +8354,7 @@ int _core_if(mb_interpreter_t* s, void** l) {
 	val = (_object_t*)mb_malloc(sizeof(_object_t));
 
 _elseif:
-	memset(val, 0, sizeof(_object_t));
+	_MAKE_NIL(val);
 	result = _calc_expression(s, &ast, &val);
 	if(result != MB_FUNC_OK)
 		goto _exit;
@@ -8567,7 +8518,9 @@ int _core_for(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 
 	to_val_ptr = &to_val;
+	_MAKE_NIL(to_val_ptr);
 	step_val_ptr = &step_val;
+	_MAKE_NIL(step_val_ptr);
 	ass_tuple3_ptr = &ass_tuple3;
 
 	obj = (_object_t*)(ast->data);
@@ -8730,6 +8683,7 @@ int _core_while(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 
 	loop_cond_ptr = &loop_cond;
+	_MAKE_NIL(loop_cond_ptr);
 
 	loop_begin_node = ast;
 
@@ -8806,6 +8760,7 @@ int _core_do(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 
 	loop_cond_ptr = &loop_cond;
+	_MAKE_NIL(loop_cond_ptr);
 
 	loop_begin_node = ast;
 
@@ -8947,6 +8902,8 @@ int _core_return(mb_interpreter_t* s, void** l) {
 	mb_value_t arg;
 
 	mb_assert(s && l);
+
+	mb_make_nil(arg);
 
 	running = s->running_context;
 	sub_stack = s->sub_stack;
@@ -9140,6 +9097,8 @@ int _core_type(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -9198,6 +9157,8 @@ int _std_abs(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -9231,6 +9192,8 @@ int _std_sgn(mb_interpreter_t* s, void** l) {
 	mb_value_t arg;
 
 	mb_assert(s && l);
+
+	mb_make_nil(arg);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
@@ -9266,6 +9229,8 @@ int _std_sqr(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -9286,6 +9251,8 @@ int _std_floor(mb_interpreter_t* s, void** l) {
 	mb_value_t arg;
 
 	mb_assert(s && l);
+
+	mb_make_nil(arg);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
@@ -9321,6 +9288,8 @@ int _std_ceil(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -9355,6 +9324,8 @@ int _std_fix(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -9388,6 +9359,8 @@ int _std_round(mb_interpreter_t* s, void** l) {
 	mb_value_t arg;
 
 	mb_assert(s && l);
+
+	mb_make_nil(arg);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
@@ -9484,6 +9457,8 @@ int _std_sin(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -9504,6 +9479,8 @@ int _std_cos(mb_interpreter_t* s, void** l) {
 	mb_value_t arg;
 
 	mb_assert(s && l);
+
+	mb_make_nil(arg);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
@@ -9526,6 +9503,8 @@ int _std_tan(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -9546,6 +9525,8 @@ int _std_asin(mb_interpreter_t* s, void** l) {
 	mb_value_t arg;
 
 	mb_assert(s && l);
+
+	mb_make_nil(arg);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
@@ -9568,6 +9549,8 @@ int _std_acos(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -9588,6 +9571,8 @@ int _std_atan(mb_interpreter_t* s, void** l) {
 	mb_value_t arg;
 
 	mb_assert(s && l);
+
+	mb_make_nil(arg);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
@@ -9610,6 +9595,8 @@ int _std_exp(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -9630,6 +9617,8 @@ int _std_log(mb_interpreter_t* s, void** l) {
 	mb_value_t arg;
 
 	mb_assert(s && l);
+
+	mb_make_nil(arg);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
@@ -9839,6 +9828,8 @@ int _std_str(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -9875,6 +9866,9 @@ int _std_val(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(arg);
+	mb_make_nil(ret);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
@@ -9902,6 +9896,7 @@ int _std_val(mb_interpreter_t* s, void** l) {
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case MB_DT_DICT_IT:
+		_MAKE_NIL(&ocoi);
 		_public_value_to_internal_object(&arg, &ocoi);
 		if(ocoi.data.dict_it && ocoi.data.dict_it->curr_node && ocoi.data.dict_it->curr_node->data) {
 			_internal_object_to_public_value(ocoi.data.dict_it->curr_node->data, &ret);
@@ -9934,6 +9929,8 @@ int _std_len(mb_interpreter_t* s, void** l) {
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 	mb_assert(s && l);
+
+	mb_make_nil(arg);
 
 	ast = (_ls_node_t*)(*l);
 
@@ -9993,7 +9990,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	val_ptr = &val_obj;
-	memset(val_ptr, 0, sizeof(_object_t));
+	_MAKE_NIL(val_ptr);
 
 	++s->no_eat_comma_mark;
 	ast = (_ls_node_t*)(*l);
@@ -10155,6 +10152,7 @@ int _coll_list(mb_interpreter_t* s, void** l) {
 	coll = _create_list(s);
 
 	while(mb_has_arg(s, l)) {
+		mb_make_nil(arg);
 		mb_check(mb_pop_value(s, l, &arg));
 		_push_list(coll, &arg, 0);
 	}
@@ -10182,6 +10180,8 @@ int _coll_dict(mb_interpreter_t* s, void** l) {
 	coll = _create_dict(s);
 
 	while(mb_has_arg(s, l)) {
+		mb_make_nil(arg);
+		mb_make_nil(val);
 		mb_check(mb_pop_value(s, l, &arg));
 		mb_check(mb_pop_value(s, l, &val));
 		_set_dict(coll, &arg, &val, 0, 0);
@@ -10205,15 +10205,20 @@ int _coll_push(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(lst);
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &lst));
 	if(lst.type != MB_DT_LIST) {
 		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
+	_MAKE_NIL(&olst);
 	_public_value_to_internal_object(&lst, &olst);
 
 	while(mb_has_arg(s, l)) {
+		mb_make_nil(arg);
 		mb_check(mb_pop_value(s, l, &arg));
 		_push_list(olst.data.list, &arg, 0);
 	}
@@ -10238,6 +10243,9 @@ int _coll_pop(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(lst);
+	mb_make_nil(val);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &lst));
@@ -10248,11 +10256,13 @@ int _coll_pop(mb_interpreter_t* s, void** l) {
 		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
 
+	_MAKE_NIL(&olst);
 	_public_value_to_internal_object(&lst, &olst);
 	if(_pop_list(olst.data.list, &val, s)) {
 		mb_check(mb_push_value(s, l, val));
+		_MAKE_NIL(&ocoll);
 		_public_value_to_internal_object(&val, &ocoll);
-		_UNREF_IF_IS_COLL(&ocoll);
+		_UNREF(&ocoll)
 
 		_assign_public_value(&lst, 0);
 	} else {
@@ -10277,6 +10287,9 @@ int _coll_peek(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(lst);
+	mb_make_nil(val);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &lst));
@@ -10287,6 +10300,7 @@ int _coll_peek(mb_interpreter_t* s, void** l) {
 		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
 
+	_MAKE_NIL(&olst);
 	_public_value_to_internal_object(&lst, &olst);
 	oval = (_object_t*)(_ls_back(olst.data.list->list)->data);
 	if(oval) {
@@ -10296,7 +10310,6 @@ int _coll_peek(mb_interpreter_t* s, void** l) {
 
 		_assign_public_value(&lst, 0);
 	} else {
-		val.type = MB_DT_NIL;
 		mb_check(mb_push_value(s, l, val));
 
 		_assign_public_value(&lst, 0);
@@ -10319,6 +10332,9 @@ int _coll_insert(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(lst);
+	mb_make_nil(arg);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &lst));
@@ -10330,6 +10346,7 @@ int _coll_insert(mb_interpreter_t* s, void** l) {
 	if(lst.type != MB_DT_LIST) {
 		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
+	_MAKE_NIL(&olst);
 	_public_value_to_internal_object(&lst, &olst);
 
 	if(!_insert_list(olst.data.list, idx, &arg, &oval)) {
@@ -10354,6 +10371,8 @@ int _coll_sort(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(lst);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &lst));
@@ -10363,6 +10382,7 @@ int _coll_sort(mb_interpreter_t* s, void** l) {
 	if(lst.type != MB_DT_LIST) {
 		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
+	_MAKE_NIL(&olst);
 	_public_value_to_internal_object(&lst, &olst);
 
 	_sort_list(olst.data.list);
@@ -10385,6 +10405,10 @@ int _coll_exist(mb_interpreter_t* s, void** l){
 
 	mb_assert(s && l);
 
+	mb_make_nil(coll);
+	mb_make_nil(arg);
+	mb_make_nil(ret);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
@@ -10393,6 +10417,7 @@ int _coll_exist(mb_interpreter_t* s, void** l){
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	ret.type = MB_DT_INT;
+	_MAKE_NIL(&ocoll);
 	switch(coll.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);
@@ -10428,10 +10453,14 @@ int _coll_get(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(coi);
+	mb_make_nil(arg);
+	mb_make_nil(ret);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coi));
-	ret.type = MB_DT_NIL;
+	_MAKE_NIL(&ocoi);
 	switch(coi.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coi, &ocoi);
@@ -10495,13 +10524,19 @@ int _coll_set(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(coll);
+	mb_make_nil(key);
+	mb_make_nil(val);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
+	_MAKE_NIL(&ocoll);
 	switch(coll.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);
 		while(mb_has_arg(s, l)) {
+			mb_make_nil(val);
 			mb_check(mb_pop_int(s, l, &idx));
 			mb_check(mb_pop_value(s, l, &val));
 			if(!_set_list(ocoll.data.list, idx, &val, &oval)) {
@@ -10515,6 +10550,8 @@ int _coll_set(mb_interpreter_t* s, void** l) {
 	case MB_DT_DICT:
 		_public_value_to_internal_object(&coll, &ocoll);
 		while(mb_has_arg(s, l)) {
+			mb_make_nil(key);
+			mb_make_nil(val);
 			mb_check(mb_pop_value(s, l, &key));
 			mb_check(mb_pop_value(s, l, &val));
 			_set_dict(ocoll.data.dict, &key, &val, 0, 0);
@@ -10547,9 +10584,13 @@ int _coll_remove(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(coll);
+	mb_make_nil(key);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
+	_MAKE_NIL(&ocoll);
 	switch(coll.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);
@@ -10597,12 +10638,15 @@ int _coll_clear(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(coll);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
+	_MAKE_NIL(&ocoll);
 	switch(coll.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);
@@ -10638,12 +10682,16 @@ int _coll_clone(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(coll);
+	mb_make_nil(ret);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
+	_MAKE_NIL(&ocoll);
 	switch(coll.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);
@@ -10684,12 +10732,16 @@ int _coll_iterator(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(coll);
+	mb_make_nil(ret);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
+	_MAKE_NIL(&ocoll);
 	switch(coll.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);
@@ -10728,12 +10780,16 @@ int _coll_move_next(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	mb_make_nil(it);
+	mb_make_nil(ret);
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &it));
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
+	_MAKE_NIL(&oit);
 	switch(it.type) {
 	case MB_DT_LIST_IT:
 		_public_value_to_internal_object(&it, &oit);
@@ -10744,7 +10800,7 @@ int _coll_move_next(mb_interpreter_t* s, void** l) {
 			ret.type = MB_DT_INT;
 			ret.value.integer = 1;
 		} else {
-			ret.type = MB_DT_NIL;
+			mb_make_nil(ret);
 		}
 
 		break;
@@ -10757,7 +10813,7 @@ int _coll_move_next(mb_interpreter_t* s, void** l) {
 			ret.type = MB_DT_INT;
 			ret.value.integer = 1;
 		} else {
-			ret.type = MB_DT_NIL;
+			mb_make_nil(ret);
 		}
 
 		break;
