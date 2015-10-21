@@ -160,6 +160,10 @@ extern "C" {
 #	define mb_unrefvar(__v) ((void)(__v))
 #endif /* mb_unrefvar */
 
+#ifndef mb_make_nil
+#	define mb_make_nil(__v) do { (__v).value.integer = 0; (__v).type = MB_DT_NIL; } while(0)
+#endif /* mb_make_nil */
+
 #ifndef MB_CODES
 #	define MB_CODES
 #	define MB_FUNC_OK 0
