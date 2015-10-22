@@ -145,7 +145,7 @@ static long alloc_bytes = 0;
 #define _POOL_NODE_PTR(s) (s - sizeof(_pool_tag_t))
 #define _POOL_NODE_NEXT(s) (*((void**)(s - sizeof(_pool_tag_t))))
 #define _POOL_NODE_SIZE(s) (*((_pool_chunk_size_t*)(s - sizeof(_pool_tag_t))))
-#define _POOL_NODE_FREE(s) free(_POOL_NODE_PTR(s))
+#define _POOL_NODE_FREE(s) do { free(_POOL_NODE_PTR(s)); } while(0)
 
 static int _cmp_size_t(const void* l, const void* r) {
 	size_t* pl = (size_t*)l;
@@ -860,6 +860,7 @@ static void _on_startup(void) {
 	mb_init();
 
 	mb_open(&bas);
+
 	mb_debug_set_stepped_handler(bas, _on_stepped);
 	mb_set_error_handler(bas, _on_error);
 
