@@ -33,6 +33,7 @@
 #ifdef _MSC_VER
 #	include <crtdbg.h>
 #	include <conio.h>
+#	include <Windows.h>
 #elif !defined __BORLANDC__ && !defined __TINYC__
 #	include <unistd.h>
 #endif /* _MSC_VER */
@@ -818,6 +819,21 @@ static int beep(struct mb_interpreter_t* s, void** l) {
 	return result;
 }
 
+#ifdef _MSC_VER
+static int ticks(struct mb_interpreter_t* s, void** l) {
+	int result = MB_FUNC_OK;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	mb_check(mb_push_int(s, l, (int_t)GetTickCount()));
+
+	return result;
+}
+#endif /* _MSC_VER */
+
 /* ========================================================} */
 
 /*
@@ -865,6 +881,9 @@ static void _on_startup(void) {
 	mb_set_error_handler(bas, _on_error);
 
 	mb_reg_fun(bas, beep);
+#ifdef _MSC_VER
+	mb_reg_fun(bas, ticks);
+#endif /* _MSC_VER */
 }
 
 static void _on_exit(void) {
