@@ -29,19 +29,21 @@ MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter writt
 * With most common BASIC syntax
 * Lightweight (within memory usage less than 128KB) and fast
 * Case-insensitive tokenization
-* Integer, float point, string, boolean, user defined data types with array support, etc.
+* Integer, float point, string, boolean, user defined data types, etc. with array support
+* Referenced usertype support
+* Collection implementation and manipulation functions for `LIST` and `DICT`
+* Auto releasing of referenced objects (list, dictionary, referenced usertype, etc.) benefited from Reference Counting and GC
+* Standard numeric functions, and standard string functions
 * Multiple file support by `IMPORT` statement
+* Structured user costomized sub routine definition by `DEF/ENDDEF` support, including tail recursion optimization
 * Structured `IF-THEN-ELSEIF-ELSE-ENDIF` support
 * Structured `FOR-TO-STEP-NEXT/WHILE-WEND/DO-UNTIL` support
-* Structured user costomized sub routine definition by `DEF/ENDDEF` support, including tail recursion optimization
 * `GOTO/GOSUB-RETURN` support
-* Standard numeric functions, and standard string functions
-* Collection manipulation functions for `LIST` and `DICT`
 * Debug APIs
 * Customizable memory pool
 * High expansibility, easy to use APIs, easy to write customized scripting interfaces
 * It's able to use it as a standalone interpreter, or integrate it with existing projects in C, C++, Objective-C, etc.
-* It's able to learn how to build an interpreter from scratch from MY-BASIC
+* It's able to learn how to build an interpreter from scratch with MY-BASIC
 * It's able to build your own dialect based on MY-BASIC
 * More features/modules under developing
 
