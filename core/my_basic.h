@@ -184,7 +184,7 @@ extern "C" {
 #endif /* MB_CODES */
 
 #ifndef mb_check
-#	define mb_check(__r) { int __hr = __r; if(__hr != MB_FUNC_OK) { return __hr; } }
+#	define mb_check(__r) do { int __hr = __r; if(__hr != MB_FUNC_OK) { return __hr; } } while(0)
 #endif /* mb_check */
 
 #ifndef mb_reg_fun
@@ -337,8 +337,8 @@ typedef void* (* mb_clone_func_t)(struct mb_interpreter_t*, void*);
 typedef unsigned int (* mb_hash_func_t)(struct mb_interpreter_t*, void*);
 typedef int (* mb_cmp_func_t)(struct mb_interpreter_t*, void*, void*);
 typedef void (* mb_fmt_func_t)(struct mb_interpreter_t*, void*, mb_print_func_t);
-typedef char* (* mb_memory_allocate_func_t)(unsigned s);
-typedef void (* mb_memory_free_func_t)(char* p);
+typedef char* (* mb_memory_allocate_func_t)(unsigned);
+typedef void (* mb_memory_free_func_t)(char*);
 
 MBAPI unsigned int mb_ver(void);
 MBAPI const char* mb_ver_string(void);
