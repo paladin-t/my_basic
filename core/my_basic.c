@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 91
+#define _VER_REVISION 92
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -3864,7 +3864,8 @@ void _gc_remove(_ref_t* ref, void* data) {
 
 	mb_assert(ref && data);
 
-	_ht_remove(ref->s->gc.table, ref, 0);
+	if(ref->s->gc.table)
+		_ht_remove(ref->s->gc.table, ref, 0);
 }
 
 int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht) {
@@ -5982,7 +5983,6 @@ int _clear_scope_chain(mb_interpreter_t* s) {
 	int result = 0;
 	_running_context_t* running = 0;
 	_running_context_t* prev = 0;
-	_ht_node_t* global_scope = 0;
 
 	mb_assert(s);
 
@@ -5990,9 +5990,8 @@ int _clear_scope_chain(mb_interpreter_t* s) {
 	while(running) {
 		prev = running->prev;
 
-		global_scope = running->var_dict;
-		_ht_foreach(global_scope, _destroy_object);
-		_ht_clear(global_scope);
+		_ht_foreach(running->var_dict, _destroy_object);
+		_ht_clear(running->var_dict);
 
 		result++;
 		running = prev;
@@ -6006,7 +6005,6 @@ int _dispose_scope_chain(mb_interpreter_t* s) {
 	int result = 0;
 	_running_context_t* running = 0;
 	_running_context_t* prev = 0;
-	_ht_node_t* global_scope = 0;
 
 	mb_assert(s);
 
@@ -6014,11 +6012,10 @@ int _dispose_scope_chain(mb_interpreter_t* s) {
 	while(running) {
 		prev = running->prev;
 
-		global_scope = running->var_dict;
+		_ht_foreach(running->var_dict, _destroy_object);
+		_ht_clear(running->var_dict);
+		_ht_destroy(running->var_dict);
 		running->var_dict = 0;
-		_ht_foreach(global_scope, _destroy_object);
-		_ht_clear(global_scope);
-		_ht_destroy(global_scope);
 		mb_dispose_value(s, running->intermediate_value);
 		safe_free(running);
 
@@ -6547,10 +6544,6 @@ int mb_open(struct mb_interpreter_t** s) {
 	*s = (mb_interpreter_t*)mb_malloc(sizeof(mb_interpreter_t));
 	memset(*s, 0, sizeof(mb_interpreter_t));
 
-#ifdef MB_ENABLE_GC
-	(*s)->gc.table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
-#endif /* MB_ENABLE_GC */
-
 	(*s)->in_neg_expr = _ls_create();
 
 	local_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, _ls_free_extra);
@@ -6570,6 +6563,10 @@ int mb_open(struct mb_interpreter_t** s) {
 	(*s)->running_context = running;
 	global_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
 	running->var_dict = global_scope;
+
+#ifdef MB_ENABLE_GC
+	(*s)->gc.table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
+#endif /* MB_ENABLE_GC */
 
 	(*s)->sub_stack = _ls_create();
 
@@ -6608,6 +6605,12 @@ int mb_close(struct mb_interpreter_t** s) {
 
 	_ls_destroy((*s)->sub_stack);
 
+#ifdef MB_ENABLE_GC
+	_gc_collect_garbage(*s);
+	_ht_destroy((*s)->gc.table);
+	(*s)->gc.table = 0;
+#endif /* MB_ENABLE_GC */
+
 	_dispose_scope_chain(*s);
 
 	_ls_foreach((*s)->temp_values, _destroy_object);
@@ -6628,12 +6631,6 @@ int mb_close(struct mb_interpreter_t** s) {
 	_ls_destroy((*s)->in_neg_expr);
 
 	_close_constant(*s);
-
-#ifdef MB_ENABLE_GC
-	_gc_collect_garbage(*s);
-	_ht_destroy((*s)->gc.table);
-	(*s)->gc.table = 0;
-#endif /* MB_ENABLE_GC */
 
 	safe_free(*s);
 	*s = 0;
