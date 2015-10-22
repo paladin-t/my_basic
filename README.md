@@ -1,6 +1,6 @@
 ![](resource/icon.ico)
 
-Copyright (C) 2011 - 2015 [Wang Renxin](https://cn.linkedin.com/pub/wang-renxin/43/494/20). All rights reserved.
+**Copyright (C) 2011 - 2015 [Wang Renxin](https://cn.linkedin.com/pub/wang-renxin/43/494/20). All rights reserved.**
 
 Why are existing script interpreters so complex? Why is it so difficult to integrate with them? Why not try MY-BASIC today! Scripting should be simple and enjoyable.
 
@@ -24,18 +24,18 @@ MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter writt
 
 ## Main features
 
-* It is totally free to use MY-BASIC for individual or commercial purpose under the MIT license
-* Written in clean ANSI C, source code portable
+* It is totally **free** to use MY-BASIC for individual or commercial purpose under the MIT license
+* Written in clean **ANSI C**, source code portable
 * With most common BASIC syntax
-* Lightweight (within memory usage less than 128KB) and fast
+* **Lightweight** (within memory usage less than 128KB) and fast
 * Case-insensitive tokenization
 * Integer, float point, string, boolean, user defined data types, etc. with array support
 * Referenced usertype support
-* Collection implementation and manipulation functions for `LIST` and `DICT`
-* Auto releasing of referenced objects (list, dictionary, referenced usertype, etc.) benefited from Reference Counting and GC
+* Collection implementation and manipulation functions for **`LIST`** and **`DICT`**
+* Auto releasing of referenced objects (list, dictionary, referenced usertype, etc.) benefited from **Reference Counting** and **GC**
 * Standard numeric functions, and standard string functions
 * Multiple file support by `IMPORT` statement
-* Structured user costomized sub routine definition by `DEF/ENDDEF` support, including tail recursion optimization
+* Structured user costomized **sub** routine definition by **`DEF/ENDDEF`** support, including tail recursion optimization
 * Structured `IF-THEN-ELSEIF-ELSE-ENDIF` support
 * Structured `FOR-TO-STEP-NEXT/WHILE-WEND/DO-UNTIL` support
 * `GOTO/GOSUB-RETURN` support
