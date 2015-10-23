@@ -165,12 +165,7 @@ extern "C" {
 #endif /* mb_make_nil */
 
 #ifndef mb_int_val
-#	define mb_int_val(__v, __i) \
-	do { \
-		if((__v).type == MB_DT_INT) (__i) = (__v).value.integer; \
-		else if((__v).type == MB_DT_REAL) (__i) = (int_t)((__v).value.float_point); \
-		else (__i) = ~((int_t)0); \
-	} while(0)
+#	define mb_int_val(__v, __i) do { if((__v).type == MB_DT_INT) (__i) = (__v).value.integer; else if((__v).type == MB_DT_REAL) (__i) = (int_t)((__v).value.float_point); else (__i) = ~((int_t)0); } while(0)
 #endif /* mb_int_val */
 
 #ifndef MB_CODES
