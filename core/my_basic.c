@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 93
+#define _VER_REVISION 94
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -974,9 +974,11 @@ static bool_t _is_separator(char c);
 static bool_t _is_bracket(char c);
 static bool_t _is_quotation_mark(char c);
 static bool_t _is_comment(char c);
+static bool_t _is_numeric_char(char c);
 static bool_t _is_identifier_char(char c);
 static bool_t _is_operator_char(char c);
 static bool_t _is_accessor(char c);
+static bool_t _is_exponent_prefix(char* s, int begin, int end);
 
 static int _append_char_to_symbol(mb_interpreter_t* s, char c);
 static int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col);
@@ -3048,11 +3050,16 @@ bool_t _is_comment(char c) {
 	return ('\'' == c);
 }
 
+bool_t _is_numeric_char(char c) {
+	/* Determine whether a character is a numeric char */
+	return (c >= '0' && c <= '9') || (c == '.');
+}
+
 bool_t _is_identifier_char(char c) {
 	/* Determine whether a character is an identifier char */
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 		(c == '_') ||
-		(c >= '0' && c <= '9') || (c == '.') ||
+		_is_numeric_char(c) ||
 		(c == '$');
 }
 
@@ -3068,6 +3075,24 @@ bool_t _is_operator_char(char c) {
 bool_t _is_accessor(char c) {
 	/* Determine whether a character is an accessor char */
 	return c == '.';
+}
+
+bool_t _is_exponent_prefix(char* s, int begin, int end) {
+	/* Determine whether current symbol is an exponent prefix */
+	_parsing_context_t* context = 0;
+	int i = 0;
+
+	mb_assert(s);
+
+	if(end < 0)
+		return false;
+
+	for(i = begin; i <= end; i++) {
+		if(!_is_numeric_char(s[i]))
+			return false;
+	}
+
+	return true;
 }
 
 int _append_char_to_symbol(mb_interpreter_t* s, char c) {
@@ -3692,7 +3717,7 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 				if(_is_identifier_char(c)) {
 					result += _append_char_to_symbol(s, c);
 				} else if(_is_operator_char(c)) {
-					if((last_char == 'e' || last_char == 'E') && c == '-') {
+					if(_is_exponent_prefix(context->current_symbol, 0, context->current_symbol_nonius - 2) && (last_char == 'e' || last_char == 'E') && c == '-') {
 						result += _append_char_to_symbol(s, c);
 					} else {
 						context->symbol_state = _SS_OPERATOR;
