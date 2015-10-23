@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 92
+#define _VER_REVISION 93
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -370,7 +370,7 @@ typedef struct _routine_t {
 typedef int (* _has_routine_arg)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, _routine_t*);
 typedef int (* _pop_routine_arg)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, _routine_t*, mb_value_t*);
 
-typedef union _raw_u { char c; int_t i; real_t r; void* p; } _raw_u;
+typedef union _raw_u { char c; int_t i; real_t r; void* p; mb_val_bytes_t b; } _raw_u;
 
 typedef unsigned char _raw_t[sizeof(_raw_u)];
 
@@ -396,6 +396,7 @@ typedef struct _object_t {
 		_routine_t* routine;
 		_class_t* instance;
 		char separator;
+		mb_val_bytes_t bytes;
 		_raw_t raw;
 	} data;
 	bool_t ref;
@@ -4806,7 +4807,7 @@ bool_t _invalid_list_it(_list_it_t* it) {
 
 bool_t _invalid_dict_it(_dict_it_t* it) {
 	/* Determin whether a dictionary iterator is invalid */
-	if(!it) return true;
+	if(!it) return false;
 
 	return it && it->dict && it->dict->lock <= 0;
 }
@@ -5767,7 +5768,7 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 		break;
 	case MB_DT_USERTYPE:
 		itn->type = _DT_USERTYPE;
-		itn->data.usertype = pbl->value.usertype;
+		memcpy(itn->data.raw, pbl->value.bytes, sizeof(mb_val_bytes_t));
 
 		break;
 	case MB_DT_USERTYPE_REF:
@@ -5850,7 +5851,7 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 		break;
 	case _DT_USERTYPE:
 		pbl->type = MB_DT_USERTYPE;
-		pbl->value.usertype = itn->data.usertype;
+		memcpy(pbl->value.bytes, itn->data.raw, sizeof(mb_val_bytes_t));
 
 		break;
 	case _DT_USERTYPE_REF:
@@ -7244,6 +7245,187 @@ _exit:
 	return result;
 }
 
+int mb_get_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_t idx, mb_value_t* val) {
+	/* Get an element of a collection */
+	int result = MB_FUNC_OK;
+	_object_t ocoll;
+	int_t i = 0;
+	mb_value_t ret;
+
+	mb_assert(s);
+
+	mb_make_nil(ret);
+
+	_MAKE_NIL(&ocoll);
+#ifdef MB_ENABLE_COLLECTION_LIB
+	switch(coll.type) {
+	case MB_DT_LIST:
+		mb_int_val(idx, i);
+		_public_value_to_internal_object(&coll, &ocoll);
+		if(!_at_list(ocoll.data.list, i, &ret)) {
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
+		break;
+	case MB_DT_DICT:
+		_public_value_to_internal_object(&coll, &ocoll);
+		if(!_find_dict(ocoll.data.dict, &idx, &ret)) {
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
+		break;
+	default:
+		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+#else /* MB_ENABLE_COLLECTION_LIB */
+	mb_unrefvar(idx);
+	mb_unrefvar(coll);
+	mb_unrefvar(i);
+	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
+_exit:
+	if(val) *val = ret;
+
+	return result;
+}
+
+int mb_set_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_t idx, mb_value_t val) {
+	/* Set an element of a collection */
+	int result = MB_FUNC_OK;
+	_object_t ocoll;
+	int_t i = 0;
+	_object_t* oval = 0;
+	mb_value_t ret;
+
+	mb_assert(s);
+
+	mb_make_nil(ret);
+
+	_MAKE_NIL(&ocoll);
+#ifdef MB_ENABLE_COLLECTION_LIB
+	switch(coll.type) {
+	case MB_DT_LIST:
+		mb_int_val(idx, i);
+		_public_value_to_internal_object(&coll, &ocoll);
+		if(!_set_list(ocoll.data.list, i, &val, &oval)) {
+			_destroy_object(oval, 0);
+
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
+		break;
+	case MB_DT_DICT:
+		_public_value_to_internal_object(&coll, &ocoll);
+		_set_dict(ocoll.data.dict, &idx, &val, 0, 0);
+
+		break;
+	default:
+		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+#else /* MB_ENABLE_COLLECTION_LIB */
+	mb_unrefvar(val);
+	mb_unrefvar(idx);
+	mb_unrefvar(coll);
+	mb_unrefvar(oval);
+	mb_unrefvar(i);
+	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
+_exit:
+	return result;
+}
+
+int mb_remove_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_t idx) {
+	/* Remove an element from a collection */
+	int result = MB_FUNC_OK;
+	_object_t ocoll;
+	int_t i = 0;
+	mb_value_t ret;
+
+	mb_assert(s);
+
+	mb_make_nil(ret);
+
+	_MAKE_NIL(&ocoll);
+#ifdef MB_ENABLE_COLLECTION_LIB
+	switch(coll.type) {
+	case MB_DT_LIST:
+		mb_int_val(idx, i);
+		_public_value_to_internal_object(&coll, &ocoll);
+		if(!_remove_at_list(ocoll.data.list, i)) {
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
+		break;
+	case MB_DT_DICT:
+		_public_value_to_internal_object(&coll, &ocoll);
+		if(!_remove_dict(ocoll.data.dict, &idx)) {
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
+		break;
+	default:
+		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+#else /* MB_ENABLE_COLLECTION_LIB */
+	mb_unrefvar(coll);
+	mb_unrefvar(idx);
+	mb_unrefvar(i);
+	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
+_exit:
+	return result;
+}
+
+int mb_count_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, int* c) {
+	/* Tell the element count of a collection */
+	int result = MB_FUNC_OK;
+	_object_t ocoll;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	_list_t* lst = 0;
+	_dict_t* dct = 0;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+	int ret = 0;
+
+	mb_assert(s);
+
+	_MAKE_NIL(&ocoll);
+#ifdef MB_ENABLE_COLLECTION_LIB
+	switch(coll.type) {
+	case MB_DT_LIST:
+		lst = (_list_t*)coll.value.list;
+		ret = (int)lst->count;
+
+		break;
+	case MB_DT_DICT:
+		dct = (_dict_t*)coll.value.dict;
+		ret = (int)_ht_count(dct->dict);
+
+		break;
+	default:
+		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+#else /* MB_ENABLE_COLLECTION_LIB */
+	mb_unrefvar(coll);
+	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
+_exit:
+	if(c) *c = ret;
+
+	return result;
+}
+
 int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft) {
 	/* Create a referenced usertype value */
 	int result = MB_FUNC_OK;
@@ -7269,10 +7451,14 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
-	if(obj.type != _DT_USERTYPE_REF) {
+#ifdef MB_ENABLE_COLLECTION_LIB
+	if(obj.type != _DT_USERTYPE_REF && obj.type != _DT_ARRAY && obj.type != _DT_LIST && obj.type != _DT_DICT) {
+#else /* MB_ENABLE_COLLECTION_LIB */
+	if(obj.type != _DT_USERTYPE_REF && obj.type != _DT_ARRAY) {
+#endif /* MB_ENABLE_COLLECTION_LIB */
 		_handle_error_on_obj(s, SE_RN_REFERENCED_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
-	_ref(&obj.data.usertype_ref->ref, &obj.data.usertype_ref);
+	_REF(&obj);
 
 _exit:
 	return result;
@@ -7287,10 +7473,14 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
-	if(obj.type != _DT_USERTYPE_REF) {
+#ifdef MB_ENABLE_COLLECTION_LIB
+	if(obj.type != _DT_USERTYPE_REF && obj.type != _DT_ARRAY && obj.type != _DT_LIST && obj.type != _DT_DICT) {
+#else /* MB_ENABLE_COLLECTION_LIB */
+	if(obj.type != _DT_USERTYPE_REF && obj.type != _DT_ARRAY) {
+#endif /* MB_ENABLE_COLLECTION_LIB */
 		_handle_error_on_obj(s, SE_RN_REFERENCED_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
-	_unref(&obj.data.usertype_ref->ref, &obj.data.usertype_ref);
+	_UNREF(&obj);
 
 _exit:
 	return result;
