@@ -3,6 +3,7 @@ Added public collection manipulation interfaces: mb_get_coll, mb_set_coll, mb_re
 Improved usertype by adding size customizable mb_val_bytes_t to the value union
 Improved referenced usertype
 Fixed a dictionary iterator validation bug
+Added threshold to the memory pool
 
 Oct. 22 2015
 Fixed a memory issue in GC, thanks to John and Cybermonkey342 for pointing it out
