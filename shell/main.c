@@ -141,6 +141,10 @@ static _pool_t* pool = 0;
 
 static long alloc_count = 0;
 static long alloc_bytes = 0;
+static long in_pool_count = 0;
+static long in_pool_bytes = 0;
+
+#define _POOL_THRESHOLD_COUNT 1024
 
 #define _POOL_NODE_ALLOC(size) (((char*)malloc(sizeof(_pool_tag_t) + size)) + sizeof(_pool_tag_t))
 #define _POOL_NODE_PTR(s) (s - sizeof(_pool_tag_t))
@@ -155,6 +159,27 @@ static int _cmp_size_t(const void* l, const void* r) {
 	if(*pl > *pr) return 1;
 	else if(*pl < *pr) return -1;
 	else return 0;
+}
+
+static void _tidy_mem_pool(void) {
+	int i = 0;
+	char* s = 0;
+
+	if(in_pool_count < _POOL_THRESHOLD_COUNT)
+		return;
+
+	if(!pool_count)
+		return;
+
+	for(i = 0; i < pool_count; i++) {
+		while((s = pool[i].stack)) {
+			pool[i].stack = _POOL_NODE_NEXT(s);
+			_POOL_NODE_FREE(s);
+		}
+	}
+
+	in_pool_count = 0;
+	in_pool_bytes = 0;
 }
 
 static void _open_mem_pool(void) {
@@ -245,6 +270,9 @@ static char* _pop_mem(unsigned s) {
 			pl = &pool[i];
 			if(s <= pl->size) {
 				if(pl->stack) {
+					in_pool_count--;
+					in_pool_bytes -= (long)(_pool_chunk_size_t)s;
+
 					/* Pop from stack */
 					result = pl->stack;
 					pl->stack = _POOL_NODE_NEXT(result);
@@ -282,9 +310,14 @@ static void _push_mem(char* p) {
 		for(i = 0; i < pool_count; i++) {
 			pl = &pool[i];
 			if(_POOL_NODE_SIZE(p) <= pl->size) {
+				in_pool_count++;
+				in_pool_bytes += _POOL_NODE_SIZE(p);
+
 				/* Push to stack */
 				_POOL_NODE_NEXT(p) = pl->stack;
 				pl->stack = p;
+
+				_tidy_mem_pool();
 
 				return;
 			}
