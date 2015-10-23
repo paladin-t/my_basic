@@ -164,6 +164,15 @@ extern "C" {
 #	define mb_make_nil(__v) do { (__v).value.integer = 0; (__v).type = MB_DT_NIL; } while(0)
 #endif /* mb_make_nil */
 
+#ifndef mb_int_val
+#	define mb_int_val(__v, __i) \
+	do { \
+		if((__v).type == MB_DT_INT) (__i) = (__v).value.integer; \
+		else if((__v).type == MB_DT_REAL) (__i) = (int_t)((__v).value.float_point); \
+		else (__i) = ~((int_t)0); \
+	} while(0)
+#endif /* mb_int_val */
+
 #ifndef MB_CODES
 #	define MB_CODES
 #	define MB_FUNC_OK 0
@@ -303,6 +312,8 @@ typedef enum mb_data_e {
 	MB_DT_ROUTINE = 1 << 24
 } mb_data_e;
 
+typedef unsigned char mb_val_bytes_t[sizeof(void*)];
+
 typedef union mb_value_u {
 	mb_data_e type;
 	int_t integer;
@@ -318,7 +329,10 @@ typedef union mb_value_u {
 	void* dict_it;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	void* routine;
+	mb_val_bytes_t bytes;
 } mb_value_u;
+
+mb_static_assert(sizeof(mb_val_bytes_t) >= sizeof(mb_value_u));
 
 typedef struct mb_value_t {
 	mb_data_e type;
@@ -376,6 +390,10 @@ MBAPI int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* 
 MBAPI int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* i);
 MBAPI int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t* val);
 MBAPI int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t val);
+MBAPI int mb_get_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_t idx, mb_value_t* val);
+MBAPI int mb_set_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_t idx, mb_value_t val);
+MBAPI int mb_remove_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_t idx);
+MBAPI int mb_count_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, int* c);
 MBAPI int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
 MBAPI int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 MBAPI int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
