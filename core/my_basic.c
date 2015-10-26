@@ -3079,7 +3079,6 @@ bool_t _is_accessor(char c) {
 
 bool_t _is_exponent_prefix(char* s, int begin, int end) {
 	/* Determine whether current symbol is an exponent prefix */
-	_parsing_context_t* context = 0;
 	int i = 0;
 
 	mb_assert(s);
