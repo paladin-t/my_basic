@@ -3933,6 +3933,20 @@ int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht) {
 		}
 
 		break;
+	case _DT_LIST_IT:
+		if(!_ht_find(ht, &obj->data.list_it->list->ref)) {
+			_ht_set_or_insert(ht, &obj->data.list_it->list->ref, obj->data.list_it->list);
+			_LS_FOREACH(obj->data.list_it->list->list, _do_nothing_on_object, _gc_add_reachable, ht);
+		}
+
+		break;
+	case _DT_DICT_IT:
+		if(!_ht_find(ht, &obj->data.dict_it->dict->ref)) {
+			_ht_set_or_insert(ht, &obj->data.dict_it->dict->ref, obj->data.dict_it->dict);
+			_HT_FOREACH(obj->data.dict_it->dict->dict, _do_nothing_on_object, _gc_add_reachable, ht);
+		}
+
+		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	default: /* Do nothing */
 		break;
