@@ -341,6 +341,7 @@ typedef void (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, int, unsig
 typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, char*, int, unsigned short, unsigned short, int);
 typedef int (* mb_print_func_t)(const char*, ...);
 typedef int (* mb_input_func_t)(char*, int);
+typedef int (* mb_import_handler_t)(struct mb_interpreter_t*, const char*);
 typedef void (* mb_dtor_func_t)(struct mb_interpreter_t*, void*);
 typedef void* (* mb_clone_func_t)(struct mb_interpreter_t*, void*);
 typedef unsigned int (* mb_hash_func_t)(struct mb_interpreter_t*, void*);
@@ -414,6 +415,7 @@ MBAPI const char* mb_get_error_desc(mb_error_e err);
 MBAPI int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h);
 MBAPI int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p);
 MBAPI int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p);
+MBAPI int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h);
 
 MBAPI int mb_gets(char* buf, int s);
 
