@@ -1,3 +1,7 @@
+Oct. 27 2015
+Added an mb_init_coll function
+Improved stability
+
 Oct. 23 2015
 Added public collection manipulation interfaces: mb_get_coll, mb_set_coll, mb_remove_coll, mb_count_coll
 Improved usertype by adding size customizable mb_val_bytes_t to the value union
