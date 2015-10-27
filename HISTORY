@@ -1,4 +1,5 @@
 Oct. 27 2015
+Added an mb_set_import_handler function
 Added an mb_init_coll function
 Improved stability
 
