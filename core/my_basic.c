@@ -6830,7 +6830,7 @@ int mb_has_arg(struct mb_interpreter_t* s, void** l) {
 	if(ast) {
 		obj = (_object_t*)(ast->data);
 		if(!_IS_FUNC(obj, _core_close_bracket) && obj->type != _DT_EOS)
-			result = obj->type != _DT_NIL && obj->type != _DT_SEP && obj->type != _DT_EOS;
+			result = obj->type != _DT_SEP && obj->type != _DT_EOS;
 	}
 
 	return result;
