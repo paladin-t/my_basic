@@ -1,6 +1,7 @@
 Oct. 27 2015
 Added an mb_set_import_handler function
 Added an mb_init_coll function
+Fixed an argument detection issue with nil value
 Improved stability
 
 Oct. 23 2015
