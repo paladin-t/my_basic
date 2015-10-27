@@ -539,6 +539,7 @@ typedef struct mb_interpreter_t {
 	mb_error_handler_t error_handler;
 	mb_print_func_t printer;
 	mb_input_func_t inputer;
+	mb_import_handler_t import_handler;
 	void* userdata;
 } mb_interpreter_t;
 
@@ -3464,14 +3465,16 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 					safe_free(buf);
 				}
 			} else {
-				_set_current_error(s, SE_PS_FILE_OPEN_FAILED, 0);
-				if(s->error_handler) {
-					(s->error_handler)(s, s->last_error, (char*)mb_get_error_desc(s->last_error),
-						s->last_error_func,
-						s->last_error_pos,
-						s->last_error_row,
-						s->last_error_col,
-						result);
+				if(!s->import_handler || s->import_handler(s, sym + 1) != MB_FUNC_OK) {
+					_set_current_error(s, SE_PS_FILE_OPEN_FAILED, 0);
+					if(s->error_handler) {
+						(s->error_handler)(s, s->last_error, (char*)mb_get_error_desc(s->last_error),
+							s->last_error_func,
+							s->last_error_pos,
+							s->last_error_row,
+							s->last_error_col,
+							result);
+					}
 				}
 			}
 			context->parsing_state = _PS_STRING;
@@ -7929,6 +7932,17 @@ int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 	mb_assert(s);
 
 	s->inputer = p;
+
+	return result;
+}
+
+int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h) {
+	/* Set an import handler to an interpreter instance */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s);
+
+	s->import_handler = h;
 
 	return result;
 }
