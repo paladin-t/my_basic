@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 94
+#define _VER_REVISION 95
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -1173,6 +1173,7 @@ static void _destroy_parsing_context(_parsing_context_t** context);
 
 static int _register_func(mb_interpreter_t* s, const char* n, mb_func_t f, bool_t local);
 static int _remove_func(mb_interpreter_t* s, const char* n, bool_t local);
+static _ls_node_t* _find_func(mb_interpreter_t* s, const char* n);
 
 static int _open_constant(mb_interpreter_t* s);
 static int _close_constant(mb_interpreter_t* s);
@@ -3412,7 +3413,6 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	char* conv_suc = 0;
 	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
-	_ls_node_t* lclsyminscope = 0;
 	_ls_node_t* glbsyminscope = 0;
 	size_t _sl = 0;
 	_data_e en = _DT_ANY;
@@ -3605,9 +3605,8 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			goto _exit;
 		}
 	}
-	lclsyminscope = _ht_find(s->local_func_dict, sym);
-	glbsyminscope = _ht_find(s->global_func_dict, sym);
-	if(lclsyminscope || glbsyminscope) {
+	glbsyminscope = _find_func(s, sym);
+	if(glbsyminscope) {
 		if(context->last_symbol && context->last_symbol->type == _DT_ROUTINE) {
 			if(_sl == 1 && sym[0] == '(')
 				_begin_routine_parameter_list(s);
@@ -3617,7 +3616,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 				_end_routine_parameter_list(s);
 		}
 
-		ptr = lclsyminscope ? (intptr_t)lclsyminscope->data : (intptr_t)glbsyminscope->data;
+		ptr = (intptr_t)glbsyminscope->data;
 		memcpy(*value, &ptr, sizeof(intptr_t));
 
 		result = _DT_FUNC;
@@ -6353,6 +6352,19 @@ int _remove_func(mb_interpreter_t* s, const char* n, bool_t local) {
 	return result;
 }
 
+_ls_node_t* _find_func(mb_interpreter_t* s, const char* n) {
+	/* Find function interface in function dictionary */
+	_ls_node_t* result = 0;
+
+	mb_assert(s && n);
+
+	result = _ht_find(s->local_func_dict, (void*)n);
+	if(!result)
+		result = _ht_find(s->global_func_dict, (void*)n);
+
+	return result;
+}
+
 int _open_constant(mb_interpreter_t* s) {
 	/* Open global constant */
 	int result = MB_FUNC_OK;
@@ -7264,6 +7276,36 @@ int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int
 
 	type = _public_type_to_internal_type(val.type);
 	_set_array_elem(s, 0, arr, (unsigned int)index, &val.value, &type);
+
+_exit:
+	return result;
+}
+
+int mb_init_coll(struct mb_interpreter_t* s, void** l, mb_value_t* coll) {
+	/* Initialize a collection */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s);
+
+#ifdef MB_ENABLE_COLLECTION_LIB
+	switch(coll->type) {
+	case MB_DT_LIST:
+		coll->value.list = _create_list(s);
+
+		break;
+	case MB_DT_DICT:
+		coll->value.dict = _create_dict(s);
+
+		break;
+	default:
+		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+#else /* MB_ENABLE_COLLECTION_LIB */
+	mb_unrefvar(coll);
+	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+#endif /* MB_ENABLE_COLLECTION_LIB */
 
 _exit:
 	return result;
@@ -10492,6 +10534,7 @@ int _coll_peek(mb_interpreter_t* s, void** l) {
 	mb_value_t val;
 	_object_t olst;
 	_object_t* oval = 0;
+	_ls_node_t* node = 0;
 
 	mb_assert(s && l);
 
@@ -10510,7 +10553,8 @@ int _coll_peek(mb_interpreter_t* s, void** l) {
 
 	_MAKE_NIL(&olst);
 	_public_value_to_internal_object(&lst, &olst);
-	oval = (_object_t*)(_ls_back(olst.data.list->list)->data);
+	node = _ls_back(olst.data.list->list);
+	oval = node ? (_object_t*)(node->data) : 0;
 	if(oval) {
 		_internal_object_to_public_value(oval, &val);
 
