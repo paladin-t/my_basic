@@ -1,6 +1,7 @@
 Oct. 27 2015
 Added an mb_set_import_handler function
 Added an mb_init_coll function
+Fixed a collection referencing by iterator bug during GC
 Fixed an argument detection issue with nil value
 Improved stability
 
