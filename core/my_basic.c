@@ -454,11 +454,11 @@ MBAPI const size_t MB_SIZEOF_CLS = sizeof(_class_t);
 #endif /* MB_ENABLE_ALLOC_STAT */
 
 #ifdef MB_ENABLE_SOURCE_TRACE
-static const _object_t _OBJ_INT_UNIT = { _DT_INT, 1, false, 0, 0, 0 };
-static const _object_t _OBJ_INT_ZERO = { _DT_INT, 0, false, 0, 0, 0 };
+static const _object_t _OBJ_INT_UNIT = { _DT_INT, (mb_data_e)1, false, 0, 0, 0 };
+static const _object_t _OBJ_INT_ZERO = { _DT_INT, (mb_data_e)0, false, 0, 0, 0 };
 #else /* MB_ENABLE_SOURCE_TRACE */
-static const _object_t _OBJ_INT_UNIT = { _DT_INT, 1, false, 0 };
-static const _object_t _OBJ_INT_ZERO = { _DT_INT, 0, false, 0 };
+static const _object_t _OBJ_INT_UNIT = { _DT_INT, (mb_data_e)1, false, 0 };
+static const _object_t _OBJ_INT_ZERO = { _DT_INT, (mb_data_e)0, false, 0 };
 #endif /* MB_ENABLE_SOURCE_TRACE */
 #define _MAKE_NIL(__o) do { memset((__o), 0, sizeof(_object_t)); (__o)->type = _DT_NIL; } while(0)
 
@@ -2109,7 +2109,7 @@ void mb_free(void* p) {
 #endif /* MB_ENABLE_ALLOC_STAT */
 
 	if(_mb_free_func)
-		_mb_free_func(p);
+		_mb_free_func((char*)p);
 	else
 		free(p);
 }
@@ -4768,7 +4768,7 @@ bool_t _at_list(_list_t* coll, int_t idx, mb_value_t* oval) {
 
 	result = _node_at_list(coll, idx);
 	if(oval && result && result->data)
-		_internal_object_to_public_value(result->data, oval);
+		_internal_object_to_public_value((_object_t*)result->data, oval);
 
 	return !!(result && result->data);
 }
@@ -4874,7 +4874,7 @@ bool_t _find_dict(_dict_t* coll, mb_value_t* val, mb_value_t* oval) {
 	result = _ht_find(coll->dict, oarg);
 	_destroy_object(oarg, 0);
 	if(oval && result && result->data)
-		_internal_object_to_public_value(result->data, oval);
+		_internal_object_to_public_value((_object_t*)result->data, oval);
 
 	return !!(result && result->data);
 }
@@ -5864,40 +5864,40 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 		break;
 	case MB_DT_USERTYPE_REF:
 		itn->type = _DT_USERTYPE_REF;
-		itn->data.usertype_ref = pbl->value.usertype_ref;
+		itn->data.usertype_ref = (_usertype_ref_t*)pbl->value.usertype_ref;
 
 		break;
 	case MB_DT_ARRAY:
 		itn->type = _DT_ARRAY;
-		itn->data.array = pbl->value.array;
+		itn->data.array = (_array_t*)pbl->value.array;
 		itn->ref = false;
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case MB_DT_LIST:
 		itn->type = _DT_LIST;
-		itn->data.list = pbl->value.list;
+		itn->data.list = (_list_t*)pbl->value.list;
 
 		break;
 	case MB_DT_LIST_IT:
 		itn->type = _DT_LIST_IT;
-		itn->data.list_it = pbl->value.list_it;
+		itn->data.list_it = (_list_it_t*)pbl->value.list_it;
 
 		break;
 	case MB_DT_DICT:
 		itn->type = _DT_DICT;
-		itn->data.dict = pbl->value.dict;
+		itn->data.dict = (_dict_t*)pbl->value.dict;
 
 		break;
 	case MB_DT_DICT_IT:
 		itn->type = _DT_DICT_IT;
-		itn->data.dict_it = pbl->value.dict_it;
+		itn->data.dict_it = (_dict_it_t*)pbl->value.dict_it;
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	case MB_DT_ROUTINE:
 		itn->type = _DT_ROUTINE;
-		itn->data.routine = pbl->value.routine;
+		itn->data.routine = (_routine_t*)pbl->value.routine;
 
 		break;
 	default:
@@ -9631,7 +9631,7 @@ int _core_type(mb_interpreter_t* s, void** l) {
 		for(i = 0; i < sizeof(mb_data_e) * 8; i++) {
 			e = 1 << i;
 			if(!strcmp(mb_get_type_string((mb_data_e)e), arg.value.string)) {
-				arg.value.type = e;
+				arg.value.type = (mb_data_e)e;
 				arg.type = MB_DT_TYPE;
 
 				goto _found;
@@ -10421,7 +10421,7 @@ int _std_val(mb_interpreter_t* s, void** l) {
 		_MAKE_NIL(&ocoi);
 		_public_value_to_internal_object(&arg, &ocoi);
 		if(ocoi.data.dict_it && ocoi.data.dict_it->curr_node && ocoi.data.dict_it->curr_node->data) {
-			_internal_object_to_public_value(ocoi.data.dict_it->curr_node->data, &ret);
+			_internal_object_to_public_value((_object_t*)ocoi.data.dict_it->curr_node->data, &ret);
 			mb_check(mb_push_value(s, l, ret));
 		} else {
 			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, 0, TON(l), MB_FUNC_ERR, _exit, result);
@@ -11005,7 +11005,7 @@ int _coll_get(mb_interpreter_t* s, void** l) {
 	case MB_DT_LIST_IT:
 		_public_value_to_internal_object(&coi, &ocoi);
 		if(ocoi.data.list_it && ocoi.data.list_it->curr && ocoi.data.list_it->curr->data) {
-			_internal_object_to_public_value(ocoi.data.list_it->curr->data, &ret);
+			_internal_object_to_public_value((_object_t*)ocoi.data.list_it->curr->data, &ret);
 		} else {
 			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, 0, TON(l), MB_FUNC_ERR, _exit, result);
 		}
@@ -11014,7 +11014,7 @@ int _coll_get(mb_interpreter_t* s, void** l) {
 	case MB_DT_DICT_IT:
 		_public_value_to_internal_object(&coi, &ocoi);
 		if(ocoi.data.dict_it && ocoi.data.dict_it->curr_node && ocoi.data.dict_it->curr_node->extra) {
-			_internal_object_to_public_value(ocoi.data.dict_it->curr_node->extra, &ret);
+			_internal_object_to_public_value((_object_t*)ocoi.data.dict_it->curr_node->extra, &ret);
 		} else {
 			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, 0, TON(l), MB_FUNC_ERR, _exit, result);
 		}
