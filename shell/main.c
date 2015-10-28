@@ -103,25 +103,25 @@ static struct mb_interpreter_t* bas = 0;
 */
 
 #ifdef _USE_MEM_POOL
-extern const size_t MB_SIZEOF_4BYTES;
-extern const size_t MB_SIZEOF_8BYTES;
-extern const size_t MB_SIZEOF_32BYTES;
-extern const size_t MB_SIZEOF_64BYTES;
-extern const size_t MB_SIZEOF_128BYTES;
-extern const size_t MB_SIZEOF_256BYTES;
-extern const size_t MB_SIZEOF_512BYTES;
-extern const size_t MB_SIZEOF_INT;
-extern const size_t MB_SIZEOF_PTR;
-extern const size_t MB_SIZEOF_LSN;
-extern const size_t MB_SIZEOF_HTN;
-extern const size_t MB_SIZEOF_HTA;
-extern const size_t MB_SIZEOF_OBJ;
-extern const size_t MB_SIZEOF_FUN;
-extern const size_t MB_SIZEOF_ARR;
-extern const size_t MB_SIZEOF_VAR;
-extern const size_t MB_SIZEOF_LBL;
-extern const size_t MB_SIZEOF_RTN;
-extern const size_t MB_SIZEOF_CLS;
+extern MBAPI const size_t MB_SIZEOF_4BYTES;
+extern MBAPI const size_t MB_SIZEOF_8BYTES;
+extern MBAPI const size_t MB_SIZEOF_32BYTES;
+extern MBAPI const size_t MB_SIZEOF_64BYTES;
+extern MBAPI const size_t MB_SIZEOF_128BYTES;
+extern MBAPI const size_t MB_SIZEOF_256BYTES;
+extern MBAPI const size_t MB_SIZEOF_512BYTES;
+extern MBAPI const size_t MB_SIZEOF_INT;
+extern MBAPI const size_t MB_SIZEOF_PTR;
+extern MBAPI const size_t MB_SIZEOF_LSN;
+extern MBAPI const size_t MB_SIZEOF_HTN;
+extern MBAPI const size_t MB_SIZEOF_HTA;
+extern MBAPI const size_t MB_SIZEOF_OBJ;
+extern MBAPI const size_t MB_SIZEOF_FUN;
+extern MBAPI const size_t MB_SIZEOF_ARR;
+extern MBAPI const size_t MB_SIZEOF_VAR;
+extern MBAPI const size_t MB_SIZEOF_LBL;
+extern MBAPI const size_t MB_SIZEOF_RTN;
+extern MBAPI const size_t MB_SIZEOF_CLS;
 
 typedef unsigned _pool_chunk_size_t;
 
