@@ -3491,7 +3491,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			context->parsing_state = _PS_NORMAL;
 			if(*(sym + 1) == '@') {
 #ifdef MB_ENABLE_MODULE
-				char* ns = mb_memdup(sym + 2, strlen(sym + 2) + 1);
+				char* ns = mb_memdup(sym + 2, (unsigned)(strlen(sym + 2) + 1));
 				if(_ls_find(s->using_modules, ns, (_ls_compare)_ht_cmp_string)) {
 					safe_free(ns);
 				} else {
@@ -5393,7 +5393,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 
 		break;
 	case _DT_STRING:
-		tgt->data.string = mb_memdup(obj->data.string, (unsigned)strlen(obj->data.string) + 1);
+		tgt->data.string = mb_memdup(obj->data.string, (unsigned)(strlen(obj->data.string) + 1));
 
 		break;
 	case _DT_USERTYPE_REF:
@@ -5406,7 +5406,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 
 		break;
 	case _DT_FUNC:
-		tgt->data.func->name = mb_memdup(obj->data.func->name, (unsigned)strlen(obj->data.func->name) + 1);
+		tgt->data.func->name = mb_memdup(obj->data.func->name, (unsigned)(strlen(obj->data.func->name) + 1));
 		tgt->data.func->pointer = obj->data.func->pointer;
 
 		break;
@@ -5436,7 +5436,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	case _DT_LABEL:
-		tgt->data.label->name = mb_memdup(obj->data.label->name, (unsigned)strlen(obj->data.label->name) + 1);
+		tgt->data.label->name = mb_memdup(obj->data.label->name, (unsigned)(strlen(obj->data.label->name) + 1));
 		tgt->data.label->node = obj->data.label->node;
 
 		break;
@@ -6376,7 +6376,7 @@ _module_func_t* _create_module_func(mb_interpreter_t* s, mb_func_t f) {
 		return result;
 
 	result = (_module_func_t*)mb_malloc(sizeof(_module_func_t));
-	result->module = mb_memdup(s->with_module, strlen(s->with_module) + 1);
+	result->module = mb_memdup(s->with_module, (unsigned)(strlen(s->with_module) + 1));
 	result->func = f;
 
 	return result;
@@ -6460,7 +6460,7 @@ int _register_func(mb_interpreter_t* s, char* n, mb_func_t f, bool_t local) {
 	if(!n)
 		return result;
 
-	n = mb_memdup(n, strlen(n) + 1);
+	n = mb_memdup(n, (unsigned)(strlen(n) + 1));
 	mb_strupr(n);
 
 	scope = local ? s->local_func_dict : s->global_func_dict;
@@ -6469,7 +6469,7 @@ int _register_func(mb_interpreter_t* s, char* n, mb_func_t f, bool_t local) {
 		name = _generate_func_name(s, n, true);
 #endif /* MB_ENABLE_MODULE */
 	if(!name)
-		name = mb_memdup(n, strlen(n) + 1);
+		name = mb_memdup(n, (unsigned)(strlen(n) + 1));
 	exists = _ht_find(scope, (void*)name);
 	if(!exists) {
 		result += _ht_set_or_insert(scope, (void*)name, (void*)(intptr_t)f);
@@ -6513,7 +6513,7 @@ int _remove_func(mb_interpreter_t* s, char* n, bool_t local) {
 	if(!n)
 		return result;
 
-	n = mb_memdup(n, strlen(n) + 1);
+	n = mb_memdup(n, (unsigned)(strlen(n) + 1));
 	mb_strupr(n);
 
 	scope = local ? s->local_func_dict : s->global_func_dict;
@@ -6522,7 +6522,7 @@ int _remove_func(mb_interpreter_t* s, char* n, bool_t local) {
 		name = _generate_func_name(s, n, true);
 #endif /* MB_ENABLE_MODULE */
 	if(!name)
-		name = mb_memdup(n, strlen(n) + 1);
+		name = mb_memdup(n, (unsigned)(strlen(n) + 1));
 	exists = _ht_find(scope, (void*)name);
 	if(exists)
 		result += _ht_remove(scope, (void*)name, _ls_cmp_extra_string);
@@ -6555,7 +6555,7 @@ _ls_node_t* _find_func(mb_interpreter_t* s, char* n, bool_t* mod) {
 
 	mb_assert(s && n);
 
-	n = mb_memdup(n, strlen(n) + 1);
+	n = mb_memdup(n, (unsigned)(strlen(n) + 1));
 	mb_strupr(n);
 
 	result = _ht_find(s->local_func_dict, (void*)n);
@@ -6980,7 +6980,7 @@ int mb_begin_module(struct mb_interpreter_t* s, const char* n) {
 	mb_assert(s && n);
 
 #ifdef MB_ENABLE_MODULE
-	s->with_module = mb_memdup((char*)n, strlen(n) + 1);
+	s->with_module = mb_memdup((char*)n, (unsigned)(strlen(n) + 1));
 
 	goto _exit; /* Avoid an unreferenced label warning */
 #else /* MB_ENABLE_MODULE */
