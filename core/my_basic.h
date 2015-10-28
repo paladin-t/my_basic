@@ -89,12 +89,14 @@ extern "C" {
 #	pragma pack(1)
 #endif /* MB_COMPACT_MODE */
 
-#ifndef true
-#	define true (!0)
-#endif /* true */
-#ifndef false
-#	define false (0)
-#endif /* false */
+#ifndef __cplusplus
+#	ifndef true
+#		define true (!0)
+#	endif /* true */
+#	ifndef false
+#		define false (0)
+#	endif /* false */
+#endif /* __cplusplus */
 
 #ifndef bool_t
 #	define bool_t int
