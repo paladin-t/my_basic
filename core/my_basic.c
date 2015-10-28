@@ -418,39 +418,39 @@ typedef struct _module_func_t {
 
 #define _MB_MEM_TAG_SIZE (sizeof(mb_mem_tag_t))
 
-const size_t MB_SIZEOF_4BYTES = 4;
-const size_t MB_SIZEOF_8BYTES = 8;
-const size_t MB_SIZEOF_32BYTES = 32;
-const size_t MB_SIZEOF_64BYTES = 64;
-const size_t MB_SIZEOF_128BYTES = 128;
-const size_t MB_SIZEOF_256BYTES = 256;
-const size_t MB_SIZEOF_512BYTES = 512;
+MBAPI const size_t MB_SIZEOF_4BYTES = 4;
+MBAPI const size_t MB_SIZEOF_8BYTES = 8;
+MBAPI const size_t MB_SIZEOF_32BYTES = 32;
+MBAPI const size_t MB_SIZEOF_64BYTES = 64;
+MBAPI const size_t MB_SIZEOF_128BYTES = 128;
+MBAPI const size_t MB_SIZEOF_256BYTES = 256;
+MBAPI const size_t MB_SIZEOF_512BYTES = 512;
 #ifdef MB_ENABLE_ALLOC_STAT
-const size_t MB_SIZEOF_INT = _MB_MEM_TAG_SIZE + sizeof(int);
-const size_t MB_SIZEOF_PTR = _MB_MEM_TAG_SIZE + sizeof(intptr_t);
-const size_t MB_SIZEOF_LSN = _MB_MEM_TAG_SIZE + sizeof(_ls_node_t);
-const size_t MB_SIZEOF_HTN = _MB_MEM_TAG_SIZE + sizeof(_ht_node_t);
-const size_t MB_SIZEOF_HTA = _MB_MEM_TAG_SIZE + sizeof(_ht_node_t*) * _HT_ARRAY_SIZE_DEFAULT;
-const size_t MB_SIZEOF_OBJ = _MB_MEM_TAG_SIZE + sizeof(_object_t);
-const size_t MB_SIZEOF_FUN = _MB_MEM_TAG_SIZE + sizeof(_func_t);
-const size_t MB_SIZEOF_ARR = _MB_MEM_TAG_SIZE + sizeof(_array_t);
-const size_t MB_SIZEOF_VAR = _MB_MEM_TAG_SIZE + sizeof(_var_t);
-const size_t MB_SIZEOF_LBL = _MB_MEM_TAG_SIZE + sizeof(_label_t);
-const size_t MB_SIZEOF_RTN = _MB_MEM_TAG_SIZE + sizeof(_routine_t);
-const size_t MB_SIZEOF_CLS = _MB_MEM_TAG_SIZE + sizeof(_class_t);
+MBAPI const size_t MB_SIZEOF_INT = _MB_MEM_TAG_SIZE + sizeof(int);
+MBAPI const size_t MB_SIZEOF_PTR = _MB_MEM_TAG_SIZE + sizeof(intptr_t);
+MBAPI const size_t MB_SIZEOF_LSN = _MB_MEM_TAG_SIZE + sizeof(_ls_node_t);
+MBAPI const size_t MB_SIZEOF_HTN = _MB_MEM_TAG_SIZE + sizeof(_ht_node_t);
+MBAPI const size_t MB_SIZEOF_HTA = _MB_MEM_TAG_SIZE + sizeof(_ht_node_t*) * _HT_ARRAY_SIZE_DEFAULT;
+MBAPI const size_t MB_SIZEOF_OBJ = _MB_MEM_TAG_SIZE + sizeof(_object_t);
+MBAPI const size_t MB_SIZEOF_FUN = _MB_MEM_TAG_SIZE + sizeof(_func_t);
+MBAPI const size_t MB_SIZEOF_ARR = _MB_MEM_TAG_SIZE + sizeof(_array_t);
+MBAPI const size_t MB_SIZEOF_VAR = _MB_MEM_TAG_SIZE + sizeof(_var_t);
+MBAPI const size_t MB_SIZEOF_LBL = _MB_MEM_TAG_SIZE + sizeof(_label_t);
+MBAPI const size_t MB_SIZEOF_RTN = _MB_MEM_TAG_SIZE + sizeof(_routine_t);
+MBAPI const size_t MB_SIZEOF_CLS = _MB_MEM_TAG_SIZE + sizeof(_class_t);
 #else /* MB_ENABLE_ALLOC_STAT */
-const size_t MB_SIZEOF_INT = sizeof(int);
-const size_t MB_SIZEOF_PTR = sizeof(intptr_t);
-const size_t MB_SIZEOF_LSN = sizeof(_ls_node_t);
-const size_t MB_SIZEOF_HTN = sizeof(_ht_node_t);
-const size_t MB_SIZEOF_HTA = sizeof(_ht_node_t*) * _HT_ARRAY_SIZE_DEFAULT;
-const size_t MB_SIZEOF_OBJ = sizeof(_object_t);
-const size_t MB_SIZEOF_FUN = sizeof(_func_t);
-const size_t MB_SIZEOF_ARR = sizeof(_array_t);
-const size_t MB_SIZEOF_VAR = sizeof(_var_t);
-const size_t MB_SIZEOF_LBL = sizeof(_label_t);
-const size_t MB_SIZEOF_RTN = sizeof(_routine_t);
-const size_t MB_SIZEOF_CLS = sizeof(_class_t);
+MBAPI const size_t MB_SIZEOF_INT = sizeof(int);
+MBAPI const size_t MB_SIZEOF_PTR = sizeof(intptr_t);
+MBAPI const size_t MB_SIZEOF_LSN = sizeof(_ls_node_t);
+MBAPI const size_t MB_SIZEOF_HTN = sizeof(_ht_node_t);
+MBAPI const size_t MB_SIZEOF_HTA = sizeof(_ht_node_t*) * _HT_ARRAY_SIZE_DEFAULT;
+MBAPI const size_t MB_SIZEOF_OBJ = sizeof(_object_t);
+MBAPI const size_t MB_SIZEOF_FUN = sizeof(_func_t);
+MBAPI const size_t MB_SIZEOF_ARR = sizeof(_array_t);
+MBAPI const size_t MB_SIZEOF_VAR = sizeof(_var_t);
+MBAPI const size_t MB_SIZEOF_LBL = sizeof(_label_t);
+MBAPI const size_t MB_SIZEOF_RTN = sizeof(_routine_t);
+MBAPI const size_t MB_SIZEOF_CLS = sizeof(_class_t);
 #endif /* MB_ENABLE_ALLOC_STAT */
 
 #ifdef MB_ENABLE_SOURCE_TRACE
