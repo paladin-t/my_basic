@@ -77,6 +77,10 @@ extern "C" {
 #	define MB_CONVERT_TO_INT_LEVEL MB_CONVERT_TO_INT_LEVEL_ALL
 #endif /* MB_CONVERT_TO_INT_LEVEL */
 
+#ifndef MB_ENABLE_MODULE
+#	define MB_ENABLE_MODULE
+#endif /* MB_ENABLE_MODULE */
+
 #ifndef MB_COMPACT_MODE
 #	define MB_COMPACT_MODE
 #endif /* MB_COMPACT_MODE */
@@ -362,6 +366,8 @@ MBAPI int mb_reset(struct mb_interpreter_t** s, bool_t clrf);
 MBAPI int mb_register_func(struct mb_interpreter_t* s, const char* n, mb_func_t f);
 MBAPI int mb_remove_func(struct mb_interpreter_t* s, const char* n);
 MBAPI int mb_remove_reserved_func(struct mb_interpreter_t* s, const char* n);
+MBAPI int mb_begin_module(struct mb_interpreter_t* s, const char* n);
+MBAPI int mb_end_module(struct mb_interpreter_t* s);
 
 MBAPI int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l);
 MBAPI int mb_attempt_func_end(struct mb_interpreter_t* s, void** l);
