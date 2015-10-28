@@ -79,7 +79,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 95
+#define _VER_REVISION 96
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -409,6 +409,13 @@ typedef struct _object_t {
 #endif /* MB_ENABLE_SOURCE_TRACE */
 } _object_t;
 
+#ifdef MB_ENABLE_MODULE
+typedef struct _module_func_t {
+	char* module;
+	mb_func_t func;
+} _module_func_t;
+#endif /* MB_ENABLE_MODULE */
+
 #define _MB_MEM_TAG_SIZE (sizeof(mb_mem_tag_t))
 
 const size_t MB_SIZEOF_4BYTES = 4;
@@ -514,6 +521,11 @@ typedef struct _tuple3_t {
 typedef struct mb_interpreter_t {
 	_ht_node_t* local_func_dict;
 	_ht_node_t* global_func_dict;
+#ifdef MB_ENABLE_MODULE
+	_ht_node_t* module_func_dict;
+	char* with_module;
+	_ls_node_t* using_modules;
+#endif /* MB_ENABLE_MODULE */
 	_ls_node_t* ast;
 	_parsing_context_t* parsing_context;
 	_running_context_t* running_context;
@@ -857,6 +869,9 @@ static int _ht_cmp_int(void* d1, void* d2);
 #ifdef MB_ENABLE_GC
 static int _ht_cmp_ref(void* d1, void* d2);
 #endif /* MB_ENABLE_GC */
+#ifdef MB_ENABLE_MODULE
+static int _ht_cmp_module_func(void* d1, void* d2);
+#endif /* MB_ENABLE_MODULE */
 
 static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra);
 static _ls_node_t* _ht_find(_ht_node_t* ht, void* key);
@@ -926,36 +941,48 @@ static int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, u
 static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 
 /** Handlers */
+#define _handle_error_now(__s, __err, __func, __result) \
+	do { \
+		_set_current_error((__s), (__err), (__func)); \
+		if((__s)->error_handler) { \
+			((__s)->error_handler)((__s), (__s)->last_error, (char*)mb_get_error_desc((__s)->last_error), \
+				(__s)->last_error_func, \
+				(__s)->parsing_context ? (__s)->parsing_context->parsing_pos : (__s)->last_error_pos, \
+				(__s)->parsing_context ? (__s)->parsing_context->parsing_row : (__s)->last_error_row, \
+				(__s)->parsing_context ? (__s)->parsing_context->parsing_col : (__s)->last_error_col, \
+				(__result)); \
+		} \
+	} while(0)
 #ifdef _WARING_AS_ERROR
 #	define _handle_error(__s, __err, __func, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
-			_set_current_error(__s, __err, __func); \
-			_set_error_pos(__s, __pos, __row, __col); \
-			__result = __ret; \
+			_set_current_error((__s), (__err), (__func)); \
+			_set_error_pos((__s), (__pos), (__row), (__col)); \
+			__result = (__ret); \
 			goto __exit; \
 		} while(0)
 #else /* _WARING_AS_ERROR */
 #	define _handle_error(__s, __err, __func, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
-			_set_current_error(__s, __err, __func); \
-			_set_error_pos(__s, __pos, __row, __col); \
-			if(__ret != MB_FUNC_WARNING) { \
-				__result = __ret; \
+			_set_current_error((__s), (__err), (__func)); \
+			_set_error_pos((__s), (__pos), (__row), (__col)); \
+			if((__ret) != MB_FUNC_WARNING) { \
+				__result = (__ret); \
 			} \
 			goto __exit; \
 		} while(0)
 #endif /* _WARING_AS_ERROR */
 #ifdef MB_ENABLE_SOURCE_TRACE
-#	define _HANDLE_ERROR(__s, __err, __func, __obj, __ret, __exit, __result) _handle_error(__s, __err, __func, (__obj)->source_pos, (__obj)->source_row, (__obj)->source_col, __ret, __exit, __result)
+#	define _HANDLE_ERROR(__s, __err, __func, __obj, __ret, __exit, __result) _handle_error((__s), (__err), (__func), (__obj)->source_pos, (__obj)->source_row, (__obj)->source_col, (__ret), __exit, (__result))
 #else /* MB_ENABLE_SOURCE_TRACE */
-#	define _HANDLE_ERROR(__s, __err, __func, __obj, __ret, __exit, __result) _handle_error(__s, __err, __func, 0, 0, 0, __ret, __exit, __result)
+#	define _HANDLE_ERROR(__s, __err, __func, __obj, __ret, __exit, __result) _handle_error((__s), (__err), (__func), 0, 0, 0, (__ret), __exit, (__result))
 #endif /* MB_ENABLE_SOURCE_TRACE */
 #define _handle_error_on_obj(__s, __err, __func, __obj, __ret, __exit, __result) \
 	do { \
 		if(__obj) { \
-			_HANDLE_ERROR(__s, __err, __func, __obj, __ret, __exit, __result); \
+			_HANDLE_ERROR((__s), (__err), (__func), (__obj), (__ret), __exit, (__result)); \
 		} else { \
-			_handle_error(__s, __err, __func, 0, 0, 0, __ret, __exit, __result); \
+			_handle_error((__s), (__err), (__func), 0, 0, 0, (__ret), __exit, (__result)); \
 		} \
 	} while(0)
 
@@ -1172,9 +1199,15 @@ static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func
 static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context);
 static void _destroy_parsing_context(_parsing_context_t** context);
 
-static int _register_func(mb_interpreter_t* s, const char* n, mb_func_t f, bool_t local);
-static int _remove_func(mb_interpreter_t* s, const char* n, bool_t local);
-static _ls_node_t* _find_func(mb_interpreter_t* s, const char* n);
+#ifdef MB_ENABLE_MODULE
+static _module_func_t* _create_module_func(mb_interpreter_t* s, mb_func_t f);
+static int _ls_destroy_module_func(void* data, void* extra);
+static int _ht_destroy_module_func_list(void* data, void* extra);
+#endif /* MB_ENABLE_MODULE */
+static char* _generate_func_name(mb_interpreter_t* s, char* n, bool_t with_mod);
+static int _register_func(mb_interpreter_t* s, char* n, mb_func_t f, bool_t local);
+static int _remove_func(mb_interpreter_t* s, char* n, bool_t local);
+static _ls_node_t* _find_func(mb_interpreter_t* s, char* n, bool_t* mod);
 
 static int _open_constant(mb_interpreter_t* s);
 static int _close_constant(mb_interpreter_t* s);
@@ -1890,6 +1923,15 @@ int _ht_cmp_ref(void* d1, void* d2) {
 }
 #endif /* MB_ENABLE_GC */
 
+#ifdef MB_ENABLE_MODULE
+int _ht_cmp_module_func(void* d1, void* d2) {
+	_module_func_t* m = (_module_func_t*)d1;
+	mb_interpreter_t* s = (mb_interpreter_t*)d2;
+
+	return strcmp(m->module, s->with_module);
+}
+#endif /* MB_ENABLE_MODULE */
+
 _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra) {
 	const unsigned int array_size = size ? size : _HT_ARRAY_SIZE_DEFAULT;
 	_ht_node_t* result = 0;
@@ -2373,7 +2415,6 @@ _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opn
 	if(_status != MB_FUNC_OK) {
 		if(_status != MB_FUNC_WARNING) {
 			safe_free(result);
-			result = 0;
 		}
 		_set_current_error(s, SE_RN_OPERATION_FAILED, 0);
 #ifdef MB_ENABLE_SOURCE_TRACE
@@ -2844,25 +2885,14 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 			break;
 		}
 		if(result == MB_FUNC_SUSPEND && s->error_handler) {
-			s->last_error = SE_RN_DONT_SUSPEND_IN_A_ROUTINE;
-			(s->error_handler)(s, s->last_error, (char*)mb_get_error_desc(s->last_error),
-				s->last_error_func,
-				s->last_error_pos,
-				s->last_error_row,
-				s->last_error_col,
-				result);
+			_handle_error_now(s, SE_RN_DONT_SUSPEND_IN_A_ROUTINE, s->last_error_func, result);
 
 			goto _exit;
 		}
 		if(result != MB_FUNC_OK && s->error_handler) {
 			if(result >= MB_EXTENDED_ABORT)
 				s->last_error = SE_EA_EXTENDED_ABORT;
-			(s->error_handler)(s, s->last_error, (char*)mb_get_error_desc(s->last_error),
-				s->last_error_func,
-				s->last_error_pos,
-				s->last_error_row,
-				s->last_error_col,
-				result);
+			_handle_error_now(s, s->last_error, s->last_error_func, result);
 
 			goto _exit;
 		}
@@ -3216,7 +3246,6 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			(*obj)->type = _DT_NIL;
 		} else { /* End of line character */
 			safe_free(*obj);
-			*obj = 0;
 		}
 		safe_free(sym);
 
@@ -3418,6 +3447,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	size_t _sl = 0;
 	_data_e en = _DT_ANY;
 	intptr_t ptr = 0;
+	bool_t mod = false;
 
 	mb_assert(s && sym);
 	_sl = strlen(sym);
@@ -3449,6 +3479,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 		result = _DT_STRING;
 
 		if(context->last_symbol && _IS_FUNC(context->last_symbol, _core_import)) {
+			/* IMPORT statement */
 			int n = context->current_symbol_nonius;
 			char current_symbol[_SINGLE_SYMBOL_MAX_LENGTH + 1];
 			char* buf = 0;
@@ -3458,6 +3489,22 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			context->last_symbol = 0;
 			sym[_sl - 1] = '\0';
 			context->parsing_state = _PS_NORMAL;
+			if(*(sym + 1) == '@') {
+#ifdef MB_ENABLE_MODULE
+				char* ns = mb_memdup(sym + 2, strlen(sym + 2) + 1);
+				if(_ls_find(s->using_modules, ns, (_ls_compare)_ht_cmp_string)) {
+					safe_free(ns);
+				} else {
+					_ls_pushback(s->using_modules, ns);
+				}
+
+				goto _end_import;
+#else /* MB_ENABLE_MODULE */
+				_handle_error_now(s, SE_RN_NOT_SUPPORTED, 0, result);
+
+				goto _end_import;
+#endif /* MB_ENABLE_MODULE */
+			}
 			buf = _load_file(s, sym + 1, ":");
 			if(buf) {
 				if(buf != sym + 1) {
@@ -3466,17 +3513,11 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 				}
 			} else {
 				if(!s->import_handler || s->import_handler(s, sym + 1) != MB_FUNC_OK) {
-					_set_current_error(s, SE_PS_FILE_OPEN_FAILED, 0);
-					if(s->error_handler) {
-						(s->error_handler)(s, s->last_error, (char*)mb_get_error_desc(s->last_error),
-							s->last_error_func,
-							s->last_error_pos,
-							s->last_error_row,
-							s->last_error_col,
-							result);
-					}
+					_handle_error_now(s, SE_PS_FILE_OPEN_FAILED, 0, result);
 				}
 			}
+
+_end_import:
 			context->parsing_state = _PS_STRING;
 			sym[_sl - 1] = '\"';
 			context->current_symbol_nonius = n;
@@ -3608,7 +3649,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			goto _exit;
 		}
 	}
-	glbsyminscope = _find_func(s, sym);
+	glbsyminscope = _find_func(s, sym, &mod);
 	if(glbsyminscope) {
 		if(context->last_symbol && context->last_symbol->type == _DT_ROUTINE) {
 			if(_sl == 1 && sym[0] == '(')
@@ -3619,8 +3660,19 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 				_end_routine_parameter_list(s);
 		}
 
+#ifdef MB_ENABLE_MODULE
+		if(mod) {
+			_module_func_t* mp = (_module_func_t*)glbsyminscope->data;
+			ptr = (intptr_t)mp->func;
+			memcpy(*value, &ptr, sizeof(intptr_t));
+		} else {
+			ptr = (intptr_t)glbsyminscope->data;
+			memcpy(*value, &ptr, sizeof(intptr_t));
+		}
+#else /* MB_ENABLE_MODULE */
 		ptr = (intptr_t)glbsyminscope->data;
 		memcpy(*value, &ptr, sizeof(intptr_t));
+#endif /* MB_ENABLE_MODULE */
 
 		result = _DT_FUNC;
 
@@ -4382,7 +4434,6 @@ void _clear_array(_array_t* arr) {
 			}
 		}
 		safe_free(arr->raw);
-		arr->raw = 0;
 	}
 }
 
@@ -6314,7 +6365,90 @@ void _destroy_parsing_context(_parsing_context_t** context) {
 	}
 }
 
-int _register_func(mb_interpreter_t* s, const char* n, mb_func_t f, bool_t local) {
+#ifdef MB_ENABLE_MODULE
+_module_func_t* _create_module_func(mb_interpreter_t* s, mb_func_t f) {
+	/* Create a module function structure */
+	_module_func_t* result = 0;
+
+	mb_assert(s);
+
+	if(!s->with_module)
+		return result;
+
+	result = (_module_func_t*)mb_malloc(sizeof(_module_func_t));
+	result->module = mb_memdup(s->with_module, strlen(s->with_module) + 1);
+	result->func = f;
+
+	return result;
+}
+
+int _ls_destroy_module_func(void* data, void* extra) {
+	/* Destroy a module function structure */
+	int result = _OP_RESULT_NORMAL;
+	_module_func_t* mod = 0;
+	mb_unrefvar(extra);
+
+	mb_assert(data);
+
+	mod = (_module_func_t*)data;
+	safe_free(mod->module);
+	safe_free(mod);
+
+	result = _OP_RESULT_DEL_NODE;
+
+	return result;
+}
+
+int _ht_destroy_module_func_list(void* data, void* extra) {
+	/* Destroy a module function structure */
+	int result = _OP_RESULT_NORMAL;
+	_ls_node_t* lst = 0;
+	char* n = 0;
+
+	mb_assert(data);
+
+	lst = (_ls_node_t*)data;
+	n = (char*)extra;
+	_ls_foreach(lst, _ls_destroy_module_func);
+	_ls_destroy(lst);
+	safe_free(n);
+
+	result = _OP_RESULT_DEL_NODE;
+
+	return result;
+}
+#endif /* MB_ENABLE_MODULE */
+
+char* _generate_func_name(mb_interpreter_t* s, char* n, bool_t with_mod) {
+	/* Generate a function name to be registered */
+	char* name = 0;
+	size_t _sl = 0;
+	mb_unrefvar(with_mod);
+
+	mb_assert(s && n);
+
+	_sl = strlen(n);
+#ifdef MB_ENABLE_MODULE
+	if(with_mod && s->with_module) {
+		size_t _ml = strlen(s->with_module);
+		name = (char*)mb_malloc(_ml + 1 + _sl + 1);
+		memcpy(name, s->with_module, _ml);
+		name[_ml] = '.';
+		memcpy(name + _ml + 1, n, _sl + 1);
+	} else {
+		name = (char*)mb_malloc(_sl + 1);
+		memcpy(name, n, _sl + 1);
+	}
+#else /* MB_ENABLE_MODULE */
+	name = (char*)mb_malloc(_sl + 1);
+	memcpy(name, n, _sl + 1);
+#endif /* MB_ENABLE_MODULE */
+	mb_strupr(name);
+
+	return name;
+}
+
+int _register_func(mb_interpreter_t* s, char* n, mb_func_t f, bool_t local) {
 	/* Register a function to a MY-BASIC environment */
 	int result = 0;
 	_ht_node_t* scope = 0;
@@ -6326,22 +6460,48 @@ int _register_func(mb_interpreter_t* s, const char* n, mb_func_t f, bool_t local
 	if(!n)
 		return result;
 
+	n = mb_memdup(n, strlen(n) + 1);
+	mb_strupr(n);
+
 	scope = local ? s->local_func_dict : s->global_func_dict;
-	exists = _ht_find(scope, (void*)n);
+#ifdef MB_ENABLE_MODULE
+	if(s->with_module)
+		name = _generate_func_name(s, n, true);
+#endif /* MB_ENABLE_MODULE */
+	if(!name)
+		name = mb_memdup(n, strlen(n) + 1);
+	exists = _ht_find(scope, (void*)name);
 	if(!exists) {
-		size_t _sl = strlen(n);
-		name = (char*)mb_malloc(_sl + 1);
-		memcpy(name, n, _sl + 1);
-		mb_strupr(name);
 		result += _ht_set_or_insert(scope, (void*)name, (void*)(intptr_t)f);
 	} else {
 		_set_current_error(s, SE_CM_FUNC_EXISTS, 0);
+		safe_free(name);
 	}
+
+#ifdef MB_ENABLE_MODULE
+	if(s->with_module) {
+		_ls_node_t* tmp = 0;
+		exists = _ht_find(s->module_func_dict, (void*)n);
+		if(!exists) {
+			name = _generate_func_name(s, n, false);
+			result += _ht_set_or_insert(s->module_func_dict, (void*)name, _ls_create());
+		}
+		exists = _ht_find(s->module_func_dict, (void*)n);
+		exists = (_ls_node_t*)exists->data;
+		tmp = _ls_find(exists, s, (_ls_compare)_ht_cmp_module_func);
+		if(!tmp)
+			_ls_pushback(exists, _create_module_func(s, f));
+		else
+			_set_current_error(s, SE_CM_FUNC_EXISTS, 0);
+	}
+#endif /* MB_ENABLE_MODULE */
+
+	safe_free(n);
 
 	return result;
 }
 
-int _remove_func(mb_interpreter_t* s, const char* n, bool_t local) {
+int _remove_func(mb_interpreter_t* s, char* n, bool_t local) {
 	/* Remove a function from a MY-BASIC environment */
 	int result = 0;
 	_ht_node_t* scope = 0;
@@ -6353,31 +6513,74 @@ int _remove_func(mb_interpreter_t* s, const char* n, bool_t local) {
 	if(!n)
 		return result;
 
+	n = mb_memdup(n, strlen(n) + 1);
+	mb_strupr(n);
+
 	scope = local ? s->local_func_dict : s->global_func_dict;
-	exists = _ht_find(scope, (void*)n);
-	if(exists) {
-		size_t _sl = strlen(n);
-		name = (char*)mb_malloc(_sl + 1);
-		memcpy(name, n, _sl + 1);
-		mb_strupr(name);
+#ifdef MB_ENABLE_MODULE
+	if(s->with_module)
+		name = _generate_func_name(s, n, true);
+#endif /* MB_ENABLE_MODULE */
+	if(!name)
+		name = mb_memdup(n, strlen(n) + 1);
+	exists = _ht_find(scope, (void*)name);
+	if(exists)
 		result += _ht_remove(scope, (void*)name, _ls_cmp_extra_string);
-		safe_free(name);
-	} else {
+	else
 		_set_current_error(s, SE_CM_FUNC_NOT_EXISTS, 0);
+	safe_free(name);
+
+#ifdef MB_ENABLE_MODULE
+	if(s->with_module) {
+		_ls_node_t* tmp = 0;
+		exists = _ht_find(s->module_func_dict, (void*)n);
+		if(exists) {
+			exists = (_ls_node_t*)exists->data;
+			tmp = _ls_find(exists, s, (_ls_compare)_ht_cmp_module_func);
+			if(tmp)
+				_ls_remove(exists, tmp, _ls_destroy_module_func);
+		}
 	}
+#endif /* MB_ENABLE_MODULE */
+
+	safe_free(n);
 
 	return result;
 }
 
-_ls_node_t* _find_func(mb_interpreter_t* s, const char* n) {
+_ls_node_t* _find_func(mb_interpreter_t* s, char* n, bool_t* mod) {
 	/* Find function interface in function dictionary */
 	_ls_node_t* result = 0;
+	mb_unrefvar(mod);
 
 	mb_assert(s && n);
+
+	n = mb_memdup(n, strlen(n) + 1);
+	mb_strupr(n);
 
 	result = _ht_find(s->local_func_dict, (void*)n);
 	if(!result)
 		result = _ht_find(s->global_func_dict, (void*)n);
+
+#ifdef MB_ENABLE_MODULE
+	if(!result) {
+		result = _ht_find(s->module_func_dict, (void*)n);
+		if(result && result->data) {
+			_module_func_t* mp = 0;
+			result = (_ls_node_t*)result->data;
+			result = result->next;
+			while(result) {
+				mp = (_module_func_t*)result->data;
+				if(_ls_find(s->using_modules, mp->module, (_ls_compare)_ht_cmp_string))
+					break;
+				result = result->next;
+			}
+			*mod = true;
+		}
+	}
+#endif /* MB_ENABLE_MODULE */
+
+	safe_free(n);
 
 	return result;
 }
@@ -6606,6 +6809,12 @@ int mb_open(struct mb_interpreter_t** s) {
 	global_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, _ls_free_extra);
 	(*s)->global_func_dict = global_scope;
 
+#ifdef MB_ENABLE_MODULE
+	global_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, _ht_destroy_module_func_list);
+	(*s)->module_func_dict = global_scope;
+	(*s)->using_modules = _ls_create();
+#endif /* MB_ENABLE_MODULE */
+
 	(*s)->parsing_context = _reset_parsing_context((*s)->parsing_context);
 
 	(*s)->temp_values = _ls_create();
@@ -6674,6 +6883,14 @@ int mb_close(struct mb_interpreter_t** s) {
 
 	_destroy_parsing_context(&(*s)->parsing_context);
 
+#ifdef MB_ENABLE_MODULE
+	global_scope = (*s)->module_func_dict;
+	_ht_foreach(global_scope, _ht_destroy_module_func_list);
+	_ht_destroy(global_scope);
+	_ls_foreach((*s)->using_modules, _destroy_memory);
+	_ls_destroy((*s)->using_modules);
+#endif /* MB_ENABLE_MODULE */
+
 	global_scope = (*s)->global_func_dict;
 	_ht_foreach(global_scope, _ls_free_extra);
 	_ht_destroy(global_scope);
@@ -6687,7 +6904,6 @@ int mb_close(struct mb_interpreter_t** s) {
 	_close_constant(*s);
 
 	safe_free(*s);
-	*s = 0;
 
 	return result;
 }
@@ -6723,6 +6939,14 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
 	_clear_scope_chain(*s);
 
 	if(clrf) {
+#ifdef MB_ENABLE_MODULE
+		global_scope = (*s)->module_func_dict;
+		_ht_foreach(global_scope, _ht_destroy_module_func_list);
+		_ht_clear(global_scope);
+		_ls_foreach((*s)->using_modules, _destroy_memory);
+		_ls_clear((*s)->using_modules);
+#endif /* MB_ENABLE_MODULE */
+
 		global_scope = (*s)->global_func_dict;
 		_ht_foreach(global_scope, _ls_free_extra);
 		_ht_clear(global_scope);
@@ -6736,17 +6960,55 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
 
 int mb_register_func(struct mb_interpreter_t* s, const char* n, mb_func_t f) {
 	/* Register an API function to a MY-BASIC environment */
-	return _register_func(s, n, f, false);
+	return _register_func(s, (char*)n, f, false);
 }
 
 int mb_remove_func(struct mb_interpreter_t* s, const char* n) {
 	/* Remove an API function from a MY-BASIC environment */
-	return _remove_func(s, n, false);
+	return _remove_func(s, (char*)n, false);
 }
 
 int mb_remove_reserved_func(struct mb_interpreter_t* s, const char* n) {
 	/* Remove a reserved API from a MY-BASIC environment */
-	return _remove_func(s, n, true);
+	return _remove_func(s, (char*)n, true);
+}
+
+int mb_begin_module(struct mb_interpreter_t* s, const char* n) {
+	/* Begin a module, all functions registered with a module will put inside it */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s && n);
+
+#ifdef MB_ENABLE_MODULE
+	s->with_module = mb_memdup((char*)n, strlen(n) + 1);
+
+	goto _exit; /* Avoid an unreferenced label warning */
+#else /* MB_ENABLE_MODULE */
+	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, (_object_t*)0, MB_FUNC_WARNING, _exit, result);
+#endif /* MB_ENABLE_MODULE */
+
+_exit:
+	return result;
+}
+
+int mb_end_module(struct mb_interpreter_t* s) {
+	/* End a module */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s);
+
+#ifdef MB_ENABLE_MODULE
+	if(s->with_module) {
+		safe_free(s->with_module);
+	}
+
+	goto _exit; /* Avoid an unreferenced label warning */
+#else /* MB_ENABLE_MODULE */
+	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, (_object_t*)0, MB_FUNC_WARNING, _exit, result);
+#endif /* MB_ENABLE_MODULE */
+
+_exit:
+	return result;
 }
 
 int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
@@ -7655,14 +7917,7 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l) {
 		result = status;
 		if(status) {
 			_set_error_pos(s, context->parsing_pos, _row, _col);
-			if(s->error_handler) {
-				(s->error_handler)(s, s->last_error, (char*)mb_get_error_desc(s->last_error),
-					s->last_error_func,
-					s->last_error_pos,
-					s->last_error_row,
-					s->last_error_col,
-					result);
-			}
+			_handle_error_now(s, s->last_error, s->last_error_func, result);
 
 			goto _exit;
 		}
@@ -7731,15 +7986,9 @@ int mb_run(struct mb_interpreter_t* s) {
 		ast = s->ast;
 		ast = ast->next;
 		if(!ast) {
-			_set_current_error(s, SE_RN_EMPTY_PROGRAM, 0);
-			_set_error_pos(s, 0, 0, 0);
 			result = MB_FUNC_ERR;
-			(s->error_handler)(s, s->last_error, (char*)mb_get_error_desc(s->last_error),
-				s->last_error_func,
-				s->last_error_pos,
-				s->last_error_row,
-				s->last_error_col,
-				result);
+			_set_error_pos(s, 0, 0, 0);
+			_handle_error_now(s, SE_RN_EMPTY_PROGRAM, 0, result);
 
 			goto _exit;
 		}
@@ -7753,12 +8002,7 @@ int mb_run(struct mb_interpreter_t* s) {
 			if(result != MB_FUNC_SUSPEND && s->error_handler) {
 				if(result >= MB_EXTENDED_ABORT)
 					s->last_error = SE_EA_EXTENDED_ABORT;
-				(s->error_handler)(s, s->last_error, (char*)mb_get_error_desc(s->last_error),
-					s->last_error_func,
-					s->last_error_pos,
-					s->last_error_row,
-					s->last_error_col,
-					result);
+				_handle_error_now(s, s->last_error, s->last_error_func, result);
 			}
 
 			goto _exit;
