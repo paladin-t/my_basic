@@ -10208,7 +10208,6 @@ int _std_chr(mb_interpreter_t* s, void** l) {
 	memset(chr, 0, sizeof(arg) + 1);
 	memcpy(chr, &arg, sizeof(arg));
 	mb_check(mb_push_string(s, l, chr));
-	_mark_lazy_destroy_string(s, chr);
 
 	return result;
 }
@@ -10252,7 +10251,6 @@ int _std_left(mb_interpreter_t* s, void** l) {
 	sub[count] = '\0';
 #endif /* MB_ENABLE_UNICODE */
 	mb_check(mb_push_string(s, l, sub));
-	_mark_lazy_destroy_string(s, sub);
 
 _exit:
 	return result;
@@ -10299,7 +10297,6 @@ int _std_mid(mb_interpreter_t* s, void** l) {
 	sub[count] = '\0';
 #endif /* MB_ENABLE_UNICODE */
 	mb_check(mb_push_string(s, l, sub));
-	_mark_lazy_destroy_string(s, sub);
 
 _exit:
 	return result;
@@ -10344,7 +10341,6 @@ int _std_right(mb_interpreter_t* s, void** l) {
 	sub[count] = '\0';
 #endif /* MB_ENABLE_UNICODE */
 	mb_check(mb_push_string(s, l, sub));
-	_mark_lazy_destroy_string(s, sub);
 
 _exit:
 	return result;
@@ -10378,7 +10374,6 @@ int _std_str(mb_interpreter_t* s, void** l) {
 		goto _exit;
 	}
 	mb_check(mb_push_string(s, l, chr));
-	_mark_lazy_destroy_string(s, chr);
 
 _exit:
 	return result;
