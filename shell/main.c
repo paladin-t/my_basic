@@ -43,6 +43,10 @@
 #include <string.h>
 #include <stdarg.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 #ifdef _MSC_VER
 #	pragma warning(disable : 4127)
 #	pragma warning(disable : 4706)
@@ -173,7 +177,7 @@ static void _tidy_mem_pool(void) {
 
 	for(i = 0; i < pool_count; i++) {
 		while((s = pool[i].stack)) {
-			pool[i].stack = _POOL_NODE_NEXT(s);
+			pool[i].stack = (char*)_POOL_NODE_NEXT(s);
 			_POOL_NODE_FREE(s);
 		}
 	}
@@ -247,7 +251,7 @@ static void _close_mem_pool(void) {
 
 	for(i = 0; i < pool_count; i++) {
 		while((s = pool[i].stack)) {
-			pool[i].stack = _POOL_NODE_NEXT(s);
+			pool[i].stack = (char*)_POOL_NODE_NEXT(s);
 			_POOL_NODE_FREE(s);
 		}
 	}
@@ -275,7 +279,7 @@ static char* _pop_mem(unsigned s) {
 
 					/* Pop from stack */
 					result = pl->stack;
-					pl->stack = _POOL_NODE_NEXT(result);
+					pl->stack = (char*)_POOL_NODE_NEXT(result);
 					_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
 
 					return result;
@@ -969,3 +973,7 @@ int main(int argc, char* argv[]) {
 }
 
 /* ========================================================} */
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
