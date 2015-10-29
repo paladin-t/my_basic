@@ -1,5 +1,6 @@
 Oct. 29 2015
 Added an mb_get_ref_value function
+Improved mb_set_coll
 
 Oct. 28 2015
 Added module (namespace) support
