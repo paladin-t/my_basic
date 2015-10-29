@@ -824,7 +824,6 @@ static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation
 static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
 static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op);
 static void _ls_sort(_ls_node_t* list, _ls_compare cmp);
-static unsigned int _ls_count(_ls_node_t* list);
 static bool_t _ls_empty(_ls_node_t* list);
 static void _ls_clear(_ls_node_t* list);
 static void _ls_destroy(_ls_node_t* list);
@@ -1713,20 +1712,6 @@ void _ls_sort(_ls_node_t* list, _ls_compare cmp) {
 			}
 		}
 	}
-}
-
-unsigned int _ls_count(_ls_node_t* list) {
-	unsigned int result = 0;
-
-	mb_assert(list);
-
-	list = list->next;
-	while(list) {
-		list = list->next;
-		++result;
-	}
-
-	return result;
 }
 
 bool_t _ls_empty(_ls_node_t* list) {
