@@ -7309,6 +7309,7 @@ int mb_push_string(struct mb_interpreter_t* s, void** l, char* val) {
 	arg.type = MB_DT_STRING;
 	arg.value.string = val;
 	mb_check(mb_push_value(s, l, arg));
+	_mark_lazy_destroy_string(s, val);
 
 	return result;
 }
