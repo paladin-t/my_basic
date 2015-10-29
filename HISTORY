@@ -1,3 +1,6 @@
+Oct. 29 2015
+Added an mb_get_ref_value function
+
 Oct. 28 2015
 Added module (namespace) support
 
