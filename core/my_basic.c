@@ -7641,6 +7641,8 @@ int mb_set_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 	case MB_DT_LIST:
 		mb_int_val(idx, i);
 		_public_value_to_internal_object(&coll, &ocoll);
+		while((int)ocoll.data.list->count <= i)
+			_push_list(ocoll.data.list, &ret, 0);
 		if(!_set_list(ocoll.data.list, i, &val, &oval)) {
 			_destroy_object(oval, 0);
 
