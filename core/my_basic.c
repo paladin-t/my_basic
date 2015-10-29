@@ -1004,7 +1004,7 @@ static bool_t _is_comment(char c);
 static bool_t _is_numeric_char(char c);
 static bool_t _is_identifier_char(char c);
 static bool_t _is_operator_char(char c);
-static bool_t _is_accessor(char c);
+static bool_t _is_using_char(char c);
 static bool_t _is_exponent_prefix(char* s, int begin, int end);
 
 static int _append_char_to_symbol(mb_interpreter_t* s, char c);
@@ -3089,9 +3089,9 @@ bool_t _is_operator_char(char c) {
 		(c == '>') || (c == '<');
 }
 
-bool_t _is_accessor(char c) {
-	/* Determine whether a character is an accessor char */
-	return c == '.';
+bool_t _is_using_char(char c) {
+	/* Determine whether a character is a module using char */
+	return c == '@';
 }
 
 bool_t _is_exponent_prefix(char* s, int begin, int end) {
@@ -3474,7 +3474,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			context->last_symbol = 0;
 			sym[_sl - 1] = '\0';
 			context->parsing_state = _PS_NORMAL;
-			if(*(sym + 1) == '@') {
+			if(_is_using_char(*(sym + 1))) {
 #ifdef MB_ENABLE_MODULE
 				char* ns = mb_memdup(sym + 2, (unsigned)(strlen(sym + 2) + 1));
 				if(_ls_find(s->using_modules, ns, (_ls_compare)_ht_cmp_string)) {
