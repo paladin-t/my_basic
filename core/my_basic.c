@@ -7773,6 +7773,26 @@ int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb
 	return result;
 }
 
+int mb_get_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val, void** out) {
+	/* Get the data of a referenced usertype value */
+	int result = MB_FUNC_OK;
+	_usertype_ref_t* ref = 0;
+
+	mb_assert(s && out);
+
+	if(val.type != MB_DT_USERTYPE_REF) {
+		_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+
+	if(out) {
+		ref = (_usertype_ref_t*)val.value.usertype_ref;
+		*out = ref->usertype;
+	}
+
+_exit:
+	return result;
+}
+
 int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	/* Add reference to a value */
 	int result = MB_FUNC_OK;
