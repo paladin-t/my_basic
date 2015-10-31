@@ -1,3 +1,6 @@
+Oct. 31 2015
+Added some mb_value_t initialization helper macros
+
 Oct. 29 2015
 Added an mb_get_ref_value function
 Improved mb_set_coll
