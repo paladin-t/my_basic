@@ -52,6 +52,8 @@ extern "C" {
 #	pragma warning(push)
 #	pragma warning(disable : 4127)
 #	pragma warning(disable : 4305)
+#	pragma warning(disable : 4309)
+#	pragma warning(disable : 4805)
 #	pragma warning(disable : 4996)
 #endif /* _MSC_VER */
 
