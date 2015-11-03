@@ -1,3 +1,6 @@
+Nov. 3 2015
+Fixed a memory leak with string manipulation
+
 Oct. 31 2015
 Added some mb_value_t initialization helper macros
 
