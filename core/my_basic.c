@@ -81,7 +81,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 97
+#define _VER_REVISION 98
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -8153,6 +8153,18 @@ const char* mb_get_type_string(mb_data_e t) {
 	}
 }
 
+int mb_raise_error(struct mb_interpreter_t* s, void** l, mb_error_e err, int ret) {
+	/* Raise an error */
+	int result = MB_FUNC_ERR;
+
+	mb_assert(s);
+
+	_handle_error_on_obj(s, err, 0, TON(l), ret, _exit, result);
+
+_exit:
+	return result;
+}
+
 mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
 	/* Get last error information */
 	mb_error_e result = SE_NO_ERR;
@@ -8167,9 +8179,10 @@ mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
 
 const char* mb_get_error_desc(mb_error_e err) {
 	/* Get error description text */
-	mb_assert(err >= 0 && err < _countof(_ERR_DESC));
+	if(err >= 0 && err < _countof(_ERR_DESC))
+		return _ERR_DESC[err];
 
-	return _ERR_DESC[err];
+	return 0;
 }
 
 int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h) {
