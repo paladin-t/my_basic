@@ -101,6 +101,12 @@ For more details about using MY-BASIC when it's already integrated with exist pr
 * Principles
  * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
  * [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
+* Understanding run-time system in MY-BASIC
+ * [Sub routine](https://github.com/paladin-t/my_basic/wiki/Sub-routine)
+ * [Collection manipulation](https://github.com/paladin-t/my_basic/wiki/Collection-manipulation)
+ * [Manipulate an array](https://github.com/paladin-t/my_basic/wiki/Manipulate-an-array)
+ * [Auto memory management](https://github.com/paladin-t/my_basic/wiki/Auto-memory-management)
+ * [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
 * Integration
  * [Link with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC)
  * [Write a debugger](https://github.com/paladin-t/my_basic/wiki/Write-a-debugger)
@@ -109,8 +115,6 @@ For more details about using MY-BASIC when it's already integrated with exist pr
  * [Redirect PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
  * [Redefine int_t and real_t](https://github.com/paladin-t/my_basic/wiki/Redefine-int_t-and-real_t)
  * [Customize macros](https://github.com/paladin-t/my_basic/wiki/Customize-macros)
- * [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
- * [Manipulate an array](https://github.com/paladin-t/my_basic/wiki/Manipulate-an-array)
 * [More scripting APIs](https://github.com/paladin-t/my_basic/wiki/More-scripting-APIs)
  * [String matching module](https://github.com/paladin-t/my_basic/wiki/String-matching-module)
  * [File module](https://github.com/paladin-t/my_basic/wiki/File-module)
