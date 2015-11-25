@@ -101,11 +101,13 @@ For more details about using MY-BASIC when it's already integrated with exist pr
 * Principles
  * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
  * [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
-* Understanding run-time system in MY-BASIC
+* Code with MY-BASIC
+ * [Module (namespace)](https://github.com/paladin-t/my_basic/wiki/Module-(namespace))
  * [Sub routine](https://github.com/paladin-t/my_basic/wiki/Sub-routine)
+* Understanding data type system in MY-BASIC
  * [Collection manipulation](https://github.com/paladin-t/my_basic/wiki/Collection-manipulation)
  * [Manipulate an array](https://github.com/paladin-t/my_basic/wiki/Manipulate-an-array)
- * [Auto memory management](https://github.com/paladin-t/my_basic/wiki/Auto-memory-management)
+ * [Auto memory management](https://github.com/paladin-t/my_basic/wiki/Automatic-memory-management)
  * [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
 * Integration
  * [Link with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC)
