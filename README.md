@@ -32,7 +32,7 @@ MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter writt
 * Integer, float point, string, boolean, user defined data types, etc. with array support
 * Referenced usertype support
 * Collection implementation and manipulation functions for **`LIST`** and **`DICT`**
-* Auto releasing of referenced objects (list, dictionary, referenced usertype, etc.) benefited from **Reference Counting** and **GC**
+* Automatic releasing of referenced objects (list, dictionary, referenced usertype, etc.) benefited from **Reference Counting** and **GC**
 * Standard numeric functions, and standard string functions
 * Multiple file support by `IMPORT` statement
 * Structured user costomized **sub** routine definition by **`DEF/ENDDEF`** support, including tail recursion optimization
@@ -107,7 +107,7 @@ For more details about using MY-BASIC when it's already integrated with exist pr
 * Understanding data type system in MY-BASIC
  * [Collection manipulation](https://github.com/paladin-t/my_basic/wiki/Collection-manipulation)
  * [Manipulate an array](https://github.com/paladin-t/my_basic/wiki/Manipulate-an-array)
- * [Auto memory management](https://github.com/paladin-t/my_basic/wiki/Automatic-memory-management)
+ * [Automatic memory management](https://github.com/paladin-t/my_basic/wiki/Automatic-memory-management)
  * [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
 * Integration
  * [Link with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC)
