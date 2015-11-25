@@ -74,7 +74,9 @@ Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especiall
 
 This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [OS X](output/my_basic_mac), it's efficient to download it and have a first impressive playground. Or you could make a build as follow.
 
-* Open the Visual Studio solution `my_basic.sln` on Windows, open the XCode solution `my_basic_mac.xcodeproj` on OS X, or use the `makefile` with "make" toolchain to build an interpreter binary
+* Open the Visual Studio solution `my_basic.sln` on Windows to build an executable
+* Open the XCode solution `my_basic_mac.xcodeproj` on OS X to build an OS X executable
+* Use the `makefile` with "make" toolchain to build an interpreter binary according to your platform
 
 To compile an interpreter binary for your own platform manually, please follow the steps.
 
