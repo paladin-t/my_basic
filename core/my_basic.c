@@ -81,7 +81,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 98
+#define _VER_REVISION 99
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -226,6 +226,7 @@ static const char* _ERR_DESC[] = {
 	"Wrong function reached",
 	"Don't suspend in a routine",
 	"Don't mix instructional and structured sub routines",
+	"Invalid routine",
 	"Routine expected",
 	"Duplicate routine",
 	"Collection expected",
@@ -544,6 +545,7 @@ typedef struct mb_interpreter_t {
 	int_t no_eat_comma_mark;
 	_ls_node_t* skip_to_eoi;
 	_ls_node_t* in_neg_expr;
+	bool_t handled_error;
 	mb_error_e last_error;
 	char* last_error_func;
 	int last_error_pos;
@@ -946,6 +948,8 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 	do { \
 		_set_current_error((__s), (__err), (__func)); \
 		if((__s)->error_handler) { \
+			if((__s)->handled_error) break; \
+			(__s)->handled_error = true; \
 			((__s)->error_handler)((__s), (__s)->last_error, (char*)mb_get_error_desc((__s)->last_error), \
 				(__s)->last_error_func, \
 				(__s)->parsing_context ? (__s)->parsing_context->parsing_pos : (__s)->last_error_pos, \
@@ -2899,6 +2903,9 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 	_assign_public_value(&s->running_context->intermediate_value, &inte);
 
 _exit:
+	if(result != MB_FUNC_OK)
+		_pop_scope(s);
+
 	s->last_routine = lastr;
 
 _tail:
@@ -3488,7 +3495,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 
 				goto _end_import;
 #else /* MB_ENABLE_MODULE */
-				_handle_error_now(s, SE_RN_NOT_SUPPORTED, 0, result);
+				_handle_error_now(s, SE_RN_NOT_SUPPORTED, 0, MB_FUNC_ERR);
 
 				goto _end_import;
 #endif /* MB_ENABLE_MODULE */
@@ -3501,7 +3508,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 				}
 			} else {
 				if(!s->import_handler || s->import_handler(s, sym + 1) != MB_FUNC_OK) {
-					_handle_error_now(s, SE_PS_FILE_OPEN_FAILED, 0, result);
+					_handle_error_now(s, SE_PS_FILE_OPEN_FAILED, 0, MB_FUNC_ERR);
 				}
 			}
 
@@ -3614,6 +3621,14 @@ _end_import:
 				_init_routine(s, tmp.obj->data.routine, sym);
 				_push_scope(s, tmp.obj->data.routine->scope);
 				_ht_set_or_insert(running->var_dict, sym, tmp.obj);
+			}
+
+			if(_IS_FUNC(context->last_symbol, _core_def)) {
+				if(context->routine_state > 1) {
+					_handle_error_now(s, SE_RN_INVALID_ROUTINE, 0, MB_FUNC_ERR);
+
+					goto _exit;
+				}
 			}
 
 			result = _DT_ROUTINE;
@@ -7986,6 +8001,8 @@ int mb_run(struct mb_interpreter_t* s) {
 
 	_destroy_parsing_context(&s->parsing_context);
 
+	s->handled_error = false;
+
 	if(s->suspent_point) {
 		ast = s->suspent_point;
 		ast = ast->next;
@@ -9492,7 +9509,7 @@ int _core_call(mb_interpreter_t* s, void** l) {
 	obj = (_object_t*)(ast->data);
 	routine = (_routine_t*)(obj->data.routine);
 
-	_eval_routine(s, &ast, 0, 0, routine, _has_routine_lex_arg, _pop_routine_lex_arg);
+	result = _eval_routine(s, &ast, 0, 0, routine, _has_routine_lex_arg, _pop_routine_lex_arg);
 
 	if(ast)
 		ast = ast->prev;
