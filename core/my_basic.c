@@ -8196,7 +8196,7 @@ mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
 
 const char* mb_get_error_desc(mb_error_e err) {
 	/* Get error description text */
-	if(err >= 0 && err < _countof(_ERR_DESC))
+	if(err < _countof(_ERR_DESC))
 		return _ERR_DESC[err];
 
 	return 0;
