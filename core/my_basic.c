@@ -81,7 +81,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 99
+#define _VER_REVISION 100
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -2867,6 +2867,9 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 	running = _push_scope(s, running);
 
 	*l = r->entry;
+	if(!(*l)) {
+		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+	}
 
 	do {
 		result = _execute_statement(s, l);
@@ -5547,8 +5550,10 @@ int _dispose_object(_object_t* obj) {
 	case _DT_ROUTINE:
 		if(!obj->ref) {
 			safe_free(obj->data.routine->name);
-			_ht_foreach(obj->data.routine->scope->var_dict, _destroy_object);
-			_ht_destroy(obj->data.routine->scope->var_dict);
+			if(obj->data.routine->scope->var_dict) {
+				_ht_foreach(obj->data.routine->scope->var_dict, _destroy_object);
+				_ht_destroy(obj->data.routine->scope->var_dict);
+			}
 			safe_free(obj->data.routine->scope);
 			if(obj->data.routine->parameters)
 				_ls_destroy(obj->data.routine->parameters);

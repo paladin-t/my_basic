@@ -1,3 +1,6 @@
+Nov. 30 2015
+Improved stability for sub routine
+
 Nov. 26 2015
 Raised error for invalid routine usage
 Fixed a memory corruption bug when met an invalid routine usage
