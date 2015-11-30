@@ -81,7 +81,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 100
+#define _VER_REVISION 101
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -1155,7 +1155,7 @@ static void _begin_class(mb_interpreter_t* s);
 static void _end_class(mb_interpreter_t* s);
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n);
 static void _begin_routine(mb_interpreter_t* s);
-static void _end_routine(mb_interpreter_t* s);
+static bool_t _end_routine(mb_interpreter_t* s);
 static void _begin_routine_parameter_list(mb_interpreter_t* s);
 static void _end_routine_parameter_list(mb_interpreter_t* s);
 static void _duplicate_parameter(void* data, void* extra, _running_context_t* running);
@@ -3236,6 +3236,11 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
 	type = _get_symbol_type(s, sym, &value);
+	if(s->last_error != SE_NO_ERR) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 	(*obj)->type = type;
 	switch(type) {
 	case _DT_NIL:
@@ -3431,6 +3436,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		break;
 	}
 
+_exit:
 	return result;
 }
 
@@ -3638,8 +3644,8 @@ _end_import:
 
 			goto _exit;
 		} else if(_IS_FUNC(context->last_symbol, _core_enddef)) {
-			_end_routine(s);
-			_pop_scope(s);
+			if(_end_routine(s))
+				_pop_scope(s);
 		}
 	}
 	/* _func_t */
@@ -5141,14 +5147,21 @@ void _begin_routine(mb_interpreter_t* s) {
 	context->routine_state++;
 }
 
-void _end_routine(mb_interpreter_t* s) {
+bool_t _end_routine(mb_interpreter_t* s) {
 	/* End parsing a routine */
 	_parsing_context_t* context = 0;
 
 	mb_assert(s);
 
 	context = s->parsing_context;
+	if(!context->routine_state) {
+		_handle_error_now(s, SE_RN_INVALID_ROUTINE, 0, MB_FUNC_ERR);
+
+		return false;
+	}
 	context->routine_state--;
+
+	return true;
 }
 
 void _begin_routine_parameter_list(mb_interpreter_t* s) {
@@ -5330,11 +5343,13 @@ _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_cont
 	else
 		running = s->running_context;
 	while(running && !result) {
-		result = _ht_find(running->var_dict, n);
-		if(!result && running->meta == _SCOPE_META_REF)
-			result = _ht_find(running->ref->var_dict, n);
-		if(result)
-			break;
+		if(running->var_dict) {
+			result = _ht_find(running->var_dict, n);
+			if(!result && running->meta == _SCOPE_META_REF)
+				result = _ht_find(running->ref->var_dict, n);
+			if(result)
+				break;
+		}
 
 		running = running->prev;
 	}
@@ -8000,9 +8015,6 @@ int mb_run(struct mb_interpreter_t* s) {
 	/* Run loaded and parsed script */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
-	_running_context_t* running = 0;
-
-	running = s->running_context;
 
 	_destroy_parsing_context(&s->parsing_context);
 
