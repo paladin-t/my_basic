@@ -3620,16 +3620,9 @@ _end_import:
 				goto _exit;
 			}
 			if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
-				tmp.obj = (_object_t*)(glbsyminscope->data);
-				if(!tmp.obj->ref) {
-					_ht_remove(running->var_dict, sym, _ls_cmp_extra_string);
-					_dispose_object(tmp.obj);
-				}
-				tmp.obj->type = _DT_ROUTINE;
-				tmp.obj->data.routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
-				_init_routine(s, tmp.obj->data.routine, sym);
-				_push_scope(s, tmp.obj->data.routine->scope);
-				_ht_set_or_insert(running->var_dict, sym, tmp.obj);
+				_handle_error_now(s, SE_RN_INVALID_ROUTINE, 0, MB_FUNC_ERR);
+
+				goto _exit;
 			}
 
 			if(_IS_FUNC(context->last_symbol, _core_def)) {

@@ -1,5 +1,6 @@
 Nov. 30 2015
 Improved stability for sub routine
+Improved error handling with shell
 
 Nov. 26 2015
 Raised error for invalid routine usage

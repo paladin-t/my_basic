@@ -703,9 +703,14 @@ static int _do_line(void) {
 		int i = 0;
 		mb_assert(c);
 		result = mb_reset(&bas, false);
-		for(i = 0; i < c->count; ++i)
-			mb_load_string(bas, c->lines[i]);
-		result = mb_run(bas);
+		for(i = 0; i < c->count; ++i) {
+			if(result)
+				break;
+
+			result = mb_load_string(bas, c->lines[i]);
+		}
+		if(result == MB_FUNC_OK)
+			result = mb_run(bas);
 		_printf("\n");
 	} else if(_str_eq(line, "BYE")) {
 		result = MB_FUNC_BYE;
