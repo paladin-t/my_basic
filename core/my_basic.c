@@ -10663,7 +10663,11 @@ int _std_input(mb_interpreter_t* s, void** l) {
 	obj = (_object_t*)(ast->data);
 
 	if(!obj || obj->type == _DT_EOS) {
+#ifdef _MSC_VER
+		getch();
+#else /* _MSC_VER */
 		_get_inputer(s)(line, sizeof(line));
+#endif /* _MSC_VER */
 
 		goto _exit;
 	}
