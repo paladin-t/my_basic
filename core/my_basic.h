@@ -81,6 +81,10 @@ extern "C" {
 #	define MB_ENABLE_MODULE
 #endif /* MB_ENABLE_MODULE */
 
+#ifndef MB_ENABLE_CLASS
+#	define MB_ENABLE_CLASS
+#endif /* MB_ENABLE_CLASS */
+
 #ifndef MB_COMPACT_MODE
 #	define MB_COMPACT_MODE
 #endif /* MB_COMPACT_MODE */
@@ -309,6 +313,7 @@ typedef enum mb_error_e {
 	SE_RN_INVALID_ROUTINE,
 	SE_RN_ROUTINE_EXPECTED,
 	SE_RN_DUPLICATE_ROUTINE,
+	SE_RN_INVALID_CLASS,
 	SE_RN_COLLECTION_EXPECTED,
 	SE_RN_ITERATOR_EXPECTED,
 	SE_RN_COLLECTION_OR_ITERATOR_EXPECTED,
@@ -337,7 +342,10 @@ typedef enum mb_data_e {
 	MB_DT_DICT = 1 << 15,
 	MB_DT_DICT_IT = 1 << 16,
 #endif /* MB_ENABLE_COLLECTION_LIB */
-	MB_DT_ROUTINE = 1 << 24
+#ifdef MB_ENABLE_CLASS
+	MB_DT_CLASS = 1 << 24,
+#endif /* MB_ENABLE_CLASS */
+	MB_DT_ROUTINE = 1 << 25
 } mb_data_e;
 
 typedef unsigned char mb_val_bytes_t[sizeof(void*)];
@@ -356,6 +364,9 @@ typedef union mb_value_u {
 	void* dict;
 	void* dict_it;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	void* instance;
+#endif /* MB_ENABLE_CLASS */
 	void* routine;
 	mb_val_bytes_t bytes;
 } mb_value_u;

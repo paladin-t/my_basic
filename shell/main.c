@@ -125,7 +125,11 @@ extern MBAPI const size_t MB_SIZEOF_ARR;
 extern MBAPI const size_t MB_SIZEOF_VAR;
 extern MBAPI const size_t MB_SIZEOF_LBL;
 extern MBAPI const size_t MB_SIZEOF_RTN;
+#ifdef MB_ENABLE_CLASS
 extern MBAPI const size_t MB_SIZEOF_CLS;
+#else /* MB_ENABLE_CLASS */
+static const size_t MB_SIZEOF_CLS = 20;
+#endif /* MB_ENABLE_CLASS */
 
 typedef unsigned _pool_chunk_size_t;
 

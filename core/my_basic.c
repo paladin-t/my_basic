@@ -81,7 +81,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 101
+#define _VER_REVISION 102
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -229,6 +229,7 @@ static const char* _ERR_DESC[] = {
 	"Invalid routine",
 	"Routine expected",
 	"Duplicate routine",
+	"Invalid class",
 	"Collection expected",
 	"Iterator expected",
 	"Collection or iterator expected",
@@ -261,8 +262,10 @@ typedef enum _data_e {
 	_DT_DICT_IT,
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	_DT_LABEL, /* Label type, used for GOTO, GOSUB statement */
-	_DT_ROUTINE, /* User defined sub routine in script */
+#ifdef MB_ENABLE_CLASS
 	_DT_CLASS, /* Object instance */
+#endif /* MB_ENABLE_CLASS */
+	_DT_ROUTINE, /* User defined sub routine in script */
 	_DT_SEP, /* Separator */
 	_DT_EOS /* End of statement */
 } _data_e;
@@ -357,14 +360,18 @@ typedef struct _label_t {
 	_ls_node_t* node;
 } _label_t;
 
+#ifdef MB_ENABLE_CLASS
 typedef struct _class_t {
 	char* name;
 	struct _running_context_t* scope;
 } _class_t;
+#endif /* MB_ENABLE_CLASS */
 
 typedef struct _routine_t {
 	char* name;
+#ifdef MB_ENABLE_CLASS
 	_class_t* instance;
+#endif /* MB_ENABLE_CLASS */
 	struct _running_context_t* scope;
 	_ls_node_t* entry;
 	_ls_node_t* parameters;
@@ -396,8 +403,10 @@ typedef struct _object_t {
 		_dict_it_t* dict_it;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 		_label_t* label;
-		_routine_t* routine;
+#ifdef MB_ENABLE_CLASS
 		_class_t* instance;
+#endif /* MB_ENABLE_CLASS */
+		_routine_t* routine;
 		char separator;
 		mb_val_bytes_t bytes;
 		_raw_t raw;
@@ -440,7 +449,9 @@ MBAPI const size_t MB_SIZEOF_ARR = _MB_MEM_TAG_SIZE + sizeof(_array_t);
 MBAPI const size_t MB_SIZEOF_VAR = _MB_MEM_TAG_SIZE + sizeof(_var_t);
 MBAPI const size_t MB_SIZEOF_LBL = _MB_MEM_TAG_SIZE + sizeof(_label_t);
 MBAPI const size_t MB_SIZEOF_RTN = _MB_MEM_TAG_SIZE + sizeof(_routine_t);
+#ifdef MB_ENABLE_CLASS
 MBAPI const size_t MB_SIZEOF_CLS = _MB_MEM_TAG_SIZE + sizeof(_class_t);
+#endif /* MB_ENABLE_CLASS */
 #else /* MB_ENABLE_ALLOC_STAT */
 MBAPI const size_t MB_SIZEOF_INT = sizeof(int);
 MBAPI const size_t MB_SIZEOF_PTR = sizeof(intptr_t);
@@ -453,7 +464,9 @@ MBAPI const size_t MB_SIZEOF_ARR = sizeof(_array_t);
 MBAPI const size_t MB_SIZEOF_VAR = sizeof(_var_t);
 MBAPI const size_t MB_SIZEOF_LBL = sizeof(_label_t);
 MBAPI const size_t MB_SIZEOF_RTN = sizeof(_routine_t);
+#ifdef MB_ENABLE_CLASS
 MBAPI const size_t MB_SIZEOF_CLS = sizeof(_class_t);
+#endif /* MB_ENABLE_CLASS */
 #endif /* MB_ENABLE_ALLOC_STAT */
 
 #ifdef MB_ENABLE_SOURCE_TRACE
@@ -1150,9 +1163,11 @@ static unsigned _unref(_ref_t* ref, void* data);
 static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s);
 static void _destroy_ref(_ref_t* ref);
 
+#ifdef MB_ENABLE_CLASS
 static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n);
 static void _begin_class(mb_interpreter_t* s);
-static void _end_class(mb_interpreter_t* s);
+static bool_t _end_class(mb_interpreter_t* s);
+#endif /* MB_ENABLE_CLASS */
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n);
 static void _begin_routine(mb_interpreter_t* s);
 static bool_t _end_routine(mb_interpreter_t* s);
@@ -1415,8 +1430,10 @@ static const _func_t _core_libs[] = {
 	{ "CALL", _core_call },
 	{ "DEF", _core_def },
 	{ "ENDDEF", _core_enddef },
+#ifdef MB_ENABLE_CLASS
 	{ "CLASS", _core_class },
 	{ "ENDCLASS", _core_endclass },
+#endif /* MB_ENABLE_CLASS */
 
 #ifdef MB_ENABLE_ALLOC_STAT
 	{ "MEM", _core_mem },
@@ -3211,7 +3228,13 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	/* Create a syntax symbol */
 	int result = MB_FUNC_OK;
 	_data_e type;
-	union { _func_t* func; _array_t* array; _class_t* instance; _routine_t* routine; _var_t* var; _label_t* label; real_t float_point; int_t integer; _raw_t any; } tmp;
+	union {
+		_func_t* func; _array_t* array;
+#ifdef MB_ENABLE_CLASS
+		_class_t* instance;
+#endif /* MB_ENABLE_CLASS */
+		_routine_t* routine; _var_t* var; _label_t* label; real_t float_point; int_t integer; _raw_t any;
+	} tmp;
 	_raw_t value;
 	unsigned int ul = 0;
 	_parsing_context_t* context = 0;
@@ -3304,6 +3327,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		}
 
 		break;
+#ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_CLASS) {
@@ -3332,6 +3356,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		}
 
 		break;
+#endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ROUTINE) {
@@ -3563,6 +3588,7 @@ _end_import:
 		goto _exit;
 	}
 	/* _class_t */
+#ifdef MB_ENABLE_CLASS
 	if(context->last_symbol) {
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_CLASS) {
@@ -3581,26 +3607,28 @@ _end_import:
 				goto _exit;
 			}
 			if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
-				tmp.obj = (_object_t*)(glbsyminscope->data);
-				if(!tmp.obj->ref) {
-					_ht_remove(running->var_dict, sym, _ls_cmp_extra_string);
-					_dispose_object(tmp.obj);
+				_handle_error_now(s, SE_RN_INVALID_CLASS, 0, MB_FUNC_ERR);
+
+				goto _exit;
+			}
+
+			if(_IS_FUNC(context->last_symbol, _core_def)) {
+				if(context->routine_state > 1) {
+					_handle_error_now(s, SE_RN_INVALID_CLASS, 0, MB_FUNC_ERR);
+
+					goto _exit;
 				}
-				tmp.obj->type = _DT_CLASS;
-				tmp.obj->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
-				_init_class(s, tmp.obj->data.instance, sym);
-				_init_class(s, tmp.obj->data.instance, sym);
-				_ht_set_or_insert(running->var_dict, sym, tmp.obj);
 			}
 
 			result = _DT_CLASS;
 
 			goto _exit;
 		} else if(_IS_FUNC(context->last_symbol, _core_endclass)) {
-			_end_class(s);
-			_pop_scope(s);
+			if(_end_class(s))
+				_pop_scope(s);
 		}
 	}
+#endif /* MB_ENABLE_CLASS */
 	/* _routine_t */
 	if(context->last_symbol) {
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
@@ -5080,6 +5108,7 @@ void _destroy_ref(_ref_t* ref) {
 	ref->on_unref = 0;
 }
 
+#ifdef MB_ENABLE_CLASS
 void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	/* Initialize a class */
 	_running_context_t* running = 0;
@@ -5105,15 +5134,23 @@ void _begin_class(mb_interpreter_t* s) {
 	context->class_state++;
 }
 
-void _end_class(mb_interpreter_t* s) {
+bool_t _end_class(mb_interpreter_t* s) {
 	/* End parsing a class */
 	_parsing_context_t* context = 0;
 
 	mb_assert(s);
 
 	context = s->parsing_context;
+	if(!context->class_state) {
+		_handle_error_now(s, SE_RN_INVALID_CLASS, 0, MB_FUNC_ERR);
+
+		return false;
+	}
 	context->class_state--;
+
+	return true;
 }
+#endif /* MB_ENABLE_CLASS */
 
 void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n) {
 	/* Initialize a routine */
@@ -5454,10 +5491,12 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 		tgt->data.label->node = obj->data.label->node;
 
 		break;
+#ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
 		mb_assert(0 && "Not implemented");
 
 		break;
+#endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
 		mb_assert(0 && "Not implemented");
 
@@ -5545,6 +5584,7 @@ int _dispose_object(_object_t* obj) {
 		}
 
 		break;
+#ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
 		if(!obj->ref) {
 			safe_free(obj->data.instance->name);
@@ -5555,6 +5595,7 @@ int _dispose_object(_object_t* obj) {
 		}
 
 		break;
+#endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
 		if(!obj->ref) {
 			safe_free(obj->data.routine->name);
@@ -5796,6 +5837,10 @@ _data_e _public_type_to_internal_type(mb_data_e t) {
 	case MB_DT_DICT_IT:
 		return _DT_DICT_IT;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	case MB_DT_CLASS:
+		return _DT_CLASS;
+#endif /* MB_ENABLE_CLASS */
 	case MB_DT_ROUTINE:
 		return _DT_ROUTINE;
 	default:
@@ -5832,6 +5877,10 @@ mb_data_e _internal_type_to_public_type(_data_e t) {
 	case _DT_DICT_IT:
 		return MB_DT_DICT_IT;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	case _DT_CLASS:
+		return MB_DT_CLASS;
+#endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
 		return MB_DT_ROUTINE;
 	default:
@@ -5911,6 +5960,11 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	case MB_DT_CLASS:
+		itn->type = _DT_CLASS;
+		itn->data.instance = (_class_t*)pbl->value.instance;
+#endif /* MB_ENABLE_CLASS */
 	case MB_DT_ROUTINE:
 		itn->type = _DT_ROUTINE;
 		itn->data.routine = (_routine_t*)pbl->value.routine;
@@ -5993,6 +6047,13 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	case _DT_CLASS:
+		pbl->type = MB_DT_CLASS;
+		pbl->value.instance = itn->data.instance;
+
+		break;
+#endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
 		pbl->type = MB_DT_ROUTINE;
 		pbl->value.routine = itn->data.routine;
@@ -6187,10 +6248,12 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 		_handle_error_on_obj(s, SE_RN_INVALID_EXPRESSION, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 
 		break;
+#ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
 		mb_assert(0 && "Not implemented");
 
 		break;
+#endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
 		ast = ast->prev;
 		result = _core_call(s, (void**)(&ast));
@@ -8175,6 +8238,12 @@ const char* mb_get_type_string(mb_data_e t) {
 	case MB_DT_DICT_IT:
 		return "DICT_ITERATOR";
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	case MB_DT_CLASS:
+		return "CLASS";
+#endif /* MB_ENABLE_CLASS */
+	case MB_DT_ROUTINE:
+		return "ROUTINE";
 	default:
 		return "UNKNOWN";
 	}
