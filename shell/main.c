@@ -867,16 +867,6 @@ static int_t _ticks(void) {
 
 	return ret;
 }
-#elif defined __GNUC__ || defined __clang__ /* _MSC_VER */
-static int_t _ticks(void) {
-	struct timespec ts;
-	int_t ret = 0;
-
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	ret = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
-
-	return ret;
-}
 #else /* _MSC_VER */
 #	undef _HAS_TICKS
 #endif /* _MSC_VER */
