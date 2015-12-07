@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {
