@@ -3612,7 +3612,7 @@ _end_import:
 				goto _exit;
 			}
 
-			if(_IS_FUNC(context->last_symbol, _core_def)) {
+			if(_IS_FUNC(context->last_symbol, _core_class)) {
 				if(context->routine_state > 1) {
 					_handle_error_now(s, SE_RN_INVALID_CLASS, 0, MB_FUNC_ERR);
 

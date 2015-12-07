@@ -852,6 +852,49 @@ static void _process_parameters(int argc, char* argv[]) {
 ** Scripting interfaces
 */
 
+#define _HAS_TICKS
+#if defined _MSC_VER
+static int_t _ticks(void) {
+	LARGE_INTEGER li;
+	double freq = 0.0;
+	int_t ret = 0;
+
+	QueryPerformanceFrequency(&li);
+	freq = (double)li.QuadPart / 1000.0;
+	QueryPerformanceCounter(&li);
+	ret = (int_t)((double)li.QuadPart / freq);
+
+	return ret;
+}
+#elif defined __GNUC__ || defined __clang__ /* _MSC_VER */
+static int_t _ticks(void) {
+	struct timespec ts;
+	int_t ret = 0;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	ret = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+
+	return ret;
+}
+#else /* _MSC_VER */
+#	undef _HAS_TICKS
+#endif /* _MSC_VER */
+
+#ifdef _HAS_TICKS
+static int ticks(struct mb_interpreter_t* s, void** l) {
+	int result = MB_FUNC_OK;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	mb_check(mb_push_int(s, l, _ticks()));
+
+	return result;
+}
+#endif /* _HAS_TICKS */
+
 static int beep(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
@@ -864,21 +907,6 @@ static int beep(struct mb_interpreter_t* s, void** l) {
 
 	return result;
 }
-
-#ifdef _MSC_VER
-static int ticks(struct mb_interpreter_t* s, void** l) {
-	int result = MB_FUNC_OK;
-
-	mb_assert(s && l);
-
-	mb_check(mb_attempt_open_bracket(s, l));
-	mb_check(mb_attempt_close_bracket(s, l));
-
-	mb_check(mb_push_int(s, l, (int_t)GetTickCount()));
-
-	return result;
-}
-#endif /* _MSC_VER */
 
 /* ========================================================} */
 
@@ -919,6 +947,10 @@ static void _on_startup(void) {
 
 	c = _create_code();
 
+#ifdef _HAS_TICKS
+	srand((unsigned)_ticks());
+#endif /* _HAS_TICKS */
+
 	mb_init();
 
 	mb_open(&bas);
@@ -926,10 +958,10 @@ static void _on_startup(void) {
 	mb_debug_set_stepped_handler(bas, _on_stepped);
 	mb_set_error_handler(bas, _on_error);
 
-	mb_reg_fun(bas, beep);
-#ifdef _MSC_VER
+#ifdef _HAS_TICKS
 	mb_reg_fun(bas, ticks);
-#endif /* _MSC_VER */
+#endif /* _HAS_TICKS */
+	mb_reg_fun(bas, beep);
 }
 
 static void _on_exit(void) {
