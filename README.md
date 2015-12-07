@@ -76,19 +76,19 @@ Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especiall
 
 ### Use standalone interpreter binary
 
-This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [OS X](output/my_basic_mac), it's efficient to download it and have a first impressive playground. Or you could make a build as follow.
+This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [OS X](output/my_basic_mac), it's efficient to download it and have a first impressive playground. Or you could make a build as follow:
 
 * Open the Visual Studio solution `my_basic.sln` on Windows to build an executable
 * Open the Xcode solution `my_basic_mac.xcodeproj` on OS X to build an OS X executable
 * If you are not using VS or Xcode, use the `makefile` with a "make" toolchain to build an interpreter binary according to your own platform
 
-To compile an interpreter binary for your own platform manually, please follow the steps.
+To compile an interpreter binary for your own platform manually, please follow the steps:
 
 1. Retrieve at least `core` and `shell` folders for minimum build
 2. Setup your compile toolchain configuration
 3. Use your compiler to compile `core/my_basic.c` and `shell/main.c`, including `core/my_basic.h` is required for both source files, then link up your own executable
 
-The standalone interpreter supports three modes.
+The standalone interpreter supports three modes:
 
 * Execute the binary directly without arguments to enter MY-BASIC interactive mode
 * Pass a file path to the binary to load and run that script file
@@ -104,7 +104,7 @@ For more details about using MY-BASIC when it's already integrated with a projec
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
-Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf). There are some other scattered topics besides these aspects, such as the desine principle, machinism behind MY-BASIC, effective practice, etc; they are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki).
+Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf). There are some other scattered topics besides these aspects, such as the desine principle, machinism behind MY-BASIC, effective practice, etc; they are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki):
 
 * Principles
  * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
