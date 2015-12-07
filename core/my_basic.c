@@ -123,6 +123,9 @@ extern "C" {
 #define _IS_EOS(__o) (__o && ((_object_t*)(__o))->type == _DT_EOS)
 #define _IS_SEP(__o, __c) (((_object_t*)(__o))->type == _DT_SEP && ((_object_t*)(__o))->data.separator == __c)
 #define _IS_FUNC(__o, __f) (((_object_t*)(__o))->type == _DT_FUNC && ((_object_t*)(__o))->data.func->pointer == __f)
+#ifdef MB_ENABLE_CLASS
+#	define _IS_CLASS(__o) (__o && ((_object_t*)(__o))->type == _DT_CLASS)
+#endif /* MB_ENABLE_CLASS */
 #define _IS_ROUTINE(__o) (__o && ((_object_t*)(__o))->type == _DT_ROUTINE)
 
 /* Hash table size */
@@ -230,6 +233,7 @@ static const char* _ERR_DESC[] = {
 	"Routine expected",
 	"Duplicate routine",
 	"Invalid class",
+	"Class expected",
 	"Collection expected",
 	"Iterator expected",
 	"Collection or iterator expected",
@@ -1174,13 +1178,17 @@ static bool_t _end_routine(mb_interpreter_t* s);
 static void _begin_routine_parameter_list(mb_interpreter_t* s);
 static void _end_routine_parameter_list(mb_interpreter_t* s);
 static void _duplicate_parameter(void* data, void* extra, _running_context_t* running);
-static _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p);
-static _running_context_t* _reference_scope(mb_interpreter_t* s, _running_context_t* p, _routine_t* r);
+#ifdef MB_ENABLE_CLASS
+static _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c);
+static _running_context_t* _push_scope_by_class(mb_interpreter_t* s, _running_context_t* p);
+#endif /* MB_ENABLE_CLASS */
+static _running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r);
+static _running_context_t* _push_weak_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r);
+static _running_context_t* _push_scope_by_routine(mb_interpreter_t* s, _running_context_t* p);
 static void _unreference_scope(mb_interpreter_t* s, _running_context_t* p);
-static _running_context_t* _push_weak_scope(mb_interpreter_t* s, _running_context_t* p, _routine_t* r);
 static _running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context_t* p);
-static _running_context_t* _push_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _pop_scope(mb_interpreter_t* s);
+static _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s);
 static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, char* n);
 static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o);
@@ -1323,8 +1331,10 @@ static int _core_return(mb_interpreter_t* s, void** l);
 static int _core_call(mb_interpreter_t* s, void** l);
 static int _core_def(mb_interpreter_t* s, void** l);
 static int _core_enddef(mb_interpreter_t* s, void** l);
+#ifdef MB_ENABLE_CLASS
 static int _core_class(mb_interpreter_t* s, void** l);
 static int _core_endclass(mb_interpreter_t* s, void** l);
+#endif /* MB_ENABLE_CLASS */
 #ifdef MB_ENABLE_ALLOC_STAT
 static int _core_mem(mb_interpreter_t* s, void** l);
 #endif /* MB_ENABLE_ALLOC_STAT */
@@ -2862,7 +2872,7 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 		mb_check(mb_attempt_open_bracket(s, (void**)l));
 	}
 
-	running = _push_weak_scope(s, r->scope, r);
+	running = _push_weak_scope_by_routine(s, r->scope, r);
 	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true);
 	if(result != MB_FUNC_OK) {
 		if(running->meta == _SCOPE_META_REF)
@@ -2881,7 +2891,7 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 	ast = (_ls_node_t*)(*l);
 	_ls_pushback(s->sub_stack, ast);
 
-	running = _push_scope(s, running);
+	running = _push_scope_by_routine(s, running);
 
 	*l = r->entry;
 	if(!(*l)) {
@@ -3337,12 +3347,12 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			if(running != (*obj)->data.instance->scope &&
 				context->class_state &&
 				_IS_FUNC(context->last_symbol, _core_class)) {
-				_push_scope(s, (*obj)->data.instance->scope);
+				_push_scope_by_class(s, (*obj)->data.instance->scope);
 			}
 		} else {
 			tmp.instance = (_class_t*)mb_malloc(sizeof(_class_t));
 			_init_class(s, tmp.instance, sym);
-			_push_scope(s, tmp.instance->scope);
+			_push_scope_by_class(s, tmp.instance->scope);
 			(*obj)->data.instance = tmp.instance;
 
 			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
@@ -3366,13 +3376,13 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			if(running != (*obj)->data.routine->scope &&
 				context->routine_state &&
 				_IS_FUNC(context->last_symbol, _core_def)) {
-				_push_scope(s, (*obj)->data.routine->scope);
+				_push_scope_by_routine(s, (*obj)->data.routine->scope);
 			}
 		} else {
 			_running_context_t* tba = 0;
 			tmp.routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
 			_init_routine(s, tmp.routine, sym);
-			_push_scope(s, tmp.routine->scope);
+			_push_scope_by_routine(s, tmp.routine->scope);
 			(*obj)->data.routine = tmp.routine;
 
 			tba = _get_scope_for_add_routine(s);
@@ -5245,28 +5255,40 @@ void _duplicate_parameter(void* data, void* extra, _running_context_t* running) 
 	_ht_set_or_insert(running->var_dict, var->name, obj);
 }
 
-_running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p) {
-	/* Find a scope in a scope chain */
-	_running_context_t* running = 0;
+#ifdef MB_ENABLE_CLASS
+_running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c) {
+	/* Create a scope reference to an exist one by a class */
+	_running_context_t* result = 0;
+	mb_unrefvar(c);
 
-	mb_assert(s);
+	mb_assert(s && p);
 
-	running = s->running_context;
-	while(running) {
-		if(running == p)
-			return running;
+	if(p->meta == _SCOPE_META_REF)
+		p = p->ref;
 
-		if(running->ref == p)
-			return running->ref;
+	result = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
+	memset(result, 0, sizeof(_running_context_t));
+	result->meta = _SCOPE_META_REF;
+	result->ref = p;
 
-		running = running->prev;
-	}
-
-	return running;
+	return result;
 }
 
-_running_context_t* _reference_scope(mb_interpreter_t* s, _running_context_t* p, _routine_t* r) {
-	/* Create a scope reference to an exist one */
+_running_context_t* _push_scope_by_class(mb_interpreter_t* s, _running_context_t* p) {
+	/* Push a scope by a class */
+	mb_assert(s);
+
+	if(_find_scope(s, p))
+		p = _reference_scope_by_class(s, p, 0);
+	p->prev = s->running_context;
+	s->running_context = p;
+
+	return s->running_context;
+}
+#endif /* MB_ENABLE_CLASS */
+
+_running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r) {
+	/* Create a scope reference to an exist one by a routine */
 	_running_context_t* result = 0;
 
 	mb_assert(s && p);
@@ -5286,6 +5308,29 @@ _running_context_t* _reference_scope(mb_interpreter_t* s, _running_context_t* p,
 	return result;
 }
 
+_running_context_t* _push_weak_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r) {
+	/* Push a weak scope by a routine */
+	mb_assert(s);
+
+	if(_find_scope(s, p))
+		p = _reference_scope_by_routine(s, p, r);
+	p->prev = s->running_context;
+
+	return p;
+}
+
+_running_context_t* _push_scope_by_routine(mb_interpreter_t* s, _running_context_t* p) {
+	/* Push a scope by a routine */
+	mb_assert(s);
+
+	if(_find_scope(s, p))
+		p = _reference_scope_by_routine(s, p, 0);
+	p->prev = s->running_context;
+	s->running_context = p;
+
+	return s->running_context;
+}
+
 void _unreference_scope(mb_interpreter_t* s, _running_context_t* p) {
 	/* Unreference and destroy a scope */
 	mb_unrefvar(s);
@@ -5297,17 +5342,6 @@ void _unreference_scope(mb_interpreter_t* s, _running_context_t* p) {
 	safe_free(p);
 }
 
-_running_context_t* _push_weak_scope(mb_interpreter_t* s, _running_context_t* p, _routine_t* r) {
-	/* Push a weak scope */
-	mb_assert(s);
-
-	if(_find_scope(s, p))
-		p = _reference_scope(s, p, r);
-	p->prev = s->running_context;
-
-	return p;
-}
-
 _running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context_t* p) {
 	/* Pop a weak scope */
 	mb_assert(s);
@@ -5315,18 +5349,6 @@ _running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context_t* p) 
 	p->prev = 0;
 
 	return p;
-}
-
-_running_context_t* _push_scope(mb_interpreter_t* s, _running_context_t* p) {
-	/* Push a scope */
-	mb_assert(s);
-
-	if(_find_scope(s, p))
-		p = _reference_scope(s, p, 0);
-	p->prev = s->running_context;
-	s->running_context = p;
-
-	return s->running_context;
 }
 
 _running_context_t* _pop_scope(mb_interpreter_t* s) {
@@ -5342,6 +5364,26 @@ _running_context_t* _pop_scope(mb_interpreter_t* s) {
 		_unreference_scope(s, running);
 
 	return s->running_context;
+}
+
+_running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p) {
+	/* Find a scope in a scope chain */
+	_running_context_t* running = 0;
+
+	mb_assert(s);
+
+	running = s->running_context;
+	while(running) {
+		if(running == p)
+			return running;
+
+		if(running->ref == p)
+			return running->ref;
+
+		running = running->prev;
+	}
+
+	return running;
 }
 
 _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s) {
@@ -9679,11 +9721,14 @@ _exit:
 	return result;
 }
 
+#ifdef MB_ENABLE_CLASS
 int _core_class(mb_interpreter_t* s, void** l) {
 	/* CLASS statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_running_context_t* running = 0;
+	_object_t* obj = 0;
+	_class_t* instance = 0;
 
 	mb_assert(s && l);
 
@@ -9694,11 +9739,40 @@ int _core_class(mb_interpreter_t* s, void** l) {
 
 	_using_jump_set_of_structured(s, ast, _exit, result);
 
+	obj = (_object_t*)(ast->data);
+	if(!_IS_CLASS(obj)) {
+		_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+	}
+	instance = (_class_t*)(((_object_t*)(ast->data))->data.instance);
+	ast = ast->next;
+
+	*l = ast;
+
+	running = _push_scope_by_class(s, running);
+
+	do {
+		result = _execute_statement(s, (_ls_node_t**)l);
+		if(result != MB_FUNC_OK && s->error_handler) {
+			if(result >= MB_EXTENDED_ABORT)
+				s->last_error = SE_EA_EXTENDED_ABORT;
+			_handle_error_now(s, s->last_error, s->last_error_func, result);
+
+			goto _exit;
+		}
+		ast = (_ls_node_t*)(*l);
+		obj = (_object_t*)(ast->data);
+	} while(ast && !_IS_FUNC(obj, _core_endclass));
+
+	_pop_scope(s);
+
 	_skip_to(s, &ast, _core_endclass, _DT_NIL);
 
 	ast = ast->next;
 
 _exit:
+	if(result != MB_FUNC_OK)
+		_pop_scope(s);
+
 	*l = ast;
 
 	return result;
@@ -9713,6 +9787,7 @@ int _core_endclass(mb_interpreter_t* s, void** l) {
 _exit:
 	return result;
 }
+#endif /* MB_ENABLE_CLASS */
 
 #ifdef MB_ENABLE_ALLOC_STAT
 int _core_mem(mb_interpreter_t* s, void** l) {
