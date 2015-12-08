@@ -61,8 +61,8 @@ extern "C" {
 #endif /* __BORLANDC__ */
 
 #ifdef __POCC__
-#	define unlink _unlink
 #	define strdup _strdup
+#	define unlink _unlink
 #endif /* __POCC__ */
 
 /*

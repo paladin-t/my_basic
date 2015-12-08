@@ -81,7 +81,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 102
+#define _VER_REVISION 103
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -234,6 +234,7 @@ static const char* _ERR_DESC[] = {
 	"Duplicate routine",
 	"Invalid class",
 	"Class expected",
+	"Wrong meta class",
 	"Collection expected",
 	"Iterator expected",
 	"Collection or iterator expected",
@@ -366,7 +367,9 @@ typedef struct _label_t {
 
 #ifdef MB_ENABLE_CLASS
 typedef struct _class_t {
+	_ref_t ref;
 	char* name;
+	_ls_node_t* meta_list;
 	struct _running_context_t* scope;
 } _class_t;
 #endif /* MB_ENABLE_CLASS */
@@ -1046,6 +1049,83 @@ static bool_t _is_number(void* obj);
 static bool_t _is_string(void* obj);
 static char* _extract_string(_object_t* obj);
 
+#define _REF_USERTYPE_REF(__o) \
+	case _DT_USERTYPE_REF: \
+		_ref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
+		break;
+#define _UNREF_USERTYPE_REF(__o) \
+	case _DT_USERTYPE_REF: \
+		_unref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
+		break;
+#define _REF_ARRAY(__o) \
+	case _DT_ARRAY: \
+		if(!(__o)->ref) \
+			_ref(&(__o)->data.array->ref, (__o)->data.array); \
+		break;
+#define _UNREF_ARRAY(__o) \
+	case _DT_ARRAY: \
+		if(!(__o)->ref) \
+			_unref(&(__o)->data.array->ref, (__o)->data.array); \
+		break;
+#ifdef MB_ENABLE_COLLECTION_LIB
+#	define _REF_COLL(__o) \
+		case _DT_LIST: \
+			_ref(&(__o)->data.list->ref, (__o)->data.list); \
+			break; \
+		case _DT_DICT: \
+			_ref(&(__o)->data.dict->ref, (__o)->data.dict); \
+			break;
+#	define _UNREF_COLL(__o) \
+		case _DT_LIST: \
+			_unref(&(__o)->data.list->ref, (__o)->data.list); \
+			break; \
+		case _DT_DICT: \
+			_unref(&(__o)->data.dict->ref, (__o)->data.dict); \
+			break;
+#else /* MB_ENABLE_COLLECTION_LIB */
+#	define _REF_COLL(__o) ((void)(__o));
+#	define _UNREF_COLL(__o) ((void)(__o));
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+#	define _REF_CLASS(__o) \
+		case _DT_CLASS: \
+			_ref(&(__o)->data.instance->ref, (__o)->data.instance); \
+			break;
+#	define _UNREF_CLASS(__o) \
+		case _DT_CLASS: \
+			if(!(__o)->ref) \
+				_unref(&(__o)->data.instance->ref, (__o)->data.instance); \
+			break;
+#else /* MB_ENABLE_CLASS */
+#	define _REF_CLASS(__o) ((void)(__o));
+#	define _UNREF_CLASS(__o) ((void)(__o));
+#endif /* MB_ENABLE_CLASS */
+#define _REF(__o) \
+	switch((__o)->type) { \
+	_REF_USERTYPE_REF(__o) \
+	_REF_ARRAY(__o) \
+	_REF_COLL(__o) \
+	_REF_CLASS(__o) \
+	default: break; \
+	}
+#define _UNREF(__o) \
+	switch((__o)->type) { \
+	_UNREF_USERTYPE_REF(__o) \
+	_UNREF_ARRAY(__o) \
+	_UNREF_COLL(__o) \
+	_UNREF_CLASS(__o) \
+	default: break; \
+	}
+
+static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
+static bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
+static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
+
+static unsigned _ref(_ref_t* ref, void* data);
+static unsigned _unref(_ref_t* ref, void* data);
+static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s);
+static void _destroy_ref(_ref_t* ref);
+
 #ifdef MB_ENABLE_GC
 static void _gc_add(_ref_t* ref, void* data);
 static void _gc_remove(_ref_t* ref, void* data);
@@ -1106,71 +1186,15 @@ static int _clone_to_list(void* data, void* extra, _list_t* coll);
 static int _clone_to_dict(void* data, void* extra, _dict_t* coll);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
-#define _REF_USERTYPE_REF(__o) \
-	case _DT_USERTYPE_REF: \
-		_ref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
-		break;
-#define _UNREF_USERTYPE_REF(__o) \
-	case _DT_USERTYPE_REF: \
-		_unref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
-		break;
-#define _REF_ARRAY(__o) \
-	case _DT_ARRAY: \
-		if(!(__o)->ref) \
-			_ref(&(__o)->data.array->ref, (__o)->data.array); \
-		break;
-#define _UNREF_ARRAY(__o) \
-	case _DT_ARRAY: \
-		if(!(__o)->ref) \
-			_unref(&(__o)->data.array->ref, (__o)->data.array); \
-		break;
-#ifdef MB_ENABLE_COLLECTION_LIB
-#	define _REF_COLL(__o) \
-		case _DT_LIST: \
-			_ref(&(__o)->data.list->ref, (__o)->data.list); \
-			break; \
-		case _DT_DICT: \
-			_ref(&(__o)->data.dict->ref, (__o)->data.dict); \
-			break;
-#	define _UNREF_COLL(__o) \
-		case _DT_LIST: \
-			_unref(&(__o)->data.list->ref, (__o)->data.list); \
-			break; \
-		case _DT_DICT: \
-			_unref(&(__o)->data.dict->ref, (__o)->data.dict); \
-			break;
-#else /* MB_ENABLE_COLLECTION_LIB */
-#	define _REF_COLL(__o) ((void)(__o));
-#	define _UNREF_COLL(__o) ((void)(__o));
-#endif /* MB_ENABLE_COLLECTION_LIB */
-#define _REF(__o) \
-	switch((__o)->type) { \
-	_REF_USERTYPE_REF(__o) \
-	_REF_ARRAY(__o) \
-	_REF_COLL(__o) \
-	default: break; \
-	}
-#define _UNREF(__o) \
-	switch((__o)->type) { \
-	_UNREF_USERTYPE_REF(__o) \
-	_UNREF_ARRAY(__o) \
-	_UNREF_COLL(__o) \
-	default: break; \
-	}
-
-static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
-static bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
-static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
-
-static unsigned _ref(_ref_t* ref, void* data);
-static unsigned _unref(_ref_t* ref, void* data);
-static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s);
-static void _destroy_ref(_ref_t* ref);
-
 #ifdef MB_ENABLE_CLASS
 static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n);
 static void _begin_class(mb_interpreter_t* s);
 static bool_t _end_class(mb_interpreter_t* s);
+static void _unref_class(_ref_t* ref, void* data);
+static void _destroy_class(_class_t* c);
+static bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base);
+static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived);
+static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
 #endif /* MB_ENABLE_CLASS */
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n);
 static void _begin_routine(mb_interpreter_t* s);
@@ -2739,6 +2763,9 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 		c->type == _DT_LIST || c->type == _DT_LIST_IT || c->type == _DT_DICT || c->type == _DT_DICT_IT ||
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+		c->type == _DT_CLASS ||
+#endif /* MB_ENABLE_CLASS */
 		c->type == _DT_VAR || c->type == _DT_USERTYPE || c->type == _DT_USERTYPE_REF || c->type == _DT_ARRAY)) {
 		_set_current_error(s, SE_RN_INVALID_DATA_TYPE, 0);
 		result = MB_FUNC_ERR;
@@ -2769,17 +2796,19 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	if(guard_val != c && _ls_try_remove(garbage, c, _ls_cmp_data, NULL)) {
 		_try_clear_intermediate_value(c, 0, s);
 
+		if(c->type == _DT_USERTYPE_REF ||
 #ifdef MB_ENABLE_COLLECTION_LIB
-		if(c->type == _DT_USERTYPE_REF || c->type == _DT_ARRAY || c->type == _DT_LIST || c->type == _DT_DICT || c->type == _DT_LIST_IT || c->type == _DT_DICT_IT)
-			_destroy_object_capsule_only(c, 0);
-		else
-			_destroy_object(c, 0);
-#else /* MB_ENABLE_COLLECTION_LIB */
-		if(c->type == _DT_USERTYPE_REF || c->type == _DT_ARRAY)
-			_destroy_object_capsule_only(c, 0);
-		else
-			_destroy_object(c, 0);
+			c->type == _DT_LIST || c->type == _DT_DICT || c->type == _DT_LIST_IT || c->type == _DT_DICT_IT ||
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+			c->type == _DT_CLASS ||
+#endif /* MB_ENABLE_CLASS */
+			c->type == _DT_ARRAY
+		) {
+			_destroy_object_capsule_only(c, 0);
+		} else {
+			_destroy_object(c, 0);
+		}
 	}
 
 _exit:
@@ -3960,6 +3989,96 @@ char* _extract_string(_object_t* obj) {
 	return result;
 }
 
+bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
+	/* Lock an object */
+	mb_assert(lk);
+
+	_ref(ref, obj);
+	if(*lk >= 0)
+		++(*lk);
+	else
+		--(*lk);
+
+	return true;
+}
+
+bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
+	/* Unlock an object */
+	bool_t result = true;
+	mb_assert(lk);
+
+	if(*lk > 0)
+		--(*lk);
+	else if(*lk < 0)
+		++(*lk);
+	else
+		result = false;
+	_unref(ref, obj);
+
+	return result;
+}
+
+bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
+	/* Write operation on a collection */
+	bool_t result = true;
+	mb_unrefvar(ref);
+	mb_unrefvar(obj);
+
+	mb_assert(lk);
+
+	if(*lk > 0)
+		*lk = -(*lk);
+	else
+		result = false;
+
+	return result;
+}
+
+unsigned _ref(_ref_t* ref, void* data) {
+	/* Add a referenct to a stub */
+	mb_unrefvar(data);
+
+	return ++(*(ref->count));
+}
+
+unsigned _unref(_ref_t* ref, void* data) {
+	/* Remove a reference to a stub */
+	unsigned result = 0;
+
+	result = --(*(ref->count));
+#ifdef MB_ENABLE_GC
+	_gc_add(ref, data);
+	ref->on_unref(ref, data);
+	if(!ref->count)
+		_gc_remove(ref, data);
+#else /* MB_ENABLE_GC */
+	ref->on_unref(ref, data);
+#endif /* MB_ENABLE_GC */
+
+	return result;
+}
+
+void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s) {
+	/* Create a reference stub */
+	if(ref->count)
+		return;
+
+	ref->count = (unsigned*)mb_malloc(sizeof(unsigned));
+	*(ref->count) = 0;
+	ref->on_unref = dtor;
+	ref->type = t;
+	ref->s = s;
+}
+
+void _destroy_ref(_ref_t* ref) {
+	/* Destroy a reference stub */
+	if(!ref->count)
+		return;
+
+	safe_free(ref->count);
+	ref->on_unref = 0;
+}
+
 #ifdef MB_ENABLE_GC
 void _gc_add(_ref_t* ref, void* data) {
 	/* Add a referenced object to GC */
@@ -4043,6 +4162,15 @@ int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht) {
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	case _DT_CLASS:
+		if(!_ht_find(ht, &obj->data.instance->ref)) {
+			_ht_set_or_insert(ht, &obj->data.instance->ref, obj->data.instance);
+			/* TODO */
+		}
+
+		break;
+#endif /* MB_ENABLE_CLASS */
 	default: /* Do nothing */
 		break;
 	}
@@ -5028,96 +5156,6 @@ int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 }
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
-bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
-	/* Lock an object */
-	mb_assert(lk);
-
-	_ref(ref, obj);
-	if(*lk >= 0)
-		++(*lk);
-	else
-		--(*lk);
-
-	return true;
-}
-
-bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
-	/* Unlock an object */
-	bool_t result = true;
-	mb_assert(lk);
-
-	if(*lk > 0)
-		--(*lk);
-	else if(*lk < 0)
-		++(*lk);
-	else
-		result = false;
-	_unref(ref, obj);
-
-	return result;
-}
-
-bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
-	/* Write operation on a collection */
-	bool_t result = true;
-	mb_unrefvar(ref);
-	mb_unrefvar(obj);
-
-	mb_assert(lk);
-
-	if(*lk > 0)
-		*lk = -(*lk);
-	else
-		result = false;
-
-	return result;
-}
-
-unsigned _ref(_ref_t* ref, void* data) {
-	/* Add a referenct to a stub */
-	mb_unrefvar(data);
-
-	return ++(*(ref->count));
-}
-
-unsigned _unref(_ref_t* ref, void* data) {
-	/* Remove a reference to a stub */
-	unsigned result = 0;
-
-	result = --(*(ref->count));
-#ifdef MB_ENABLE_GC
-	_gc_add(ref, data);
-	ref->on_unref(ref, data);
-	if(!ref->count)
-		_gc_remove(ref, data);
-#else /* MB_ENABLE_GC */
-	ref->on_unref(ref, data);
-#endif /* MB_ENABLE_GC */
-
-	return result;
-}
-
-void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s) {
-	/* Create a reference stub */
-	if(ref->count)
-		return;
-
-	ref->count = (unsigned*)mb_malloc(sizeof(unsigned));
-	*(ref->count) = 0;
-	ref->on_unref = dtor;
-	ref->type = t;
-	ref->s = s;
-}
-
-void _destroy_ref(_ref_t* ref) {
-	/* Destroy a reference stub */
-	if(!ref->count)
-		return;
-
-	safe_free(ref->count);
-	ref->on_unref = 0;
-}
-
 #ifdef MB_ENABLE_CLASS
 void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	/* Initialize a class */
@@ -5128,7 +5166,10 @@ void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	running = s->running_context;
 
 	memset(instance, 0, sizeof(_class_t));
+	_create_ref(&instance->ref, _unref_class, _DT_CLASS, s);
+	_ref(&instance->ref, instance);
 	instance->name = n;
+	instance->meta_list = _ls_create();
 	instance->scope = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
 	memset(instance->scope, 0, sizeof(_running_context_t));
 	instance->scope->var_dict = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
@@ -5159,6 +5200,64 @@ bool_t _end_class(mb_interpreter_t* s) {
 	context->class_state--;
 
 	return true;
+}
+
+void _unref_class(_ref_t* ref, void* data) {
+	/* Unreference a class instance */
+	if(!(*(ref->count)))
+		_destroy_class((_class_t*)data);
+}
+
+void _destroy_class(_class_t* c) {
+	/* Destroy a class instance */
+	safe_free(c->name);
+	if(c->meta_list) {
+		_unlink_meta_class(c->ref.s, c);
+		_ls_destroy(c->meta_list);
+	}
+	if(c->scope->var_dict) {
+		_ht_foreach(c->scope->var_dict, _destroy_object);
+		_ht_destroy(c->scope->var_dict);
+	}
+	safe_free(c->scope);
+	_destroy_ref(&c->ref);
+	safe_free(c);
+}
+
+bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base) {
+	/* Link a class instance to another's meta list */
+	mb_assert(s && derived && base);
+
+	if(_ls_find(derived->meta_list, base, _ls_cmp_data)) {
+		_handle_error_now(s, SE_RN_WRONG_META_CLASS, 0, MB_FUNC_ERR);
+
+		return false;
+	}
+
+	_ls_pushback(derived->meta_list, base);
+	_ref(&base->ref, base);
+
+	return true;
+}
+
+void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived) {
+	/* Unlink a class instance's all meta class instances */
+	mb_assert(s && derived);
+
+	_LS_FOREACH(derived->meta_list, _do_nothing_on_object, _unlink_meta_instance, derived);
+	_ls_clear(derived->meta_list);
+}
+
+int _unlink_meta_instance(void* data, void* extra, _class_t* derived) {
+	/* Unlink a meta class instance */
+	_class_t* base = 0;
+
+	mb_assert(data && derived);
+
+	base = (_class_t*)data;
+	_unref(&base->ref, base);
+
+	return 0;
 }
 #endif /* MB_ENABLE_CLASS */
 
@@ -5536,6 +5635,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
 		mb_assert(0 && "Not implemented");
+		/* TODO */
 
 		break;
 #endif /* MB_ENABLE_CLASS */
@@ -5609,6 +5709,7 @@ int _dispose_object(_object_t* obj) {
 	_UNREF_USERTYPE_REF(obj)
 	_UNREF_ARRAY(obj)
 	_UNREF_COLL(obj)
+	_UNREF_CLASS(obj)
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST_IT:
 		_destroy_list_it(obj->data.list_it);
@@ -5626,18 +5727,6 @@ int _dispose_object(_object_t* obj) {
 		}
 
 		break;
-#ifdef MB_ENABLE_CLASS
-	case _DT_CLASS:
-		if(!obj->ref) {
-			safe_free(obj->data.instance->name);
-			_ht_foreach(obj->data.instance->scope->var_dict, _destroy_object);
-			_ht_destroy(obj->data.instance->scope->var_dict);
-			safe_free(obj->data.instance->scope);
-			safe_free(obj->data.instance);
-		}
-
-		break;
-#endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
 		if(!obj->ref) {
 			safe_free(obj->data.routine->name);
@@ -7940,11 +8029,15 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
+	if(obj.type != _DT_USERTYPE_REF &&
 #ifdef MB_ENABLE_COLLECTION_LIB
-	if(obj.type != _DT_USERTYPE_REF && obj.type != _DT_ARRAY && obj.type != _DT_LIST && obj.type != _DT_DICT) {
-#else /* MB_ENABLE_COLLECTION_LIB */
-	if(obj.type != _DT_USERTYPE_REF && obj.type != _DT_ARRAY) {
+		obj.type != _DT_LIST && obj.type != _DT_DICT &&
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+		obj.type != _DT_CLASS &&
+#endif /* MB_ENABLE_CLASS */
+		obj.type != _DT_ARRAY
+	) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
 	_REF(&obj);
@@ -7962,11 +8055,15 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
+	if(obj.type != _DT_USERTYPE_REF &&
 #ifdef MB_ENABLE_COLLECTION_LIB
-	if(obj.type != _DT_USERTYPE_REF && obj.type != _DT_ARRAY && obj.type != _DT_LIST && obj.type != _DT_DICT) {
-#else /* MB_ENABLE_COLLECTION_LIB */
-	if(obj.type != _DT_USERTYPE_REF && obj.type != _DT_ARRAY) {
+		obj.type != _DT_LIST && obj.type != _DT_DICT &&
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+		obj.type != _DT_CLASS &&
+#endif /* MB_ENABLE_CLASS */
+		obj.type != _DT_ARRAY
+	) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
 	_UNREF(&obj);
@@ -9729,6 +9826,7 @@ int _core_class(mb_interpreter_t* s, void** l) {
 	_running_context_t* running = 0;
 	_object_t* obj = 0;
 	_class_t* instance = 0;
+	_class_t* inherit = 0;
 
 	mb_assert(s && l);
 
@@ -9745,6 +9843,27 @@ int _core_class(mb_interpreter_t* s, void** l) {
 	}
 	instance = (_class_t*)(((_object_t*)(ast->data))->data.instance);
 	ast = ast->next;
+	obj = (_object_t*)(ast->data);
+
+	if(_IS_FUNC(obj, _core_open_bracket)) {
+		/* Process meta_list */
+		do {
+			ast = ast->next;
+			obj = (_object_t*)(ast->data);
+			if(!_IS_CLASS(obj)) {
+				_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, obj, MB_FUNC_ERR, _exit, result);
+			}
+			inherit = obj->data.instance;
+			_link_meta_class(s, instance, inherit);
+			ast = ast->next;
+			obj = (_object_t*)(ast->data);
+		} while(_IS_CLASS(obj) || _IS_SEP(obj, ','));
+		if(_IS_FUNC(obj, _core_close_bracket)) {
+			ast = ast->next;
+		} else {
+			_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, 0, obj, MB_FUNC_ERR, _exit, result);
+		}
+	}
 
 	*l = ast;
 
