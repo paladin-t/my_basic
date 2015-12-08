@@ -942,7 +942,7 @@ static size_t mb_memtest(void* p, size_t s);
 
 static char* mb_strupr(char* s);
 
-#define safe_free(__p) do { if(__p) { mb_free(__p); __p = 0; } else { mb_assert(0 && "Memory already released"); } } while(0)
+#define safe_free(__p) do { if(__p) { mb_free(__p); __p = 0; } else { mb_assert(0 && "Memory already released."); } } while(0)
 
 /** Unicode handling */
 #ifdef MB_ENABLE_UNICODE
@@ -2428,7 +2428,7 @@ int _get_priority_index(mb_func_t op) {
 	} else if(op == _core_neg) {
 		result = 18;
 	} else {
-		mb_assert(0 && "Unknown operator");
+		mb_assert(0 && "Unknown operator.");
 	}
 
 	return result;
@@ -2618,7 +2618,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 						} else if(arr_type == _DT_USERTYPE) {
 							arr_elem->data.usertype = arr_val.usertype;
 						} else {
-							mb_assert(0 && "Unsupported");
+							mb_assert(0 && "Unsupported.");
 						}
 						if(f) {
 							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -2686,7 +2686,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					} else if(arr_type == _DT_USERTYPE) {
 						arr_elem->data.usertype = arr_val.usertype;
 					} else {
-						mb_assert(0 && "Unsupported");
+						mb_assert(0 && "Unsupported.");
 					}
 					if(f) {
 						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -3888,7 +3888,7 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 					_handle_error(s, SE_PS_INVALID_CHAR, 0, pos, row, col, MB_FUNC_ERR, _exit, result);
 				}
 			} else {
-				mb_assert(0 && "Impossible");
+				mb_assert(0 && "Impossible.");
 			}
 		}
 	} else if(context->parsing_state == _PS_STRING) {
@@ -3906,7 +3906,7 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 			/* Do nothing */
 		}
 	} else {
-		mb_assert(0 && "Unknown parsing state");
+		mb_assert(0 && "Unknown parsing state.");
 	}
 
 _exit:
@@ -3934,7 +3934,7 @@ int_t _get_size_of(_data_e type) {
 	} else if(type == _DT_STRING) {
 		result = sizeof(char*);
 	} else {
-		mb_assert(0 && "Unsupported");
+		mb_assert(0 && "Unsupported.");
 	}
 #else /* MB_SIMPLE_ARRAY */
 	mb_unrefvar(type);
@@ -4523,14 +4523,14 @@ bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, m
 			val->string = *((char**)rawptr);
 			*type = _DT_STRING;
 		} else {
-			mb_assert(0 && "Unsupported");
+			mb_assert(0 && "Unsupported.");
 		}
 #endif /* MB_SIMPLE_ARRAY */
 	} else if(arr->type == _DT_STRING) {
 		val->string = *((char**)rawptr);
 		*type = _DT_STRING;
 	} else {
-		mb_assert(0 && "Unsupported");
+		mb_assert(0 && "Unsupported.");
 	}
 
 	return result;
@@ -4581,7 +4581,7 @@ int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigne
 		arr->types[index] = _DT_USERTYPE;
 #endif /* MB_SIMPLE_ARRAY */
 	} else {
-		mb_assert(0 && "Unsupported");
+		mb_assert(0 && "Unsupported.");
 	}
 
 	goto _exit; /* Avoid an unreferenced label warning */
@@ -5126,7 +5126,7 @@ bool_t _assign_with_it(_object_t* tgt, _object_t* src) {
 
 		break;
 	default:
-		mb_assert(0 && "Impossible");
+		mb_assert(0 && "Impossible.");
 
 		break;
 	}
@@ -5636,7 +5636,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 		break;
 	case _DT_ARRAY:
 		tgt->data.array = obj->data.array;
-		mb_assert(0 && "Not implemented");
+		mb_assert(0 && "Not implemented.");
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -5666,13 +5666,13 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 		break;
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
-		mb_assert(0 && "Not implemented");
+		mb_assert(0 && "Not implemented.");
 		/* TODO */
 
 		break;
 #endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
-		mb_assert(0 && "Not implemented");
+		mb_assert(0 && "Not implemented.");
 
 		break;
 	case _DT_TYPE: /* Fall through */
@@ -5687,7 +5687,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 
 		break;
 	default:
-		mb_assert(0 && "Invalid type");
+		mb_assert(0 && "Invalid type.");
 
 		break;
 	}
@@ -5783,7 +5783,7 @@ int _dispose_object(_object_t* obj) {
 	case _DT_USERTYPE: /* Do nothing */
 		break;
 	default:
-		mb_assert(0 && "Invalid type");
+		mb_assert(0 && "Invalid type.");
 
 		break;
 	}
@@ -6394,12 +6394,41 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 	ast = *l;
 
 	obj = (_object_t*)(ast->data);
+#ifdef MB_ENABLE_CLASS
+_pathed:
+#endif /* MB_ENABLE_CLASS */
 	switch(obj->type) {
 	case _DT_FUNC:
 		result = (obj->data.func->pointer)(s, (void**)(&ast));
 
 		break;
-	case _DT_VAR: /* Fall through */
+	case _DT_VAR:
+#ifdef MB_ENABLE_CLASS
+		if(obj->data.variable->pathing) {
+			/* Need to path */
+			_ls_node_t* pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing);
+			if(pathed && pathed->data) {
+				if(obj != (_object_t*)pathed->data) {
+					/* Found another node */
+					obj = (_object_t*)pathed->data;
+
+					goto _pathed;
+				} else {
+					/* Final node */
+					result = _core_let(s, (void**)(&ast));
+				}
+			} else {
+				mb_assert(0 && "Impossible.");
+			}
+		} else {
+			/* Do not need to path */
+			result = _core_let(s, (void**)(&ast));
+		}
+#else /* MB_ENABLE_CLASS */
+		result = _core_let(s, (void**)(&ast));
+#endif /* MB_ENABLE_CLASS */
+
+		break;
 	case _DT_ARRAY:
 		result = _core_let(s, (void**)(&ast));
 
@@ -6412,7 +6441,7 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 		break;
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
-		mb_assert(0 && "Not implemented");
+		mb_assert(0 && "Not implemented.");
 
 		break;
 #endif /* MB_ENABLE_CLASS */
@@ -9054,7 +9083,7 @@ int _core_let(mb_interpreter_t* s, void** l) {
 
 			break;
 		default:
-			mb_assert(0 && "Unsupported");
+			mb_assert(0 && "Unsupported.");
 			safe_free(val);
 			_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 
