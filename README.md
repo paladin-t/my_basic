@@ -1,4 +1,4 @@
-![](resource/icon.ico)
+<img src="resource/icon.ico" width="64">
 
 **Copyright (C) 2011 - 2015 [Wang Renxin](https://cn.linkedin.com/pub/wang-renxin/43/494/20). All rights reserved.**
 
