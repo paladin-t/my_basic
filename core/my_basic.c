@@ -283,6 +283,9 @@ typedef struct _func_t {
 typedef struct _var_t {
 	char* name;
 	struct _object_t* data;
+#ifdef MB_ENABLE_CLASS
+	int pathing;
+#endif /* MB_ENABLE_CLASS */
 } _var_t;
 
 struct _ref_t;
@@ -3417,7 +3420,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			tba = _get_scope_for_add_routine(s);
 			ul = _ht_set_or_insert(tba->var_dict, sym, *obj);
 			mb_assert(ul);
-			if(tba != _OUTTER_SCOPE(running))
+			if(tba != _OUTTER_SCOPE(running) && tba != running)
 				_pop_scope(s);
 
 			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
@@ -5251,6 +5254,7 @@ void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived) {
 int _unlink_meta_instance(void* data, void* extra, _class_t* derived) {
 	/* Unlink a meta class instance */
 	_class_t* base = 0;
+	mb_unrefvar(extra);
 
 	mb_assert(data && derived);
 
@@ -5487,16 +5491,23 @@ _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p) {
 
 _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s) {
 	/* Get a proper scope to add a routine */
+	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
 
 	mb_assert(s);
 
+	context = s->parsing_context;
 	running = s->running_context;
-	while(running) {
-		if(running->meta == _SCOPE_META_ROOT)
-			break;
+	if(context->class_state) {
+		if(running)
+			running = running->prev;
+	} else {
+		while(running) {
+			if(running->meta == _SCOPE_META_ROOT)
+				break;
 
-		running = running->prev;
+			running = running->prev;
+		}
 	}
 
 	return running;
@@ -5871,7 +5882,6 @@ int _destroy_object_capsule_only_with_extra(void* data, void* extra) {
 int _do_nothing_on_object(void* data, void* extra) {
 	/* Do nothing with an object, this is a helper function */
 	int result = _OP_RESULT_NORMAL;
-
 	mb_unrefvar(data);
 	mb_unrefvar(extra);
 
@@ -9879,14 +9889,17 @@ int _core_class(mb_interpreter_t* s, void** l) {
 			goto _exit;
 		}
 		ast = (_ls_node_t*)(*l);
+		if(!ast) break;
 		obj = (_object_t*)(ast->data);
 	} while(ast && !_IS_FUNC(obj, _core_endclass));
 
 	_pop_scope(s);
 
-	_skip_to(s, &ast, _core_endclass, _DT_NIL);
+	if(ast) {
+		_skip_to(s, &ast, _core_endclass, _DT_NIL);
 
-	ast = ast->next;
+		ast = ast->next;
+	}
 
 _exit:
 	if(result != MB_FUNC_OK)
