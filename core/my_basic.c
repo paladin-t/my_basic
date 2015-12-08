@@ -508,6 +508,7 @@ typedef struct _parsing_context_t {
 	char current_char;
 	char current_symbol[_SINGLE_SYMBOL_MAX_LENGTH + 1];
 	int current_symbol_nonius;
+	int current_symbol_contains_accessor;
 	_object_t* last_symbol;
 	_parsing_state_e parsing_state;
 	_symbol_state_e symbol_state;
@@ -1030,6 +1031,7 @@ static bool_t _is_separator(char c);
 static bool_t _is_bracket(char c);
 static bool_t _is_quotation_mark(char c);
 static bool_t _is_comment(char c);
+static bool_t _is_accessor(char c);
 static bool_t _is_numeric_char(char c);
 static bool_t _is_identifier_char(char c);
 static bool_t _is_operator_char(char c);
@@ -1217,7 +1219,7 @@ static _running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context
 static _running_context_t* _pop_scope(mb_interpreter_t* s);
 static _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s);
-static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, char* n);
+static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, char* n, bool_t pathing);
 static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o);
 static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i);
 
@@ -2693,7 +2695,13 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					f++;
 				} else {
 					if(c->type == _DT_VAR) {
-						_ls_node_t* cs = _search_identifier_in_scope_chain(s, 0, c->data.variable->name);
+						_ls_node_t* cs = _search_identifier_in_scope_chain(s, 0, c->data.variable->name,
+#ifdef MB_ENABLE_CLASS
+							c->data.variable->pathing
+#else /* MB_ENABLE_CLASS */
+							0
+#endif /* MB_ENABLE_CLASS */
+						);
 						if(cs)
 							c = (_object_t*)(cs->data);
 						if(ast) {
@@ -2856,7 +2864,7 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 				if(proc_ref)
 					var->data->ref = false;
 			} else {
-				rnode = _search_identifier_in_scope_chain(s, running, var->name);
+				rnode = _search_identifier_in_scope_chain(s, running, var->name, 0);
 				if(rnode)
 					var = ((_object_t*)(rnode->data))->data.variable;
 
@@ -3139,9 +3147,14 @@ bool_t _is_comment(char c) {
 	return ('\'' == c);
 }
 
+bool_t _is_accessor(char c) {
+	/* Determine whether a character is an accessor char */
+	return c == '.';
+}
+
 bool_t _is_numeric_char(char c) {
 	/* Determine whether a character is a numeric char */
-	return (c >= '0' && c <= '9') || (c == '.');
+	return (c >= '0' && c <= '9') || _is_accessor(c);
 }
 
 bool_t _is_identifier_char(char c) {
@@ -3192,6 +3205,9 @@ int _append_char_to_symbol(mb_interpreter_t* s, char c) {
 
 	context = s->parsing_context;
 
+	if(_is_accessor(c))
+		context->current_symbol_contains_accessor++;
+
 	if(context->current_symbol_nonius + 1 >= _SINGLE_SYMBOL_MAX_LENGTH) {
 		_set_current_error(s, SE_PS_SYMBOL_TOO_LONG, 0);
 
@@ -3227,6 +3243,7 @@ int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short
 	}
 	memset(context->current_symbol, 0, sizeof(context->current_symbol));
 	context->current_symbol_nonius = 0;
+	context->current_symbol_contains_accessor = 0;
 
 	return result;
 }
@@ -3348,7 +3365,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 
 		break;
 	case _DT_ARRAY:
-		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
+		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
 			(*obj)->data.array = ((_object_t*)(glbsyminscope->data))->data.array;
 			(*obj)->ref = true;
@@ -3371,7 +3388,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		break;
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
-		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
+		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_CLASS) {
 			(*obj)->data.instance = ((_object_t*)(glbsyminscope->data))->data.instance;
 			(*obj)->ref = true;
@@ -3400,7 +3417,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		break;
 #endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
-		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
+		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ROUTINE) {
 			(*obj)->data.routine = ((_object_t*)(glbsyminscope->data))->data.routine;
 			(*obj)->ref = true;
@@ -3435,7 +3452,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		if(context->routine_params_state)
 			glbsyminscope = _ht_find(running->var_dict, sym);
 		else
-			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
+			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0);
 		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
 			(*obj)->data.variable = ((_object_t*)(glbsyminscope->data))->data.variable;
 			(*obj)->ref = true;
@@ -3448,6 +3465,9 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			_MAKE_NIL(tmp.var->data);
 			tmp.var->data->type = (sym[strlen(sym) - 1] == '$') ? _DT_STRING : _DT_INT;
 			tmp.var->data->data.integer = 0;
+#ifdef MB_ENABLE_CLASS
+			tmp.var->pathing = context->current_symbol_contains_accessor;
+#endif /* MB_ENABLE_CLASS */
 			(*obj)->data.variable = tmp.var;
 
 			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
@@ -3608,7 +3628,7 @@ _end_import:
 		goto _exit;
 	}
 	/* _array_t */
-	glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
+	glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0);
 	if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
 		tmp.obj = (_object_t*)(glbsyminscope->data);
 		memcpy(*value, &(tmp.obj->data.array->type), sizeof(tmp.obj->data.array->type));
@@ -3632,7 +3652,7 @@ _end_import:
 	/* _class_t */
 #ifdef MB_ENABLE_CLASS
 	if(context->last_symbol) {
-		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
+		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_CLASS) {
 			if(_IS_FUNC(context->last_symbol, _core_class))
 				_begin_class(s);
@@ -3673,7 +3693,7 @@ _end_import:
 #endif /* MB_ENABLE_CLASS */
 	/* _routine_t */
 	if(context->last_symbol) {
-		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
+		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
 			if(_IS_FUNC(context->last_symbol, _core_def))
 				_begin_routine(s);
@@ -3769,7 +3789,7 @@ _end_import:
 		goto _exit;
 	}
 	/* _var_t */
-	glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
+	glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0);
 	if(glbsyminscope) {
 		if(((_object_t*)glbsyminscope->data)->type != _DT_LABEL) {
 			memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
@@ -3782,7 +3802,7 @@ _end_import:
 	/* _label_t */
 	if(context->current_char == ':') {
 		if(!context->last_symbol || _IS_EOS(context->last_symbol)) {
-			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym);
+			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0);
 			if(glbsyminscope) {
 				memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
 			}
@@ -5513,10 +5533,11 @@ _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s) {
 	return running;
 }
 
-_ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, char* n) {
+_ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, char* n, bool_t pathing) {
 	/* Try to search an identifier in a scope chain */
 	_ls_node_t* result = 0;
 	_running_context_t* running = 0;
+	mb_unrefvar(pathing);
 
 	mb_assert(s && n);
 
@@ -5548,7 +5569,7 @@ _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object
 	mb_assert(s && i);
 
 	result = i;
-	scp = _search_identifier_in_scope_chain(s, 0, result->name);
+	scp = _search_identifier_in_scope_chain(s, 0, result->name, 0);
 	if(scp) {
 		obj = (_object_t*)(scp->data);
 		if(obj && obj->type == _DT_ARRAY) {
@@ -5569,7 +5590,7 @@ _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
 	mb_assert(s && i);
 
 	result = i;
-	scp = _search_identifier_in_scope_chain(s, 0, result->name);
+	scp = _search_identifier_in_scope_chain(s, 0, result->name, 0);
 	if(scp) {
 		obj = (_object_t*)(scp->data);
 		if(obj && obj->type == _DT_VAR)
@@ -8106,7 +8127,7 @@ int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 
 	mb_make_nil(*val);
 
-	scp = _search_identifier_in_scope_chain(s, 0, (char*)n);
+	scp = _search_identifier_in_scope_chain(s, 0, (char*)n, 0);
 	if(scp) {
 		obj = (_object_t*)(scp->data);
 		if(obj) {
@@ -8304,7 +8325,7 @@ int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 
 	running = s->running_context;
 
-	v = _search_identifier_in_scope_chain(s, 0, (char*)n);
+	v = _search_identifier_in_scope_chain(s, 0, (char*)n, 0);
 	if(v) {
 		obj = (_object_t*)(v->data);
 		mb_assert(obj->type == _DT_VAR);
@@ -8333,7 +8354,7 @@ int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
 
 	running = s->running_context;
 
-	v = _search_identifier_in_scope_chain(s, 0, (char*)n);
+	v = _search_identifier_in_scope_chain(s, 0, (char*)n, 0);
 	if(v) {
 		obj = (_object_t*)(v->data);
 		mb_assert(obj->type == _DT_VAR);
@@ -9784,7 +9805,7 @@ int _core_def(mb_interpreter_t* s, void** l) {
 	while(!_IS_FUNC(obj, _core_close_bracket)) {
 		if(obj->type == _DT_VAR) {
 			var = obj->data.variable;
-			rnode = _search_identifier_in_scope_chain(s, routine->scope, var->name);
+			rnode = _search_identifier_in_scope_chain(s, routine->scope, var->name, 0);
 			if(rnode)
 				var = ((_object_t*)(rnode->data))->data.variable;
 			if(!routine->parameters)
