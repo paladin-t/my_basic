@@ -1365,6 +1365,7 @@ static int _core_enddef(mb_interpreter_t* s, void** l);
 #ifdef MB_ENABLE_CLASS
 static int _core_class(mb_interpreter_t* s, void** l);
 static int _core_endclass(mb_interpreter_t* s, void** l);
+static int _core_var(mb_interpreter_t* s, void** l);
 #endif /* MB_ENABLE_CLASS */
 #ifdef MB_ENABLE_ALLOC_STAT
 static int _core_mem(mb_interpreter_t* s, void** l);
@@ -1474,6 +1475,7 @@ static const _func_t _core_libs[] = {
 #ifdef MB_ENABLE_CLASS
 	{ "CLASS", _core_class },
 	{ "ENDCLASS", _core_endclass },
+	{ "VAR", _core_var },
 #endif /* MB_ENABLE_CLASS */
 
 #ifdef MB_ENABLE_ALLOC_STAT
@@ -3301,6 +3303,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
 	_ls_node_t* glbsyminscope = 0;
+	bool_t is_field = false;
 	mb_unrefvar(l);
 
 	mb_assert(s && sym && obj);
@@ -3455,7 +3458,10 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			glbsyminscope = _ht_find(running->var_dict, sym);
 		else
 			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0);
-		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
+#ifdef MB_ENABLE_CLASS
+		is_field = context->last_symbol && _IS_FUNC(context->last_symbol, _core_var);
+#endif /* MB_ENABLE_CLASS */
+		if(!is_field && glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
 			(*obj)->data.variable = ((_object_t*)(glbsyminscope->data))->data.variable;
 			(*obj)->ref = true;
 			*delsym = true;
@@ -3468,7 +3474,8 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			tmp.var->data->type = (sym[strlen(sym) - 1] == '$') ? _DT_STRING : _DT_INT;
 			tmp.var->data->data.integer = 0;
 #ifdef MB_ENABLE_CLASS
-			tmp.var->pathing = context->current_symbol_contains_accessor;
+			if(!is_field)
+				tmp.var->pathing = context->current_symbol_contains_accessor;
 #endif /* MB_ENABLE_CLASS */
 			(*obj)->data.variable = tmp.var;
 
@@ -6485,12 +6492,17 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 	ast = *l;
 
 	obj = (_object_t*)(ast->data);
-#ifdef MB_ENABLE_CLASS
-_pathed:
-#endif /* MB_ENABLE_CLASS */
+
+_retry:
 	switch(obj->type) {
 	case _DT_FUNC:
 		result = (obj->data.func->pointer)(s, (void**)(&ast));
+		if(result == MB_FUNC_IGNORE) {
+			result = MB_FUNC_OK;
+			obj = (_object_t*)(ast->data);
+
+			goto _retry;
+		}
 
 		break;
 	case _DT_VAR:
@@ -6503,7 +6515,7 @@ _pathed:
 					/* Found another node */
 					obj = (_object_t*)pathed->data;
 
-					goto _pathed;
+					goto _retry;
 				} else {
 					/* Final node */
 					result = _core_let(s, (void**)(&ast));
@@ -10018,7 +10030,7 @@ int _core_class(mb_interpreter_t* s, void** l) {
 
 	*l = ast;
 
-	running = _push_scope_by_class(s, running);
+	running = _push_scope_by_class(s, instance->scope);
 
 	do {
 		result = _execute_statement(s, (_ls_node_t**)l);
@@ -10058,6 +10070,20 @@ int _core_endclass(mb_interpreter_t* s, void** l) {
 	_do_nothing(s, l, _exit, result);
 
 _exit:
+	return result;
+}
+
+int _core_var(mb_interpreter_t* s, void** l) {
+	/* VAR statement */
+	int result = MB_FUNC_IGNORE;
+	_ls_node_t* ast = 0;
+	mb_unrefvar(s);
+
+	ast = (_ls_node_t*)(*l);
+	ast = ast->next;
+
+	*l = ast;
+
 	return result;
 }
 #endif /* MB_ENABLE_CLASS */

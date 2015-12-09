@@ -207,6 +207,7 @@ extern "C" {
 #ifndef MB_CODES
 #	define MB_CODES
 #	define MB_FUNC_OK 0
+#	define MB_FUNC_IGNORE 101
 #	define MB_FUNC_BYE 1001
 #	define MB_FUNC_WARNING 1002
 #	define MB_FUNC_ERR 1003
