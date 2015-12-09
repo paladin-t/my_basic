@@ -8,10 +8,6 @@ Why are existing script interpreters so complex? Why is it so difficult to integ
 
 [![Build Status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
 
-## Development status
-
-* Class support under development
-
 ## Contents
 
 * [Introduction](#introduction)
@@ -24,7 +20,7 @@ Why are existing script interpreters so complex? Why is it so difficult to integ
 
 ## Introduction
 
-MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 10,000 lines of source code. Its grammar is similar to structured BASIC. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, etc. Script driven can make your projects more powerful, elegant and neat.
+MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 10,000 lines of source code. Its grammar is similar to structured BASIC. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, etc. Script driven can make your projects more powerful, elegant and neat.
 
 ## Main features
 
