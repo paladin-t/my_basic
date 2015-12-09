@@ -117,6 +117,8 @@ extern "C" {
 #	define toupper(__c) ((islower(__c)) ? ((__c) - 'a' + 'A') : (__c))
 #endif /* toupper */
 
+#define _mb_check(__expr, __exit) do { if((__expr) != MB_FUNC_OK) goto __exit; } while(0)
+
 #define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
 #define TON(__t) (((__t) && *(__t)) ? ((_object_t*)(((_tuple3_t*)(*(__t)))->e1)) : 0)
 
@@ -234,6 +236,7 @@ static const char* _ERR_DESC[] = {
 	"Duplicate routine",
 	"Invalid class",
 	"Class expected",
+	"Duplicate class",
 	"Wrong meta class",
 	"Collection expected",
 	"Iterator expected",
@@ -557,6 +560,9 @@ typedef struct mb_interpreter_t {
 	_parsing_context_t* parsing_context;
 	_running_context_t* running_context;
 	unsigned char jump_set;
+#ifdef MB_ENABLE_CLASS
+	_class_t* last_instance;
+#endif /* MB_ENABLE_CLASS */
 	_routine_t* last_routine;
 	_ls_node_t* sub_stack;
 	_ls_node_t* suspent_point;
@@ -1211,6 +1217,7 @@ static void _duplicate_parameter(void* data, void* extra, _running_context_t* ru
 static _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c);
 static _running_context_t* _push_scope_by_class(mb_interpreter_t* s, _running_context_t* p);
 static _ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* instance, char* n);
+static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, char* n);
 #endif /* MB_ENABLE_CLASS */
 static _running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r);
 static _running_context_t* _push_weak_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r);
@@ -1220,7 +1227,6 @@ static _running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context
 static _running_context_t* _pop_scope(mb_interpreter_t* s);
 static _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s);
-static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, char* n);
 static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, char* n, int pathing);
 static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o);
 static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i);
@@ -1248,6 +1254,7 @@ static void _assign_public_value(mb_value_t* tgt, mb_value_t* src);
 static void _swap_public_value(mb_value_t* tgt, mb_value_t* src);
 static int _clear_scope_chain(mb_interpreter_t* s);
 static int _dispose_scope_chain(mb_interpreter_t* s);
+static void _tidy_scope_chain(mb_interpreter_t* s);
 
 static void _stepped(mb_interpreter_t* s, _ls_node_t* ast);
 static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l);
@@ -3417,6 +3424,8 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			(*obj)->type = type;
 			(*obj)->data.instance = tmp.instance;
 			(*obj)->ref = true;
+
+			s->last_instance = tmp.instance;
 		}
 
 		break;
@@ -3450,6 +3459,10 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			(*obj)->type = type;
 			(*obj)->data.routine = tmp.routine;
 			(*obj)->ref = true;
+
+#ifdef MB_ENABLE_CLASS
+			tmp.routine->instance = s->last_instance;
+#endif /* MB_ENABLE_CLASS */
 		}
 
 		break;
@@ -3670,8 +3683,12 @@ _end_import:
 			goto _exit;
 		}
 		if(_IS_FUNC(context->last_symbol, _core_class)) {
-			if(_IS_FUNC(context->last_symbol, _core_class))
-				_begin_class(s);
+			if(s->last_instance) {
+				_handle_error_now(s, SE_RN_DUPLICATE_CLASS, 0, MB_FUNC_ERR);
+
+				goto _exit;
+			}
+			_begin_class(s);
 			if(!_is_identifier_char(sym[0])) {
 				result = _DT_NIL;
 
@@ -3683,12 +3700,10 @@ _end_import:
 				goto _exit;
 			}
 
-			if(_IS_FUNC(context->last_symbol, _core_class)) {
-				if(context->routine_state > 1) {
-					_handle_error_now(s, SE_RN_INVALID_CLASS, 0, MB_FUNC_ERR);
+			if(context->routine_state > 1) {
+				_handle_error_now(s, SE_RN_INVALID_CLASS, 0, MB_FUNC_ERR);
 
-					goto _exit;
-				}
+				goto _exit;
 			}
 
 			result = _DT_CLASS;
@@ -3851,35 +3866,35 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 			c += 'A' - 'a';
 
 		if(_is_blank(c)) { /* \t ' ' */
-			result += _cut_symbol(s, pos, row, col);
+			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 		} else if(_is_newline(c)) { /* \r \n EOF */
-			result += _cut_symbol(s, pos, row, col);
-			result += _append_char_to_symbol(s, MB_EOS);
-			result += _cut_symbol(s, pos, row, col);
+			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check(result = _append_char_to_symbol(s, MB_EOS), _exit);
+			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 		} else if(_is_separator(c) || _is_bracket(c)) { /* , ; : ( ) */
-			result += _cut_symbol(s, pos, row, col);
-			result += _append_char_to_symbol(s, c);
-			result += _cut_symbol(s, pos, row, col);
+			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check(result = _append_char_to_symbol(s, c), _exit);
+			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 		} else if(_is_quotation_mark(c)) { /* " */
-			result += _cut_symbol(s, pos, row, col);
-			result += _append_char_to_symbol(s, c);
+			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check(result = _append_char_to_symbol(s, c), _exit);
 			context->parsing_state = _PS_STRING;
 		} else if(_is_comment(c)) { /* ' */
-			result += _cut_symbol(s, pos, row, col);
-			result += _append_char_to_symbol(s, MB_EOS);
-			result += _cut_symbol(s, pos, row, col);
+			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check(result = _append_char_to_symbol(s, MB_EOS), _exit);
+			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 			context->parsing_state = _PS_COMMENT;
 		} else {
 			if(context->symbol_state == _SS_IDENTIFIER) {
 				if(_is_identifier_char(c)) {
-					result += _append_char_to_symbol(s, c);
+					_mb_check(result = _append_char_to_symbol(s, c), _exit);
 				} else if(_is_operator_char(c)) {
 					if(_is_exponent_prefix(context->current_symbol, 0, context->current_symbol_nonius - 2) && (last_char == 'e' || last_char == 'E') && c == '-') {
-						result += _append_char_to_symbol(s, c);
+						_mb_check(result = _append_char_to_symbol(s, c), _exit);
 					} else {
 						context->symbol_state = _SS_OPERATOR;
-						result += _cut_symbol(s, pos, row, col);
-						result += _append_char_to_symbol(s, c);
+						_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+						_mb_check(result = _append_char_to_symbol(s, c), _exit);
 					}
 				} else {
 					_handle_error(s, SE_PS_INVALID_CHAR, 0, pos, row, col, MB_FUNC_ERR, _exit, result);
@@ -3887,12 +3902,12 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 			} else if(context->symbol_state == _SS_OPERATOR) {
 				if(_is_identifier_char(c)) {
 					context->symbol_state = _SS_IDENTIFIER;
-					result += _cut_symbol(s, pos, row, col);
-					result += _append_char_to_symbol(s, c);
+					_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+					_mb_check(result = _append_char_to_symbol(s, c), _exit);
 				} else if(_is_operator_char(c)) {
 					if(c == '-')
-						result += _cut_symbol(s, pos, row, col);
-					result += _append_char_to_symbol(s, c);
+						_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+					_mb_check(result = _append_char_to_symbol(s, c), _exit);
 				} else {
 					_handle_error(s, SE_PS_INVALID_CHAR, 0, pos, row, col, MB_FUNC_ERR, _exit, result);
 				}
@@ -3902,11 +3917,11 @@ int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsign
 		}
 	} else if(context->parsing_state == _PS_STRING) {
 		if(_is_quotation_mark(c)) { /* " */
-			result += _append_char_to_symbol(s, c);
-			result += _cut_symbol(s, pos, row, col);
+			_mb_check(result = _append_char_to_symbol(s, c), _exit);
+			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 			context->parsing_state = _PS_NORMAL;
 		} else {
-			result += _append_char_to_symbol(s, c);
+			_mb_check(result = _append_char_to_symbol(s, c), _exit);
 		}
 	} else if(context->parsing_state == _PS_COMMENT) {
 		if(_is_newline(c)) { /* \r \n EOF */
@@ -5230,6 +5245,7 @@ bool_t _end_class(mb_interpreter_t* s) {
 		return false;
 	}
 	context->class_state--;
+	s->last_instance = 0;
 
 	return true;
 }
@@ -5440,6 +5456,58 @@ _ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* instance,
 
 	return result;
 }
+
+_ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, char* n) {
+	/* Try to search an identifier accessor in a scope */
+	_ls_node_t* result = 0;
+	_object_t* obj = 0;
+	char acc[_SINGLE_SYMBOL_MAX_LENGTH];
+	int i = 0;
+	int j = 0;
+	_class_t* instance = 0;
+
+	mb_assert(s && n);
+
+	while((i == 0) || (i > 0 && n[i - 1])) {
+		acc[j] = n[i];
+		if(_is_accessor(acc[j]) || acc[j] == '\0') {
+			acc[j] = '\0';
+			if(instance)
+				result = _search_identifier_in_class(s, instance, acc);
+			else
+				result = _search_identifier_in_scope_chain(s, scope, acc, 0);
+			if(!result) return 0;
+			obj = (_object_t*)result->data;
+			if(!obj) return 0;
+			switch(obj->type) {
+			case _DT_VAR:
+				if(obj->data.variable->data->type == _DT_CLASS)
+					instance = obj->data.variable->data->data.instance;
+
+				break;
+			case _DT_CLASS:
+				instance = obj->data.instance;
+
+				break;
+			case _DT_ROUTINE:
+				break;
+			default:
+				mb_assert(0 && "Unsupported.");
+
+				return 0;
+			}
+
+			j = 0;
+			i++;
+
+			continue;
+		}
+		j++;
+		i++;
+	}
+
+	return result;
+}
 #endif /* MB_ENABLE_CLASS */
 
 _running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r) {
@@ -5565,66 +5633,6 @@ _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s) {
 	return running;
 }
 
-_ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, char* n) {
-	/* Try to search an identifier accessor in a scope */
-	_ls_node_t* result = 0;
-	_object_t* obj = 0;
-	char acc[_SINGLE_SYMBOL_MAX_LENGTH];
-	int i = 0;
-	int j = 0;
-#ifdef MB_ENABLE_CLASS
-	_class_t* instance = 0;
-#endif /* MB_ENABLE_CLASS */
-
-	mb_assert(s && n);
-
-	while((i == 0) || (i > 0 && n[i - 1])) {
-		acc[j] = n[i];
-		if(_is_accessor(acc[j]) || acc[j] == '\0') {
-			acc[j] = '\0';
-#ifdef MB_ENABLE_CLASS
-			if(instance)
-				result = _search_identifier_in_class(s, instance, acc);
-			else
-				result = _search_identifier_in_scope_chain(s, scope, acc, 0);
-#else /* MB_ENABLE_CLASS */
-			result = _search_identifier_in_scope_chain(s, scope, acc, 0);
-#endif /* MB_ENABLE_CLASS */
-			if(!result) return 0;
-			obj = (_object_t*)result->data;
-			if(!obj) return 0;
-			switch(obj->type) {
-#ifdef MB_ENABLE_CLASS
-			case _DT_CLASS:
-				instance = obj->data.instance;
-
-				break;
-#endif /* MB_ENABLE_CLASS */
-			case _DT_VAR:
-#ifdef MB_ENABLE_CLASS
-				if(obj->data.variable->data->type == _DT_CLASS)
-					instance = obj->data.variable->data->data.instance;
-#endif /* MB_ENABLE_CLASS */
-
-				break;
-			default:
-				mb_assert(0 && "Unsupported.");
-
-				return 0;
-			}
-
-			j = 0;
-			i++;
-
-			continue;
-		}
-		j++;
-		i++;
-	}
-
-	return result;
-}
-
 _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, char* n, int pathing) {
 	/* Try to search an identifier in a scope chain */
 	_ls_node_t* result = 0;
@@ -5632,11 +5640,24 @@ _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_cont
 
 	mb_assert(s && n);
 
+#ifdef MB_ENABLE_CLASS
 	if(pathing) {
 		result = _search_identifier_accessor(s, scope, n);
 		if(result)
 			goto _exit;
 	}
+
+	if(s->last_routine && s->last_routine->instance) {
+		_class_t* lastinst = s->last_routine->instance;
+		s->last_routine->instance = 0;
+		result = _search_identifier_in_class(s, lastinst, n);
+		s->last_routine->instance = lastinst;
+		if(result)
+			goto _exit;
+	}
+#else /* MB_ENABLE_CLASS */
+	mb_unrefvar(pathing);
+#endif /* MB_ENABLE_CLASS */
 
 	if(scope)
 		running = scope;
@@ -5654,7 +5675,9 @@ _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_cont
 		running = running->prev;
 	}
 
+#ifdef MB_ENABLE_CLASS
 _exit:
+#endif /* MB_ENABLE_CLASS */
 	return result;
 }
 
@@ -6455,6 +6478,27 @@ int _dispose_scope_chain(mb_interpreter_t* s) {
 	return result;
 }
 
+void _tidy_scope_chain(mb_interpreter_t* s) {
+	/* Tidy the scope chain */
+	_parsing_context_t* context = 0;
+
+	mb_assert(s);
+
+	context = s->parsing_context;
+	if(!context) return;
+
+	while(context->routine_state) {
+		if(_end_routine(s))
+			_pop_scope(s);
+	}
+#ifdef MB_ENABLE_CLASS
+	while(context->class_state) {
+		if(_end_class(s))
+			_pop_scope(s);
+	}
+#endif /* MB_ENABLE_CLASS */
+}
+
 void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
 	/* Called each step */
 	_object_t* obj = 0;
@@ -7247,6 +7291,7 @@ int mb_close(struct mb_interpreter_t** s) {
 	(*s)->gc.table = 0;
 #endif /* MB_ENABLE_GC */
 
+	_tidy_scope_chain(*s);
 	_dispose_scope_chain(*s);
 
 	_ls_foreach((*s)->temp_values, _destroy_object);
@@ -9888,6 +9933,14 @@ int _core_call(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 
 	obj = (_object_t*)(ast->data);
+#ifdef MB_ENABLE_CLASS
+	if(obj->type == _DT_VAR) {
+		_ls_node_t* pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing);
+		if(pathed && pathed->data) {
+			obj = (_object_t*)pathed->data;
+		}
+	}
+#endif /* MB_ENABLE_CLASS */
 	routine = (_routine_t*)(obj->data.routine);
 
 	result = _eval_routine(s, &ast, 0, 0, routine, _has_routine_lex_arg, _pop_routine_lex_arg);

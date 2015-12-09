@@ -1,6 +1,8 @@
 Dec. 9 2015
 Developing class, added accessing by identifier
 Developing class, added a VAR statement
+Developing class, added routine evaluation in a class
+Fixed a crash bug when exiting with a parsing error
 
 Dec. 8 2015
 Developing class, added reference struct, added meta class linking
