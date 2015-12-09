@@ -1140,7 +1140,7 @@ static void _destroy_ref(_ref_t* ref);
 #ifdef MB_ENABLE_GC
 static void _gc_add(_ref_t* ref, void* data);
 static void _gc_remove(_ref_t* ref, void* data);
-static int _gc_add_reachable(void* data, void* extra, _ht_node_t* gc);
+static int _gc_add_reachable(void* data, void* extra, void* ht);
 static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht);
 static int _gc_destroy_garbage(void* data, void* extra);
 static void _gc_try_trigger(mb_interpreter_t* s);
@@ -1198,11 +1198,13 @@ static int _clone_to_dict(void* data, void* extra, _dict_t* coll);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 #ifdef MB_ENABLE_CLASS
+typedef int (* _class_walker)(void*, void*, void*);
 static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n);
 static void _begin_class(mb_interpreter_t* s);
 static bool_t _end_class(mb_interpreter_t* s);
 static void _unref_class(_ref_t* ref, void* data);
 static void _destroy_class(_class_t* c);
+static int _traverse_class(_class_t* c, _class_walker walker, void* extra_data);
 static bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base);
 static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived);
 static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
@@ -4156,12 +4158,12 @@ void _gc_remove(_ref_t* ref, void* data) {
 		_ht_remove(ref->s->gc.table, ref, 0);
 }
 
-int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht) {
+int _gc_add_reachable(void* data, void* extra, void* ht) {
 	/* Get reachable objects */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
 	_var_t* var = 0;
-	mb_unrefvar(extra);
+	_ht_node_t* htable = (_ht_node_t*)ht;
 
 	mb_assert(data && ht);
 
@@ -4171,49 +4173,49 @@ int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht) {
 	switch(obj->type) {
 	case _DT_VAR:
 		var = (_var_t*)(obj->data.variable);
-		_gc_add_reachable(var->data, extra, ht);
+		_gc_add_reachable(var->data, extra, htable);
 
 		break;
 	case _DT_USERTYPE_REF:
-		if(!_ht_find(ht, &obj->data.usertype_ref->ref))
-			_ht_set_or_insert(ht, &obj->data.usertype_ref->ref, obj->data.usertype_ref);
+		if(!_ht_find(htable, &obj->data.usertype_ref->ref))
+			_ht_set_or_insert(htable, &obj->data.usertype_ref->ref, obj->data.usertype_ref);
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST:
-		if(!_ht_find(ht, &obj->data.list->ref)) {
-			_ht_set_or_insert(ht, &obj->data.list->ref, obj->data.list);
-			_LS_FOREACH(obj->data.list->list, _do_nothing_on_object, _gc_add_reachable, ht);
+		if(!_ht_find(htable, &obj->data.list->ref)) {
+			_ht_set_or_insert(htable, &obj->data.list->ref, obj->data.list);
+			_LS_FOREACH(obj->data.list->list, _do_nothing_on_object, _gc_add_reachable, htable);
 		}
 
 		break;
 	case _DT_DICT:
-		if(!_ht_find(ht, &obj->data.dict->ref)) {
-			_ht_set_or_insert(ht, &obj->data.dict->ref, obj->data.dict);
-			_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _gc_add_reachable, ht);
+		if(!_ht_find(htable, &obj->data.dict->ref)) {
+			_ht_set_or_insert(htable, &obj->data.dict->ref, obj->data.dict);
+			_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _gc_add_reachable, htable);
 		}
 
 		break;
 	case _DT_LIST_IT:
-		if(!_ht_find(ht, &obj->data.list_it->list->ref)) {
-			_ht_set_or_insert(ht, &obj->data.list_it->list->ref, obj->data.list_it->list);
-			_LS_FOREACH(obj->data.list_it->list->list, _do_nothing_on_object, _gc_add_reachable, ht);
+		if(!_ht_find(htable, &obj->data.list_it->list->ref)) {
+			_ht_set_or_insert(htable, &obj->data.list_it->list->ref, obj->data.list_it->list);
+			_LS_FOREACH(obj->data.list_it->list->list, _do_nothing_on_object, _gc_add_reachable, htable);
 		}
 
 		break;
 	case _DT_DICT_IT:
-		if(!_ht_find(ht, &obj->data.dict_it->dict->ref)) {
-			_ht_set_or_insert(ht, &obj->data.dict_it->dict->ref, obj->data.dict_it->dict);
-			_HT_FOREACH(obj->data.dict_it->dict->dict, _do_nothing_on_object, _gc_add_reachable, ht);
+		if(!_ht_find(htable, &obj->data.dict_it->dict->ref)) {
+			_ht_set_or_insert(htable, &obj->data.dict_it->dict->ref, obj->data.dict_it->dict);
+			_HT_FOREACH(obj->data.dict_it->dict->dict, _do_nothing_on_object, _gc_add_reachable, htable);
 		}
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
-		if(!_ht_find(ht, &obj->data.instance->ref)) {
-			_ht_set_or_insert(ht, &obj->data.instance->ref, obj->data.instance);
-			/* TODO */
+		if(!_ht_find(htable, &obj->data.instance->ref)) {
+			_ht_set_or_insert(htable, &obj->data.instance->ref, obj->data.instance);
+			_traverse_class(obj->data.instance, _gc_add_reachable, htable);
 		}
 
 		break;
@@ -4230,8 +4232,26 @@ void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
 	/* Get all reachable referenced objects */
 	_running_context_t* running = 0;
 	_ht_node_t* global_scope = 0;
+	_object_t tmp;
 
 	mb_assert(s && ht);
+
+	_MAKE_NIL(&tmp);
+	_public_value_to_internal_object(&s->running_context->intermediate_value, &tmp);
+	switch(tmp.type) {
+	case _DT_ARRAY: /* Fall through */
+#ifdef MB_ENABLE_COLLECTION_LIB
+	case _DT_LIST: /* Fall through */
+	case _DT_DICT: /* Fall through */
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	case _DT_CLASS: /* Fall through */
+#endif /* MB_ENABLE_CLASS */
+	case _DT_USERTYPE_REF:
+		_gc_add_reachable(&tmp, 0, ht);
+
+		break;
+	}
 
 	running = s->running_context;
 	while(running) {
@@ -5272,6 +5292,26 @@ void _destroy_class(_class_t* c) {
 	safe_free(c);
 }
 
+int _traverse_class(_class_t* c, _class_walker walker, void* extra_data) {
+	/* Traverse all fields of a class instance */
+	int result = 0;
+	_ls_node_t* node = 0;
+	_class_t* meta = 0;
+
+	mb_assert(c && walker);
+
+	result++;
+	_HT_FOREACH(c->scope->var_dict, _do_nothing_on_object, walker, extra_data);
+	node = c->meta_list ? c->meta_list->next : 0;
+	while(node) {
+		meta = (_class_t*)node->data;
+		result += _traverse_class(meta, walker, extra_data);
+		node = node->next;
+	}
+
+	return result;
+}
+
 bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base) {
 	/* Link a class instance to another's meta list */
 	mb_assert(s && derived && base);
@@ -6247,6 +6287,8 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	case MB_DT_CLASS:
 		itn->type = _DT_CLASS;
 		itn->data.instance = (_class_t*)pbl->value.instance;
+
+		break;
 #endif /* MB_ENABLE_CLASS */
 	case MB_DT_ROUTINE:
 		itn->type = _DT_ROUTINE;
@@ -9936,9 +9978,8 @@ int _core_call(mb_interpreter_t* s, void** l) {
 #ifdef MB_ENABLE_CLASS
 	if(obj->type == _DT_VAR) {
 		_ls_node_t* pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing);
-		if(pathed && pathed->data) {
+		if(pathed && pathed->data)
 			obj = (_object_t*)pathed->data;
-		}
 	}
 #endif /* MB_ENABLE_CLASS */
 	routine = (_routine_t*)(obj->data.routine);

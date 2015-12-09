@@ -2,7 +2,9 @@ Dec. 9 2015
 Developing class, added accessing by identifier
 Developing class, added a VAR statement
 Developing class, added routine evaluation in a class
+Developing class, added reference count for class
 Fixed a crash bug when exiting with a parsing error
+Fixed a multiple disposing bug when doing GC
 
 Dec. 8 2015
 Developing class, added reference struct, added meta class linking
@@ -81,7 +83,7 @@ Oct. 15 2015
 Added referenced usertype support
 
 Oct. 14 2015
-Added garbage collection for referenced objects
+Added GC (Garbage Collection) for referenced objects
 
 Oct. 13 2015
 Changed array to referenced type
