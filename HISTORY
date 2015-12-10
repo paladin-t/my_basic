@@ -3,7 +3,7 @@ Developing class, added a NEW statement to duplicate a class instance
 
 Dec. 9 2015
 Developing class, added accessing by identifier
-Developing class, added a VAR statement
+Developing class, added a VAR statement to declare a member variable
 Developing class, added routine evaluation in a class
 Developing class, added reference count for class
 Fixed a crash bug when exiting with a parsing error
