@@ -81,7 +81,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 104
+#define _VER_REVISION 105
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -1198,23 +1198,26 @@ static int _clone_to_dict(void* data, void* extra, _dict_t* coll);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 #ifdef MB_ENABLE_CLASS
-typedef int (* _class_walker)(void*, void*, void*);
+typedef int (* _class_scope_walker)(void*, void*, void*);
+typedef int (* _class_meta_walker)(_class_t*, void*);
 static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n);
 static void _begin_class(mb_interpreter_t* s);
 static bool_t _end_class(mb_interpreter_t* s);
 static void _unref_class(_ref_t* ref, void* data);
 static void _destroy_class(_class_t* c);
-static int _traverse_class(_class_t* c, _class_walker walker, void* extra_data);
+static int _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, int meta_depth, void* extra_data);
 static bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base);
 static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived);
 static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
+static int _clone_clsss_field(void* data, void* extra, void* n);
+static int _clone_class_meta_link(_class_t* meta, void* n);
 #endif /* MB_ENABLE_CLASS */
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n);
 static void _begin_routine(mb_interpreter_t* s);
 static bool_t _end_routine(mb_interpreter_t* s);
 static void _begin_routine_parameter_list(mb_interpreter_t* s);
 static void _end_routine_parameter_list(mb_interpreter_t* s);
-static void _duplicate_parameter(void* data, void* extra, _running_context_t* running);
+static _object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* running);
 #ifdef MB_ENABLE_CLASS
 static _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c);
 static _running_context_t* _push_scope_by_class(mb_interpreter_t* s, _running_context_t* p);
@@ -1233,7 +1236,7 @@ static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _runni
 static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o);
 static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i);
 
-static int _clone_object(_object_t* obj, _object_t* tgt);
+static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt);
 static int _dispose_object(_object_t* obj);
 static int _destroy_object(void* data, void* extra);
 static int _destroy_object_with_extra(void* data, void* extra);
@@ -1374,6 +1377,7 @@ static int _core_enddef(mb_interpreter_t* s, void** l);
 #ifdef MB_ENABLE_CLASS
 static int _core_class(mb_interpreter_t* s, void** l);
 static int _core_endclass(mb_interpreter_t* s, void** l);
+static int _core_new(mb_interpreter_t* s, void** l);
 static int _core_var(mb_interpreter_t* s, void** l);
 #endif /* MB_ENABLE_CLASS */
 #ifdef MB_ENABLE_ALLOC_STAT
@@ -1484,6 +1488,7 @@ static const _func_t _core_libs[] = {
 #ifdef MB_ENABLE_CLASS
 	{ "CLASS", _core_class },
 	{ "ENDCLASS", _core_endclass },
+	{ "NEW", _core_new },
 	{ "VAR", _core_var },
 #endif /* MB_ENABLE_CLASS */
 
@@ -4215,7 +4220,7 @@ int _gc_add_reachable(void* data, void* extra, void* ht) {
 	case _DT_CLASS:
 		if(!_ht_find(htable, &obj->data.instance->ref)) {
 			_ht_set_or_insert(htable, &obj->data.instance->ref, obj->data.instance);
-			_traverse_class(obj->data.instance, _gc_add_reachable, htable);
+			_traverse_class(obj->data.instance, _gc_add_reachable, 0, 0, htable);
 		}
 
 		break;
@@ -5189,7 +5194,7 @@ int _clone_to_list(void* data, void* extra, _list_t* coll) {
 	tgt = (_object_t*)mb_malloc(sizeof(_object_t));
 	_MAKE_NIL(tgt);
 	obj = (_object_t*)data;
-	_clone_object(obj, tgt);
+	_clone_object(coll->ref.s, obj, tgt);
 	_push_list(coll, 0, tgt);
 	_REF(tgt)
 
@@ -5208,12 +5213,12 @@ int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 	ktgt = (_object_t*)mb_malloc(sizeof(_object_t));
 	_MAKE_NIL(ktgt);
 	kobj = (_object_t*)extra;
-	_clone_object(kobj, ktgt);
+	_clone_object(coll->ref.s, kobj, ktgt);
 
 	vtgt = (_object_t*)mb_malloc(sizeof(_object_t));
 	_MAKE_NIL(vtgt);
 	vobj = (_object_t*)data;
-	_clone_object(vobj, vtgt);
+	_clone_object(coll->ref.s, vobj, vtgt);
 
 	_set_dict(coll, 0, 0, ktgt, vtgt);
 	_REF(ktgt)
@@ -5292,20 +5297,29 @@ void _destroy_class(_class_t* c) {
 	safe_free(c);
 }
 
-int _traverse_class(_class_t* c, _class_walker walker, void* extra_data) {
-	/* Traverse all fields of a class instance */
+int _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, int meta_depth, void* extra_data) {
+	/* Traverse all fields of a class instance, and its meta class instances recursively as well */
 	int result = 0;
 	_ls_node_t* node = 0;
 	_class_t* meta = 0;
 
-	mb_assert(c && walker);
+	mb_assert(c);
 
 	result++;
-	_HT_FOREACH(c->scope->var_dict, _do_nothing_on_object, walker, extra_data);
+	if(scope_walker) {
+		_HT_FOREACH(c->scope->var_dict, _do_nothing_on_object, scope_walker, extra_data);
+	}
 	node = c->meta_list ? c->meta_list->next : 0;
 	while(node) {
 		meta = (_class_t*)node->data;
-		result += _traverse_class(meta, walker, extra_data);
+		if(meta_walker && meta_depth)
+			meta_walker(meta, extra_data);
+		result += _traverse_class(
+			meta,
+			scope_walker,
+			meta_walker, meta_depth ? meta_depth - 1 : 0,
+			extra_data
+		);
 		node = node->next;
 	}
 
@@ -5347,6 +5361,62 @@ int _unlink_meta_instance(void* data, void* extra, _class_t* derived) {
 	_unref(&base->ref, base);
 
 	return 0;
+}
+
+int _clone_clsss_field(void* data, void* extra, void* n) {
+	/* Clone fields of a class instance to another */
+	int result = _OP_RESULT_NORMAL;
+	_object_t* obj = 0;
+	_var_t* var = 0;
+	_routine_t* sub = 0;
+	_class_t* instance = (_class_t*)n;
+	_object_t* ret = 0;
+	mb_unrefvar(extra);
+
+	mb_assert(data && n);
+
+	obj = (_object_t*)data;
+	if(_is_internal_object(obj))
+		goto _exit;
+	switch(obj->type) {
+	case _DT_VAR:
+		var = (_var_t*)(obj->data.variable);
+		if(!_search_identifier_in_scope_chain(instance->ref.s, instance->scope, var->name, 0)) {
+			ret = _duplicate_parameter(var, 0, instance->scope);
+			_clone_object(instance->ref.s, obj, ret->data.variable->data);
+		}
+
+		break;
+	case _DT_ROUTINE:
+		sub = (_routine_t*)(obj->data.routine);
+		if(!_search_identifier_in_scope_chain(instance->ref.s, instance->scope, sub->name, 0)) {
+			ret = (_object_t*)mb_malloc(sizeof(_object_t));
+			_MAKE_NIL(ret);
+			ret->type = _DT_ROUTINE;
+			ret->data.routine = sub;
+			ret->ref = true;
+
+			_ht_set_or_insert(instance->scope->var_dict, obj->data.routine->name, ret);
+		}
+
+		break;
+	default: /* Do nothing */
+		break;
+	}
+
+_exit:
+	return result;
+}
+
+int _clone_class_meta_link(_class_t* meta, void* n) {
+	/* Link meta class to a new instance */
+	_class_t* instance = (_class_t*)n;
+
+	mb_assert(meta && n);
+
+	_link_meta_class(instance->ref.s, instance, meta);
+
+	return MB_FUNC_OK;
 }
 #endif /* MB_ENABLE_CLASS */
 
@@ -5412,7 +5482,7 @@ void _end_routine_parameter_list(mb_interpreter_t* s) {
 	context->routine_params_state--;
 }
 
-void _duplicate_parameter(void* data, void* extra, _running_context_t* running) {
+_object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* running) {
 	/* Duplicate a parameter from a parameter list to variable dictionary */
 	_var_t* ref = 0;
 	_var_t* var = 0;
@@ -5422,7 +5492,7 @@ void _duplicate_parameter(void* data, void* extra, _running_context_t* running) 
 	mb_assert(running);
 
 	if(data == 0)
-		return;
+		return 0;
 
 	ref = (_var_t*)(data);
 
@@ -5441,6 +5511,8 @@ void _duplicate_parameter(void* data, void* extra, _running_context_t* running) 
 	obj->ref = false;
 
 	_ht_set_or_insert(running->var_dict, var->name, obj);
+
+	return obj;
 }
 
 #ifdef MB_ENABLE_CLASS
@@ -5761,7 +5833,7 @@ _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
 	return result;
 }
 
-int _clone_object(_object_t* obj, _object_t* tgt) {
+int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 	/* Clone the data of an object */
 	int result = 0;
 
@@ -5774,7 +5846,7 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 	tgt->type = obj->type;
 	switch(obj->type) {
 	case _DT_VAR:
-		_clone_object(obj->data.variable->data, tgt);
+		_clone_object(s, obj->data.variable->data, tgt);
 
 		break;
 	case _DT_STRING:
@@ -5827,8 +5899,11 @@ int _clone_object(_object_t* obj, _object_t* tgt) {
 		break;
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
-		mb_assert(0 && "Not implemented.");
-		/* TODO */
+		tgt->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
+		_init_class(s, tgt->data.instance, mb_memdup(obj->data.instance->name, strlen(obj->data.instance->name)));
+		_push_scope_by_class(s, tgt->data.instance->scope);
+		_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, 1, tgt->data.instance);
+		_pop_scope(s);
 
 		break;
 #endif /* MB_ENABLE_CLASS */
@@ -10167,6 +10242,48 @@ _exit:
 	return result;
 }
 
+int _core_new(mb_interpreter_t* s, void** l) {
+	/* NEW statement */
+	int result = MB_FUNC_OK;
+	mb_value_t arg;
+	_object_t obj;
+	_object_t tgt;
+	mb_value_t ret;
+
+	mb_assert(s && l);
+
+	mb_make_nil(ret);
+
+	mb_check(mb_attempt_func_begin(s, l));
+
+	mb_check(mb_pop_value(s, l, &arg));
+
+	mb_check(mb_attempt_func_end(s, l));
+
+	_MAKE_NIL(&obj);
+	switch(arg.type) {
+	case MB_DT_CLASS:
+		_public_value_to_internal_object(&arg, &obj);
+		_clone_object(s, &obj, &tgt);
+		ret.type = MB_DT_CLASS;
+		ret.value.instance = tgt.data.instance;
+
+		break;
+	default:
+		_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+
+	mb_check(mb_push_value(s, l, ret));
+	_assign_public_value(&ret, 0);
+
+_exit:
+	_assign_public_value(&arg, 0);
+
+	return result;
+}
+
 int _core_var(mb_interpreter_t* s, void** l) {
 	/* VAR statement */
 	int result = MB_FUNC_IGNORE;
@@ -11806,14 +11923,14 @@ int _coll_clone(mb_interpreter_t* s, void** l) {
 	switch(coll.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);
-		_clone_object(&ocoll, &otgt);
+		_clone_object(s, &ocoll, &otgt);
 		ret.type = MB_DT_LIST;
 		ret.value.list = otgt.data.list;
 
 		break;
 	case MB_DT_DICT:
 		_public_value_to_internal_object(&coll, &ocoll);
-		_clone_object(&ocoll, &otgt);
+		_clone_object(s, &ocoll, &otgt);
 		ret.type = MB_DT_DICT;
 		ret.value.dict = otgt.data.dict;
 
