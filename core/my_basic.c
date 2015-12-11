@@ -36,6 +36,7 @@
 #else /* _MSC_VER */
 #	include <stdint.h>
 #endif /* _MSC_VER */
+#include <limits.h>
 #include <memory.h>
 #include <assert.h>
 #include <ctype.h>
@@ -139,6 +140,8 @@ extern "C" {
 
 /* Max length of a single symbol */
 #define _SINGLE_SYMBOL_MAX_LENGTH 128
+
+#define _META_LIST_MAX_DEPTH UINT_MAX
 
 typedef int (* _common_compare)(void*, void*);
 
@@ -590,27 +593,28 @@ typedef struct mb_interpreter_t {
 } mb_interpreter_t;
 
 /* Operations */
-static const char _PRECEDE_TABLE[19][19] = { /* Operator priority table */
-	/* +    -    *    /   MOD   ^    (    )    =    >    <    >=   <=   ==   <>  AND   OR  NOT  NEG */
-	{ '>', '>', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* + */
-	{ '>', '>', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* - */
-	{ '>', '>', '>', '>', '>', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* * */
-	{ '>', '>', '>', '>', '>', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* / */
-	{ '>', '>', '<', '<', '>', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* MOD */
-	{ '>', '>', '>', '>', '>', '>', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* ^ */
-	{ '<', '<', '<', '<', '<', '<', '<', '=', ' ', '<', '<', '<', '<', '<', '<', '<', '<', '<', '<' }, /* ( */
-	{ '>', '>', '>', '>', '>', '>', ' ', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* ) */
-	{ '<', '<', '<', '<', '<', '<', '<', ' ', '=', '<', '<', '<', '<', '<', '<', '<', '<', '<', '<' }, /* = */
-	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>' }, /* > */
-	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>' }, /* < */
-	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>' }, /* >= */
-	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>' }, /* <= */
-	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>' }, /* == */
-	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>' }, /* <> */
-	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '>', '>', '<', '>' }, /* AND */
-	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '>', '>', '<', '>' }, /* OR */
-	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '>', '>', '>', '>' }, /* NOT */
-	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '<', '<', '<', '=' }  /* NEG */
+static const char _PRECEDE_TABLE[20][20] = { /* Operator priority table */
+	/* +    -    *    /   MOD   ^    (    )    =    >    <    >=   <=   ==   <>  AND   OR  NOT  NEG  IS */
+	{ '>', '>', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* + */
+	{ '>', '>', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* - */
+	{ '>', '>', '>', '>', '>', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* * */
+	{ '>', '>', '>', '>', '>', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* / */
+	{ '>', '>', '<', '<', '>', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* MOD */
+	{ '>', '>', '>', '>', '>', '>', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* ^ */
+	{ '<', '<', '<', '<', '<', '<', '<', '=', ' ', '<', '<', '<', '<', '<', '<', '<', '<', '<', '<', '<' }, /* ( */
+	{ '>', '>', '>', '>', '>', '>', ' ', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* ) */
+	{ '<', '<', '<', '<', '<', '<', '<', ' ', '=', '<', '<', '<', '<', '<', '<', '<', '<', '<', '<', '<' }, /* = */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>', '>' }, /* > */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>', '>' }, /* < */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>', '>' }, /* >= */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>', '>' }, /* <= */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>', '>' }, /* == */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '>', '>', '>', '>', '>' }, /* <> */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '>', '>', '<', '>', '>' }, /* AND */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '>', '>', '<', '>', '>' }, /* OR */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>' }, /* NOT */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '<', '<', '<', '=', '<' }, /* NEG */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '>', '>', '<', '>', '>' } /* IS */
 };
 
 static _object_t* _exp_assign = 0;
@@ -1199,18 +1203,19 @@ static int _clone_to_dict(void* data, void* extra, _dict_t* coll);
 
 #ifdef MB_ENABLE_CLASS
 typedef int (* _class_scope_walker)(void*, void*, void*);
-typedef int (* _class_meta_walker)(_class_t*, void*);
+typedef bool_t (* _class_meta_walker)(_class_t*, void*, void*);
 static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n);
 static void _begin_class(mb_interpreter_t* s);
 static bool_t _end_class(mb_interpreter_t* s);
 static void _unref_class(_ref_t* ref, void* data);
 static void _destroy_class(_class_t* c);
-static int _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, int meta_depth, void* extra_data);
+static bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret);
 static bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base);
 static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived);
 static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
 static int _clone_clsss_field(void* data, void* extra, void* n);
-static int _clone_class_meta_link(_class_t* meta, void* n);
+static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret);
+static bool_t _is_class(_class_t* instance, void* m, void* ret);
 #endif /* MB_ENABLE_CLASS */
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n);
 static void _begin_routine(mb_interpreter_t* s);
@@ -1352,6 +1357,7 @@ static int _core_not_equal(mb_interpreter_t* s, void** l);
 static int _core_and(mb_interpreter_t* s, void** l);
 static int _core_or(mb_interpreter_t* s, void** l);
 static int _core_not(mb_interpreter_t* s, void** l);
+static int _core_is(mb_interpreter_t* s, void** l);
 static int _core_let(mb_interpreter_t* s, void** l);
 static int _core_dim(mb_interpreter_t* s, void** l);
 static int _core_if(mb_interpreter_t* s, void** l);
@@ -1458,6 +1464,8 @@ static const _func_t _core_libs[] = {
 	{ "AND", _core_and },
 	{ "OR", _core_or },
 	{ "NOT", _core_not },
+
+	{ "IS", _core_is },
 
 	{ "LET", _core_let },
 	{ "DIM", _core_dim },
@@ -2353,7 +2361,8 @@ bool_t _is_operator(mb_func_t op) {
 		(op == _core_greater_equal) ||
 		(op == _core_not_equal) ||
 		(op == _core_and) ||
-		(op == _core_or);
+		(op == _core_or) ||
+		(op == _core_is);
 
 	return result;
 }
@@ -2445,6 +2454,8 @@ int _get_priority_index(mb_func_t op) {
 		result = 17;
 	} else if(op == _core_neg) {
 		result = 18;
+	} else if(op == _core_is) {
+		result = 19;
 	} else {
 		mb_assert(0 && "Unknown operator.");
 	}
@@ -4223,7 +4234,7 @@ int _gc_add_reachable(void* data, void* extra, void* ht) {
 	case _DT_CLASS:
 		if(!_ht_find(htable, &obj->data.instance->ref)) {
 			_ht_set_or_insert(htable, &obj->data.instance->ref, obj->data.instance);
-			_traverse_class(obj->data.instance, _gc_add_reachable, 0, 0, htable);
+			_traverse_class(obj->data.instance, _gc_add_reachable, 0, 0, false, htable, 0);
 		}
 
 		break;
@@ -5300,32 +5311,43 @@ void _destroy_class(_class_t* c) {
 	safe_free(c);
 }
 
-int _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, int meta_depth, void* extra_data) {
+bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret) {
 	/* Traverse all fields of a class instance, and its meta class instances recursively as well */
-	int result = 0;
+	bool_t result = true;
 	_ls_node_t* node = 0;
 	_class_t* meta = 0;
 
 	mb_assert(c);
 
-	result++;
 	if(scope_walker) {
 		_HT_FOREACH(c->scope->var_dict, _do_nothing_on_object, scope_walker, extra_data);
+	}
+	if(meta_walk_on_self) {
+		if(meta_walker) {
+			result = meta_walker(c, extra_data, ret);
+			if(!result)
+				goto _exit;
+		}
 	}
 	node = c->meta_list ? c->meta_list->next : 0;
 	while(node) {
 		meta = (_class_t*)node->data;
-		if(meta_walker && meta_depth)
-			meta_walker(meta, extra_data);
-		result += _traverse_class(
+		if(meta_walker && meta_depth) {
+			result = meta_walker(meta, extra_data, ret);
+			if(!result) break;
+		}
+		result = _traverse_class(
 			meta,
 			scope_walker,
 			meta_walker, meta_depth ? meta_depth - 1 : 0,
-			extra_data
+			meta_walk_on_self,
+			extra_data, ret
 		);
+		if(!result) break;
 		node = node->next;
 	}
 
+_exit:
 	return result;
 }
 
@@ -5411,15 +5433,28 @@ _exit:
 	return result;
 }
 
-int _clone_class_meta_link(_class_t* meta, void* n) {
+bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret) {
 	/* Link meta class to a new instance */
 	_class_t* instance = (_class_t*)n;
+	mb_unrefvar(ret);
 
 	mb_assert(meta && n);
 
 	_link_meta_class(instance->ref.s, instance, meta);
 
-	return MB_FUNC_OK;
+	return true;
+}
+
+bool_t _is_class(_class_t* instance, void* m, void* ret) {
+	/* Detect whether a class instance is inherited from another */
+	_class_t* meta = (_class_t*)m;
+	bool_t* r = (bool_t*)ret;
+
+	mb_assert(instance && meta && ret);
+
+	*r = instance == meta;
+
+	return !(*r);
 }
 #endif /* MB_ENABLE_CLASS */
 
@@ -5905,7 +5940,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 		tgt->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
 		_init_class(s, tgt->data.instance, mb_memdup(obj->data.instance->name, strlen(obj->data.instance->name)));
 		_push_scope_by_class(s, tgt->data.instance->scope);
-		_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, 1, tgt->data.instance);
+		_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, 1, false, tgt->data.instance, 0);
 		_pop_scope(s);
 
 		break;
@@ -9250,6 +9285,44 @@ int _core_not(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
+int _core_is(mb_interpreter_t* s, void** l) {
+	/* Operator IS */
+	int result = MB_FUNC_OK;
+	_object_t* fst = 0;
+	_object_t* scd = 0;
+	_object_t* val = 0;
+	bool_t is_a = 0;
+
+	mb_assert(s && l);
+
+	fst = (_object_t*)(((_tuple3_t*)(*l))->e1);
+	scd = (_object_t*)(((_tuple3_t*)(*l))->e2);
+	val = (_object_t*)(((_tuple3_t*)(*l))->e3);
+
+	if(!fst || !scd) {
+		_handle_error_on_obj(s, SE_RN_SYNTAX, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+	if(scd->type == _DT_TYPE) {
+		val->type = _DT_INT;
+		val->data.integer = (int_t)(_internal_type_to_public_type(fst->type) == scd->data.type);
+	} else {
+#ifdef MB_ENABLE_CLASS
+		if(!_IS_CLASS(fst) || !_IS_CLASS(scd)) {
+			_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+		_traverse_class(fst->data.instance, 0, _is_class, _META_LIST_MAX_DEPTH, true, scd->data.instance, &is_a);
+		val->type = _DT_INT;
+		val->data.integer = (int_t)is_a;
+#else /* MB_ENABLE_CLASS */
+		mb_unrefvar(is_a);
+		_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+#endif /* MB_ENABLE_CLASS */
+	}
+
+_exit:
+	return result;
+}
+
 int _core_let(mb_interpreter_t* s, void** l) {
 	/* LET statement */
 	int result = MB_FUNC_OK;
@@ -11285,6 +11358,9 @@ int _std_print(mb_interpreter_t* s, void** l) {
 		case _DT_STRING: /* Fall through */
 		case _DT_VAR: /* Fall through */
 		case _DT_ARRAY: /* Fall through */
+#ifdef MB_ENABLE_CLASS
+		case _DT_CLASS: /* Fall through */
+#endif /* MB_ENABLE_CLASS */
 		case _DT_FUNC: /* Fall through */
 		case _DT_ROUTINE:
 			result = _calc_expression(s, &ast, &val_ptr);
