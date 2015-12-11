@@ -2,22 +2,22 @@
 ' Copyright (c) 2011 - 2015 Wang Renxin. All rights reserved.
 ' For more information, see https://github.com/paladin-t/my_basic/
 
-BEGIN:
+begin:
 	n = 10
-	DIM arr(n)
-	GOSUB CALC
-	GOSUB SHOW
-END
+	dim arr(n)
+	gosub calc
+	gosub show
+end
 
-CALC:
+calc:
 	arr(0) = 1
-	FOR i = 1 TO n - 1
-		IF i = 1 THEN arr(i) = 1 ELSE arr(i) = arr(i - 1) + arr(i - 2)
-	NEXT
-RETURN
+	for i = 1 to n - 1
+		if i = 1 then arr(i) = 1 else arr(i) = arr(i - 1) + arr(i - 2)
+	next
+return
 
-SHOW:
-	FOR i = 0 TO n - 1
-		PRINT arr(i), ", "
-	NEXT
-RETURN
+show:
+	for i = 0 to n - 1
+		print arr(i), ", "
+	next
+return

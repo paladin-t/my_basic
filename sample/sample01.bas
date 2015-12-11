@@ -4,4 +4,4 @@
 
 s$ = "hello "
 s$ = s$ + "world"
-PRINT s$ + "!"
+print s$ + "!"

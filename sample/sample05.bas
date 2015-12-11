@@ -2,14 +2,14 @@
 ' Copyright (c) 2011 - 2015 Wang Renxin. All rights reserved.
 ' For more information, see https://github.com/paladin-t/my_basic/
 
-DEF AREA(a, b)
-	RETURN CALL MUL(a, b)
-ENDDEF
+def area(a, b)
+	return call mul(a, b)
+enddef
 
-DEF MUL(a, b)
+def mul(a, b)
 	return a * b
-ENDDEF
+enddef
 
 a = 3
 b = 4
-PRINT a; b; AREA(a, b);
+print a; b; area(a, b);
