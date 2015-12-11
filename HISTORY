@@ -1,3 +1,6 @@
+Dec. 11 2015
+Added support to store a routine in a variable by CALL statement
+
 Dec. 10 2015
 Developing class, added a NEW statement to duplicate a class instance
 

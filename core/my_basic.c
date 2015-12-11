@@ -2795,7 +2795,9 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 #ifdef MB_ENABLE_CLASS
 		c->type == _DT_CLASS ||
 #endif /* MB_ENABLE_CLASS */
-		c->type == _DT_VAR || c->type == _DT_USERTYPE || c->type == _DT_USERTYPE_REF || c->type == _DT_ARRAY)) {
+		c->type == _DT_ROUTINE ||
+		c->type == _DT_VAR || c->type == _DT_USERTYPE || c->type == _DT_USERTYPE_REF || c->type == _DT_ARRAY)
+	) {
 		_set_current_error(s, SE_RN_INVALID_DATA_TYPE, 0);
 		result = MB_FUNC_ERR;
 
@@ -2832,7 +2834,8 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 #ifdef MB_ENABLE_CLASS
 			c->type == _DT_CLASS ||
 #endif /* MB_ENABLE_CLASS */
-			c->type == _DT_ARRAY
+			c->type == _DT_ARRAY ||
+			c->type == _DT_ROUTINE
 		) {
 			_destroy_object_capsule_only(c, 0);
 		} else {
@@ -3723,7 +3726,7 @@ _end_import:
 	}
 #endif /* MB_ENABLE_CLASS */
 	/* _routine_t */
-	if(context->last_symbol) {
+	if(context->last_symbol && !_is_bracket(sym[0])) {
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
 			if(_IS_FUNC(context->last_symbol, _core_def))
@@ -6684,6 +6687,10 @@ _retry:
 			} else {
 				mb_assert(0 && "Impossible.");
 			}
+		} else if(obj->data.variable->data->type == _DT_ROUTINE) {
+			obj = obj->data.variable->data;
+
+			goto _retry;
 		} else {
 			/* Do not need to path */
 			result = _core_let(s, (void**)(&ast));
@@ -9312,7 +9319,10 @@ int _core_let(mb_interpreter_t* s, void** l) {
 #else /* MB_ENABLE_COLLECTION_LIB */
 			var->data->data = val->data;
 #endif /* MB_ENABLE_COLLECTION_LIB */
-			var->data->ref = val->ref;
+			if(val->type == _DT_ROUTINE)
+				var->data->ref = 1;
+			else
+				var->data->ref = val->ref;
 		}
 	} else if(arr && literally) {
 		if(val->type != _DT_ANY) {
@@ -10043,6 +10053,8 @@ int _core_call(mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 	_routine_t* routine = 0;
+	mb_value_t ret;
+	_ls_node_t* pathed = 0;
 
 	mb_assert(s && l);
 
@@ -10050,22 +10062,57 @@ int _core_call(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 
 	obj = (_object_t*)(ast->data);
+
+_retry:
+	switch(obj->type) {
+	case _DT_FUNC:
+		if(_IS_FUNC(obj, _core_open_bracket)) {
+			mb_check(mb_attempt_open_bracket(s, l));
+
+			ast = ast->next;
+			obj = (_object_t*)(ast->data);
+			if(!obj || obj->type != _DT_ROUTINE) {
+				_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+			}
+			ret.type = MB_DT_ROUTINE;
+			ret.value.routine = obj->data.routine;
+			ast = ast->next;
+			*l = ast;
+
+			mb_check(mb_attempt_close_bracket(s, l));
+
+			mb_check(mb_push_value(s, l, ret));
+		}
+
+		break;
+	case _DT_VAR:
+		if(obj->data.variable->data->type == _DT_ROUTINE) {
+			obj = obj->data.variable->data;
+
+			goto _retry;
+		}
 #ifdef MB_ENABLE_CLASS
-	if(obj->type == _DT_VAR) {
-		_ls_node_t* pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing);
+		pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing);
 		if(pathed && pathed->data)
 			obj = (_object_t*)pathed->data;
-	}
+		/* Fall through */
+#else /* MB_ENABLE_CLASS */
+		mb_unrefvar(pathed);
 #endif /* MB_ENABLE_CLASS */
-	routine = (_routine_t*)(obj->data.routine);
+	case _DT_ROUTINE:
+		routine = (_routine_t*)(obj->data.routine);
+		result = _eval_routine(s, &ast, 0, 0, routine, _has_routine_lex_arg, _pop_routine_lex_arg);
+		if(ast)
+			ast = ast->prev;
 
-	result = _eval_routine(s, &ast, 0, 0, routine, _has_routine_lex_arg, _pop_routine_lex_arg);
-
-	if(ast)
-		ast = ast->prev;
+		break;
+	default:
+		break;
+	}
 
 	*l = ast;
 
+_exit:
 	return result;
 }
 
