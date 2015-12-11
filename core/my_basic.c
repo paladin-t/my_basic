@@ -4480,6 +4480,7 @@ void _gc_collect_garbage(mb_interpreter_t* s) {
 		s->gc.collecting--;
 	}
 	/* Tidy */
+	_ht_clear(s->gc.collected_table);
 	_ht_clear(valid);
 	_ht_destroy(valid);
 	s->gc.collecting--;
