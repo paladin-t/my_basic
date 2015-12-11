@@ -10071,6 +10071,13 @@ _retry:
 
 			ast = ast->next;
 			obj = (_object_t*)(ast->data);
+#ifdef MB_ENABLE_CLASS
+			if(obj->type == _DT_VAR) {
+				pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing);
+				if(pathed && pathed->data)
+					obj = (_object_t*)pathed->data;
+			}
+#endif /* MB_ENABLE_CLASS */
 			if(!obj || obj->type != _DT_ROUTINE) {
 				_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
