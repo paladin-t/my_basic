@@ -1,6 +1,7 @@
 Dec. 11 2015
 Added an IS statement to detect type equality of a value
 Added support to store a routine in a variable by CALL statement
+Added GC accessing to fields of a class instance
 Fixed a memory leak with GC caused by reference cycle
 Finished internal class development
 

@@ -1118,6 +1118,7 @@ static char* _extract_string(_object_t* obj);
 #else /* MB_ENABLE_COLLECTION_LIB */
 #	define _REF_COLL(__o) ((void)(__o));
 #	define _UNREF_COLL(__o) ((void)(__o));
+#	define _ADDGC_COLL(__o, __g) ((void)(__o)); ((void)(__g));
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 #	define _REF_CLASS(__o) \
