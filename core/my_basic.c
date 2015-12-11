@@ -1178,8 +1178,11 @@ static void _gc_add(_ref_t* ref, void* data, _gc_t* gc);
 static void _gc_remove(_ref_t* ref, void* data);
 static int _gc_add_reachable(void* data, void* extra, void* ht);
 static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht);
-static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc);
-static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc);
+static int _gc_destroy_garbage_in_list(void* data, void* extra, void* gc);
+static int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc);
+#ifdef MB_ENABLE_CLASS
+static int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc);
+#endif /* MB_ENABLE_CLASS */
 static int _gc_destroy_garbage(void* data, void* extra);
 static void _gc_try_trigger(mb_interpreter_t* s);
 static void _gc_collect_garbage(mb_interpreter_t* s);
@@ -4312,16 +4315,17 @@ void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
 	}
 }
 
-int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc) {
+int _gc_destroy_garbage_in_list(void* data, void* extra, void* gc) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind, and add it to GC if possible */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
+	_gc_t* _gc = (_gc_t*)gc;
 	mb_unrefvar(extra);
 
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	_ADDGC(obj, gc);
+	_ADDGC(obj, _gc);
 	safe_free(obj);
 
 	result = _OP_RESULT_DEL_NODE;
@@ -4329,26 +4333,54 @@ int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc) {
 	return result;
 }
 
-int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc) {
+int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
-	mb_unrefvar(extra);
+	_gc_t* _gc = (_gc_t*)gc;
 
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	_ADDGC(obj, gc);
+	_ADDGC(obj, _gc);
 	safe_free(obj);
 
 	obj = (_object_t*)extra;
-	_ADDGC(obj, gc);
+	_ADDGC(obj, _gc);
 	safe_free(obj);
 
 	result = _OP_RESULT_DEL_NODE;
 
 	return result;
 }
+
+#ifdef MB_ENABLE_CLASS
+int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc) {
+	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
+	int result = _OP_RESULT_NORMAL;
+	_object_t* obj = 0;
+	_gc_t* _gc = (_gc_t*)gc;
+	mb_unrefvar(extra);
+
+	mb_assert(data);
+
+	obj = (_object_t*)data;
+	if(obj->type == _DT_VAR) {
+		_gc_destroy_garbage_in_class(obj->data.variable->data, 0, gc);
+		safe_free(obj->data.variable->name);
+		safe_free(obj->data.variable);
+	} else {
+		if(gc) {
+			_ADDGC(obj, _gc);
+		}
+	}
+	safe_free(obj);
+
+	result = _OP_RESULT_DEL_NODE;
+
+	return result;
+}
+#endif /* MB_ENABLE_CLASS */
 
 int _gc_destroy_garbage(void* data, void* extra) {
 	/* Destroy a garbage */
@@ -4360,6 +4392,9 @@ int _gc_destroy_garbage(void* data, void* extra) {
 	_list_t* lst = 0;
 	_dict_t* dct = 0;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	_class_t* instance = 0;
+#endif /* MB_ENABLE_CLASS */
 
 	mb_assert(data && extra);
 
@@ -4389,6 +4424,14 @@ int _gc_destroy_garbage(void* data, void* extra) {
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	case _DT_CLASS:
+		instance = (_class_t*)data;
+		_HT_FOREACH(instance->scope->var_dict, _do_nothing_on_object, _gc_destroy_garbage_in_class, gc);
+		_ht_clear(instance->scope->var_dict);
+
+		break;
+#endif /* MB_ENABLE_CLASS */
 	default:
 		break;
 	}
@@ -6248,7 +6291,6 @@ int _destroy_object_capsule_only_with_extra(void* data, void* extra) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
-	mb_unrefvar(extra);
 
 	mb_assert(data);
 
