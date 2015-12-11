@@ -5861,7 +5861,7 @@ _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
 	mb_assert(s && i);
 
 	result = i;
-	scp = _search_identifier_in_scope_chain(s, 0, result->name, 0);
+	scp = _search_identifier_in_scope_chain(s, 0, result->name, 1);
 	if(scp) {
 		obj = (_object_t*)(scp->data);
 		if(obj && obj->type == _DT_VAR)
@@ -6747,7 +6747,7 @@ _retry:
 		break;
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
-		mb_assert(0 && "Not implemented.");
+		_handle_error_on_obj(s, SE_RN_INVALID_EXPRESSION, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 
 		break;
 #endif /* MB_ENABLE_CLASS */
