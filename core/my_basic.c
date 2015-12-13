@@ -6072,7 +6072,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
 		tgt->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
-		_init_class(s, tgt->data.instance, mb_memdup(obj->data.instance->name, strlen(obj->data.instance->name)));
+		_init_class(s, tgt->data.instance, mb_memdup(obj->data.instance->name, (unsigned)strlen(obj->data.instance->name)));
 		_push_scope_by_class(s, tgt->data.instance->scope);
 		_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, 1, false, tgt->data.instance, 0);
 		_pop_scope(s);
@@ -6812,6 +6812,8 @@ void _tidy_intermediate_value(_ref_t* ref, void* data) {
 		case _DT_USERTYPE_REF:
 			mb_make_nil(ref->s->running_context->intermediate_value);
 
+			break;
+		default:
 			break;
 		}
 	}
@@ -8115,6 +8117,54 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	return result;
 }
 
+int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t** meta, int c, mb_value_t* out) {
+	/* Begin a class */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(n);
+	mb_unrefvar(meta);
+	mb_unrefvar(c);
+	mb_unrefvar(out);
+	/* TODO */
+
+	return result;
+}
+
+int mb_end_class(struct mb_interpreter_t* s, void** l) {
+	/* End a class */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	/* TODO */
+
+	return result;
+}
+
+int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val) {
+	/* Get a value by its identifier name */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(n);
+	mb_unrefvar(val);
+	/* TODO */
+
+	return result;
+}
+
+int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t val) {
+	/* Add a variable with a specific name */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(n);
+	mb_unrefvar(val);
+	/* TODO */
+
+	return result;
+}
+
 int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
 	/* Get a token literally, store it in an argument if it's a variable */
 	int result = MB_FUNC_OK;
@@ -8250,7 +8300,7 @@ _exit:
 }
 
 int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t* val) {
-	/* Get an element of an array with a given index */
+	/* Get an element of an array with a specific index */
 	int result = MB_FUNC_OK;
 	_array_t* arr = 0;
 	int index = 0;
@@ -8282,7 +8332,7 @@ _exit:
 }
 
 int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int c, mb_value_t val) {
-	/* Set an element of an array with a given index */
+	/* Set an element of an array with a specific index */
 	int result = MB_FUNC_OK;
 	_array_t* arr = 0;
 	int index = 0;
@@ -8649,6 +8699,18 @@ int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 	}
 
 _exit:
+	return result;
+}
+
+int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_func_t f) {
+	/* Set a sub routine with a specific name and functor */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(n);
+	mb_unrefvar(f);
+	/* TODO */
+
 	return result;
 }
 
@@ -11254,7 +11316,7 @@ _exit:
 }
 
 int _std_mid(mb_interpreter_t* s, void** l) {
-	/* Get a number of characters from a given position of a string */
+	/* Get a number of characters from a specific position of a string */
 	int result = MB_FUNC_OK;
 	char* arg = 0;
 	int_t start = 0;
