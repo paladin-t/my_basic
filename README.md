@@ -114,9 +114,12 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
  * [Manipulate an array](https://github.com/paladin-t/my_basic/wiki/Manipulate-an-array)
  * [Automatic memory management](https://github.com/paladin-t/my_basic/wiki/Automatic-memory-management)
  * [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
+ * [Use prototype-based class](https://github.com/paladin-t/my_basic/wiki/Use-prototype-based-class)
+ * [Define a class in C](https://github.com/paladin-t/my_basic/wiki/Define-a-class-in-C)
 * Integration
  * [Link with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC)
  * [Write a debugger](https://github.com/paladin-t/my_basic/wiki/Write-a-debugger)
+ * [Callback](https://github.com/paladin-t/my_basic/wiki/Callback)
 * Customization
  * [Customize a memory allocator](https://github.com/paladin-t/my_basic/wiki/Customize-a-memory-allocator)
  * [Redirect PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
