@@ -27,10 +27,10 @@ MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter writt
 * It is totally **free** to use MY-BASIC for individual or commercial purpose under the MIT license
 * Written in clean **ANSI C**, source code is portable for a dozen of platforms
 * With most modern BASIC syntax
-* Prototype-based (OOP) paradigm
+* **Prototype-based** (OOP) paradigm
 * **Lightweight** (within memory usage less than 128KB) and fast
 * Case-insensitive tokenization
-* Dynamic typed integer, float point, string, boolean, user defined data types, etc. with array support
+* **Dynamic typed** integer, float point, string, boolean, user defined data types, etc. with array support
 * Standard numeric functions, and standard string functions
 * Referenced usertype support
 * Collection implementation and manipulation functions for **`LIST`** and **`DICT`**
