@@ -20,16 +20,17 @@ Why are existing script interpreters so complex? Why is it so difficult to integ
 
 ## Introduction
 
-MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 10,000 lines of source code. Its grammar is similar to structured BASIC. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, etc. Script driven can make your projects more powerful, elegant and neat.
+MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 13,000 lines of source code. MY-BASIC is a dynamic typed programming language. It supports structured grammar, and implements a style of OOP called prototype-based programming paradigm. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, etc. Script driven can make your projects more powerful, elegant and neat.
 
 ## Main features
 
 * It is totally **free** to use MY-BASIC for individual or commercial purpose under the MIT license
 * Written in clean **ANSI C**, source code is portable for a dozen of platforms
-* With most common BASIC syntax
+* With most modern BASIC syntax
+* Prototype-based (OOP) paradigm
 * **Lightweight** (within memory usage less than 128KB) and fast
 * Case-insensitive tokenization
-* Integer, float point, string, boolean, user defined data types, etc. with array support
+* Dynamic typed integer, float point, string, boolean, user defined data types, etc. with array support
 * Standard numeric functions, and standard string functions
 * Referenced usertype support
 * Collection implementation and manipulation functions for **`LIST`** and **`DICT`**
