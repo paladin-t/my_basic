@@ -3087,7 +3087,7 @@ int _eval_native_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
 
-	result = entry(s, l, va, ca, r, has_arg, pop_arg);
+	result = entry(s, (void**)l, va, ca, r, has_arg, pop_arg);
 
 _exit:
 	s->last_routine = lastr;
