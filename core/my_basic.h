@@ -477,7 +477,7 @@ MBAPI int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t 
 
 MBAPI int mb_gets(char* buf, int s);
 
-MBAPI char* mb_memdup(char* val, unsigned size);
+MBAPI char* mb_memdup(const char* val, unsigned size);
 MBAPI int mb_set_memory_manager(mb_memory_allocate_func_t a, mb_memory_free_func_t f);
 
 #ifdef MB_COMPACT_MODE

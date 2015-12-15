@@ -1,3 +1,7 @@
+Dec. 15 2015
+Added a pair of mb_begin_class/mb_end_class functions
+Added an mb_get_value_by_name function
+
 Dec. 13 2015
 Avoided warnings
 

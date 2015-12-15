@@ -311,7 +311,7 @@ static void _push_mem(char* p) {
 	_pool_t* pl = 0;
 
 	if(--alloc_count < 0) {
-		mb_assert(0 && "Multiple free");
+		mb_assert(0 && "Multiple free.");
 	}
 	alloc_bytes -= _POOL_NODE_SIZE(p);
 
@@ -970,7 +970,7 @@ static void _on_exit(void) {
 #if defined _MSC_VER && !defined _WIN64
 	if(0 != _CrtDumpMemoryLeaks()) { _asm { int 3 } }
 #elif defined _USE_MEM_POOL
-	if(alloc_count > 0 || alloc_bytes > 0) { mb_assert(0 && "Memory leak"); }
+	if(alloc_count > 0 || alloc_bytes > 0) { mb_assert(0 && "Memory leak."); }
 #endif /* _MSC_VER && !_WIN64 */
 }
 
