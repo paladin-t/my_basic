@@ -225,6 +225,7 @@ static const char* _ERR_DESC[] = {
 	"Jump label expected",
 	"Variable expected",
 	"Invalid identifier usage",
+	"Duplicate identifier",
 	"Operator expected",
 	"Calculation error",
 	"Divide by zero",
@@ -393,10 +394,8 @@ typedef struct _routine_t {
 	struct _running_context_t* scope;
 	_ls_node_t* entry;
 	_ls_node_t* parameters;
+	mb_routine_func_t functor;
 } _routine_t;
-
-typedef int (* _has_routine_arg)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, _routine_t*);
-typedef int (* _pop_routine_arg)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, _routine_t*, mb_value_t*);
 
 typedef union _raw_u { char c; int_t i; real_t r; void* p; mb_val_bytes_t b; } _raw_u;
 
@@ -971,12 +970,14 @@ static int _get_priority_index(mb_func_t op);
 static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opnd1, _object_t* opnd2, int* status);
 static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj);
 static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val);
-static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, _has_routine_arg has_arg, _pop_routine_arg pop_arg, bool_t proc_ref);
-static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, _has_routine_arg has_arg, _pop_routine_arg pop_arg);
-static int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r);
-static int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_value_t* val);
-static int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r);
-static int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_value_t* val);
+static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg, bool_t proc_ref);
+static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg);
+static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg);
+static int _eval_native_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg);
+static int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r);
+static int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r, mb_value_t* val);
+static int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r);
+static int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r, mb_value_t* val);
 static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 
 /** Handlers */
@@ -1255,7 +1256,7 @@ static int _clone_clsss_field(void* data, void* extra, void* n);
 static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret);
 static bool_t _is_class(_class_t* instance, void* m, void* ret);
 #endif /* MB_ENABLE_CLASS */
-static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n);
+static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f);
 static void _begin_routine(mb_interpreter_t* s);
 static bool_t _end_routine(mb_interpreter_t* s);
 static void _begin_routine_parameter_list(mb_interpreter_t* s);
@@ -2907,7 +2908,7 @@ _exit:
 	return result;
 }
 
-int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, _has_routine_arg has_arg, _pop_routine_arg pop_arg, bool_t proc_ref) {
+int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg, bool_t proc_ref) {
 	/* Process arguments of a routine */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -2953,8 +2954,24 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 	return result;
 }
 
-int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, _has_routine_arg has_arg, _pop_routine_arg pop_arg) {
+int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
 	/* Evaluate a routine */
+	int result = MB_FUNC_OK;
+
+	if(r->entry) {
+		result = _eval_script_routine(s, l, va, ca, r, has_arg, pop_arg);
+	} else if(r->functor) {
+		result = _eval_native_routine(s, l, va, ca, r, has_arg, pop_arg);
+	} else {
+		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+
+_exit:
+	return result;
+}
+
+int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
+	/* Evaluate a script routine */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_running_context_t* running = 0;
@@ -3054,7 +3071,31 @@ _tail:
 	return result;
 }
 
-int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r) {
+int _eval_native_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
+	/* Evaluate a native routine */
+	int result = MB_FUNC_OK;
+	_routine_t* lastr = 0;
+	mb_routine_func_t entry = 0;
+
+	mb_assert(s && l && r);
+
+	lastr = s->last_routine;
+	s->last_routine = r;
+
+	entry = r->functor;
+	if(!entry) {
+		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+
+	result = entry(s, l, va, ca, r, has_arg, pop_arg);
+
+_exit:
+	s->last_routine = lastr;
+
+	return result;
+}
+
+int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r) {
 	/* Detect if there is any more lexical argument */
 	mb_unrefvar(va);
 	mb_unrefvar(ca);
@@ -3064,7 +3105,7 @@ int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned
 	return mb_has_arg(s, l);
 }
 
-int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_value_t* val) {
+int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r, mb_value_t* val) {
 	/* Pop a lexical argument */
 	mb_unrefvar(va);
 	mb_unrefvar(ca);
@@ -3074,7 +3115,7 @@ int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned
 	return mb_pop_value(s, l, val);
 }
 
-int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r) {
+int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r) {
 	/* Detect if there is any more argument in the argument list */
 	mb_unrefvar(s);
 	mb_unrefvar(l);
@@ -3084,7 +3125,7 @@ int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned
 	return *ia < ca;
 }
 
-int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_value_t* val) {
+int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r, mb_value_t* val) {
 	/* Pop an argument from the argument list */
 	mb_unrefvar(s);
 	mb_unrefvar(l);
@@ -3505,7 +3546,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		} else {
 			_running_context_t* tba = 0;
 			tmp.routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
-			_init_routine(s, tmp.routine, sym);
+			_init_routine(s, tmp.routine, sym, 0);
 			_push_scope_by_routine(s, tmp.routine->scope);
 			(*obj)->data.routine = tmp.routine;
 
@@ -5593,7 +5634,7 @@ bool_t _is_class(_class_t* instance, void* m, void* ret) {
 }
 #endif /* MB_ENABLE_CLASS */
 
-void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n) {
+void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f) {
 	/* Initialize a routine */
 	_running_context_t* running = 0;
 
@@ -5603,9 +5644,11 @@ void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n) {
 
 	memset(routine, 0, sizeof(_routine_t));
 	routine->name = n;
-	routine->scope = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
-	memset(routine->scope, 0, sizeof(_running_context_t));
-	routine->scope->var_dict = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
+	if(!f) {
+		routine->scope = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
+		memset(routine->scope, 0, sizeof(_running_context_t));
+		routine->scope->var_dict = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
+	}
 }
 
 void _begin_routine(mb_interpreter_t* s) {
@@ -5822,7 +5865,8 @@ _running_context_t* _push_weak_scope_by_routine(mb_interpreter_t* s, _running_co
 
 	if(_find_scope(s, p))
 		p = _reference_scope_by_routine(s, p, r);
-	p->prev = s->running_context;
+	if(p)
+		p->prev = s->running_context;
 
 	return p;
 }
@@ -5833,8 +5877,10 @@ _running_context_t* _push_scope_by_routine(mb_interpreter_t* s, _running_context
 
 	if(_find_scope(s, p))
 		p = _reference_scope_by_routine(s, p, 0);
-	p->prev = s->running_context;
-	s->running_context = p;
+	if(p) {
+		p->prev = s->running_context;
+		s->running_context = p;
+	}
 
 	return s->running_context;
 }
@@ -5854,7 +5900,8 @@ _running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context_t* p) 
 	/* Pop a weak scope */
 	mb_assert(s);
 
-	p->prev = 0;
+	if(p)
+		p->prev = 0;
 
 	return p;
 }
@@ -6177,11 +6224,13 @@ int _dispose_object(_object_t* obj) {
 	case _DT_ROUTINE:
 		if(!obj->ref) {
 			safe_free(obj->data.routine->name);
-			if(obj->data.routine->scope->var_dict) {
-				_ht_foreach(obj->data.routine->scope->var_dict, _destroy_object);
-				_ht_destroy(obj->data.routine->scope->var_dict);
+			if(obj->data.routine->scope) {
+				if(obj->data.routine->scope->var_dict) {
+					_ht_foreach(obj->data.routine->scope->var_dict, _destroy_object);
+					_ht_destroy(obj->data.routine->scope->var_dict);
+				}
+				safe_free(obj->data.routine->scope);
 			}
-			safe_free(obj->data.routine->scope);
 			if(obj->data.routine->parameters)
 				_ls_destroy(obj->data.routine->parameters);
 			safe_free(obj->data.routine);
@@ -6564,6 +6613,10 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 	mb_assert(pbl && itn);
 
 	switch(itn->type) {
+	case _DT_VAR:
+		result = _internal_object_to_public_value(itn->data.variable->data, pbl);
+
+		break;
 	case _DT_TYPE:
 		pbl->type = MB_DT_TYPE;
 		pbl->value.type = itn->data.type;
@@ -8126,6 +8179,7 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t** meta, int c, mb_value_t* out) {
 	/* Begin a class */
+#ifdef MB_ENABLE_CLASS
 	int result = MB_FUNC_OK;
 	_class_t* instance = 0;
 	_object_t* obj = 0;
@@ -8181,10 +8235,21 @@ int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 
 _exit:
 	return result;
+#else /* MB_ENABLE_CLASS */
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(n);
+	mb_unrefvar(meta);
+	mb_unrefvar(c);
+	mb_unrefvar(out);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_CLASS */
 }
 
 int mb_end_class(struct mb_interpreter_t* s, void** l) {
 	/* End a class */
+#ifdef MB_ENABLE_CLASS
 	int result = MB_FUNC_OK;
 
 	mb_assert(s && l);
@@ -8192,6 +8257,12 @@ int mb_end_class(struct mb_interpreter_t* s, void** l) {
 	_pop_scope(s);
 
 	return result;
+#else /* MB_ENABLE_CLASS */
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_CLASS */
 }
 
 int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val) {
@@ -8213,15 +8284,46 @@ int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb
 	return result;
 }
 
-int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t val) {
+int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t val, bool_t force) {
 	/* Add a variable with a specific name */
 	int result = MB_FUNC_OK;
-	mb_unrefvar(s);
-	mb_unrefvar(l);
-	mb_unrefvar(n);
-	mb_unrefvar(val);
-	/* TODO */
+	_running_context_t* running = 0;
+	_object_t* obj = 0;
+	_var_t* var = 0;
+	_ls_node_t* tmp = 0;
 
+	mb_assert(s && l && n);
+
+	running = s->running_context;
+
+	tmp = _ht_find(running->var_dict, (void*)n);
+
+	if(tmp) {
+		if(force) {
+			result = mb_set_var_value(s, tmp->data, val);
+
+			goto _exit;
+		} else {
+			_handle_error_on_obj(s, SE_RN_DUPLICATE_ID, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+	}
+
+	var = (_var_t*)mb_malloc(sizeof(_var_t));
+	memset(var, 0, sizeof(_var_t));
+	var->name = mb_memdup(n, (unsigned)(strlen(n) + 1));
+	var->data = (_object_t*)mb_malloc(sizeof(_object_t));
+	_MAKE_NIL(var->data);
+	_public_value_to_internal_object(&val, var->data);
+
+	obj = (_object_t*)mb_malloc(sizeof(_object_t));
+	_MAKE_NIL(obj);
+	obj->type = _DT_VAR;
+	obj->data.variable = var;
+	obj->ref = false;
+
+	_ht_set_or_insert(running->var_dict, var->name, obj);
+
+_exit:
 	return result;
 }
 
@@ -8762,15 +8864,53 @@ _exit:
 	return result;
 }
 
-int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_func_t f) {
+int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routine_func_t f, bool_t force) {
 	/* Set a sub routine with a specific name and functor */
 	int result = MB_FUNC_OK;
-	mb_unrefvar(s);
-	mb_unrefvar(l);
-	mb_unrefvar(n);
-	mb_unrefvar(f);
-	/* TODO */
+	_running_context_t* running = 0;
+	_object_t* obj = 0;
+	_routine_t* routine = 0;
+	_ls_node_t* tmp = 0;
+	_var_t* var = 0;
 
+	mb_assert(s && l);
+
+	running = s->running_context;
+
+	tmp = _ht_find(running->var_dict, (void*)n);
+
+	if(tmp) {
+		if(force) {
+			obj = (_object_t*)tmp->data;
+			if(obj->type == _DT_VAR)
+				var = obj->data.variable;
+		} else {
+			_handle_error_on_obj(s, SE_RN_DUPLICATE_ROUTINE, 0, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+	}
+
+	routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
+	_init_routine(s, routine, mb_memdup(n, (unsigned)(strlen(n) + 1)), f);
+	routine->functor = f;
+
+	obj = (_object_t*)mb_malloc(sizeof(_object_t));
+	_MAKE_NIL(obj);
+	obj->type = _DT_ROUTINE;
+	obj->data.routine = routine;
+	obj->ref = false;
+
+#ifdef MB_ENABLE_CLASS
+	routine->instance = s->last_instance;
+#endif /* MB_ENABLE_CLASS */
+
+	if(var && force) {
+		_destroy_object(var->data, 0);
+		var->data = obj;
+	} else {
+		_ht_set_or_insert(running->var_dict, routine->name, obj);
+	}
+
+_exit:
 	return result;
 }
 

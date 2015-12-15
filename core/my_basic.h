@@ -302,6 +302,7 @@ typedef enum mb_error_e {
 	SE_RN_JUMP_LABEL_EXPECTED,
 	SE_RN_VARIABLE_EXPECTED,
 	SE_RN_INVALID_ID_USAGE,
+	SE_RN_DUPLICATE_ID,
 	SE_RN_OPERATOR_EXPECTED,
 	SE_RN_CALCULATION_ERROR,
 	SE_RN_DIVIDE_BY_ZERO,
@@ -385,6 +386,9 @@ typedef struct mb_value_t {
 typedef unsigned short mb_mem_tag_t;
 
 typedef int (* mb_func_t)(struct mb_interpreter_t*, void**);
+typedef int (* mb_has_routine_arg_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, void*);
+typedef int (* mb_pop_routine_arg_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, void*, mb_value_t*);
+typedef int (* mb_routine_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, void*, mb_has_routine_arg_func_t, mb_pop_routine_arg_func_t);
 typedef void (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, int, unsigned short, unsigned short);
 typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, char*, int, unsigned short, unsigned short, int);
 typedef int (* mb_print_func_t)(const char*, ...);
@@ -433,7 +437,7 @@ MBAPI int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb
 MBAPI int mb_end_class(struct mb_interpreter_t* s, void** l);
 
 MBAPI int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val);
-MBAPI int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t val);
+MBAPI int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t val, bool_t force);
 MBAPI int mb_get_var(struct mb_interpreter_t* s, void** l, void** v);
 MBAPI int mb_get_var_value(struct mb_interpreter_t* s, void* v, mb_value_t* val);
 MBAPI int mb_set_var_value(struct mb_interpreter_t* s, void* v, mb_value_t val);
@@ -453,7 +457,7 @@ MBAPI int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 
 MBAPI int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val);
-MBAPI int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_func_t f);
+MBAPI int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routine_func_t f, bool_t force);
 MBAPI int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc);
 
 MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l);
