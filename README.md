@@ -134,7 +134,6 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
 
 ## References
 
-* [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf)
 * [BASIC - Wikipedia](http://en.wikipedia.org/wiki/BASIC)
 
 -----
