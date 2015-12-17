@@ -11803,6 +11803,8 @@ int _std_print(mb_interpreter_t* s, void** l) {
 							_MAKE_NIL(&tmp);
 							_public_value_to_internal_object(&s->running_context->intermediate_value, &tmp);
 							val_ptr = obj = &tmp;
+							if(tmp.type == _DT_STRING)
+								tmp.data.string = mb_memdup(tmp.data.string, (unsigned)(strlen(tmp.data.string) + 1));
 							if(ast) ast = ast->prev;
 						} else if(obj->type == _DT_VAR) {
 							val_ptr = obj = obj->data.variable->data;
