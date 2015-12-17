@@ -9157,8 +9157,6 @@ const char* mb_get_type_string(mb_data_e t) {
 	switch(t) {
 	case MB_DT_NIL:
 		return "NIL";
-	case MB_DT_UNKNOWN:
-		return "UNKNOWN";
 	case MB_DT_TYPE:
 		return "TYPE";
 	case MB_DT_INT:
@@ -9189,6 +9187,7 @@ const char* mb_get_type_string(mb_data_e t) {
 #endif /* MB_ENABLE_CLASS */
 	case MB_DT_ROUTINE:
 		return "ROUTINE";
+	case MB_DT_UNKNOWN: /* Fall through */
 	default:
 		return "UNKNOWN";
 	}
@@ -11796,6 +11795,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 	do {
 		switch(obj->type) {
 		case _DT_VAR:
+#ifdef MB_ENABLE_CLASS
 			if(obj->data.variable->pathing) {
 				_ls_node_t* pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing, 0);
 				if(pathed && pathed->data) {
@@ -11822,6 +11822,9 @@ int _std_print(mb_interpreter_t* s, void** l) {
 
 				goto _print;
 			}
+#else /* MB_ENABLE_CLASS */
+			mb_unrefvar(tmp);
+#endif /* MB_ENABLE_CLASS */
 			/* Fall through */
 		case _DT_TYPE: /* Fall through */
 		case _DT_NIL: /* Fall through */
@@ -11835,7 +11838,9 @@ int _std_print(mb_interpreter_t* s, void** l) {
 		case _DT_FUNC: /* Fall through */
 		case _DT_ROUTINE:
 			result = _calc_expression(s, &ast, &val_ptr);
+#ifdef MB_ENABLE_CLASS
 _print:
+#endif /* MB_ENABLE_CLASS */
 			if(val_ptr->type == _DT_NIL) {
 				_get_printer(s)(MB_NIL);
 			} else if(val_ptr->type == _DT_INT) {
