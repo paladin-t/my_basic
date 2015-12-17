@@ -11793,11 +11793,26 @@ int _std_print(mb_interpreter_t* s, void** l) {
 		switch(obj->type) {
 		case _DT_VAR:
 			if(obj->data.variable->pathing) {
-				_execute_statement(s, &ast);
-				_MAKE_NIL(&tmp);
-				_public_value_to_internal_object(&s->running_context->intermediate_value, &tmp);
-				val_ptr = obj = &tmp;
-				if(ast) ast = ast->prev;
+				_ls_node_t* pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing, 0);
+				if(pathed && pathed->data) {
+					if(obj != (_object_t*)pathed->data) {
+						obj = (_object_t*)pathed->data;
+
+						if(obj->type == _DT_ROUTINE) {
+							_execute_statement(s, &ast);
+							_MAKE_NIL(&tmp);
+							_public_value_to_internal_object(&s->running_context->intermediate_value, &tmp);
+							val_ptr = obj = &tmp;
+							if(ast) ast = ast->prev;
+						} else if(obj->type == _DT_VAR) {
+							val_ptr = obj = obj->data.variable->data;
+							if(ast) ast = ast->next;
+						} else {
+							val_ptr = obj;
+							if(ast) ast = ast->next;
+						}
+					}
+				}
 
 				goto _print;
 			}
