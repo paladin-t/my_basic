@@ -1,6 +1,7 @@
 Dec. 17 2015
 Added support to evaluate a sub routine by an accessor in a PRINT statement
 Added support to get a value by an accessor in a PRINT statement
+Fixed a method invoking issue when met from meta class
 
 Dec. 15 2015
 Added a pair of mb_begin_class/mb_end_class functions

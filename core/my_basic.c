@@ -2715,6 +2715,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					_ls_pushback(opnd, c);
 					f++;
 				} else if(c->type == _DT_ROUTINE) {
+_routine:
 					ast = ast->prev;
 					result = _eval_routine(s, &ast, 0, 0, c->data.routine, _has_routine_lex_arg, _pop_routine_lex_arg);
 					if(ast)
@@ -2772,8 +2773,11 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 #endif /* MB_ENABLE_CLASS */
 							0
 						);
-						if(cs)
+						if(cs) {
 							c = (_object_t*)(cs->data);
+							if(c && c->type == _DT_ROUTINE)
+								goto _routine;
+						}
 						if(ast) {
 							_object_t* _err_var = (_object_t*)(ast->data);
 							if(_IS_FUNC(_err_var, _core_open_bracket)) {
