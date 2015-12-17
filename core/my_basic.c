@@ -11772,7 +11772,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
-
+	_object_t tmp;
 	_object_t val_obj;
 	_object_t* val_ptr = 0;
 
@@ -11791,12 +11791,22 @@ int _std_print(mb_interpreter_t* s, void** l) {
 	obj = (_object_t*)(ast->data);
 	do {
 		switch(obj->type) {
+		case _DT_VAR:
+			if(obj->data.variable->pathing) {
+				_execute_statement(s, &ast);
+				_MAKE_NIL(&tmp);
+				_public_value_to_internal_object(&s->running_context->intermediate_value, &tmp);
+				val_ptr = obj = &tmp;
+				if(ast) ast = ast->prev;
+
+				goto _print;
+			}
+			/* Fall through */
 		case _DT_TYPE: /* Fall through */
 		case _DT_NIL: /* Fall through */
 		case _DT_INT: /* Fall through */
 		case _DT_REAL: /* Fall through */
 		case _DT_STRING: /* Fall through */
-		case _DT_VAR: /* Fall through */
 		case _DT_ARRAY: /* Fall through */
 #ifdef MB_ENABLE_CLASS
 		case _DT_CLASS: /* Fall through */
@@ -11804,6 +11814,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 		case _DT_FUNC: /* Fall through */
 		case _DT_ROUTINE:
 			result = _calc_expression(s, &ast, &val_ptr);
+_print:
 			if(val_ptr->type == _DT_NIL) {
 				_get_printer(s)(MB_NIL);
 			} else if(val_ptr->type == _DT_INT) {
