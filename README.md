@@ -11,6 +11,7 @@ Why are existing script interpreters so complex? Why is it so difficult to integ
 ## Contents
 
 * [Introduction](#introduction)
+* [Compatibility](#compatibility)
 * [Main features](#main-features)
 * [Script at a glance](#script-at-a-glance)
 * [Interpreter workflow diagram](#interpreter-workflow-diagram)
@@ -21,6 +22,10 @@ Why are existing script interpreters so complex? Why is it so difficult to integ
 ## Introduction
 
 MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 13,000 lines of source code. MY-BASIC is a dynamic typed programming language. It supports structured grammar, and implements a style of OOP called [prototype-based](https://en.wikipedia.org/wiki/Prototype-based_programming) programming paradigm. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, etc. Script driven can make your projects more powerful, elegant and neat.
+
+## Compatibility
+
+It fits well with Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Console, Raspberry Pi, Arduino Mega and even MCU; totally portable to Windows, OS X, Linux, iOS, Android, RTOS, etc.
 
 ## Main features
 
