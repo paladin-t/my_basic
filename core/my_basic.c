@@ -3192,6 +3192,7 @@ mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 
 char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
 	/* Read all content of a file into a buffer */
+#ifndef ARDUINO
 	FILE* fp = 0;
 	char* buf = 0;
 	long curpos = 0;
@@ -3232,6 +3233,9 @@ char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
 	}
 
 	return buf;
+#else /* ARDUINO */
+	return 0;
+#endif /* ARDUINO */
 }
 
 bool_t _is_blank(char c) {
