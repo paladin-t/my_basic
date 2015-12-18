@@ -1,3 +1,7 @@
+Dec. 18 2015
+Avoided compiling issues
+Improved compatibility with Arduino
+
 Dec. 17 2015
 Added support to evaluate a sub routine by an accessor in a PRINT statement
 Added support to get a value by an accessor in a PRINT statement

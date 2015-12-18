@@ -37,7 +37,9 @@
 #	include <stdint.h>
 #endif /* _MSC_VER */
 #include <limits.h>
-#include <memory.h>
+#ifndef ARDUINO
+#	include <memory.h>
+#endif /* ARDUINO */
 #include <assert.h>
 #include <ctype.h>
 #include <math.h>
