@@ -8204,6 +8204,10 @@ int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 
 	running = s->running_context;
 
+	tmp = (_ls_node_t*)(*l);
+
+	_using_jump_set_of_structured(s, tmp, _exit, result);
+
 	tmp = _search_identifier_in_scope_chain(s, 0, n, 0, 0);
 	if(tmp && tmp->data) {
 		obj = (_object_t*)tmp->data;
