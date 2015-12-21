@@ -4482,10 +4482,11 @@ int _gc_destroy_garbage(void* data, void* extra) {
 		instance = (_class_t*)data;
 		_HT_FOREACH(instance->scope->var_dict, _do_nothing_on_object, _gc_destroy_garbage_in_class, gc);
 		_ht_clear(instance->scope->var_dict);
+		_ls_clear(instance->meta_list);
 
 		break;
 #endif /* MB_ENABLE_CLASS */
-	default:
+	default: /* Do nothing */
 		break;
 	}
 	if(ref->count) {
@@ -5483,7 +5484,6 @@ void _unref_class(_ref_t* ref, void* data) {
 
 void _destroy_class(_class_t* c) {
 	/* Destroy a class instance */
-	safe_free(c->name);
 	if(c->meta_list) {
 		_unlink_meta_class(c->ref.s, c);
 		_ls_destroy(c->meta_list);
@@ -5494,6 +5494,7 @@ void _destroy_class(_class_t* c) {
 	}
 	safe_free(c->scope);
 	_destroy_ref(&c->ref);
+	safe_free(c->name);
 	safe_free(c);
 }
 
