@@ -112,6 +112,7 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
  * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
  * [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 * Code with MY-BASIC
+ * [Import another file](https://github.com/paladin-t/my_basic/wiki/Import-another-file)
  * [Module (namespace)](https://github.com/paladin-t/my_basic/wiki/Module-(namespace))
  * [Sub routine](https://github.com/paladin-t/my_basic/wiki/Sub-routine)
 * Understanding data type system in MY-BASIC
@@ -126,10 +127,11 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
  * [Write a debugger](https://github.com/paladin-t/my_basic/wiki/Write-a-debugger)
  * [Callback](https://github.com/paladin-t/my_basic/wiki/Callback)
 * Customization
+ * [Customize macros](https://github.com/paladin-t/my_basic/wiki/Customize-macros)
  * [Customize a memory allocator](https://github.com/paladin-t/my_basic/wiki/Customize-a-memory-allocator)
  * [Redirect PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
  * [Redefine int_t and real_t](https://github.com/paladin-t/my_basic/wiki/Redefine-int_t-and-real_t)
- * [Customize macros](https://github.com/paladin-t/my_basic/wiki/Customize-macros)
+ * [Customize an importer](https://github.com/paladin-t/my_basic/wiki/Customize-an-importer)
 * [More scripting APIs](https://github.com/paladin-t/my_basic/wiki/More-scripting-APIs)
  * [String matching module](https://github.com/paladin-t/my_basic/wiki/String-matching-module)
  * [File module](https://github.com/paladin-t/my_basic/wiki/File-module)
