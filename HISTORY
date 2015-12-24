@@ -1,3 +1,6 @@
+Dec. 24 2015
+Refactored memory layout of the _routine_t struct
+
 Dec. 21 2015
 Fixed a class GC bug
 

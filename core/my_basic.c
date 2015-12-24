@@ -84,7 +84,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 107
+#define _VER_REVISION 108
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -393,10 +393,17 @@ typedef struct _routine_t {
 #ifdef MB_ENABLE_CLASS
 	_class_t* instance;
 #endif /* MB_ENABLE_CLASS */
-	struct _running_context_t* scope;
-	_ls_node_t* entry;
-	_ls_node_t* parameters;
-	mb_routine_func_t functor;
+	bool_t is_basic;
+	union {
+		struct {
+			struct _running_context_t* scope;
+			_ls_node_t* entry;
+			_ls_node_t* parameters;
+		} basic;
+		struct {
+			mb_routine_func_t entry;
+		} native;
+	} func;
 } _routine_t;
 
 typedef union _raw_u { char c; int_t i; real_t r; void* p; mb_val_bytes_t b; } _raw_u;
@@ -2923,9 +2930,9 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 	_ls_node_t* rnode = 0;
 	unsigned ia = 0;
 
-	if(r->parameters) {
+	if(r->func.basic.parameters) {
 		mb_make_nil(arg);
-		pars = r->parameters;
+		pars = r->func.basic.parameters;
 		pars = pars->next;
 		while(pars && (!has_arg || (has_arg && has_arg(s, (void**)l, va, ca, &ia, r)))) {
 			_object_t* obj = 0;
@@ -2964,9 +2971,9 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 	/* Evaluate a routine */
 	int result = MB_FUNC_OK;
 
-	if(r->entry) {
+	if(r->is_basic && r->func.basic.entry) {
 		result = _eval_script_routine(s, l, va, ca, r, has_arg, pop_arg);
-	} else if(r->functor) {
+	} else if(!r->is_basic && r->func.native.entry) {
 		result = _eval_native_routine(s, l, va, ca, r, has_arg, pop_arg);
 	} else {
 		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, 0, TON(l), MB_FUNC_ERR, _exit, result);
@@ -2986,13 +2993,13 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 
 	mb_assert(s && l && r);
 
-	if(!va && s->last_routine && !s->last_routine->parameters && (s->last_routine->name == r->name || !strcmp(s->last_routine->name, r->name))) {
+	if(!va && s->last_routine && !s->last_routine->func.basic.parameters && (s->last_routine->name == r->name || !strcmp(s->last_routine->name, r->name))) {
 		ast = (_ls_node_t*)(*l);
 		_skip_to(s, &ast, 0, _DT_EOS);
 		if(ast && ((_object_t*)(ast->data))->type == _DT_EOS)
 			ast = ast->next;
 		if(_IS_FUNC((_object_t*)(ast->data), _core_enddef)) { /* Tail recursion optimization */
-			*l = r->entry;
+			*l = r->func.basic.entry;
 			if(*l)
 				*l = (*l)->next;
 
@@ -3007,7 +3014,7 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		mb_check(mb_attempt_open_bracket(s, (void**)l));
 	}
 
-	running = _push_weak_scope_by_routine(s, r->scope, r);
+	running = _push_weak_scope_by_routine(s, r->func.basic.scope, r);
 	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true);
 	if(result != MB_FUNC_OK) {
 		if(running->meta == _SCOPE_META_REF)
@@ -3028,7 +3035,7 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 
 	running = _push_scope_by_routine(s, running);
 
-	*l = r->entry;
+	*l = r->func.basic.entry;
 	if(!(*l)) {
 		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -3088,7 +3095,7 @@ int _eval_native_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	lastr = s->last_routine;
 	s->last_routine = r;
 
-	entry = r->functor;
+	entry = r->func.native.entry;
 	if(!entry) {
 		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
@@ -3548,16 +3555,16 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			(*obj)->data.routine = ((_object_t*)(glbsyminscope->data))->data.routine;
 			(*obj)->ref = true;
 			*delsym = true;
-			if(running != (*obj)->data.routine->scope &&
+			if(running != (*obj)->data.routine->func.basic.scope &&
 				context->routine_state &&
 				_IS_FUNC(context->last_symbol, _core_def)) {
-				_push_scope_by_routine(s, (*obj)->data.routine->scope);
+				_push_scope_by_routine(s, (*obj)->data.routine->func.basic.scope);
 			}
 		} else {
 			_running_context_t* tba = 0;
 			tmp.routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
 			_init_routine(s, tmp.routine, sym, 0);
-			_push_scope_by_routine(s, tmp.routine->scope);
+			_push_scope_by_routine(s, tmp.routine->func.basic.scope);
 			(*obj)->data.routine = tmp.routine;
 
 			tba = _get_scope_for_add_routine(s);
@@ -5655,10 +5662,13 @@ void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine
 
 	memset(routine, 0, sizeof(_routine_t));
 	routine->name = n;
-	if(!f) {
-		routine->scope = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
-		memset(routine->scope, 0, sizeof(_running_context_t));
-		routine->scope->var_dict = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
+	routine->is_basic = !f;
+	if(routine->is_basic) {
+		routine->func.basic.scope = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
+		memset(routine->func.basic.scope, 0, sizeof(_running_context_t));
+		routine->func.basic.scope->var_dict = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
+	} else {
+		routine->func.native.entry = f;
 	}
 }
 
@@ -5862,9 +5872,9 @@ _running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_co
 	memset(result, 0, sizeof(_running_context_t));
 	result->meta = _SCOPE_META_REF;
 	result->ref = p;
-	if(r && r->parameters) {
+	if(r && r->func.basic.parameters) {
 		result->var_dict = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
-		_LS_FOREACH(r->parameters, _do_nothing_on_object, _duplicate_parameter, result);
+		_LS_FOREACH(r->func.basic.parameters, _do_nothing_on_object, _duplicate_parameter, result);
 	}
 
 	return result;
@@ -6235,15 +6245,17 @@ int _dispose_object(_object_t* obj) {
 	case _DT_ROUTINE:
 		if(!obj->ref) {
 			safe_free(obj->data.routine->name);
-			if(obj->data.routine->scope) {
-				if(obj->data.routine->scope->var_dict) {
-					_ht_foreach(obj->data.routine->scope->var_dict, _destroy_object);
-					_ht_destroy(obj->data.routine->scope->var_dict);
+			if(obj->data.routine->is_basic) {
+				if(obj->data.routine->func.basic.scope) {
+					if(obj->data.routine->func.basic.scope->var_dict) {
+						_ht_foreach(obj->data.routine->func.basic.scope->var_dict, _destroy_object);
+						_ht_destroy(obj->data.routine->func.basic.scope->var_dict);
+					}
+					safe_free(obj->data.routine->func.basic.scope);
 				}
-				safe_free(obj->data.routine->scope);
+				if(obj->data.routine->func.basic.parameters)
+					_ls_destroy(obj->data.routine->func.basic.parameters);
 			}
-			if(obj->data.routine->parameters)
-				_ls_destroy(obj->data.routine->parameters);
 			safe_free(obj->data.routine);
 		}
 
@@ -8906,7 +8918,6 @@ int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routi
 
 	routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
 	_init_routine(s, routine, mb_memdup(n, (unsigned)(strlen(n) + 1)), f);
-	routine->functor = f;
 
 	obj = (_object_t*)mb_malloc(sizeof(_object_t));
 	_MAKE_NIL(obj);
@@ -10668,7 +10679,7 @@ int _core_def(mb_interpreter_t* s, void** l) {
 	if(!_IS_ROUTINE(obj)) {
 		_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
-	if(obj->data.routine->entry) {
+	if(obj->data.routine->func.basic.entry) {
 		_handle_error_on_obj(s, SE_RN_DUPLICATE_ROUTINE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	routine = (_routine_t*)(((_object_t*)(ast->data))->data.routine);
@@ -10682,19 +10693,19 @@ int _core_def(mb_interpreter_t* s, void** l) {
 	while(!_IS_FUNC(obj, _core_close_bracket)) {
 		if(obj->type == _DT_VAR) {
 			var = obj->data.variable;
-			rnode = _search_identifier_in_scope_chain(s, routine->scope, var->name, 0, 0);
+			rnode = _search_identifier_in_scope_chain(s, routine->func.basic.scope, var->name, 0, 0);
 			if(rnode)
 				var = ((_object_t*)(rnode->data))->data.variable;
-			if(!routine->parameters)
-				routine->parameters = _ls_create();
-			_ls_pushback(routine->parameters, var);
+			if(!routine->func.basic.parameters)
+				routine->func.basic.parameters = _ls_create();
+			_ls_pushback(routine->func.basic.parameters, var);
 		}
 
 		ast = ast->next;
 		obj = (_object_t*)(ast->data);
 	}
 	ast = ast->next;
-	routine->entry = ast;
+	routine->func.basic.entry = ast;
 
 	_skip_to(s, &ast, _core_enddef, _DT_NIL);
 
