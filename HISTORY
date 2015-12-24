@@ -1,5 +1,9 @@
 Dec. 24 2015
+Improved defining a class in C
+Added a pair of mb_get_class_userdata/mb_set_class_userdata functions
+Added a pair of mb_get_userdata/mb_set_userdata functions
 Refactored memory layout of the _routine_t struct
+Polished document
 
 Dec. 21 2015
 Fixed a class GC bug

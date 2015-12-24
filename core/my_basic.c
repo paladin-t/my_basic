@@ -385,6 +385,7 @@ typedef struct _class_t {
 	char* name;
 	_ls_node_t* meta_list;
 	struct _running_context_t* scope;
+	void* userdata;
 } _class_t;
 #endif /* MB_ENABLE_CLASS */
 
@@ -8283,10 +8284,66 @@ int mb_end_class(struct mb_interpreter_t* s, void** l) {
 
 	_pop_scope(s);
 
+	s->last_instance = 0;
+
 	return result;
 #else /* MB_ENABLE_CLASS */
 	mb_unrefvar(s);
 	mb_unrefvar(l);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_CLASS */
+}
+
+int mb_get_class_userdata(struct mb_interpreter_t* s, void** l, void** d) {
+	/* Get the userdata of a class instance */
+#ifdef MB_ENABLE_CLASS
+	int result = MB_FUNC_OK;
+
+	mb_assert(s && l && d);
+
+	if(s && s->last_instance) {
+		if(d)
+			*d = s->last_instance->userdata;
+	} else if(s && s->last_routine && s->last_routine->instance) {
+		if(d)
+			*d = s->last_routine->instance->userdata;
+	} else {
+		if(d) *d = 0;
+
+		_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+
+_exit:
+	return result;
+#else /* MB_ENABLE_CLASS */
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(d);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_CLASS */
+}
+
+int mb_set_class_userdata(struct mb_interpreter_t* s, void** l, void* d) {
+	/* Set the userdata of a class instance */
+#ifdef MB_ENABLE_CLASS
+	int result = MB_FUNC_OK;
+
+	mb_assert(s && l && d);
+
+	if(s && s->last_instance) {
+		s->last_instance->userdata = d;
+	} else {
+		_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+
+_exit:
+	return result;
+#else /* MB_ENABLE_CLASS */
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(d);
 
 	return MB_FUNC_ERR;
 #endif /* MB_ENABLE_CLASS */
@@ -9276,6 +9333,30 @@ int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 	mb_assert(s);
 
 	s->inputer = p;
+
+	return result;
+}
+
+int mb_get_userdata(struct mb_interpreter_t* s, void** d) {
+	/* Get the userdata of an interpreter instance */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s && d);
+
+	if(s && d)
+		*d = s->userdata;
+
+	return result;
+}
+
+int mb_set_userdata(struct mb_interpreter_t* s, void* d) {
+	/* Set the userdata of an interpreter instance */
+	int result = MB_FUNC_OK;
+
+	mb_assert(s);
+
+	if(s)
+		s->userdata = d;
 
 	return result;
 }
