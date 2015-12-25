@@ -84,7 +84,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 108
+#define _VER_REVISION 109
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -95,11 +95,14 @@ extern "C" {
 #	define _MB_VERSION_STRING _STRINGIZE(_VER_MAJOR._VER_MINOR._VER_REVISION _VER_SUFFIX)
 #endif /* _VER_REVISION == 0 */
 
-/* Uncomment the line below to treat warning as error */
-/*#define _WARING_AS_ERROR*/
+/* Define as 1 to treat warning as error, 0 just leave it */
+#define _WARING_AS_ERROR 0
 
-/* Uncomment this line to use a comma to PRINT a new line, otherwise use a semicolon */
-/*#define _COMMA_AS_NEWLINE*/
+/* Define as 1 to create class instance without variable, 0 to put class instance into a variable */
+#define _CLASS_IN_VAR 1
+
+/* Define as 1 to use a comma to PRINT a new line, 0 to use a semicolon */
+#define _COMMA_AS_NEWLINE 0
 
 #define _NO_EAT_COMMA 2
 
@@ -128,10 +131,12 @@ extern "C" {
 #define _IS_EOS(__o) (__o && ((_object_t*)(__o))->type == _DT_EOS)
 #define _IS_SEP(__o, __c) (((_object_t*)(__o))->type == _DT_SEP && ((_object_t*)(__o))->data.separator == __c)
 #define _IS_FUNC(__o, __f) (((_object_t*)(__o))->type == _DT_FUNC && ((_object_t*)(__o))->data.func->pointer == __f)
+#define _IS_VAR(__o) ((__o) && ((_object_t*)(__o))->type == _DT_VAR)
 #ifdef MB_ENABLE_CLASS
-#	define _IS_CLASS(__o) (__o && ((_object_t*)(__o))->type == _DT_CLASS)
+#	define _IS_CLASS(__o) ((__o) && ((_object_t*)(__o))->type == _DT_CLASS)
+#	define _GET_CLASS(__o) ((!__o) ? 0 : (_IS_CLASS(__o) ? (__o) : (_IS_VAR(__o) && _IS_CLASS((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
 #endif /* MB_ENABLE_CLASS */
-#define _IS_ROUTINE(__o) (__o && ((_object_t*)(__o))->type == _DT_ROUTINE)
+#define _IS_ROUTINE(__o) ((__o) && ((_object_t*)(__o))->type == _DT_ROUTINE)
 
 /* Hash table size */
 #define _HT_ARRAY_SIZE_TINY 1
@@ -1005,7 +1010,7 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 				(__result)); \
 		} \
 	} while(0)
-#ifdef _WARING_AS_ERROR
+#if _WARING_AS_ERROR
 #	define _handle_error(__s, __err, __func, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
 			_set_current_error((__s), (__err), (__func)); \
@@ -1265,6 +1270,7 @@ static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
 static int _clone_clsss_field(void* data, void* extra, void* n);
 static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret);
 static bool_t _is_class(_class_t* instance, void* m, void* ret);
+static bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret);
 #endif /* MB_ENABLE_CLASS */
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f);
 static void _begin_routine(mb_interpreter_t* s);
@@ -1290,6 +1296,7 @@ static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _runni
 static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o);
 static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i);
 
+static _var_t* _create_var(_object_t** oobj, const char* n, bool_t dup_name);
 static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt);
 static int _dispose_object(_object_t* obj);
 static int _destroy_object(void* data, void* extra);
@@ -3531,9 +3538,30 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 				_push_scope_by_class(s, (*obj)->data.instance->scope);
 			}
 		} else {
+			_var_t* var = 0;
+
 			tmp.instance = (_class_t*)mb_malloc(sizeof(_class_t));
 			_init_class(s, tmp.instance, sym);
 			_push_scope_by_class(s, tmp.instance->scope);
+			s->last_instance = tmp.instance;
+
+#if _CLASS_IN_VAR
+			var = _create_var(obj, sym, true);
+
+			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
+			mb_assert(ul);
+
+			var->data->type = _DT_CLASS;
+			var->data->data.instance = tmp.instance;
+
+			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
+			_MAKE_NIL(*obj);
+			(*obj)->type = type;
+			(*obj)->data.variable = tmp.var;
+			(*obj)->ref = true;
+#else /* _CLASS_IN_VAR */
+			mb_unrefvar(var);
+
 			(*obj)->data.instance = tmp.instance;
 
 			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
@@ -3544,8 +3572,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			(*obj)->type = type;
 			(*obj)->data.instance = tmp.instance;
 			(*obj)->ref = true;
-
-			s->last_instance = tmp.instance;
+#endif /* _CLASS_IN_VAR */
 		}
 
 		break;
@@ -4345,7 +4372,7 @@ int _gc_add_reachable(void* data, void* extra, void* ht) {
 	case _DT_CLASS:
 		if(!_ht_find(htable, &obj->data.instance->ref)) {
 			_ht_set_or_insert(htable, &obj->data.instance->ref, obj->data.instance);
-			_traverse_class(obj->data.instance, _gc_add_reachable, 0, 0, false, htable, 0);
+			_traverse_class(obj->data.instance, _gc_add_reachable, _add_class_meta_reachable, _META_LIST_MAX_DEPTH, false, htable, 0);
 		}
 
 		break;
@@ -5651,6 +5678,19 @@ bool_t _is_class(_class_t* instance, void* m, void* ret) {
 
 	return !(*r);
 }
+
+bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret) {
+	/* Add a meta class instance to a GC reachable table */
+	_ht_node_t* htable = (_ht_node_t*)ht;
+	mb_unrefvar(ret);
+
+	mb_assert(meta && ht);
+
+	if(!_ht_find(htable, &meta->ref))
+		_ht_set_or_insert(htable, &meta->ref, meta);
+
+	return true;
+}
 #endif /* MB_ENABLE_CLASS */
 
 void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f) {
@@ -5734,19 +5774,7 @@ _object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* run
 
 	ref = (_var_t*)(data);
 
-	var = (_var_t*)mb_malloc(sizeof(_var_t));
-	memset(var, 0, sizeof(_var_t));
-	var->name = mb_memdup(ref->name, (unsigned)(strlen(ref->name) + 1));
-	var->data = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(var->data);
-	var->data->type = _DT_NIL;
-	var->data->data.integer = 0;
-
-	obj = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(obj);
-	obj->type = _DT_VAR;
-	obj->data.variable = var;
-	obj->ref = false;
+	var = _create_var(&obj, ref->name, true);
 
 	_ht_set_or_insert(running->var_dict, var->name, obj);
 
@@ -6079,6 +6107,34 @@ _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
 	}
 
 	return result;
+}
+
+_var_t* _create_var(_object_t** oobj, const char* n, bool_t dup_name) {
+	/* Create a variable object */
+	_object_t* obj = 0;
+	_var_t* var = 0;
+
+	var = (_var_t*)mb_malloc(sizeof(_var_t));
+	memset(var, 0, sizeof(_var_t));
+	if(dup_name)
+		var->name = mb_memdup(n, (unsigned)(strlen(n) + 1));
+	else
+		var->name = (char*)n;
+	var->data = (_object_t*)mb_malloc(sizeof(_object_t));
+	_MAKE_NIL(var->data);
+
+	if(!oobj || !(*oobj))
+		obj = (_object_t*)mb_malloc(sizeof(_object_t));
+	else
+		obj = *oobj;
+	_MAKE_NIL(obj);
+	obj->type = _DT_VAR;
+	obj->data.variable = var;
+	obj->ref = false;
+
+	if(oobj) *oobj = obj;
+
+	return var;
 }
 
 int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
@@ -8392,18 +8448,8 @@ int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t v
 		}
 	}
 
-	var = (_var_t*)mb_malloc(sizeof(_var_t));
-	memset(var, 0, sizeof(_var_t));
-	var->name = mb_memdup(n, (unsigned)(strlen(n) + 1));
-	var->data = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(var->data);
+	var = _create_var(&obj, n, true);
 	_public_value_to_internal_object(&val, var->data);
-
-	obj = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(obj);
-	obj->type = _DT_VAR;
-	obj->data.variable = var;
-	obj->ref = false;
 
 	_ht_set_or_insert(running->var_dict, var->name, obj);
 
@@ -10838,10 +10884,11 @@ int _core_class(mb_interpreter_t* s, void** l) {
 	_using_jump_set_of_structured(s, ast, _exit, result);
 
 	obj = (_object_t*)(ast->data);
+	obj = _GET_CLASS(obj);
 	if(!_IS_CLASS(obj)) {
 		_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
-	instance = (_class_t*)(((_object_t*)(ast->data))->data.instance);
+	instance = obj->data.instance;
 	ast = ast->next;
 	obj = (_object_t*)(ast->data);
 
@@ -10855,6 +10902,7 @@ int _core_class(mb_interpreter_t* s, void** l) {
 				if(tmp && tmp->data)
 					obj = (_object_t*)tmp->data;
 			}
+			obj = _GET_CLASS(obj);
 			if(!_IS_CLASS(obj)) {
 				_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, obj, MB_FUNC_ERR, _exit, result);
 			}
@@ -11973,7 +12021,7 @@ _print:
 			if(!ast)
 				break;
 			obj = (_object_t*)(ast->data);
-#ifdef _COMMA_AS_NEWLINE
+#if _COMMA_AS_NEWLINE
 			if(obj->data.separator == ',') {
 #else /* _COMMA_AS_NEWLINE */
 			if(obj->data.separator == ';') {

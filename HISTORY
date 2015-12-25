@@ -1,5 +1,7 @@
 Dec. 25 2015
+Added support to put a class instance into a variable
 Fixed a memory leak in class definition
+Polished code
 
 Dec. 24 2015
 Improved defining a class in C
