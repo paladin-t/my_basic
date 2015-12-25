@@ -10881,7 +10881,7 @@ int _core_class(mb_interpreter_t* s, void** l) {
 				s->last_error = SE_EA_EXTENDED_ABORT;
 			_handle_error_now(s, s->last_error, s->last_error_func, result);
 
-			goto _exit;
+			goto _pop_exit;
 		}
 		ast = (_ls_node_t*)(*l);
 		if(!ast) break;
@@ -10896,10 +10896,11 @@ int _core_class(mb_interpreter_t* s, void** l) {
 		ast = ast->next;
 	}
 
-_exit:
+_pop_exit:
 	if(result != MB_FUNC_OK)
 		_pop_scope(s);
 
+_exit:
 	*l = ast;
 
 	return result;

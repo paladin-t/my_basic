@@ -1,3 +1,6 @@
+Dec. 25 2015
+Fixed a memory leak in class definition
+
 Dec. 24 2015
 Improved defining a class in C
 Added a pair of mb_get_class_userdata/mb_set_class_userdata functions
