@@ -1,6 +1,7 @@
 Dec. 25 2015
 Added support to put a class instance into a variable
 Improved error handling with sub routine and class
+Fixed an unary calculation issue
 Fixed a memory leak in class definition
 Polished code
 
