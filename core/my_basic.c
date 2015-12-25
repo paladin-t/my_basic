@@ -534,7 +534,9 @@ typedef struct _parsing_context_t {
 	_object_t* last_symbol;
 	_parsing_state_e parsing_state;
 	_symbol_state_e symbol_state;
+#ifdef MB_ENABLE_CLASS
 	unsigned short class_state;
+#endif /* MB_ENABLE_CLASS */
 	unsigned short routine_state;
 	unsigned short routine_params_state;
 	int parsing_pos;
@@ -5500,6 +5502,9 @@ bool_t _end_class(mb_interpreter_t* s) {
 	mb_assert(s);
 
 	context = s->parsing_context;
+	if(context->routine_state) {
+		_handle_error_now(s, SE_RN_INVALID_ROUTINE, 0, MB_FUNC_ERR);
+	}
 	if(!context->class_state) {
 		_handle_error_now(s, SE_RN_INVALID_CLASS, 0, MB_FUNC_ERR);
 
@@ -5730,6 +5735,11 @@ bool_t _end_routine(mb_interpreter_t* s) {
 	mb_assert(s);
 
 	context = s->parsing_context;
+#ifdef MB_ENABLE_CLASS
+	if(context->class_state) {
+		_handle_error_now(s, SE_RN_INVALID_CLASS, 0, MB_FUNC_ERR);
+	}
+#endif /* MB_ENABLE_CLASS */
 	if(!context->routine_state) {
 		_handle_error_now(s, SE_RN_INVALID_ROUTINE, 0, MB_FUNC_ERR);
 
@@ -5995,12 +6005,16 @@ _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s) {
 	/* Get a proper scope to add a routine */
 	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
+	bool_t class_state = false;
 
 	mb_assert(s);
 
 	context = s->parsing_context;
 	running = s->running_context;
-	if(context->class_state) {
+#ifdef MB_ENABLE_CLASS
+	class_state = context->class_state;
+#endif /* MB_ENABLE_CLASS */
+	if(class_state) {
 		if(running)
 			running = running->prev;
 	} else {
