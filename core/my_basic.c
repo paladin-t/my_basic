@@ -84,7 +84,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 109
+#define _VER_REVISION 110
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -131,6 +131,7 @@ extern "C" {
 #define _IS_EOS(__o) (__o && ((_object_t*)(__o))->type == _DT_EOS)
 #define _IS_SEP(__o, __c) (((_object_t*)(__o))->type == _DT_SEP && ((_object_t*)(__o))->data.separator == __c)
 #define _IS_FUNC(__o, __f) (((_object_t*)(__o))->type == _DT_FUNC && ((_object_t*)(__o))->data.func->pointer == __f)
+#define _IS_UNARY_FUNC(__o) (((_object_t*)(__o))->type == _DT_FUNC && _is_unary(((_object_t*)(__o))->data.func->pointer))
 #define _IS_VAR(__o) ((__o) && ((_object_t*)(__o))->type == _DT_VAR)
 #ifdef MB_ENABLE_CLASS
 #	define _IS_CLASS(__o) ((__o) && ((_object_t*)(__o))->type == _DT_CLASS)
@@ -548,6 +549,8 @@ typedef struct _parsing_context_t {
 #define _SCOPE_META_ROOT (1 << 0)
 #define _SCOPE_META_REF (1 << 1)
 
+#define _INFINITY_CALC_DEPTH -1
+
 typedef struct _running_context_t {
 	struct _running_context_t* prev;
 	unsigned meta;
@@ -555,6 +558,7 @@ typedef struct _running_context_t {
 	struct _running_context_t* ref;
 	_var_t* next_loop_var;
 	mb_value_t intermediate_value;
+	int calc_depth;
 } _running_context_t;
 
 /* Expression processing utilities */
@@ -982,6 +986,7 @@ static int mb_uu_substr(char* ch, int begin, int count, char** o);
 /** Expression processing */
 static bool_t _is_operator(mb_func_t op);
 static bool_t _is_flow(mb_func_t op);
+static bool_t _is_unary(mb_func_t op);
 static char _get_priority(mb_func_t op1, mb_func_t op2);
 static int _get_priority_index(mb_func_t op);
 static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opnd1, _object_t* opnd2, int* status);
@@ -1331,6 +1336,7 @@ static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t)
 static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l);
 static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func);
 
+static _running_context_t* _create_running_context(void);
 static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context);
 static void _destroy_parsing_context(_parsing_context_t** context);
 
@@ -2453,6 +2459,11 @@ bool_t _is_flow(mb_func_t op) {
 	return result;
 }
 
+bool_t _is_unary(mb_func_t op) {
+	/* Determine whether a function is unary */
+	return op == _core_neg || op == _core_not;
+}
+
 char _get_priority(mb_func_t op1, mb_func_t op2) {
 	/* Get the priority of two operators */
 	char result = '\0';
@@ -2716,7 +2727,14 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					}
 				} else if(c->type == _DT_FUNC) {
 					ast = ast->prev;
-					result = (c->data.func->pointer)(s, (void**)(&ast));
+					if(_IS_UNARY_FUNC(c)) {
+						result = (c->data.func->pointer)(s, (void**)(&ast));
+					} else {
+						int calc_depth = running->calc_depth;
+						running->calc_depth = _INFINITY_CALC_DEPTH;
+						result = (c->data.func->pointer)(s, (void**)(&ast));
+						running->calc_depth = calc_depth;
+					}
 					if(result != MB_FUNC_OK) {
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 					}
@@ -2810,7 +2828,9 @@ _routine:
 					_ls_pushback(opnd, c);
 					f++;
 				}
-				if(ast) {
+				if(running->calc_depth != _INFINITY_CALC_DEPTH)
+					running->calc_depth--;
+				if(ast && (running->calc_depth == _INFINITY_CALC_DEPTH || running->calc_depth)) {
 					c = (_object_t*)(ast->data);
 					if(c->type == _DT_FUNC && !_is_operator(c->data.func->pointer) && !_is_flow(c->data.func->pointer)) {
 						_ls_foreach(opnd, _remove_source_object);
@@ -5480,8 +5500,7 @@ void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	_ref(&instance->ref, instance);
 	instance->name = n;
 	instance->meta_list = _ls_create();
-	instance->scope = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
-	memset(instance->scope, 0, sizeof(_running_context_t));
+	instance->scope = _create_running_context();
 	instance->scope->var_dict = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
 }
 
@@ -5710,8 +5729,7 @@ void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine
 	routine->name = n;
 	routine->is_basic = !f;
 	if(routine->is_basic) {
-		routine->func.basic.scope = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
-		memset(routine->func.basic.scope, 0, sizeof(_running_context_t));
+		routine->func.basic.scope = _create_running_context();
 		routine->func.basic.scope->var_dict = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
 	} else {
 		routine->func.native.entry = f;
@@ -5802,8 +5820,7 @@ _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_cont
 	if(p->meta == _SCOPE_META_REF)
 		p = p->ref;
 
-	result = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
-	memset(result, 0, sizeof(_running_context_t));
+	result = _create_running_context();
 	result->meta = _SCOPE_META_REF;
 	result->ref = p;
 
@@ -5907,8 +5924,7 @@ _running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_co
 	if(p->meta == _SCOPE_META_REF)
 		p = p->ref;
 
-	result = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
-	memset(result, 0, sizeof(_running_context_t));
+	result = _create_running_context();
 	result->meta = _SCOPE_META_REF;
 	result->ref = p;
 	if(r && r->func.basic.parameters) {
@@ -7229,6 +7245,15 @@ _exit:
 	return result;
 }
 
+_running_context_t* _create_running_context(void) {
+	/* Create a running context */
+	_running_context_t* result = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
+	memset(result, 0, sizeof(_running_context_t));
+	result->calc_depth = _INFINITY_CALC_DEPTH;
+
+	return result;
+}
+
 _parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
 	/* Reset the parsing context of a MY-BASIC environment */
 	_ls_node_t* imp = 0;
@@ -7715,8 +7740,7 @@ int mb_open(struct mb_interpreter_t** s) {
 	(*s)->temp_values = _ls_create();
 	(*s)->lazy_destroy_objects = _ls_create();
 
-	running = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
-	memset(running, 0, sizeof(_running_context_t));
+	running = _create_running_context();
 	running->meta = _SCOPE_META_ROOT;
 	(*s)->running_context = running;
 	global_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
@@ -9590,6 +9614,7 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 	mb_value_t arg;
 	_running_context_t* running = 0;
 	int* inep = 0;
+	int calc_depth = 0;
 
 	mb_assert(s && l);
 
@@ -9600,6 +9625,9 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 
 	if(inep)
 		(*inep)++;
+
+	calc_depth = running->calc_depth;
+	running->calc_depth = 1;
 
 	mb_make_nil(arg);
 
@@ -9630,6 +9658,8 @@ int _core_neg(mb_interpreter_t* s, void** l) {
 	mb_check(mb_push_value(s, l, arg));
 
 _exit:
+	running->calc_depth = calc_depth;
+
 	return result;
 }
 
@@ -9849,8 +9879,15 @@ int _core_not(mb_interpreter_t* s, void** l) {
 	/* Operator NOT */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
+	_running_context_t* running = 0;
+	int calc_depth = 0;
 
 	mb_assert(s && l);
+
+	running = s->running_context;
+
+	calc_depth = running->calc_depth;
+	running->calc_depth = 1;
 
 	mb_make_nil(arg);
 
@@ -9882,6 +9919,8 @@ int _core_not(mb_interpreter_t* s, void** l) {
 		break;
 	}
 	mb_check(mb_push_int(s, l, arg.value.integer));
+
+	running->calc_depth = calc_depth;
 
 	return result;
 }
