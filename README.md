@@ -21,7 +21,7 @@ Why are existing script interpreters so complex? Why is it so difficult to integ
 
 ## Introduction
 
-MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 13,000 lines of source code. MY-BASIC is a dynamic typed programming language. It supports structured grammar, and implements a style of OOP called [prototype-based](https://en.wikipedia.org/wiki/Prototype-based_programming) programming paradigm. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, etc. Script driven can make your projects more powerful, elegant and neat.
+MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 13,000 lines of source code. It supports structured grammar, and implements a style of OOP called [prototype-based](https://en.wikipedia.org/wiki/Prototype-based_programming) programming paradigm. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, C#, etc. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
 
 ## Compatibility
 
@@ -29,12 +29,14 @@ It fits well with Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Co
 
 ## Main features
 
+MY-BASIC is a dynamic typed programming language with BASIC syntax and has a very dynamic nature; it makes it easy to use and powerful. MY-BASIC offers a wide range of features like:
+
 * It is totally **free** to use MY-BASIC for individual or commercial purpose under the MIT license
 * Written in clean **ANSI C**, source code is portable for a dozen of platforms
-* With most modern BASIC syntax
+* With most both retro and modern BASIC syntax
+* Case-insensitive tokenization
 * **[Prototype-based](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm
 * **Lightweight** (within memory usage less than 128KB) and fast
-* Case-insensitive tokenization
 * **Dynamic typed** integer, float point, string, boolean, user defined data types, etc. with array support
 * Standard numeric functions, and standard string functions
 * Referenced usertype support
@@ -44,13 +46,11 @@ It fits well with Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Co
 * Structured user customizable **sub** routine definition by **`DEF/ENDDEF`** support, including tail recursion optimization
 * Structured `IF-THEN-ELSEIF-ELSE-ENDIF` support
 * Structured `FOR-TO-STEP-NEXT/WHILE-WEND/DO-UNTIL` support
-* `GOTO/GOSUB-RETURN` support
+* Retro `GOTO/GOSUB-RETURN` support
 * Debug APIs
 * Customizable memory pool
 * High expansibility, easy to use APIs, easy to write customized scripting interfaces
-* It's able to use it as a standalone interpreter, or integrate it with existing projects in C, C++, Objective-C, etc.
-* It's able to learn how to build an interpreter from scratch with MY-BASIC
-* It's able to build your own dialect easily based on MY-BASIC
+* Powerful interactive ability to use native functionalities in script, and vice versa
 * More features/modules under developing
 
 ## Script at a glance
