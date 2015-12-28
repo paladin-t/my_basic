@@ -266,7 +266,7 @@ mb_static_assert(_countof(_ERR_DESC) == SE_COUNT);
 typedef enum _data_e {
 	_DT_INVALID = -1,
 	_DT_NIL = 0,
-	_DT_KNOWN,
+	_DT_UNKNOWN,
 	_DT_TYPE,
 	_DT_INT,
 	_DT_REAL,
@@ -3534,7 +3534,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			(*obj)->ref = true;
 			*delsym = true;
 		} else {
-			tmp.array = _create_array(sym, _DT_KNOWN, s);
+			tmp.array = _create_array(sym, _DT_UNKNOWN, s);
 			memcpy(&tmp.array->type, value, sizeof(tmp.array->type));
 			(*obj)->data.array = tmp.array;
 
@@ -3729,7 +3729,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	_running_context_t* running = 0;
 	_ls_node_t* glbsyminscope = 0;
 	size_t _sl = 0;
-	_data_e en = _DT_KNOWN;
+	_data_e en = _DT_UNKNOWN;
 	intptr_t ptr = 0;
 	bool_t mod = false;
 
@@ -4145,10 +4145,10 @@ bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected) {
 
 	mb_assert(obj && val);
 
-	if(obj->type == _DT_INT && (expected == _DT_KNOWN || expected == _DT_INT)) {
+	if(obj->type == _DT_INT && (expected == _DT_UNKNOWN || expected == _DT_INT)) {
 		val->integer = obj->data.integer;
 		result = true;
-	} else if(obj->type == _DT_REAL && (expected == _DT_KNOWN || expected == _DT_REAL)) {
+	} else if(obj->type == _DT_REAL && (expected == _DT_UNKNOWN || expected == _DT_REAL)) {
 		val->float_point = obj->data.float_point;
 		result = true;
 	} else if(obj->type == _DT_VAR) {
@@ -4681,7 +4681,7 @@ void _init_array(_array_t* arr) {
 #ifdef MB_SIMPLE_ARRAY
 	elemsize = (int)_get_size_of(arr->type);
 #else /* MB_SIMPLE_ARRAY */
-	elemsize = (int)_get_size_of(_DT_KNOWN);
+	elemsize = (int)_get_size_of(_DT_UNKNOWN);
 #endif /* MB_SIMPLE_ARRAY */
 	mb_assert(arr->count > 0);
 	mb_assert(!arr->raw);
@@ -6263,7 +6263,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 
 		break;
 	case _DT_NIL: /* Fall through */
-	case _DT_KNOWN: /* Fall through */
+	case _DT_UNKNOWN: /* Fall through */
 	case _DT_TYPE: /* Fall through */
 	case _DT_INT: /* Fall through */
 	case _DT_REAL: /* Fall through */
@@ -6365,7 +6365,7 @@ int _dispose_object(_object_t* obj) {
 
 		break;
 	case _DT_NIL: /* Fall through */
-	case _DT_KNOWN: /* Fall through */
+	case _DT_UNKNOWN: /* Fall through */
 	case _DT_TYPE: /* Fall through */
 	case _DT_INT: /* Fall through */
 	case _DT_REAL: /* Fall through */
@@ -10034,7 +10034,7 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	result = _calc_expression(s, &ast, &val);
 
 	if(var) {
-		if(val->type != _DT_KNOWN) {
+		if(val->type != _DT_UNKNOWN) {
 			_dispose_object(var->data);
 			var->data->type = val->type;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -10051,7 +10051,7 @@ int _core_let(mb_interpreter_t* s, void** l) {
 				var->data->ref = val->ref;
 		}
 	} else if(arr && literally) {
-		if(val->type != _DT_KNOWN) {
+		if(val->type != _DT_UNKNOWN) {
 			_unref(&arr_obj->data.array->ref, arr_obj->data.array);
 			arr_obj->type = val->type;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -10292,7 +10292,7 @@ _exit:
 
 	*l = ast;
 
-	if(val->type != _DT_KNOWN)
+	if(val->type != _DT_UNKNOWN)
 		_destroy_object(val, 0);
 
 	return result;
