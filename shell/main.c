@@ -153,7 +153,8 @@ static long alloc_bytes = 0;
 static long in_pool_count = 0;
 static long in_pool_bytes = 0;
 
-#define _POOL_THRESHOLD_COUNT 1024
+static long _POOL_THRESHOLD_COUNT = 0;
+static long _POOL_THRESHOLD_BYTES = 1024 * 1024 * 32;
 
 #define _POOL_NODE_ALLOC(size) (((char*)malloc(sizeof(_pool_tag_t) + size)) + sizeof(_pool_tag_t))
 #define _POOL_NODE_PTR(s) (s - sizeof(_pool_tag_t))
@@ -174,7 +175,10 @@ static void _tidy_mem_pool(void) {
 	int i = 0;
 	char* s = 0;
 
-	if(in_pool_count < _POOL_THRESHOLD_COUNT)
+	if(_POOL_THRESHOLD_COUNT > 0 && in_pool_count < _POOL_THRESHOLD_COUNT)
+		return;
+
+	if(_POOL_THRESHOLD_BYTES > 0 && in_pool_bytes < _POOL_THRESHOLD_BYTES)
 		return;
 
 	if(!pool_count)
@@ -763,7 +767,7 @@ static int _do_line(void) {
 	do { \
 		if(__c <= __i + 1) { \
 			_printf(__e); \
-			return; \
+			return true; \
 		} \
 	} while(0)
 
@@ -815,35 +819,49 @@ static void _evaluate_expression(char* p) {
 	}
 }
 
-static void _process_parameters(int argc, char* argv[]) {
+static bool_t _process_parameters(int argc, char* argv[]) {
 	int i = 1;
-	char* p = 0;
-	char m = '\0';
+	char* prog = 0;
+	bool_t eval = false;
+	char* memp = 0;
 
 	while(i < argc) {
 		if(!memcmp(argv[i], "-", 1)) {
 			if(!memcmp(argv[i] + 1, "e", 1)) {
-				m = 'e';
+				eval = true;
 				_CHECK_ARG(argc, i, "-e: Expression expected.\n");
-				p = argv[++i];
+				prog = argv[++i];
+#ifdef _USE_MEM_POOL
+			} else if(!memcmp(argv[i] + 1, "p", 1)) {
+				_CHECK_ARG(argc, i, "-p: Memory pool threashold expected.\n");
+				memp = argv[++i];
+				if(argc > i + 1)
+					prog = argv[++i];
+#endif /* _USE_MEM_POOL */
 			} else {
 				_printf("Unknown argument: %s.\n", argv[i]);
 			}
 		} else {
-			p = argv[i];
+			prog = argv[i];
 		}
 
 		i++;
 	}
 
-	switch(m) {
-	case '\0':
-		_run_file(p);
-		break;
-	case 'e':
-		_evaluate_expression(p);
-		break;
-	}
+#ifdef _USE_MEM_POOL
+	if(memp)
+		_POOL_THRESHOLD_BYTES = atoi(memp);
+#else /* _USE_MEM_POOL */
+	mb_unrefvar(memp);
+#endif /* _USE_MEM_POOL */
+	if(eval)
+		_evaluate_expression(prog);
+	else if(prog)
+		_run_file(prog);
+	else
+		return false;
+
+	return true;
 }
 
 /* ========================================================} */
@@ -992,13 +1010,15 @@ int main(int argc, char* argv[]) {
 
 	_on_startup();
 
+	if(argc >= 2) {
+		if(!_process_parameters(argc, argv))
+			argc = 1;
+	}
 	if(argc == 1) {
 		_show_tip();
 		do {
 			status = _do_line();
 		} while(_NO_END(status));
-	} else if(argc >= 2) {
-		_process_parameters(argc, argv);
 	}
 
 	return 0;
