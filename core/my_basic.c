@@ -1211,7 +1211,7 @@ static int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc);
 static int _gc_destroy_garbage(void* data, void* extra);
 static void _gc_swap_tables(mb_interpreter_t* s);
 static void _gc_try_trigger(mb_interpreter_t* s);
-static void _gc_collect_garbage(mb_interpreter_t* s, bool_t all);
+static void _gc_collect_garbage(mb_interpreter_t* s, int depth);
 #endif /* MB_ENABLE_GC */
 
 static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
@@ -4573,10 +4573,10 @@ void _gc_try_trigger(mb_interpreter_t* s) {
 	mb_assert(s);
 
 	if(s->gc.table->count >= MB_GC_GARBAGE_THRESHOLD)
-		_gc_collect_garbage(s, false);
+		_gc_collect_garbage(s, 1);
 }
 
-void _gc_collect_garbage(mb_interpreter_t* s, bool_t all) {
+void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	/* Collect all garbage */
 	_ht_node_t* valid = 0;
 
@@ -4597,7 +4597,7 @@ void _gc_collect_garbage(mb_interpreter_t* s, bool_t all) {
 		if(s->gc.collecting > 1)
 			s->gc.collecting--;
 
-		if(!all || !s->gc.recursive_table->count)
+		if(!depth || !s->gc.recursive_table->count)
 			break;
 
 		_gc_swap_tables(s);
@@ -7808,7 +7808,7 @@ int mb_close(struct mb_interpreter_t** s) {
 	_dispose_scope_chain(*s);
 
 #ifdef MB_ENABLE_GC
-	_gc_collect_garbage(*s, true);
+	_gc_collect_garbage(*s, 1);
 	_ht_destroy((*s)->gc.table);
 	_ht_destroy((*s)->gc.recursive_table);
 	_ht_destroy((*s)->gc.collected_table);
