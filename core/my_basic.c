@@ -84,7 +84,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 111
+#define _VER_REVISION 112
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -4309,9 +4309,6 @@ void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 	if(gc && _ht_find(gc->collected_table, ref))
 		return;
 
-	if(ref->type == _DT_ARRAY)
-		return;
-
 	if(!ref->s->gc.table)
 		return;
 
@@ -4357,6 +4354,11 @@ int _gc_add_reachable(void* data, void* extra, void* ht) {
 	case _DT_USERTYPE_REF:
 		if(!_ht_find(htable, &obj->data.usertype_ref->ref))
 			_ht_set_or_insert(htable, &obj->data.usertype_ref->ref, obj->data.usertype_ref);
+
+		break;
+	case _DT_ARRAY:
+		if(!_ht_find(htable, &obj->data.array->ref))
+			_ht_set_or_insert(htable, &obj->data.array->ref, obj->data.array);
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
