@@ -1208,8 +1208,9 @@ static int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc);
 static int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc);
 #endif /* MB_ENABLE_CLASS */
 static int _gc_destroy_garbage(void* data, void* extra);
+static void _gc_swap_tables(mb_interpreter_t* s);
 static void _gc_try_trigger(mb_interpreter_t* s);
-static void _gc_collect_garbage(mb_interpreter_t* s);
+static void _gc_collect_garbage(mb_interpreter_t* s, bool_t all);
 #endif /* MB_ENABLE_GC */
 
 static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
@@ -4313,9 +4314,6 @@ void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 	if(!ref->s->gc.table)
 		return;
 
-	if(ref->s->gc.collecting > 1)
-		return;
-
 	if(ref->s->gc.collecting)
 		table = ref->s->gc.recursive_table;
 	else
@@ -4558,15 +4556,26 @@ int _gc_destroy_garbage(void* data, void* extra) {
 	return result;
 }
 
+void _gc_swap_tables(mb_interpreter_t* s) {
+	/* Swap garbage tables */
+	_ht_node_t* tmp = 0;
+
+	mb_assert(s);
+
+	tmp = s->gc.table;
+	s->gc.table = s->gc.recursive_table;
+	s->gc.recursive_table = tmp;
+}
+
 void _gc_try_trigger(mb_interpreter_t* s) {
 	/* Try trigger garbage collection */
 	mb_assert(s);
 
 	if(s->gc.table->count >= MB_GC_GARBAGE_THRESHOLD)
-		_gc_collect_garbage(s);
+		_gc_collect_garbage(s, false);
 }
 
-void _gc_collect_garbage(mb_interpreter_t* s) {
+void _gc_collect_garbage(mb_interpreter_t* s, bool_t all) {
 	/* Collect all garbage */
 	_ht_node_t* valid = 0;
 
@@ -4581,19 +4590,24 @@ void _gc_collect_garbage(mb_interpreter_t* s) {
 	/* Get unreachable information */
 	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, s->gc.table);
 	/* Collect garbage */
-	_ht_foreach(s->gc.table, _gc_destroy_garbage);
-	_ht_clear(s->gc.table);
-	if(s->gc.recursive_table->count) {
+	do {
+		_ht_foreach(s->gc.table, _gc_destroy_garbage);
+		_ht_clear(s->gc.table);
+		if(s->gc.collecting > 1)
+			s->gc.collecting--;
+
+		if(!all || !s->gc.recursive_table->count)
+			break;
+
+		_gc_swap_tables(s);
 		s->gc.collecting++;
-		_ht_foreach(s->gc.recursive_table, _gc_destroy_garbage);
-		_ht_clear(s->gc.recursive_table);
-		s->gc.collecting--;
-	}
+	} while(true);
 	/* Tidy */
 	_ht_clear(s->gc.collected_table);
 	_ht_clear(valid);
 	_ht_destroy(valid);
 	s->gc.collecting--;
+	mb_assert(!s->gc.collecting);
 }
 #endif /* MB_ENABLE_GC */
 
@@ -7789,15 +7803,11 @@ int mb_close(struct mb_interpreter_t** s) {
 
 	_ls_destroy((*s)->sub_stack);
 
-#ifdef MB_ENABLE_GC
-	_gc_collect_garbage(*s);
-#endif /* MB_ENABLE_GC */
-
 	_tidy_scope_chain(*s);
 	_dispose_scope_chain(*s);
 
 #ifdef MB_ENABLE_GC
-	_gc_collect_garbage(*s);
+	_gc_collect_garbage(*s, true);
 	_ht_destroy((*s)->gc.table);
 	_ht_destroy((*s)->gc.recursive_table);
 	_ht_destroy((*s)->gc.collected_table);

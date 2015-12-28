@@ -1,4 +1,5 @@
 Dec. 28 2015
+Fixed a GC bug
 Improved threshold algorithm for the memory pool
 Polished code
 
