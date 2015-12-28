@@ -11068,6 +11068,11 @@ int _core_var(mb_interpreter_t* s, void** l) {
 	ast = (_ls_node_t*)(*l);
 	ast = ast->next;
 
+	if(!s->last_instance) {
+		_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
+	}
+
+_exit:
 	*l = ast;
 
 	return result;
