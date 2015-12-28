@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2015 Wang Renxin
+** Copyright (C) 2011 - 2016 Wang Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -84,7 +84,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 110
+#define _VER_REVISION 111
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -6983,7 +6983,7 @@ void _tidy_intermediate_value(_ref_t* ref, void* data) {
 			mb_make_nil(ref->s->running_context->intermediate_value);
 
 			break;
-		default:
+		default: /* Do nothing */
 			break;
 		}
 	}
@@ -7091,7 +7091,7 @@ _retry:
 		result = _core_call(s, (void**)(&ast));
 
 		break;
-	default:
+	default: /* Do nothing */
 		break;
 	}
 
@@ -7640,7 +7640,7 @@ int mb_init(void) {
 	_exp_assign->data.func = (_func_t*)mb_malloc(sizeof(_func_t));
 	memset(_exp_assign->data.func, 0, sizeof(_func_t));
 	_exp_assign->data.func->name = (char*)mb_malloc(strlen("#") + 1);
-	memcpy(_exp_assign->data.func->name, "#\0", strlen("#") + 1);
+	memcpy(_exp_assign->data.func->name, "#", strlen("#") + 1);
 	_exp_assign->data.func->pointer = _core_dummy_assign;
 
 	mb_assert(!_OBJ_BOOL_TRUE);
@@ -10826,7 +10826,7 @@ _retry:
 			ast = ast->prev;
 
 		break;
-	default:
+	default: /* Do nothing */
 		break;
 	}
 

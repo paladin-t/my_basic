@@ -1,6 +1,6 @@
 <img src="resource/icon.ico" width="64">
 
-**Copyright (C) 2011 - 2015 [Wang Renxin](https://cn.linkedin.com/pub/wang-renxin/43/494/20). All rights reserved.**
+**Copyright (C) 2011 - 2016 [Wang Renxin](https://cn.linkedin.com/pub/wang-renxin/43/494/20). All rights reserved.**
 
 Why are existing script interpreters so complex? Why is it so difficult to integrate with them? Why not try MY-BASIC today! Script should be simple and enjoyable.
 
