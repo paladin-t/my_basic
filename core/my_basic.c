@@ -1275,7 +1275,7 @@ static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n);
 static void _begin_class(mb_interpreter_t* s);
 static bool_t _end_class(mb_interpreter_t* s);
 static void _unref_class(_ref_t* ref, void* data);
-static void _destroy_class(_class_t* c);
+static void _destroy_class(_class_t* c, bool_t is_ref);
 static bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret);
 static bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base);
 static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived);
@@ -2759,7 +2759,7 @@ _array:
 					if(_is_array(c)) {
 						goto _array;
 					} else {
-						if(_IS_FUNC(ast->data, _core_open_bracket)) {
+						if(ast && _IS_FUNC(ast->data, _core_open_bracket)) {
 							_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 						}
 					}
@@ -5577,23 +5577,28 @@ bool_t _end_class(mb_interpreter_t* s) {
 void _unref_class(_ref_t* ref, void* data) {
 	/* Unreference a class instance */
 	if(!(*(ref->count)))
-		_destroy_class((_class_t*)data);
+		_destroy_class((_class_t*)data, false);
 }
 
-void _destroy_class(_class_t* c) {
+void _destroy_class(_class_t* c, bool_t is_ref) {
 	/* Destroy a class instance */
+	if(*c->ref.count)
+		return;
+
 	if(c->meta_list) {
 		_unlink_meta_class(c->ref.s, c);
 		_ls_destroy(c->meta_list);
 	}
-	if(c->scope->var_dict) {
-		_ht_foreach(c->scope->var_dict, _destroy_object);
-		_ht_destroy(c->scope->var_dict);
+	if(!is_ref) {
+		if(c->scope->var_dict) {
+			_ht_foreach(c->scope->var_dict, _destroy_object);
+			_ht_destroy(c->scope->var_dict);
+		}
+		safe_free(c->scope);
+		_destroy_ref(&c->ref);
+		safe_free(c->name);
+		safe_free(c);
 	}
-	safe_free(c->scope);
-	_destroy_ref(&c->ref);
-	safe_free(c->name);
-	safe_free(c);
 }
 
 bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret) {
@@ -5698,7 +5703,7 @@ int _clone_clsss_field(void* data, void* extra, void* n) {
 
 		break;
 	case _DT_ROUTINE:
-		sub = (_routine_t*)(obj->data.routine);
+		sub = (_routine_t*)obj->data.routine;
 		if(!_search_identifier_in_scope_chain(instance->ref.s, instance->scope, sub->name, 0, 0)) {
 			ret = (_object_t*)mb_malloc(sizeof(_object_t));
 			_MAKE_NIL(ret);
@@ -5792,11 +5797,6 @@ bool_t _end_routine(mb_interpreter_t* s) {
 	mb_assert(s);
 
 	context = s->parsing_context;
-#ifdef MB_ENABLE_CLASS
-	if(context->class_state) {
-		_handle_error_now(s, SE_RN_INVALID_CLASS, 0, MB_FUNC_ERR);
-	}
-#endif /* MB_ENABLE_CLASS */
 	if(!context->routine_state) {
 		_handle_error_now(s, SE_RN_INVALID_ROUTINE, 0, MB_FUNC_ERR);
 
@@ -10859,7 +10859,7 @@ _retry:
 		mb_unrefvar(pathed);
 #endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
-		routine = (_routine_t*)(obj->data.routine);
+		routine = (_routine_t*)obj->data.routine;
 		result = _eval_routine(s, &ast, 0, 0, routine, _has_routine_lex_arg, _pop_routine_lex_arg);
 		if(ast)
 			ast = ast->prev;
@@ -10901,7 +10901,7 @@ int _core_def(mb_interpreter_t* s, void** l) {
 	if(obj->data.routine->func.basic.entry) {
 		_handle_error_on_obj(s, SE_RN_DUPLICATE_ROUTINE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
-	routine = (_routine_t*)(((_object_t*)ast->data)->data.routine);
+	routine = (_routine_t*)((_object_t*)ast->data)->data.routine;
 	ast = ast->next;
 	obj = (_object_t*)ast->data;
 	if(!_IS_FUNC(obj, _core_open_bracket)) {
