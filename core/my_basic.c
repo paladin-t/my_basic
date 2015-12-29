@@ -1168,6 +1168,14 @@ static char* _extract_string(_object_t* obj);
 #	define _UNREF_CLASS(__o) ((void)(__o));
 #	define _ADDGC_CLASS(__o, __g) ((void)(__o)); ((void)(__g));
 #endif /* MB_ENABLE_CLASS */
+#define _ADDGC_STRING(__o) \
+	case _DT_STRING: \
+		_dispose_object(__o); \
+		break;
+#define _ADDGC_ROUTINE(__o) \
+	case _DT_ROUTINE: \
+		_dispose_object(__o); \
+		break;
 #define _REF(__o) \
 	switch((__o)->type) { \
 	_REF_USERTYPE_REF(__o) \
@@ -1190,6 +1198,8 @@ static char* _extract_string(_object_t* obj);
 	_ADDGC_ARRAY(__o, __g) \
 	_ADDGC_COLL(__o, __g) \
 	_ADDGC_CLASS(__o, __g) \
+	_ADDGC_STRING(__o) \
+	_ADDGC_ROUTINE(__o) \
 	default: break; \
 	}
 
@@ -1275,7 +1285,7 @@ static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n);
 static void _begin_class(mb_interpreter_t* s);
 static bool_t _end_class(mb_interpreter_t* s);
 static void _unref_class(_ref_t* ref, void* data);
-static void _destroy_class(_class_t* c, bool_t is_ref);
+static void _destroy_class(_class_t* c);
 static bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret);
 static bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base);
 static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived);
@@ -4448,13 +4458,9 @@ int _gc_destroy_garbage_in_list(void* data, void* extra, void* gc) {
 
 	mb_assert(data);
 
-	if(_is_string(data)) {
-		_destroy_object(data, extra);
-	} else {
-		obj = (_object_t*)data;
-		_ADDGC(obj, _gc);
-		safe_free(obj);
-	}
+	obj = (_object_t*)data;
+	_ADDGC(obj, _gc);
+	safe_free(obj);
 
 	result = _OP_RESULT_DEL_NODE;
 
@@ -4469,21 +4475,13 @@ int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc) {
 
 	mb_assert(data);
 
-	if(_is_string(data)) {
-		_destroy_object(data, extra);
-	} else {
-		obj = (_object_t*)data;
-		_ADDGC(obj, _gc);
-		safe_free(obj);
-	}
+	obj = (_object_t*)data;
+	_ADDGC(obj, _gc);
+	safe_free(obj);
 
-	if(_is_string(extra)) {
-		_destroy_object(extra, 0);
-	} else {
-		obj = (_object_t*)extra;
-		_ADDGC(obj, _gc);
-		safe_free(obj);
-	}
+	obj = (_object_t*)extra;
+	_ADDGC(obj, _gc);
+	safe_free(obj);
 
 	result = _OP_RESULT_DEL_NODE;
 
@@ -4505,12 +4503,8 @@ int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc) {
 		_gc_destroy_garbage_in_class(obj->data.variable->data, 0, gc);
 		safe_free(obj->data.variable->name);
 		safe_free(obj->data.variable);
-	} else if(_is_string(data)) {
-		_destroy_object(data, extra);
 	} else {
-		if(gc) {
-			_ADDGC(obj, _gc);
-		}
+		_ADDGC(obj, _gc);
 	}
 	safe_free(obj);
 
@@ -5577,28 +5571,23 @@ bool_t _end_class(mb_interpreter_t* s) {
 void _unref_class(_ref_t* ref, void* data) {
 	/* Unreference a class instance */
 	if(!(*(ref->count)))
-		_destroy_class((_class_t*)data, false);
+		_destroy_class((_class_t*)data);
 }
 
-void _destroy_class(_class_t* c, bool_t is_ref) {
+void _destroy_class(_class_t* c) {
 	/* Destroy a class instance */
-	if(*c->ref.count)
-		return;
-
 	if(c->meta_list) {
 		_unlink_meta_class(c->ref.s, c);
 		_ls_destroy(c->meta_list);
 	}
-	if(!is_ref) {
-		if(c->scope->var_dict) {
-			_ht_foreach(c->scope->var_dict, _destroy_object);
-			_ht_destroy(c->scope->var_dict);
-		}
-		safe_free(c->scope);
-		_destroy_ref(&c->ref);
-		safe_free(c->name);
-		safe_free(c);
+	if(c->scope->var_dict) {
+		_ht_foreach(c->scope->var_dict, _destroy_object);
+		_ht_destroy(c->scope->var_dict);
 	}
+	safe_free(c->scope);
+	_destroy_ref(&c->ref);
+	safe_free(c->name);
+	safe_free(c);
 }
 
 bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret) {
