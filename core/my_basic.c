@@ -2581,7 +2581,7 @@ _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opn
 	tp.e3 = result;
 	tpptr = &tp;
 
-	_status = (optr->data.func->pointer)(s, (void**)(&tpptr));
+	_status = (optr->data.func->pointer)(s, (void**)&tpptr);
 	if(status)
 		*status = _status;
 	if(_status != MB_FUNC_OK) {
@@ -2745,11 +2745,11 @@ _array:
 				} else if(c->type == _DT_FUNC) {
 					ast = ast->prev;
 					if(_IS_UNARY_FUNC(c)) {
-						result = (c->data.func->pointer)(s, (void**)(&ast));
+						result = (c->data.func->pointer)(s, (void**)&ast);
 					} else {
 						int calc_depth = running->calc_depth;
 						running->calc_depth = _INFINITY_CALC_DEPTH;
-						result = (c->data.func->pointer)(s, (void**)(&ast));
+						result = (c->data.func->pointer)(s, (void**)&ast);
 						running->calc_depth = calc_depth;
 					}
 					if(result != MB_FUNC_OK) {
@@ -2995,7 +2995,7 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 				mb_check(pop_arg(s, (void**)l, va, ca, &ia, r, &arg));
 			}
 
-			var = (_var_t*)(pars->data);
+			var = (_var_t*)pars->data;
 			pars = pars->next;
 			if(running->meta == _SCOPE_META_REF) {
 				obj = (_object_t*)(_ht_find(running->var_dict, var->name)->data);
@@ -3552,7 +3552,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	case _DT_ARRAY:
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ARRAY) {
-			(*obj)->data.array = ((_object_t*)(glbsyminscope->data))->data.array;
+			(*obj)->data.array = ((_object_t*)glbsyminscope->data)->data.array;
 			(*obj)->ref = true;
 			*delsym = true;
 		} else {
@@ -3574,8 +3574,8 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0);
-		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_CLASS) {
-			(*obj)->data.instance = ((_object_t*)(glbsyminscope->data))->data.instance;
+		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_CLASS) {
+			(*obj)->data.instance = ((_object_t*)glbsyminscope->data)->data.instance;
 			(*obj)->ref = true;
 			*delsym = true;
 			if(running != (*obj)->data.instance->scope &&
@@ -3625,8 +3625,8 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 #endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0);
-		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ROUTINE) {
-			(*obj)->data.routine = ((_object_t*)(glbsyminscope->data))->data.routine;
+		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
+			(*obj)->data.routine = ((_object_t*)glbsyminscope->data)->data.routine;
 			(*obj)->ref = true;
 			*delsym = true;
 			if(running != (*obj)->data.routine->func.basic.scope &&
@@ -3667,8 +3667,8 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 #ifdef MB_ENABLE_CLASS
 		is_field = context->last_symbol && _IS_FUNC(context->last_symbol, _core_var);
 #endif /* MB_ENABLE_CLASS */
-		if(!is_field && glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
-			(*obj)->data.variable = ((_object_t*)(glbsyminscope->data))->data.variable;
+		if(!is_field && glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_VAR) {
+			(*obj)->data.variable = ((_object_t*)glbsyminscope->data)->data.variable;
 			(*obj)->ref = true;
 			*delsym = true;
 		} else {
@@ -3844,8 +3844,8 @@ _end_import:
 	}
 	/* _array_t */
 	glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0);
-	if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
-		tmp.obj = (_object_t*)(glbsyminscope->data);
+	if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ARRAY) {
+		tmp.obj = (_object_t*)glbsyminscope->data;
 		memcpy(*value, &(tmp.obj->data.array->type), sizeof(tmp.obj->data.array->type));
 
 		result = _DT_ARRAY;
@@ -3887,7 +3887,7 @@ _end_import:
 
 				goto _exit;
 			}
-			if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
+			if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_VAR) {
 				_handle_error_now(s, SE_RN_INVALID_CLASS, 0, MB_FUNC_ERR);
 
 				goto _exit;
@@ -3926,7 +3926,7 @@ _end_import:
 
 				goto _exit;
 			}
-			if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_VAR) {
+			if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_VAR) {
 				_handle_error_now(s, SE_RN_INVALID_ROUTINE, 0, MB_FUNC_ERR);
 
 				goto _exit;
@@ -4370,7 +4370,7 @@ int _gc_add_reachable(void* data, void* extra, void* ht) {
 		goto _exit;
 	switch(obj->type) {
 	case _DT_VAR:
-		var = (_var_t*)(obj->data.variable);
+		var = (_var_t*)obj->data.variable;
 		_gc_add_reachable(var->data, extra, htable);
 
 		break;
@@ -4782,15 +4782,15 @@ int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned
 	else
 		arr = ((_object_t*)c)->data.variable->data;
 	/* = */
-	if(literally && ast->next && _IS_FUNC((_object_t*)(ast->next->data), _core_equal)) {
+	if(literally && ast->next && _IS_FUNC((_object_t*)ast->next->data, _core_equal)) {
 		*literally = true;
 
 		goto _exit;
 	}
 	/* ( */
-	if(!ast->next || ((_object_t*)(ast->next->data))->type != _DT_FUNC || ((_object_t*)(ast->next->data))->data.func->pointer != _core_open_bracket) {
+	if(!ast->next || ((_object_t*)ast->next->data)->type != _DT_FUNC || ((_object_t*)ast->next->data)->data.func->pointer != _core_open_bracket) {
 		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, 0,
-			(ast && ast->next) ? ((_object_t*)(ast->next->data)) : 0,
+			(ast && ast->next) ? ((_object_t*)ast->next->data) : 0,
 			MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
@@ -5684,7 +5684,7 @@ int _clone_clsss_field(void* data, void* extra, void* n) {
 		goto _exit;
 	switch(obj->type) {
 	case _DT_VAR:
-		var = (_var_t*)(obj->data.variable);
+		var = (_var_t*)obj->data.variable;
 		if(!_search_identifier_in_scope_chain(instance->ref.s, instance->scope, var->name, 0, 0)) {
 			ret = _duplicate_parameter(var, 0, instance->scope);
 			_clone_object(instance->ref.s, obj, ret->data.variable->data);
@@ -5828,7 +5828,7 @@ _object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* run
 	if(data == 0)
 		return 0;
 
-	ref = (_var_t*)(data);
+	ref = (_var_t*)data;
 
 	var = _create_var(&obj, ref->name, true);
 
@@ -6138,7 +6138,7 @@ _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object
 	result = i;
 	scp = _search_identifier_in_scope_chain(s, 0, result->name, 0, 0);
 	if(scp) {
-		obj = (_object_t*)(scp->data);
+		obj = (_object_t*)scp->data;
 		if(obj && obj->type == _DT_ARRAY) {
 			result = obj->data.array;
 			if(o) *o = obj;
@@ -6159,7 +6159,7 @@ _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
 	result = i;
 	scp = _search_identifier_in_scope_chain(s, 0, result->name, 1, 0);
 	if(scp) {
-		obj = (_object_t*)(scp->data);
+		obj = (_object_t*)scp->data;
 		if(obj && obj->type == _DT_VAR)
 			result = obj->data.variable;
 	}
@@ -6315,7 +6315,7 @@ int _dispose_object(_object_t* obj) {
 	switch(obj->type) {
 	case _DT_VAR:
 		if(!obj->ref) {
-			var = (_var_t*)(obj->data.variable);
+			var = (_var_t*)obj->data.variable;
 			safe_free(var->name);
 			mb_assert(var->data->type != _DT_VAR);
 			_destroy_object(var->data, 0);
@@ -7074,7 +7074,7 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 _retry:
 	switch(obj->type) {
 	case _DT_FUNC:
-		result = (obj->data.func->pointer)(s, (void**)(&ast));
+		result = (obj->data.func->pointer)(s, (void**)&ast);
 		if(result == MB_FUNC_IGNORE) {
 			result = MB_FUNC_OK;
 			obj = (_object_t*)ast->data;
@@ -7096,7 +7096,7 @@ _retry:
 					goto _retry;
 				} else {
 					/* Final node */
-					result = _core_let(s, (void**)(&ast));
+					result = _core_let(s, (void**)&ast);
 				}
 			} else {
 				mb_assert(0 && "Impossible.");
@@ -7107,15 +7107,15 @@ _retry:
 			goto _retry;
 		} else {
 			/* Do not need to path */
-			result = _core_let(s, (void**)(&ast));
+			result = _core_let(s, (void**)&ast);
 		}
 #else /* MB_ENABLE_CLASS */
-		result = _core_let(s, (void**)(&ast));
+		result = _core_let(s, (void**)&ast);
 #endif /* MB_ENABLE_CLASS */
 
 		break;
 	case _DT_ARRAY:
-		result = _core_let(s, (void**)(&ast));
+		result = _core_let(s, (void**)&ast);
 
 		break;
 	case _DT_INT: /* Fall through */
@@ -7132,7 +7132,7 @@ _retry:
 #endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
 		ast = ast->prev;
-		result = _core_call(s, (void**)(&ast));
+		result = _core_call(s, (void**)&ast);
 
 		break;
 	default: /* Do nothing */
@@ -7141,7 +7141,7 @@ _retry:
 
 	if(s->schedule_suspend_tag) {
 		if(s->schedule_suspend_tag == MB_FUNC_SUSPEND)
-			mb_suspend(s, (void**)(&ast));
+			mb_suspend(s, (void**)&ast);
 		result = s->schedule_suspend_tag;
 		s->schedule_suspend_tag = 0;
 	}
@@ -9055,7 +9055,7 @@ int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 
 	scp = _search_identifier_in_scope_chain(s, 0, n, 0, 0);
 	if(scp) {
-		obj = (_object_t*)(scp->data);
+		obj = (_object_t*)scp->data;
 		if(obj) {
 			if(obj->type == _DT_ROUTINE) {
 				_internal_object_to_public_value(obj, val);
@@ -9302,7 +9302,7 @@ int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 
 	v = _search_identifier_in_scope_chain(s, 0, n, 0, 0);
 	if(v) {
-		obj = (_object_t*)(v->data);
+		obj = (_object_t*)v->data;
 		mb_assert(obj->type == _DT_VAR);
 		if(val)
 			result = _internal_object_to_public_value(obj->data.variable->data, val);
@@ -9331,7 +9331,7 @@ int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
 
 	v = _search_identifier_in_scope_chain(s, 0, n, 0, 0);
 	if(v) {
-		obj = (_object_t*)(v->data);
+		obj = (_object_t*)v->data;
 		mb_assert(obj->type == _DT_VAR);
 		result = _public_value_to_internal_object(&val, obj->data.variable->data);
 	} else {
@@ -9552,8 +9552,8 @@ int _core_add(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	if(_is_string(((_tuple3_t*)(*l))->e1) || _is_string(((_tuple3_t*)(*l))->e2)) {
-		if(_is_string(((_tuple3_t*)(*l))->e1) && _is_string(((_tuple3_t*)(*l))->e2)) {
+	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
+		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
 			_instruct_connect_strings(l);
 		} else {
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
@@ -9707,19 +9707,19 @@ int _core_equal(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	if(_is_string(((_tuple3_t*)(*l))->e1) || _is_string(((_tuple3_t*)(*l))->e2)) {
-		if(_is_string(((_tuple3_t*)(*l))->e1) && _is_string(((_tuple3_t*)(*l))->e2)) {
+	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
+		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
 			_instruct_compare_strings(==, l);
 		} else {
 			_set_tuple3_result(l, 0);
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
+	} else if(_is_number(((_tuple3_t*)*l)->e1) && _is_number(((_tuple3_t*)*l)->e2)) {
 		_instruct_num_op_num(==, l);
-		tpr = (_tuple3_t*)(*l);
-		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
-			((_object_t*)(tpr->e3))->type = _DT_INT;
-			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
+		tpr = (_tuple3_t*)*l;
+		if(((_object_t*)tpr->e3)->type != _DT_INT) {
+			((_object_t*)tpr->e3)->type = _DT_INT;
+			((_object_t*)tpr->e3)->data.integer = ((_object_t*)tpr->e3)->data.float_point != 0.0f;
 		}
 	} else {
 		_instruct_obj_op_obj(==, l);
@@ -9736,23 +9736,23 @@ int _core_less(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	if(_is_string(((_tuple3_t*)(*l))->e1) || _is_string(((_tuple3_t*)(*l))->e2)) {
-		if(_is_string(((_tuple3_t*)(*l))->e1) && _is_string(((_tuple3_t*)(*l))->e2)) {
+	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
+		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
 			_instruct_compare_strings(<, l);
 		} else {
-			if(_is_string(((_tuple3_t*)(*l))->e1)) {
+			if(_is_string(((_tuple3_t*)*l)->e1)) {
 				_set_tuple3_result(l, 0);
 			} else {
 				_set_tuple3_result(l, 1);
 			}
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
+	} else if(_is_number(((_tuple3_t*)*l)->e1) && _is_number(((_tuple3_t*)*l)->e2)) {
 		_instruct_num_op_num(<, l);
-		tpr = (_tuple3_t*)(*l);
-		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
-			((_object_t*)(tpr->e3))->type = _DT_INT;
-			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
+		tpr = (_tuple3_t*)*l;
+		if(((_object_t*)tpr->e3)->type != _DT_INT) {
+			((_object_t*)tpr->e3)->type = _DT_INT;
+			((_object_t*)tpr->e3)->data.integer = ((_object_t*)tpr->e3)->data.float_point != 0.0f;
 		}
 	} else {
 		_instruct_obj_op_obj(<, l);
@@ -9769,23 +9769,23 @@ int _core_greater(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	if(_is_string(((_tuple3_t*)(*l))->e1) || _is_string(((_tuple3_t*)(*l))->e2)) {
-		if(_is_string(((_tuple3_t*)(*l))->e1) && _is_string(((_tuple3_t*)(*l))->e2)) {
+	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
+		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
 			_instruct_compare_strings(>, l);
 		} else {
-			if(_is_string(((_tuple3_t*)(*l))->e1)) {
+			if(_is_string(((_tuple3_t*)*l)->e1)) {
 				_set_tuple3_result(l, 1);
 			} else {
 				_set_tuple3_result(l, 0);
 			}
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
+	} else if(_is_number(((_tuple3_t*)*l)->e1) && _is_number(((_tuple3_t*)*l)->e2)) {
 		_instruct_num_op_num(>, l);
-		tpr = (_tuple3_t*)(*l);
-		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
-			((_object_t*)(tpr->e3))->type = _DT_INT;
-			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
+		tpr = (_tuple3_t*)*l;
+		if(((_object_t*)tpr->e3)->type != _DT_INT) {
+			((_object_t*)tpr->e3)->type = _DT_INT;
+			((_object_t*)tpr->e3)->data.integer = ((_object_t*)tpr->e3)->data.float_point != 0.0f;
 		}
 	} else {
 		_instruct_obj_op_obj(>, l);
@@ -9802,23 +9802,23 @@ int _core_less_equal(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	if(_is_string(((_tuple3_t*)(*l))->e1) || _is_string(((_tuple3_t*)(*l))->e2)) {
-		if(_is_string(((_tuple3_t*)(*l))->e1) && _is_string(((_tuple3_t*)(*l))->e2)) {
+	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
+		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
 			_instruct_compare_strings(<=, l);
 		} else {
-			if(_is_string(((_tuple3_t*)(*l))->e1)) {
+			if(_is_string(((_tuple3_t*)*l)->e1)) {
 				_set_tuple3_result(l, 0);
 			} else {
 				_set_tuple3_result(l, 1);
 			}
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
+	} else if(_is_number(((_tuple3_t*)*l)->e1) && _is_number(((_tuple3_t*)*l)->e2)) {
 		_instruct_num_op_num(<=, l);
-		tpr = (_tuple3_t*)(*l);
-		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
-			((_object_t*)(tpr->e3))->type = _DT_INT;
-			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
+		tpr = (_tuple3_t*)*l;
+		if(((_object_t*)tpr->e3)->type != _DT_INT) {
+			((_object_t*)tpr->e3)->type = _DT_INT;
+			((_object_t*)tpr->e3)->data.integer = ((_object_t*)tpr->e3)->data.float_point != 0.0f;
 		}
 	} else {
 		_instruct_obj_op_obj(<=, l);
@@ -9835,23 +9835,23 @@ int _core_greater_equal(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	if(_is_string(((_tuple3_t*)(*l))->e1) || _is_string(((_tuple3_t*)(*l))->e2)) {
-		if(_is_string(((_tuple3_t*)(*l))->e1) && _is_string(((_tuple3_t*)(*l))->e2)) {
+	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
+		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
 			_instruct_compare_strings(>=, l);
 		} else {
-			if(_is_string(((_tuple3_t*)(*l))->e1)) {
+			if(_is_string(((_tuple3_t*)*l)->e1)) {
 				_set_tuple3_result(l, 1);
 			} else {
 				_set_tuple3_result(l, 0);
 			}
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
+	} else if(_is_number(((_tuple3_t*)*l)->e1) && _is_number(((_tuple3_t*)*l)->e2)) {
 		_instruct_num_op_num(>=, l);
-		tpr = (_tuple3_t*)(*l);
-		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
-			((_object_t*)(tpr->e3))->type = _DT_INT;
-			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
+		tpr = (_tuple3_t*)*l;
+		if(((_object_t*)tpr->e3)->type != _DT_INT) {
+			((_object_t*)tpr->e3)->type = _DT_INT;
+			((_object_t*)tpr->e3)->data.integer = ((_object_t*)tpr->e3)->data.float_point != 0.0f;
 		}
 	} else {
 		_instruct_obj_op_obj(>=, l);
@@ -9868,19 +9868,19 @@ int _core_not_equal(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	if(_is_string(((_tuple3_t*)(*l))->e1) || _is_string(((_tuple3_t*)(*l))->e2)) {
-		if(_is_string(((_tuple3_t*)(*l))->e1) && _is_string(((_tuple3_t*)(*l))->e2)) {
+	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
+		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
 			_instruct_compare_strings(!=, l);
 		} else {
 			_set_tuple3_result(l, 1);
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, TON(l), MB_FUNC_WARNING, _exit, result);
 		}
-	} else if(_is_number(((_tuple3_t*)(*l))->e1) && _is_number(((_tuple3_t*)(*l))->e2)) {
+	} else if(_is_number(((_tuple3_t*)*l)->e1) && _is_number(((_tuple3_t*)*l)->e2)) {
 		_instruct_num_op_num(!=, l);
-		tpr = (_tuple3_t*)(*l);
-		if(((_object_t*)(tpr->e3))->type != _DT_INT) {
-			((_object_t*)(tpr->e3))->type = _DT_INT;
-			((_object_t*)(tpr->e3))->data.integer = ((_object_t*)(tpr->e3))->data.float_point != 0.0f;
+		tpr = (_tuple3_t*)*l;
+		if(((_object_t*)tpr->e3)->type != _DT_INT) {
+			((_object_t*)tpr->e3)->type = _DT_INT;
+			((_object_t*)tpr->e3)->data.integer = ((_object_t*)tpr->e3)->data.float_point != 0.0f;
 		}
 	} else {
 		_instruct_obj_op_obj(!=, l);
@@ -9972,9 +9972,9 @@ int _core_is(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	fst = (_object_t*)(((_tuple3_t*)(*l))->e1);
-	scd = (_object_t*)(((_tuple3_t*)(*l))->e2);
-	val = (_object_t*)(((_tuple3_t*)(*l))->e3);
+	fst = (_object_t*)((_tuple3_t*)*l)->e1;
+	scd = (_object_t*)((_tuple3_t*)*l)->e2;
+	val = (_object_t*)((_tuple3_t*)*l)->e3;
 
 	if(!fst || !scd) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX, 0, TON(l), MB_FUNC_ERR, _exit, result);
@@ -10134,8 +10134,8 @@ int _core_dim(mb_interpreter_t* s, void** l) {
 
 	/* Array name */
 	ast = (_ls_node_t*)*l;
-	if(!ast->next || ((_object_t*)(ast->next->data))->type != _DT_ARRAY) {
-		_handle_error_on_obj(s, SE_RN_ARRAY_IDENTIFIER_EXPECTED, 0, (ast && ast->next) ? ((_object_t*)(ast->next->data)) : 0, MB_FUNC_ERR, _exit, result);
+	if(!ast->next || ((_object_t*)ast->next->data)->type != _DT_ARRAY) {
+		_handle_error_on_obj(s, SE_RN_ARRAY_IDENTIFIER_EXPECTED, 0, (ast && ast->next) ? ((_object_t*)ast->next->data) : 0, MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
 	arr = (_object_t*)ast->data;
@@ -10143,13 +10143,13 @@ int _core_dim(mb_interpreter_t* s, void** l) {
 	dummy.type = arr->data.array->type;
 	dummy.name = arr->data.array->name;
 	/* ( */
-	if(!ast->next || ((_object_t*)(ast->next->data))->type != _DT_FUNC || ((_object_t*)(ast->next->data))->data.func->pointer != _core_open_bracket) {
-		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, 0, (ast && ast->next) ? ((_object_t*)(ast->next->data)) : 0, MB_FUNC_ERR, _exit, result);
+	if(!ast->next || ((_object_t*)ast->next->data)->type != _DT_FUNC || ((_object_t*)ast->next->data)->data.func->pointer != _core_open_bracket) {
+		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, 0, (ast && ast->next) ? ((_object_t*)ast->next->data) : 0, MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
 	/* Array subscript */
 	if(!ast->next) {
-		_handle_error_on_obj(s, SE_RN_ARRAY_SUBSCRIPT_EXPECTED, 0, (ast && ast->next) ? ((_object_t*)(ast->next->data)) : 0, MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_ARRAY_SUBSCRIPT_EXPECTED, 0, (ast && ast->next) ? ((_object_t*)ast->next->data) : 0, MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
 	while(((_object_t*)ast->data)->type != _DT_FUNC || ((_object_t*)ast->data)->data.func->pointer != _core_close_bracket) {
@@ -10711,13 +10711,13 @@ int _core_goto(mb_interpreter_t* s, void** l) {
 		_handle_error_on_obj(s, SE_RN_JUMP_LABEL_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 
-	label = (_label_t*)(obj->data.label);
+	label = (_label_t*)obj->data.label;
 	if(!label->node) {
 		glbsyminscope = _ht_find(running->var_dict, label->name);
-		if(!(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_LABEL)) {
+		if(!(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_LABEL)) {
 			_handle_error_on_obj(s, SE_RN_LABEL_NOT_EXISTS, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
-		label->node = ((_object_t*)(glbsyminscope->data))->data.label->node;
+		label->node = ((_object_t*)glbsyminscope->data)->data.label->node;
 	}
 
 	mb_assert(label->node && label->node->prev);
@@ -10768,9 +10768,9 @@ int _core_return(mb_interpreter_t* s, void** l) {
 	if(running->prev) {
 		ast = (_ls_node_t*)*l;
 		ast = ast->next;
-		if(mb_has_arg(s, (void**)(&ast))) {
-			mb_check(mb_pop_value(s, (void**)(&ast), &arg));
-			mb_check(mb_push_value(s, (void**)(&ast), arg));
+		if(mb_has_arg(s, (void**)&ast)) {
+			mb_check(mb_pop_value(s, (void**)&ast, &arg));
+			mb_check(mb_push_value(s, (void**)&ast, arg));
 
 			if(arg.type == MB_DT_STRING) {
 				_ls_foreach(s->temp_values, _destroy_object_capsule_only);
@@ -10903,7 +10903,7 @@ int _core_def(mb_interpreter_t* s, void** l) {
 			var = obj->data.variable;
 			rnode = _search_identifier_in_scope_chain(s, routine->func.basic.scope, var->name, 0, 0);
 			if(rnode)
-				var = ((_object_t*)(rnode->data))->data.variable;
+				var = ((_object_t*)rnode->data)->data.variable;
 			if(!routine->func.basic.parameters)
 				routine->func.basic.parameters = _ls_create();
 			_ls_pushback(routine->func.basic.parameters, var);
@@ -10985,7 +10985,7 @@ int _core_class(mb_interpreter_t* s, void** l) {
 			}
 			obj = _GET_CLASS(obj);
 			if(!_IS_CLASS(obj)) {
-				_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, obj, MB_FUNC_ERR, _exit, result);
+				_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
 			inherit = obj->data.instance;
 			_link_meta_class(s, instance, inherit);
@@ -10995,7 +10995,7 @@ int _core_class(mb_interpreter_t* s, void** l) {
 		if(_IS_FUNC(obj, _core_close_bracket)) {
 			ast = ast->next;
 		} else {
-			_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, 0, obj, MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 	}
 
@@ -12086,7 +12086,7 @@ _print:
 			} else if(val_ptr->type == _DT_REAL) {
 				_get_printer(s)(MB_REAL_FMT, val_ptr->data.float_point);
 			} else if(val_ptr->type == _DT_STRING) {
-				_get_printer(s)("%s", (val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING));
+				_get_printer(s)(val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING);
 				if(!val_ptr->ref && val_ptr->data.string) {
 					safe_free(val_ptr->data.string);
 				}
@@ -12375,7 +12375,7 @@ int _coll_peek(mb_interpreter_t* s, void** l) {
 	_MAKE_NIL(&olst);
 	_public_value_to_internal_object(&lst, &olst);
 	node = _ls_back(olst.data.list->list);
-	oval = node ? (_object_t*)(node->data) : 0;
+	oval = node ? (_object_t*)node->data : 0;
 	if(oval) {
 		_internal_object_to_public_value(oval, &val);
 
