@@ -124,6 +124,7 @@ extern "C" {
 #endif /* toupper */
 
 #define _copy_bytes(__l, __r) do { memcpy((__l), (__r), sizeof(mb_val_bytes_t)); } while(0)
+#define _cmp_bytes(__l, __r) (memcmp((__l), (__r), sizeof(mb_val_bytes_t)))
 
 #define _mb_check(__expr, __exit) do { if((__expr) != MB_FUNC_OK) goto __exit; } while(0)
 
@@ -1224,7 +1225,7 @@ static _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s);
 static void _destroy_array(_array_t* arr);
 static void _init_array(_array_t* arr);
 static int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c);
-static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index, bool_t* literally);
+static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned int* index, bool_t* literally);
 static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
 static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
 static void _clear_array(_array_t* arr);
@@ -1325,6 +1326,7 @@ static mb_data_e _internal_type_to_public_type(_data_e t);
 static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn);
 static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl);
 static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn);
+static int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t* itn);
 static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s);
 static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch);
 static void _assign_public_value(mb_value_t* tgt, mb_value_t* src);
@@ -2696,12 +2698,13 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 				}
 			} else {
 				if(c->type == _DT_ARRAY) {
+_array:
 					if(ast && !_IS_FUNC(((_object_t*)(ast->data)), _core_open_bracket)) {
 						_ls_pushback(opnd, c);
 						f++;
 					} else {
 						ast = ast->prev;
-						result = _get_array_index(s, &ast, &arr_idx, 0);
+						result = _get_array_index(s, &ast, c, &arr_idx, 0);
 						if(result != MB_FUNC_OK) {
 							_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 						}
@@ -2743,6 +2746,13 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 					if(f) {
 						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 					}
+					if(_is_array(c)) {
+						goto _array;
+					} else {
+						if(_IS_FUNC(ast->data, _core_open_bracket)) {
+							_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+						}
+					}
 					_ls_pushback(opnd, c);
 					f++;
 				} else if(c->type == _DT_ROUTINE) {
@@ -2767,7 +2777,7 @@ _routine:
 					f++;
 				} else if(c->type == _DT_VAR && c->data.variable->data->type == _DT_ARRAY) {
 					ast = ast->prev;
-					result = _get_array_index(s, &ast, &arr_idx, 0);
+					result = _get_array_index(s, &ast, 0, &arr_idx, 0);
 					if(result != MB_FUNC_OK) {
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 					}
@@ -4722,7 +4732,7 @@ _exit:
 	return result;
 }
 
-int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index, bool_t* literally) {
+int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned int* index, bool_t* literally) {
 	/* Calculate the index, used when walking through an AST */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -4743,13 +4753,15 @@ int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, unsigned int* index, b
 
 	/* Array name */
 	ast = (_ls_node_t*)(*l);
-	if(!ast || !_is_array(ast->data)) {
+	if(!c && ast && _is_array(ast->data))
+		c = (_object_t*)ast->data;
+	if(!_is_array(c)) {
 		_handle_error_on_obj(s, SE_RN_ARRAY_IDENTIFIER_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
-	if(((_object_t*)(ast->data))->type == _DT_ARRAY)
-		arr = (_object_t*)(ast->data);
+	if(((_object_t*)c)->type == _DT_ARRAY)
+		arr = (_object_t*)c;
 	else
-		arr = ((_object_t*)(ast->data))->data.variable->data;
+		arr = ((_object_t*)c)->data.variable->data;
 	/* = */
 	if(literally && ast->next && _IS_FUNC((_object_t*)(ast->next->data), _core_equal)) {
 		*literally = true;
@@ -4947,12 +4959,10 @@ bool_t _is_array(void* obj) {
 	bool_t result = false;
 	_object_t* o = 0;
 
-	mb_assert(obj);
-
 	o = (_object_t*)obj;
-	if(o->type == _DT_ARRAY)
+	if(o && o->type == _DT_ARRAY)
 		result = true;
-	else if(o->type == _DT_VAR)
+	else if(o && o->type == _DT_VAR)
 		result = o->data.variable->data->type == _DT_ARRAY;
 
 	return result;
@@ -6830,6 +6840,22 @@ int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn) 
 	return result;
 }
 
+int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t* itn) {
+	/* Compare a public value and an internal object */
+	int result = 0;
+	mb_value_t tmp;
+
+	mb_make_nil(tmp);
+	_internal_object_to_public_value(itn, &tmp);
+	if(pbl->type != tmp.type) {
+		result = pbl->type - tmp.type;
+	} else {
+		result = _cmp_bytes(pbl->value.bytes, tmp.value.bytes);
+	}
+
+	return result;
+}
+
 void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s) {
 	/* Try clear the intermediate value when destroying an object */
 	_object_t* obj = 0;
@@ -6844,7 +6870,7 @@ void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s)
 	obj = (_object_t*)data;
 	running = s->running_context;
 
-	if(obj->type == _DT_STRING && running->intermediate_value.type == MB_DT_STRING && obj->data.string == running->intermediate_value.value.string) {
+	if(!_compare_public_value_and_internal_object(&running->intermediate_value, obj)) {
 		mb_make_nil(running->intermediate_value);
 	}
 }
@@ -8014,9 +8040,6 @@ int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
-	if(_IS_FUNC(ast->data, _core_open_bracket)) {
-		_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(ast), MB_FUNC_ERR, _exit, result);
-	}
 
 _exit:
 	*l = ast;
@@ -9991,13 +10014,13 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	if(obj->type == _DT_ARRAY) {
 		arr_obj = obj;
 		arr = _search_array_in_scope_chain(s, obj->data.array, &arr_obj);
-		result = _get_array_index(s, &ast, &arr_idx, &literally);
+		result = _get_array_index(s, &ast, 0, &arr_idx, &literally);
 		if(result != MB_FUNC_OK)
 			goto _exit;
 	} else if(obj->type == _DT_VAR && obj->data.variable->data->type == _DT_ARRAY) {
 		arr_obj = obj->data.variable->data;
 		arr = _search_array_in_scope_chain(s, obj->data.variable->data->data.array, &arr_obj);
-		result = _get_array_index(s, &ast, &arr_idx, &literally);
+		result = _get_array_index(s, &ast, 0, &arr_idx, &literally);
 		if(result != MB_FUNC_OK)
 			goto _exit;
 	} else if(obj->type == _DT_VAR) {
