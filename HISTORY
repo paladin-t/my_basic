@@ -1,5 +1,6 @@
 Dec. 29 2015
 Improved GC with an array
+Polished array manipulation code
 
 Dec. 28 2015
 Fixed a GC bug

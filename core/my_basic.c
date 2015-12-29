@@ -123,6 +123,8 @@ extern "C" {
 #	define toupper(__c) ((islower(__c)) ? ((__c) - 'a' + 'A') : (__c))
 #endif /* toupper */
 
+#define _copy_bytes(__l, __r) do { memcpy((__l), (__r), sizeof(mb_val_bytes_t)); } while(0)
+
 #define _mb_check(__expr, __exit) do { if((__expr) != MB_FUNC_OK) goto __exit; } while(0)
 
 #define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
@@ -2710,17 +2712,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 						_ls_pushback(garbage, arr_elem);
 						arr_elem->type = arr_type;
 						arr_elem->ref = true;
-						if(arr_type == _DT_INT) {
-							arr_elem->data.integer = arr_val.integer;
-						} else if(arr_type == _DT_REAL) {
-							arr_elem->data.float_point = arr_val.float_point;
-						} else if(arr_type == _DT_STRING) {
-							arr_elem->data.string = arr_val.string;
-						} else if(arr_type == _DT_USERTYPE) {
-							arr_elem->data.usertype = arr_val.usertype;
-						} else {
-							mb_assert(0 && "Unsupported.");
-						}
+						_copy_bytes(arr_elem->data.bytes, arr_val.bytes);
 						if(f) {
 							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 						}
@@ -4834,21 +4826,8 @@ bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, m
 		val->float_point = *((real_t*)rawptr);
 		*type = _DT_REAL;
 #else /* MB_SIMPLE_ARRAY */
-		if(arr->types[index] == _DT_REAL) {
-			val->float_point = *((real_t*)rawptr);
-			*type = _DT_REAL;
-		} else if(arr->types[index] == _DT_INT) {
-			val->integer = *((int_t*)rawptr);
-			*type = _DT_INT;
-		} else if(arr->types[index] == _DT_USERTYPE) {
-			val->usertype = *((void**)rawptr);
-			*type = _DT_USERTYPE;
-		} else if(arr->types[index] == _DT_STRING) {
-			val->string = *((char**)rawptr);
-			*type = _DT_STRING;
-		} else {
-			mb_assert(0 && "Unsupported.");
-		}
+		_copy_bytes(val->bytes, *((mb_val_bytes_t*)rawptr));
+		*type = arr->types[index];
 #endif /* MB_SIMPLE_ARRAY */
 	} else if(arr->type == _DT_STRING) {
 		val->string = *((char**)rawptr);
@@ -4875,38 +4854,46 @@ int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigne
 	elemsize = _get_size_of(arr->type);
 	pos = (unsigned int)(elemsize * index);
 	rawptr = (void*)((intptr_t)arr->raw + pos);
-	if(*type == _DT_INT) {
 #ifdef MB_SIMPLE_ARRAY
+	switch(*type) {
+	case _DT_INT:
 		*((real_t*)rawptr) = (real_t)val->integer;
-#else /* MB_SIMPLE_ARRAY */
-		*((int_t*)rawptr) = val->integer;
-		arr->types[index] = _DT_INT;
-#endif /* MB_SIMPLE_ARRAY */
-	} else if(*type == _DT_REAL) {
-		*((real_t*)rawptr) = val->float_point;
-#ifndef MB_SIMPLE_ARRAY
-		arr->types[index] = _DT_REAL;
-#endif /* MB_SIMPLE_ARRAY */
-	} else if(*type == _DT_STRING) {
-		size_t _sl = 0;
-#ifndef MB_SIMPLE_ARRAY
-		arr->types[index] = _DT_STRING;
-#else /* MB_SIMPLE_ARRAY */
-		if(arr->type != _DT_STRING) {
-			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+
+		break;
+	case _DT_STRING: {
+			size_t _sl = 0;
+			if(arr->type != _DT_STRING) {
+				_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+			}
+			_sl = strlen(val->string);
+			*((char**)rawptr) = (char*)mb_malloc(_sl + 1);
+			memcpy(*((char**)rawptr), val->string, _sl + 1);
 		}
-#endif /* MB_SIMPLE_ARRAY */
-		_sl = strlen(val->string);
-		*((char**)rawptr) = (char*)mb_malloc(_sl + 1);
-		memcpy(*((char**)rawptr), val->string, _sl + 1);
-#ifndef MB_SIMPLE_ARRAY
-	} else if(*type == _DT_USERTYPE) {
-		*((void**)rawptr) = val->usertype;
-		arr->types[index] = _DT_USERTYPE;
-#endif /* MB_SIMPLE_ARRAY */
-	} else {
-		mb_assert(0 && "Unsupported.");
+
+		break;
+	default:
+		_copy_bytes(*((mb_val_bytes_t*)rawptr), val->bytes);
+
+		break;
 	}
+#else /* MB_SIMPLE_ARRAY */
+	switch(*type) {
+	case _DT_STRING: {
+			size_t _sl = 0;
+			_sl = strlen(val->string);
+			*((char**)rawptr) = (char*)mb_malloc(_sl + 1);
+			memcpy(*((char**)rawptr), val->string, _sl + 1);
+			arr->types[index] = _DT_STRING;
+		}
+
+		break;
+	default:
+		_copy_bytes(*((mb_val_bytes_t*)rawptr), val->bytes);
+		arr->types[index] = *type;
+
+		break;
+	}
+#endif /* MB_SIMPLE_ARRAY */
 
 	goto _exit; /* Avoid an unreferenced label warning */
 
@@ -10067,24 +10054,15 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	} else if(arr) {
 		mb_value_u _val;
 		switch(val->type) {
-		case _DT_INT:
-			_val.integer = val->data.integer;
-
-			break;
-		case _DT_REAL:
-			_val.float_point = val->data.float_point;
-
-			break;
-		case _DT_STRING:
-			_val.string = val->data.string;
-
-			break;
+		case _DT_NIL: /* Fall through */
+		case _DT_INT: /* Fall through */
+		case _DT_REAL: /* Fall through */
+		case _DT_STRING: /* Fall through */
 		case _DT_USERTYPE:
-			_val.usertype = val->data.usertype;
+			_copy_bytes(_val.bytes, val->data.bytes);
 
 			break;
 		default:
-			mb_assert(0 && "Unsupported.");
 			safe_free(val);
 			_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 
