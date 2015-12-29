@@ -976,6 +976,7 @@ static void mb_free(void* p);
 static int mb_memcmp(void* l, void* r, size_t s);
 static size_t mb_memtest(void* p, size_t s);
 
+static char* mb_strdup(const char* p, size_t s);
 static char* mb_strupr(char* s);
 
 #define safe_free(__p) do { if(__p) { mb_free(__p); __p = 0; } else { mb_assert(0 && "Memory already released."); } } while(0)
@@ -2044,6 +2045,7 @@ int _ht_cmp_int(void* d1, void* d2) {
 	int_t i2 = *(int_t*)d2;
 	int_t i = i1 - i2;
 	int result = 0;
+
 	if(i < 0)
 		result = -1;
 	else if(i > 0)
@@ -2058,6 +2060,7 @@ int _ht_cmp_ref(void* d1, void* d2) {
 	_ref_t* r2 = *(_ref_t**)d2;
 	intptr_t i = (intptr_t)r1 - (intptr_t)r2;
 	int result = 0;
+
 	if(i < 0)
 		result = -1;
 	else if(i > 0)
@@ -2221,6 +2224,7 @@ int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht) {
 
 /** Memory manipulations */
 void* mb_malloc(size_t s) {
+	/* Allocate a chunk of memory with a specific size */
 	char* ret = NULL;
 	size_t rs = s;
 #ifdef MB_ENABLE_ALLOC_STAT
@@ -2242,6 +2246,7 @@ void* mb_malloc(size_t s) {
 }
 
 void mb_free(void* p) {
+	/* Free a chunk of memory */
 	mb_assert(p);
 
 #ifdef MB_ENABLE_ALLOC_STAT
@@ -2259,6 +2264,7 @@ void mb_free(void* p) {
 }
 
 int mb_memcmp(void* l, void* r, size_t s) {
+	/* Compare two chunks of memory */
 	char* lc = (char*)l;
 	char* rc = (char*)r;
 	size_t i = 0;
@@ -2272,6 +2278,7 @@ int mb_memcmp(void* l, void* r, size_t s) {
 }
 
 size_t mb_memtest(void* p, size_t s) {
+	/* Detect whether a chunk of memory contains non-zero byte */
 	size_t result = 0;
 	size_t i = 0;
 	for(i = 0; i < s; i++)
@@ -2280,7 +2287,24 @@ size_t mb_memtest(void* p, size_t s) {
 	return result;
 }
 
+char* mb_strdup(const char* p, size_t s) {
+	/* Duplicate a string */
+#ifdef MB_ENABLE_ALLOC_STAT
+	if(!s) {
+		s = _MB_READ_MEM_TAG_SIZE(p);
+	}
+
+	return (char*)mb_memdup(p, (unsigned)s);
+#else /* MB_ENABLE_ALLOC_STAT */
+	if(s)
+		return (char*)mb_memdup(p, (unsigned)s);
+
+	return (char*)mb_memdup(p, (unsigned)(strlen(p) + 1));
+#endif /* MB_ENABLE_ALLOC_STAT */
+}
+
 char* mb_strupr(char* s) {
+	/* Change a string to upper case */
 	char* t = s;
 
 	while(*s) {
@@ -2488,55 +2512,41 @@ char _get_priority(mb_func_t op1, mb_func_t op2) {
 
 int _get_priority_index(mb_func_t op) {
 	/* Get the index of an operator in the priority table */
-	int result = 0;
+	int i = 0;
+
+	mb_func_t funcs[] = {
+		_core_add,
+		_core_min,
+		_core_mul,
+		_core_div,
+		_core_mod,
+		_core_pow,
+		_core_open_bracket,
+		_core_close_bracket,
+		_core_dummy_assign,
+		_core_greater,
+		_core_less,
+		_core_greater_equal,
+		_core_less_equal,
+		_core_equal,
+		_core_not_equal,
+		_core_and,
+		_core_or,
+		_core_not,
+		_core_neg,
+		_core_is
+	};
 
 	mb_assert(op);
 
-	if(op == _core_dummy_assign) {
-		result = 8;
-	} else if(op == _core_add) {
-		result = 0;
-	} else if(op == _core_min) {
-		result = 1;
-	} else if(op == _core_mul) {
-		result = 2;
-	} else if(op == _core_div) {
-		result = 3;
-	} else if(op == _core_mod) {
-		result = 4;
-	} else if(op == _core_pow) {
-		result = 5;
-	} else if(op == _core_open_bracket) {
-		result = 6;
-	} else if(op == _core_close_bracket) {
-		result = 7;
-	} else if(op == _core_equal) {
-		result = 13;
-	} else if(op == _core_greater) {
-		result = 9;
-	} else if(op == _core_less) {
-		result = 10;
-	} else if(op == _core_greater_equal) {
-		result = 11;
-	} else if(op == _core_less_equal) {
-		result = 12;
-	} else if(op == _core_not_equal) {
-		result = 14;
-	} else if(op == _core_and) {
-		result = 15;
-	} else if(op == _core_or) {
-		result = 16;
-	} else if(op == _core_not) {
-		result = 17;
-	} else if(op == _core_neg) {
-		result = 18;
-	} else if(op == _core_is) {
-		result = 19;
-	} else {
-		mb_assert(0 && "Unknown operator.");
+	for(i = 0; i < _countof(funcs); i++) {
+		if(op == funcs[i])
+			return i;
 	}
 
-	return result;
+	mb_assert(0 && "Unknown operator.");
+
+	return -1;
 }
 
 _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opnd1, _object_t* opnd2, int* status) {
@@ -2639,7 +2649,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	*inep = 0;
 	_ls_pushback(s->in_neg_expr, inep);
 
-	c = (_object_t*)(ast->data);
+	c = (_object_t*)ast->data;
 	do {
 		if(c->type == _DT_STRING) {
 			if(ast->next) {
@@ -2699,7 +2709,7 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 			} else {
 				if(c->type == _DT_ARRAY) {
 _array:
-					if(ast && !_IS_FUNC(((_object_t*)(ast->data)), _core_open_bracket)) {
+					if(ast && !_IS_FUNC(((_object_t*)ast->data), _core_open_bracket)) {
 						_ls_pushback(opnd, c);
 						f++;
 					} else {
@@ -2815,12 +2825,12 @@ _routine:
 							0
 						);
 						if(cs) {
-							c = (_object_t*)(cs->data);
+							c = (_object_t*)cs->data;
 							if(c && c->type == _DT_ROUTINE)
 								goto _routine;
 						}
 						if(ast) {
-							_object_t* _err_var = (_object_t*)(ast->data);
+							_object_t* _err_var = (_object_t*)ast->data;
 							if(_IS_FUNC(_err_var, _core_open_bracket)) {
 								_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 							}
@@ -2835,7 +2845,7 @@ _routine:
 				if(running->calc_depth != _INFINITY_CALC_DEPTH)
 					running->calc_depth--;
 				if(ast && (running->calc_depth == _INFINITY_CALC_DEPTH || running->calc_depth)) {
-					c = (_object_t*)(ast->data);
+					c = (_object_t*)ast->data;
 					if(c->type == _DT_FUNC && !_is_operator(c->data.func->pointer) && !_is_flow(c->data.func->pointer)) {
 						_ls_foreach(opnd, _remove_source_object);
 
@@ -2851,14 +2861,14 @@ _routine:
 			switch(pri) {
 			case '<':
 				_ls_pushback(optr, c);
-				c = (_object_t*)(ast->data);
+				c = (_object_t*)ast->data;
 				ast = ast->next;
 				f = 0;
 
 				break;
 			case '=':
 				x = (_object_t*)_ls_popback(optr);
-				c = (_object_t*)(ast->data);
+				c = (_object_t*)ast->data;
 				ast = ast->next;
 
 				break;
@@ -2986,7 +2996,7 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 			} else {
 				rnode = _search_identifier_in_scope_chain(s, running, var->name, 0, 0);
 				if(rnode)
-					var = ((_object_t*)(rnode->data))->data.variable;
+					var = ((_object_t*)rnode->data)->data.variable;
 
 				if(proc_ref)
 					var->data->ref = true;
@@ -3028,11 +3038,11 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	mb_assert(s && l && r);
 
 	if(!va && s->last_routine && !s->last_routine->func.basic.parameters && (s->last_routine->name == r->name || !strcmp(s->last_routine->name, r->name))) {
-		ast = (_ls_node_t*)(*l);
+		ast = (_ls_node_t*)*l;
 		_skip_to(s, &ast, 0, _DT_EOS);
-		if(ast && ((_object_t*)(ast->data))->type == _DT_EOS)
+		if(ast && ((_object_t*)ast->data)->type == _DT_EOS)
 			ast = ast->next;
-		if(_IS_FUNC((_object_t*)(ast->data), _core_enddef)) { /* Tail recursion optimization */
+		if(_IS_FUNC((_object_t*)ast->data, _core_enddef)) { /* Tail recursion optimization */
 			*l = r->func.basic.entry;
 			if(*l)
 				*l = (*l)->next;
@@ -3064,7 +3074,7 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		mb_check(mb_attempt_close_bracket(s, (void**)l));
 	}
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	_ls_pushback(s->sub_stack, ast);
 
 	running = _push_scope_by_routine(s, running);
@@ -3076,7 +3086,7 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 
 	do {
 		result = _execute_statement(s, l);
-		ast = (_ls_node_t*)(*l);
+		ast = (_ls_node_t*)*l;
 		if(result == MB_SUB_RETURN) {
 			result = MB_FUNC_OK;
 
@@ -3248,7 +3258,7 @@ char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
 	if(_ls_find(context->imported, (void*)f, (_ls_compare)_ht_cmp_string)) {
 		buf = (char*)f;
 	} else {
-		buf = (char*)mb_memdup(f, (unsigned)(strlen(f) + 1));
+		buf = mb_strdup(f, strlen(f) + 1);
 		_ls_pushback(context->imported, buf);
 		buf = 0;
 
@@ -3531,7 +3541,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		break;
 	case _DT_ARRAY:
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0);
-		if(glbsyminscope && ((_object_t*)(glbsyminscope->data))->type == _DT_ARRAY) {
+		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ARRAY) {
 			(*obj)->data.array = ((_object_t*)(glbsyminscope->data))->data.array;
 			(*obj)->ref = true;
 			*delsym = true;
@@ -3777,7 +3787,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			context->parsing_state = _PS_NORMAL;
 			if(_is_using_char(*(sym + 1))) {
 #ifdef MB_ENABLE_MODULE
-				char* ns = mb_memdup(sym + 2, (unsigned)(strlen(sym + 2) + 1));
+				char* ns = mb_strdup(sym + 2, strlen(sym + 2) + 1);
 				if(_ls_find(s->using_modules, ns, (_ls_compare)_ht_cmp_string)) {
 					safe_free(ns);
 				} else {
@@ -4225,6 +4235,7 @@ bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 	/* Unlock an object */
 	bool_t result = true;
+
 	mb_assert(lk);
 
 	if(*lk > 0)
@@ -4437,9 +4448,13 @@ int _gc_destroy_garbage_in_list(void* data, void* extra, void* gc) {
 
 	mb_assert(data);
 
-	obj = (_object_t*)data;
-	_ADDGC(obj, _gc);
-	safe_free(obj);
+	if(_is_string(data)) {
+		_destroy_object(data, extra);
+	} else {
+		obj = (_object_t*)data;
+		_ADDGC(obj, _gc);
+		safe_free(obj);
+	}
 
 	result = _OP_RESULT_DEL_NODE;
 
@@ -4454,13 +4469,21 @@ int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc) {
 
 	mb_assert(data);
 
-	obj = (_object_t*)data;
-	_ADDGC(obj, _gc);
-	safe_free(obj);
+	if(_is_string(data)) {
+		_destroy_object(data, extra);
+	} else {
+		obj = (_object_t*)data;
+		_ADDGC(obj, _gc);
+		safe_free(obj);
+	}
 
-	obj = (_object_t*)extra;
-	_ADDGC(obj, _gc);
-	safe_free(obj);
+	if(_is_string(extra)) {
+		_destroy_object(extra, 0);
+	} else {
+		obj = (_object_t*)extra;
+		_ADDGC(obj, _gc);
+		safe_free(obj);
+	}
 
 	result = _OP_RESULT_DEL_NODE;
 
@@ -4482,6 +4505,8 @@ int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc) {
 		_gc_destroy_garbage_in_class(obj->data.variable->data, 0, gc);
 		safe_free(obj->data.variable->name);
 		safe_free(obj->data.variable);
+	} else if(_is_string(data)) {
+		_destroy_object(data, extra);
 	} else {
 		if(gc) {
 			_ADDGC(obj, _gc);
@@ -4752,7 +4777,7 @@ int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned
 	if(literally) *literally = false;
 
 	/* Array name */
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	if(!c && ast && _is_array(ast->data))
 		c = (_object_t*)ast->data;
 	if(!_is_array(c)) {
@@ -4780,7 +4805,7 @@ int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned
 		_handle_error_on_obj(s, SE_RN_ARRAY_SUBSCRIPT_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
-	while(((_object_t*)(ast->data))->type != _DT_FUNC || ((_object_t*)(ast->data))->data.func->pointer != _core_close_bracket) {
+	while(((_object_t*)ast->data)->type != _DT_FUNC || ((_object_t*)ast->data)->data.func->pointer != _core_close_bracket) {
 		/* Calculate an integer value */
 		result = _calc_expression(s, &ast, &subscript_ptr);
 		if(result != MB_FUNC_OK)
@@ -6161,7 +6186,7 @@ _var_t* _create_var(_object_t** oobj, const char* n, bool_t dup_name) {
 	var = (_var_t*)mb_malloc(sizeof(_var_t));
 	memset(var, 0, sizeof(_var_t));
 	if(dup_name)
-		var->name = mb_memdup(n, (unsigned)(strlen(n) + 1));
+		var->name = mb_strdup(n, strlen(n) + 1);
 	else
 		var->name = (char*)n;
 	var->data = (_object_t*)mb_malloc(sizeof(_object_t));
@@ -6198,7 +6223,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 
 		break;
 	case _DT_STRING:
-		tgt->data.string = mb_memdup(obj->data.string, (unsigned)(strlen(obj->data.string) + 1));
+		tgt->data.string = mb_strdup(obj->data.string, 0);
 
 		break;
 	case _DT_USERTYPE_REF:
@@ -6211,7 +6236,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 
 		break;
 	case _DT_FUNC:
-		tgt->data.func->name = mb_memdup(obj->data.func->name, (unsigned)(strlen(obj->data.func->name) + 1));
+		tgt->data.func->name = mb_strdup(obj->data.func->name, strlen(obj->data.func->name) + 1);
 		tgt->data.func->pointer = obj->data.func->pointer;
 
 		break;
@@ -6241,14 +6266,14 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	case _DT_LABEL:
-		tgt->data.label->name = mb_memdup(obj->data.label->name, (unsigned)(strlen(obj->data.label->name) + 1));
+		tgt->data.label->name = mb_strdup(obj->data.label->name, 0);
 		tgt->data.label->node = obj->data.label->node;
 
 		break;
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
 		tgt->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
-		_init_class(s, tgt->data.instance, mb_memdup(obj->data.instance->name, (unsigned)strlen(obj->data.instance->name)));
+		_init_class(s, tgt->data.instance, mb_strdup(obj->data.instance->name, 0));
 		_push_scope_by_class(s, tgt->data.instance->scope);
 		_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, 1, false, tgt->data.instance, 0);
 		_pop_scope(s);
@@ -6593,7 +6618,7 @@ _data_e _public_type_to_internal_type(mb_data_e t) {
 	case MB_DT_ROUTINE:
 		return _DT_ROUTINE;
 	default:
-		return _DT_NIL;
+		return _DT_UNKNOWN;
 	}
 }
 
@@ -6633,7 +6658,7 @@ mb_data_e _internal_type_to_public_type(_data_e t) {
 	case _DT_ROUTINE:
 		return MB_DT_ROUTINE;
 	default:
-		return MB_DT_NIL;
+		return MB_DT_UNKNOWN;
 	}
 }
 
@@ -6834,7 +6859,7 @@ int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn) 
 	_public_value_to_internal_object(pbl, *itn);
 	if((*itn)->type == _DT_STRING) {
 		(*itn)->ref = false;
-		(*itn)->data.string = mb_memdup((*itn)->data.string, (unsigned)(strlen((*itn)->data.string) + 1));
+		(*itn)->data.string = mb_strdup((*itn)->data.string, strlen((*itn)->data.string) + 1);
 	}
 
 	return result;
@@ -7055,7 +7080,7 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 
 	ast = *l;
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 
 _retry:
 	switch(obj->type) {
@@ -7063,7 +7088,7 @@ _retry:
 		result = (obj->data.func->pointer)(s, (void**)(&ast));
 		if(result == MB_FUNC_IGNORE) {
 			result = MB_FUNC_OK;
-			obj = (_object_t*)(ast->data);
+			obj = (_object_t*)ast->data;
 
 			goto _retry;
 		}
@@ -7136,7 +7161,7 @@ _retry:
 		goto _exit;
 
 	if(ast) {
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		if(_IS_EOS(obj)) {
 			ast = ast->next;
 		} else if(_IS_SEP(obj, ':')) {
@@ -7159,7 +7184,7 @@ _retry:
 
 	if(skip_to_eoi && s->skip_to_eoi && s->skip_to_eoi == _ls_back(s->sub_stack)) {
 		s->skip_to_eoi = 0;
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		if(obj->type != _DT_EOS) {
 			result = _skip_to(s, &ast, 0, _DT_EOS);
 			if(result != MB_FUNC_OK)
@@ -7191,7 +7216,7 @@ int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t) {
 			_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(tmp), MB_FUNC_ERR, _exit, result);
 		}
 		tmp = ast;
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		*l = ast;
 		ast = ast->next;
 	} while(!(_IS_FUNC(obj, f)) && obj->type != t);
@@ -7218,19 +7243,19 @@ int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 			_handle_error_on_obj(s, SE_RN_SYNTAX, 0, TON(l), MB_FUNC_ERR, _exit, result);
 		}
 		tmp = ast;
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		*l = ast;
 		ast = ast->next;
-		if(ast && _IS_FUNC((_object_t*)(ast->data), _core_if)) {
+		if(ast && _IS_FUNC((_object_t*)ast->data, _core_if)) {
 			if(++nested > sizeof(mask) * 8) {
 				_handle_error_on_obj(s, SE_RN_NESTED_TOO_DEEP, 0, TON(l), MB_FUNC_ERR, _exit, result);
 			}
-		} else if(ast && nested && _IS_FUNC((_object_t*)(ast->data), _core_then)) {
+		} else if(ast && nested && _IS_FUNC((_object_t*)ast->data, _core_then)) {
 			if(!(ast && ast->next && _IS_EOS(ast->next->data)))
 				mask |= 1 << (nested - 1);
 		} else if(ast && nested &&
 			(((mask & (1 << (nested - 1))) && _IS_EOS(ast->data)) ||
-			(!(mask & (1 << (nested - 1))) && _IS_FUNC((_object_t*)(ast->data), _core_endif)))
+			(!(mask & (1 << (nested - 1))) && _IS_FUNC((_object_t*)ast->data, _core_endif)))
 		) {
 			if(--nested < 0) {
 				_handle_error_on_obj(s, SE_RN_STRUCTURE_NOT_COMPLETED, 0, TON(l), MB_FUNC_ERR, _exit, result);
@@ -7253,16 +7278,16 @@ int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_fu
 
 	mb_assert(s && l && open_func && close_func);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 
 	count = 1;
 	do {
 		if(!ast->next) {
 			_handle_error_on_obj(s, SE_RN_STRUCTURE_NOT_COMPLETED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
-		obj_prev = (_object_t*)(ast->data);
+		obj_prev = (_object_t*)ast->data;
 		ast = ast->next;
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		if(_IS_FUNC(obj, open_func))
 			++count;
 		else if(_IS_FUNC(obj, close_func) && _IS_EOS(obj_prev))
@@ -7326,7 +7351,7 @@ _module_func_t* _create_module_func(mb_interpreter_t* s, mb_func_t f) {
 		return result;
 
 	result = (_module_func_t*)mb_malloc(sizeof(_module_func_t));
-	result->module = mb_memdup(s->with_module, (unsigned)(strlen(s->with_module) + 1));
+	result->module = mb_strdup(s->with_module, 0);
 	result->func = f;
 
 	return result;
@@ -7410,7 +7435,7 @@ int _register_func(mb_interpreter_t* s, char* n, mb_func_t f, bool_t local) {
 	if(!n)
 		return result;
 
-	n = mb_memdup(n, (unsigned)(strlen(n) + 1));
+	n = mb_strdup(n, strlen(n) + 1);
 	mb_strupr(n);
 
 	scope = local ? s->local_func_dict : s->global_func_dict;
@@ -7419,7 +7444,7 @@ int _register_func(mb_interpreter_t* s, char* n, mb_func_t f, bool_t local) {
 		name = _generate_func_name(s, n, true);
 #endif /* MB_ENABLE_MODULE */
 	if(!name)
-		name = mb_memdup(n, (unsigned)(strlen(n) + 1));
+		name = mb_strdup(n, strlen(n) + 1);
 	exists = _ht_find(scope, (void*)name);
 	if(!exists) {
 		result += _ht_set_or_insert(scope, (void*)name, (void*)(intptr_t)f);
@@ -7463,7 +7488,7 @@ int _remove_func(mb_interpreter_t* s, char* n, bool_t local) {
 	if(!n)
 		return result;
 
-	n = mb_memdup(n, (unsigned)(strlen(n) + 1));
+	n = mb_strdup(n, strlen(n) + 1);
 	mb_strupr(n);
 
 	scope = local ? s->local_func_dict : s->global_func_dict;
@@ -7472,7 +7497,7 @@ int _remove_func(mb_interpreter_t* s, char* n, bool_t local) {
 		name = _generate_func_name(s, n, true);
 #endif /* MB_ENABLE_MODULE */
 	if(!name)
-		name = mb_memdup(n, (unsigned)(strlen(n) + 1));
+		name = mb_strdup(n, strlen(n) + 1);
 	exists = _ht_find(scope, (void*)name);
 	if(exists)
 		result += _ht_remove(scope, (void*)name, _ls_cmp_extra_string);
@@ -7505,7 +7530,7 @@ _ls_node_t* _find_func(mb_interpreter_t* s, char* n, bool_t* mod) {
 
 	mb_assert(s && n);
 
-	n = mb_memdup(n, (unsigned)(strlen(n) + 1));
+	n = mb_strdup(n, strlen(n) + 1);
 	mb_strupr(n);
 
 	result = _ht_find(s->local_func_dict, (void*)n);
@@ -7936,7 +7961,7 @@ int mb_begin_module(struct mb_interpreter_t* s, const char* n) {
 	mb_assert(s && n);
 
 #ifdef MB_ENABLE_MODULE
-	s->with_module = mb_memdup(n, (unsigned)(strlen(n) + 1));
+	s->with_module = mb_strdup(n, strlen(n) + 1);
 
 	goto _exit; /* Avoid an unreferenced label warning */
 #else /* MB_ENABLE_MODULE */
@@ -7975,8 +8000,8 @@ int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	ast = (_ls_node_t*)(*l);
-	obj = (_object_t*)(ast->data);
+	ast = (_ls_node_t*)*l;
+	obj = (_object_t*)ast->data;
 	if(!(obj->type == _DT_FUNC)) {
 		_handle_error_on_obj(s, SE_RN_STRUCTURE_NOT_COMPLETED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -8009,9 +8034,9 @@ int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	ast = ast->next;
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(!_IS_FUNC(obj, _core_open_bracket)) {
 		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -8031,11 +8056,11 @@ int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	if(!ast) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(!_IS_FUNC(obj, _core_close_bracket)) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -8055,9 +8080,9 @@ int mb_has_arg(struct mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	if(ast) {
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		if(!_IS_FUNC(obj, _core_close_bracket) && obj->type != _DT_EOS)
 			result = obj->type != _DT_SEP && obj->type != _DT_EOS;
 	}
@@ -8208,7 +8233,7 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 	val_ptr = &val_obj;
 	_MAKE_NIL(val_ptr);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	result = _calc_expression(s, &ast, &val_ptr);
 	if(result != MB_FUNC_OK)
 		goto _exit;
@@ -8335,7 +8360,7 @@ int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 
 	running = s->running_context;
 
-	tmp = (_ls_node_t*)(*l);
+	tmp = (_ls_node_t*)*l;
 
 	_using_jump_set_of_structured(s, tmp, _exit, result);
 
@@ -8354,7 +8379,7 @@ int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 	obj->type = _DT_CLASS;
 
 	instance = (_class_t*)mb_malloc(sizeof(_class_t));
-	_init_class(s, instance, mb_memdup(n, (unsigned)strlen(n) + 1));
+	_init_class(s, instance, mb_strdup(n, strlen(n) + 1));
 
 	for(i = 0; i < c; i++) {
 		if(meta[i]->type != MB_DT_CLASS) {
@@ -8528,12 +8553,12 @@ int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
 
 	if(v) *v = 0;
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	if(ast) {
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		if(_IS_SEP(obj, ',')) {
 			ast = ast->next;
-			obj = (_object_t*)(ast->data);
+			obj = (_object_t*)ast->data;
 		}
 		ast = ast->next;
 	}
@@ -9081,7 +9106,7 @@ int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routi
 	}
 
 	routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
-	_init_routine(s, routine, mb_memdup(n, (unsigned)(strlen(n) + 1)), f);
+	_init_routine(s, routine, mb_strdup(n, strlen(n) + 1), f);
 
 	obj = (_object_t*)mb_malloc(sizeof(_object_t));
 	_MAKE_NIL(obj);
@@ -9255,7 +9280,7 @@ int mb_suspend(struct mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l && *l);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	s->suspent_point = ast;
 
 	return result;
@@ -9482,6 +9507,7 @@ int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h) {
 int mb_gets(char* buf, int s) {
 	/* Safe stdin reader function */
 	int result = 0;
+
 	if(fgets(buf, s, stdin) == 0) {
 		fprintf(stderr, "Error reading.\n");
 		exit(1);
@@ -9507,7 +9533,6 @@ char* mb_memdup(const char* val, unsigned size) {
 
 int mb_set_memory_manager(mb_memory_allocate_func_t a, mb_memory_free_func_t f) {
 	/* Register an allocator and a freer globally */
-
 	_mb_allocate_func = a;
 	_mb_free_func = f;
 
@@ -10003,14 +10028,14 @@ int _core_let(mb_interpreter_t* s, void** l) {
 
 	running = s->running_context;
 
-	ast = (_ls_node_t*)(*l);
-	obj = (_object_t*)(ast->data);
+	ast = (_ls_node_t*)*l;
+	obj = (_object_t*)ast->data;
 	if(obj->type == _DT_FUNC)
 		ast = ast->next;
 	if(!ast || !ast->data) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(obj->type == _DT_ARRAY) {
 		arr_obj = obj;
 		arr = _search_array_in_scope_chain(s, obj->data.array, &arr_obj);
@@ -10033,7 +10058,7 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	if(!ast || !ast->data) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(obj->type != _DT_FUNC || strcmp(obj->data.func->name, "=") != 0) {
 		_handle_error_on_obj(s, SE_RN_ASSIGN_OPERATOR_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -10119,12 +10144,12 @@ int _core_dim(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	/* Array name */
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	if(!ast->next || ((_object_t*)(ast->next->data))->type != _DT_ARRAY) {
 		_handle_error_on_obj(s, SE_RN_ARRAY_IDENTIFIER_EXPECTED, 0, (ast && ast->next) ? ((_object_t*)(ast->next->data)) : 0, MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
-	arr = (_object_t*)(ast->data);
+	arr = (_object_t*)ast->data;
 	memset(&dummy, 0, sizeof(_array_t));
 	dummy.type = arr->data.array->type;
 	dummy.name = arr->data.array->name;
@@ -10138,9 +10163,9 @@ int _core_dim(mb_interpreter_t* s, void** l) {
 		_handle_error_on_obj(s, SE_RN_ARRAY_SUBSCRIPT_EXPECTED, 0, (ast && ast->next) ? ((_object_t*)(ast->next->data)) : 0, MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
-	while(((_object_t*)(ast->data))->type != _DT_FUNC || ((_object_t*)(ast->data))->data.func->pointer != _core_close_bracket) {
+	while(((_object_t*)ast->data)->type != _DT_FUNC || ((_object_t*)ast->data)->data.func->pointer != _core_close_bracket) {
 		/* Get an integer value */
-		len = (_object_t*)(ast->data);
+		len = (_object_t*)ast->data;
 		if(!_try_get_value(len, &val, _DT_INT)) {
 			_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
@@ -10191,7 +10216,7 @@ int _core_if(mb_interpreter_t* s, void** l) {
 
 	running = s->running_context;
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 
 	val = (_object_t*)mb_malloc(sizeof(_object_t));
@@ -10202,7 +10227,7 @@ _elseif:
 	if(result != MB_FUNC_OK)
 		goto _exit;
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(val->data.integer) {
 		if(!_IS_FUNC(obj, _core_then)) {
 			_handle_error_on_obj(s, SE_RN_INTEGER_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -10235,7 +10260,7 @@ _elseif:
 		if(!ast)
 			goto _exit;
 
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		if(obj->type != _DT_EOS) {
 			s->skip_to_eoi = 0;
 			result = _skip_to(s, &ast, 0, _DT_EOS);
@@ -10260,7 +10285,7 @@ _elseif:
 		if(result != MB_FUNC_OK)
 			goto _exit;
 
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		if(obj->type != _DT_EOS) {
 			if(!_IS_FUNC(obj, _core_else)) {
 				_handle_error_on_obj(s, SE_RN_ELSE_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -10357,7 +10382,7 @@ int _core_for(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	running = s->running_context;
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 
 	to_val_ptr = &to_val;
@@ -10366,7 +10391,7 @@ int _core_for(mb_interpreter_t* s, void** l) {
 	_MAKE_NIL(step_val_ptr);
 	ass_tuple3_ptr = &ass_tuple3;
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(obj->type != _DT_VAR) {
 		_handle_error_on_obj(s, SE_RN_LOOP_VAR_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -10377,7 +10402,7 @@ int _core_for(mb_interpreter_t* s, void** l) {
 		goto _exit;
 	ast = ast->prev;
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(!_IS_FUNC(obj, _core_to)) {
 		_handle_error_on_obj(s, SE_RN_TO_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -10395,7 +10420,7 @@ _to:
 	if(result != MB_FUNC_OK)
 		goto _exit;
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(!_IS_FUNC(obj, _core_step)) {
 		step_val = _OBJ_INT_UNIT;
 	} else {
@@ -10419,7 +10444,7 @@ _to:
 		goto _exit;
 	} else {
 		/* Keep looping */
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		while(!_IS_FUNC(obj, _core_next)) {
 			result = _execute_statement(s, &ast);
 			if(result == MB_LOOP_CONTINUE) { /* NEXT */
@@ -10449,7 +10474,7 @@ _to:
 			if(!ast) {
 				_handle_error_on_obj(s, SE_RN_NEXT_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
-			obj = (_object_t*)(ast->data);
+			obj = (_object_t*)ast->data;
 		}
 
 		ass_tuple3.e1 = var_loop->data;
@@ -10496,13 +10521,13 @@ int _core_next(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	running = s->running_context;
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 
 	result = MB_LOOP_CONTINUE;
 
 	ast = ast->next;
-	if(ast && ((_object_t*)(ast->data))->type == _DT_VAR) {
-		obj = (_object_t*)(ast->data);
+	if(ast && ((_object_t*)ast->data)->type == _DT_VAR) {
+		obj = (_object_t*)ast->data;
 		running->next_loop_var = obj->data.variable;
 	}
 
@@ -10522,7 +10547,7 @@ int _core_while(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 
 	loop_cond_ptr = &loop_cond;
@@ -10539,7 +10564,7 @@ _loop_begin:
 
 	if(loop_cond_ptr->data.integer) {
 		/* Keep looping */
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		while(!_IS_FUNC(obj, _core_wend)) {
 			result = _execute_statement(s, &ast);
 			if(result == MB_LOOP_BREAK) { /* EXIT */
@@ -10553,7 +10578,7 @@ _loop_begin:
 				goto _exit;
 			}
 
-			obj = (_object_t*)(ast->data);
+			obj = (_object_t*)ast->data;
 		}
 
 		goto _loop_begin;
@@ -10593,10 +10618,10 @@ int _core_do(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(!_IS_EOS(obj)) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -10610,7 +10635,7 @@ int _core_do(mb_interpreter_t* s, void** l) {
 _loop_begin:
 	ast = loop_begin_node;
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	while(!_IS_FUNC(obj, _core_until)) {
 		result = _execute_statement(s, &ast);
 		if(result == MB_LOOP_BREAK) { /* EXIT */
@@ -10624,10 +10649,10 @@ _loop_begin:
 			goto _exit;
 		}
 
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 	}
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(!_IS_FUNC(obj, _core_until)) {
 		_handle_error_on_obj(s, SE_RN_UNTIL_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -10687,12 +10712,12 @@ int _core_goto(mb_interpreter_t* s, void** l) {
 
 	running = s->running_context;
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 
 	_using_jump_set_of_instructional(s, ast, _exit, result);
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(obj->type != _DT_LABEL) {
 		_handle_error_on_obj(s, SE_RN_JUMP_LABEL_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -10724,7 +10749,7 @@ int _core_gosub(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	running = s->running_context;
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 
 	_using_jump_set_of_instructional(s, ast, _exit, result);
 
@@ -10752,7 +10777,7 @@ int _core_return(mb_interpreter_t* s, void** l) {
 	sub_stack = s->sub_stack;
 
 	if(running->prev) {
-		ast = (_ls_node_t*)(*l);
+		ast = (_ls_node_t*)*l;
 		ast = ast->next;
 		if(mb_has_arg(s, (void**)(&ast))) {
 			mb_check(mb_pop_value(s, (void**)(&ast), &arg));
@@ -10785,10 +10810,10 @@ int _core_call(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 
 _retry:
 	switch(obj->type) {
@@ -10797,7 +10822,7 @@ _retry:
 			mb_check(mb_attempt_open_bracket(s, l));
 
 			ast = ast->next;
-			obj = (_object_t*)(ast->data);
+			obj = (_object_t*)ast->data;
 #ifdef MB_ENABLE_CLASS
 			if(obj->type == _DT_VAR) {
 				pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing, 0);
@@ -10864,26 +10889,26 @@ int _core_def(mb_interpreter_t* s, void** l) {
 
 	running = s->running_context;
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 
 	_using_jump_set_of_structured(s, ast, _exit, result);
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(!_IS_ROUTINE(obj)) {
 		_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	if(obj->data.routine->func.basic.entry) {
 		_handle_error_on_obj(s, SE_RN_DUPLICATE_ROUTINE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
-	routine = (_routine_t*)(((_object_t*)(ast->data))->data.routine);
+	routine = (_routine_t*)(((_object_t*)ast->data)->data.routine);
 	ast = ast->next;
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	if(!_IS_FUNC(obj, _core_open_bracket)) {
 		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	while(!_IS_FUNC(obj, _core_close_bracket)) {
 		if(obj->type == _DT_VAR) {
 			var = obj->data.variable;
@@ -10896,7 +10921,7 @@ int _core_def(mb_interpreter_t* s, void** l) {
 		}
 
 		ast = ast->next;
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 	}
 	ast = ast->next;
 	routine->func.basic.entry = ast;
@@ -10945,25 +10970,25 @@ int _core_class(mb_interpreter_t* s, void** l) {
 
 	running = s->running_context;
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 
 	_using_jump_set_of_structured(s, ast, _exit, result);
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	obj = _GET_CLASS(obj);
 	if(!_IS_CLASS(obj)) {
 		_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	instance = obj->data.instance;
 	ast = ast->next;
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 
 	if(_IS_FUNC(obj, _core_open_bracket)) {
 		/* Process meta_list */
 		do {
 			ast = ast->next;
-			obj = (_object_t*)(ast->data);
+			obj = (_object_t*)ast->data;
 			if(obj && obj->type == _DT_VAR) {
 				_ls_node_t* tmp =_search_identifier_in_scope_chain(s, _OUTTER_SCOPE(running), obj->data.variable->name, 0, 0);
 				if(tmp && tmp->data)
@@ -10976,7 +11001,7 @@ int _core_class(mb_interpreter_t* s, void** l) {
 			inherit = obj->data.instance;
 			_link_meta_class(s, instance, inherit);
 			ast = ast->next;
-			obj = (_object_t*)(ast->data);
+			obj = (_object_t*)ast->data;
 		} while(_IS_CLASS(obj) || _IS_SEP(obj, ','));
 		if(_IS_FUNC(obj, _core_close_bracket)) {
 			ast = ast->next;
@@ -10998,9 +11023,9 @@ int _core_class(mb_interpreter_t* s, void** l) {
 
 			goto _pop_exit;
 		}
-		ast = (_ls_node_t*)(*l);
+		ast = (_ls_node_t*)*l;
 		if(!ast) break;
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 	} while(ast && !_IS_FUNC(obj, _core_endclass));
 
 	_pop_scope(s);
@@ -11079,7 +11104,7 @@ int _core_var(mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	mb_unrefvar(s);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 
 	if(!s->last_instance) {
@@ -11436,7 +11461,7 @@ int _std_rnd(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 
 	if(ast && ast->next && _IS_FUNC(ast->next->data, _core_open_bracket)) {
 		int_t lw = 0;
@@ -11948,7 +11973,7 @@ int _std_len(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
@@ -12009,13 +12034,13 @@ int _std_print(mb_interpreter_t* s, void** l) {
 	_MAKE_NIL(val_ptr);
 
 	++s->no_eat_comma_mark;
-	ast = (_ls_node_t*)(*l);
+	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 	if(!ast || !ast->data) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 
-	obj = (_object_t*)(ast->data);
+	obj = (_object_t*)ast->data;
 	do {
 		switch(obj->type) {
 		case _DT_VAR:
@@ -12032,7 +12057,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 							_public_value_to_internal_object(&s->running_context->intermediate_value, &tmp);
 							val_ptr = obj = &tmp;
 							if(tmp.type == _DT_STRING)
-								tmp.data.string = mb_memdup(tmp.data.string, (unsigned)(strlen(tmp.data.string) + 1));
+								tmp.data.string = mb_strdup(tmp.data.string, strlen(tmp.data.string) + 1);
 							if(ast) ast = ast->prev;
 						} else if(obj->type == _DT_VAR) {
 							val_ptr = obj = obj->data.variable->data;
@@ -12092,7 +12117,7 @@ _print:
 		case _DT_SEP:
 			if(!ast)
 				break;
-			obj = (_object_t*)(ast->data);
+			obj = (_object_t*)ast->data;
 #if _COMMA_AS_NEWLINE
 			if(obj->data.separator == ',') {
 #else /* _COMMA_AS_NEWLINE */
@@ -12110,12 +12135,12 @@ _print:
 
 		if(!ast)
 			break;
-		obj = (_object_t*)(ast->data);
+		obj = (_object_t*)ast->data;
 		if(_is_print_terminal(s, obj))
 			break;
 		if(_IS_SEP(obj, ',') || _IS_SEP(obj, ';')) {
 			ast = ast->next;
-			obj = (_object_t*)(ast->data);
+			obj = (_object_t*)ast->data;
 		} else {
 			_handle_error_on_obj(s, SE_RN_COMMA_OR_SEMICOLON_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
@@ -12144,8 +12169,8 @@ int _std_input(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_func_begin(s, l));
 	mb_check(mb_attempt_func_end(s, l));
 
-	ast = (_ls_node_t*)(*l);
-	obj = (_object_t*)(ast->data);
+	ast = (_ls_node_t*)*l;
+	obj = (_object_t*)ast->data;
 
 	if(!obj || obj->type == _DT_EOS) {
 #ifdef _MSC_VER

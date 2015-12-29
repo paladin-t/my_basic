@@ -1,6 +1,7 @@
 Dec. 29 2015
 Fixed a multiple disposing bug with expression calculation
-Improved GC with an array
+Improved GC with array and string
+Improved string duplication
 Improved array handling
 Polished array manipulation code
 
