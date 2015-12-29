@@ -78,7 +78,8 @@ extern "C" {
 #	define _BIN_FILE_NAME "my_basic_bin"
 #endif /* _MSC_VER */
 
-#define _USE_MEM_POOL /* Comment this macro to disable memory pool */
+/* Define as 1 to use memory pool, 0 to disable */
+#define _USE_MEM_POOL 1
 
 #define _MAX_LINE_LENGTH 256
 #define _str_eq(__str1, __str2) (_strcmpi(__str1, __str2) == 0)
@@ -107,7 +108,7 @@ static struct mb_interpreter_t* bas = 0;
 ** Memory manipulation
 */
 
-#ifdef _USE_MEM_POOL
+#if _USE_MEM_POOL
 extern MBAPI const size_t MB_SIZEOF_4BYTES;
 extern MBAPI const size_t MB_SIZEOF_8BYTES;
 extern MBAPI const size_t MB_SIZEOF_32BYTES;
@@ -831,7 +832,7 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 				eval = true;
 				_CHECK_ARG(argc, i, "-e: Expression expected.\n");
 				prog = argv[++i];
-#ifdef _USE_MEM_POOL
+#if _USE_MEM_POOL
 			} else if(!memcmp(argv[i] + 1, "p", 1)) {
 				_CHECK_ARG(argc, i, "-p: Memory pool threashold expected.\n");
 				memp = argv[++i];
@@ -848,7 +849,7 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 		i++;
 	}
 
-#ifdef _USE_MEM_POOL
+#if _USE_MEM_POOL
 	if(memp)
 		_POOL_THRESHOLD_BYTES = atoi(memp);
 #else /* _USE_MEM_POOL */
@@ -948,7 +949,7 @@ static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f
 */
 
 static void _on_startup(void) {
-#ifdef _USE_MEM_POOL
+#if _USE_MEM_POOL
 	_open_mem_pool();
 
 	mb_set_memory_manager(_pop_mem, _push_mem);
@@ -981,13 +982,13 @@ static void _on_exit(void) {
 	_destroy_code(c);
 	c = 0;
 
-#ifdef _USE_MEM_POOL
+#if _USE_MEM_POOL
 	_close_mem_pool();
 #endif /* _USE_MEM_POOL */
 
 #if defined _MSC_VER && !defined _WIN64
 	if(0 != _CrtDumpMemoryLeaks()) { _asm { int 3 } }
-#elif defined _USE_MEM_POOL
+#elif _USE_MEM_POOL
 	if(alloc_count > 0 || alloc_bytes > 0) { mb_assert(0 && "Memory leak."); }
 #endif /* _MSC_VER && !_WIN64 */
 }
