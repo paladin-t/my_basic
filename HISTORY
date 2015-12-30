@@ -1,6 +1,8 @@
 Dec. 30 2015
 Improved error handling with sub routine and class
+Implemented DIR command
 Polished code
+Polished document
 
 Dec. 29 2015
 Fixed a multiple disposing bug with expression calculation
@@ -247,7 +249,8 @@ Improved sub routine
 Sep. 2 2015
 Added sub routine type insurance
 Prompted more friendly dummy function message
-Polished code and document
+Polished code
+Polished document
 
 Sep. 1 2015
 Added support for user customized sub routine by DEF/ENDDEF

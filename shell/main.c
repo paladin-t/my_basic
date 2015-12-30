@@ -656,6 +656,18 @@ static void _kill_program(const char* path) {
 	}
 }
 
+static void _list_directory(const char* path) {
+	char line[_MAX_LINE_LENGTH];
+#ifdef _MSC_VER
+	if(path && *path) sprintf(line, "dir %s", path);
+	else sprintf(line, "dir");
+#else /* _MSC_VER */
+	if(path && *path) sprintf(line, "ls %s", path);
+	else sprintf(line, "ls");
+#endif /* _MSC_VER */
+	system(line);
+}
+
 static void _show_tip(void) {
 	_printf("MY-BASIC Interpreter Shell - %s\n", mb_ver_string());
 	_printf("Copyright (C) 2011 - 2016 Wang Renxin. All Rights Reserved.\n");
@@ -664,11 +676,16 @@ static void _show_tip(void) {
 }
 
 static void _show_help(void) {
-	_printf("Parameters:\n");
+	_printf("Modes:\n");
 	_printf("  %s           - Start interactive mode without arguments\n", _BIN_FILE_NAME);
 	_printf("  %s *.*       - Load and run a file\n", _BIN_FILE_NAME);
 	_printf("  %s -e \"expr\" - Evaluate an expression directly\n", _BIN_FILE_NAME);
+	_printf("\n");
+	_printf("Options:\n");
+	_printf("  -p n  - Set memory pool threashold size, n is size in bytes\n");
+	_printf("\n");
 	_printf("Interactive commands:\n");
+	_printf("  HELP  - View help information\n");
 	_printf("  CLS   - Clear screen\n");
 	_printf("  NEW   - Clear current program\n");
 	_printf("  RUN   - Run current program\n");
@@ -677,14 +694,16 @@ static void _show_help(void) {
 	_printf("          Usage: LIST [l [n]], l is start line number, n is line count\n");
 	_printf("  EDIT  - Edit (modify/insert/remove) a line in current program\n");
 	_printf("          Usage: EDIT n, n is line number\n");
-	_printf("                 EDIT -I n, insert a line before a given line, n is line number\n");
-	_printf("                 EDIT -R n, remove a line, n is line number\n");
+	_printf("                 EDIT -i n, insert a line before a given line, n is line number\n");
+	_printf("                 EDIT -r n, remove a line, n is line number\n");
 	_printf("  LOAD  - Load a file as current program\n");
 	_printf("          Usage: LOAD *.*\n");
 	_printf("  SAVE  - Save current program to a file\n");
 	_printf("          Usage: SAVE *.*\n");
 	_printf("  KILL  - Delete a file\n");
 	_printf("          Usage: KILL *.*\n");
+	_printf("  DIR   - List a directory\n");
+	_printf("          Usage: DIR [p], p is a directory path\n");
 }
 
 static int _do_line(void) {
@@ -750,6 +769,9 @@ static int _do_line(void) {
 	} else if(_str_eq(line, "KILL")) {
 		char* path = line + strlen(line) + 1;
 		_kill_program(path);
+	} else if(_str_eq(line, "DIR")) {
+		char* path = line + strlen(line) + 1;
+		_list_directory(path);
 	} else {
 		_append_line(c, dup);
 	}
@@ -834,7 +856,7 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 				prog = argv[++i];
 #if _USE_MEM_POOL
 			} else if(!memcmp(argv[i] + 1, "p", 1)) {
-				_CHECK_ARG(argc, i, "-p: Memory pool threashold expected.\n");
+				_CHECK_ARG(argc, i, "-p: Memory pool threashold size expected.\n");
 				memp = argv[++i];
 				if(argc > i + 1)
 					prog = argv[++i];
