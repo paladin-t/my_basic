@@ -1323,6 +1323,7 @@ static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, 
 static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i);
 
 static _var_t* _create_var(_object_t** oobj, const char* n, bool_t dup_name);
+static _object_t* _create_object(void);
 static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt);
 static int _dispose_object(_object_t* obj);
 static int _destroy_object(void* data, void* extra);
@@ -2575,8 +2576,7 @@ _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opn
 	if(!opnd1)
 		return result;
 
-	result = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(result);
+	result = _create_object();
 
 	memset(&tp, 0, sizeof(_tuple3_t));
 	tp.e1 = opnd1;
@@ -2733,8 +2733,7 @@ _array:
 						}
 						ast = ast->next;
 						_get_array_elem(s, c->data.array, arr_idx, &arr_val, &arr_type);
-						arr_elem = (_object_t*)mb_malloc(sizeof(_object_t));
-						_MAKE_NIL(arr_elem);
+						arr_elem = _create_object();
 						_ls_pushback(garbage, arr_elem);
 						arr_elem->type = arr_type;
 						arr_elem->ref = true;
@@ -2758,8 +2757,7 @@ _array:
 					if(result != MB_FUNC_OK) {
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 					}
-					c = (_object_t*)mb_malloc(sizeof(_object_t));
-					_MAKE_NIL(c);
+					c = _create_object();
 					_ls_pushback(garbage, c);
 					result = _public_value_to_internal_object(&running->intermediate_value, c);
 					if(c->type == _DT_STRING)
@@ -2787,8 +2785,7 @@ _routine:
 					if(result != MB_FUNC_OK) {
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 					}
-					c = (_object_t*)mb_malloc(sizeof(_object_t));
-					_MAKE_NIL(c);
+					c = _create_object();
 					_ls_pushback(garbage, c);
 					result = _public_value_to_internal_object(&running->intermediate_value, c);
 					if(result != MB_FUNC_OK)
@@ -2806,8 +2803,7 @@ _routine:
 					}
 					ast = ast->next;
 					_get_array_elem(s, c->data.variable->data->data.array, arr_idx, &arr_val, &arr_type);
-					arr_elem = (_object_t*)mb_malloc(sizeof(_object_t));
-					_MAKE_NIL(arr_elem);
+					arr_elem = _create_object();
 					_ls_pushback(garbage, arr_elem);
 					arr_elem->type = arr_type;
 					arr_elem->ref = true;
@@ -3493,8 +3489,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 	context = s->parsing_context;
 	running = s->running_context;
 
-	*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(*obj);
+	*obj = _create_object();
 #ifdef MB_ENABLE_SOURCE_TRACE
 	(*obj)->source_pos = -1;
 	(*obj)->source_row = (*obj)->source_col = 0xffff;
@@ -3563,8 +3558,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
 			mb_assert(ul);
 
-			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-			_MAKE_NIL(*obj);
+			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.array = tmp.array;
 			(*obj)->ref = true;
@@ -3600,8 +3594,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			var->data->type = _DT_CLASS;
 			var->data->data.instance = tmp.instance;
 
-			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-			_MAKE_NIL(*obj);
+			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.variable = tmp.var;
 			(*obj)->ref = true;
@@ -3613,8 +3606,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
 			mb_assert(ul);
 
-			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-			_MAKE_NIL(*obj);
+			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.instance = tmp.instance;
 			(*obj)->ref = true;
@@ -3647,8 +3639,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			if(tba != _OUTTER_SCOPE(running) && tba != running)
 				_pop_scope(s);
 
-			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-			_MAKE_NIL(*obj);
+			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.routine = tmp.routine;
 			(*obj)->ref = true;
@@ -3675,8 +3666,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			tmp.var = (_var_t*)mb_malloc(sizeof(_var_t));
 			memset(tmp.var, 0, sizeof(_var_t));
 			tmp.var->name = sym;
-			tmp.var->data = (_object_t*)mb_malloc(sizeof(_object_t));
-			_MAKE_NIL(tmp.var->data);
+			tmp.var->data = _create_object();
 			tmp.var->data->type = (sym[strlen(sym) - 1] == '$') ? _DT_STRING : _DT_INT;
 			tmp.var->data->data.integer = 0;
 #ifdef MB_ENABLE_CLASS
@@ -3688,8 +3678,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
 			mb_assert(ul);
 
-			*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-			_MAKE_NIL(*obj);
+			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.variable = tmp.var;
 			(*obj)->ref = true;
@@ -3712,8 +3701,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 				ul = _ht_set_or_insert(running->var_dict, sym, *obj);
 				mb_assert(ul);
 
-				*obj = (_object_t*)mb_malloc(sizeof(_object_t));
-				_MAKE_NIL(*obj);
+				*obj = _create_object();
 				(*obj)->type = type;
 				(*obj)->data.label = tmp.label;
 				(*obj)->ref = true;
@@ -5482,8 +5470,7 @@ int _clone_to_list(void* data, void* extra, _list_t* coll) {
 
 	mb_assert(data && coll);
 
-	tgt = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(tgt);
+	tgt = _create_object();
 	obj = (_object_t*)data;
 	_clone_object(coll->ref.s, obj, tgt);
 	_push_list(coll, 0, tgt);
@@ -5501,13 +5488,11 @@ int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 
 	mb_assert(data && extra && coll);
 
-	ktgt = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(ktgt);
+	ktgt = _create_object();
 	kobj = (_object_t*)extra;
 	_clone_object(coll->ref.s, kobj, ktgt);
 
-	vtgt = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(vtgt);
+	vtgt = _create_object();
 	vobj = (_object_t*)data;
 	_clone_object(coll->ref.s, vobj, vtgt);
 
@@ -5694,8 +5679,7 @@ int _clone_clsss_field(void* data, void* extra, void* n) {
 	case _DT_ROUTINE:
 		sub = (_routine_t*)obj->data.routine;
 		if(!_search_identifier_in_scope_chain(instance->ref.s, instance->scope, sub->name, 0, 0)) {
-			ret = (_object_t*)mb_malloc(sizeof(_object_t));
-			_MAKE_NIL(ret);
+			ret = _create_object();
 			ret->type = _DT_ROUTINE;
 			ret->data.routine = sub;
 			ret->ref = true;
@@ -6178,11 +6162,10 @@ _var_t* _create_var(_object_t** oobj, const char* n, bool_t dup_name) {
 		var->name = mb_strdup(n, strlen(n) + 1);
 	else
 		var->name = (char*)n;
-	var->data = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(var->data);
+	var->data = _create_object();
 
 	if(!oobj || !(*oobj))
-		obj = (_object_t*)mb_malloc(sizeof(_object_t));
+		obj = _create_object();
 	else
 		obj = *oobj;
 	_MAKE_NIL(obj);
@@ -6193,6 +6176,14 @@ _var_t* _create_var(_object_t** oobj, const char* n, bool_t dup_name) {
 	if(oobj) *oobj = obj;
 
 	return var;
+}
+
+_object_t* _create_object(void) {
+	/* Create an _object_t struct */
+	_object_t* result = (_object_t*)mb_malloc(sizeof(_object_t));
+	_MAKE_NIL(result);
+
+	return result;
 }
 
 int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
@@ -6843,8 +6834,7 @@ int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn) 
 
 	mb_assert(pbl && itn);
 
-	*itn = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(*itn);
+	*itn = _create_object();
 	_public_value_to_internal_object(pbl, *itn);
 	if((*itn)->type == _DT_STRING) {
 		(*itn)->ref = false;
@@ -6895,8 +6885,7 @@ void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
 
 	mb_assert(s && ch);
 
-	temp_obj = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(temp_obj);
+	temp_obj = _create_object();
 	temp_obj->type = _DT_STRING;
 	temp_obj->ref = false;
 	temp_obj->data.string = ch;
@@ -7678,8 +7667,7 @@ int mb_init(void) {
 	int result = MB_FUNC_OK;
 
 	mb_assert(!_exp_assign);
-	_exp_assign = (_object_t*)mb_malloc(sizeof(_object_t));
-	memset(_exp_assign, 0, sizeof(_object_t));
+	_exp_assign = _create_object();
 	_exp_assign->type = _DT_FUNC;
 	_exp_assign->data.func = (_func_t*)mb_malloc(sizeof(_func_t));
 	memset(_exp_assign->data.func, 0, sizeof(_func_t));
@@ -7689,8 +7677,7 @@ int mb_init(void) {
 
 	mb_assert(!_OBJ_BOOL_TRUE);
 	if(!_OBJ_BOOL_TRUE) {
-		_OBJ_BOOL_TRUE = (_object_t*)mb_malloc(sizeof(_object_t));
-		memset(_OBJ_BOOL_TRUE, 0, sizeof(_object_t));
+		_OBJ_BOOL_TRUE = _create_object();
 
 		_OBJ_BOOL_TRUE->type = _DT_VAR;
 		_OBJ_BOOL_TRUE->data.variable = (_var_t*)mb_malloc(sizeof(_var_t));
@@ -7699,15 +7686,13 @@ int mb_init(void) {
 		memset(_OBJ_BOOL_TRUE->data.variable->name, 0, strlen("TRUE") + 1);
 		strcpy(_OBJ_BOOL_TRUE->data.variable->name, "TRUE");
 
-		_OBJ_BOOL_TRUE->data.variable->data = (_object_t*)mb_malloc(sizeof(_object_t));
-		memset(_OBJ_BOOL_TRUE->data.variable->data, 0, sizeof(_object_t));
+		_OBJ_BOOL_TRUE->data.variable->data = _create_object();
 		_OBJ_BOOL_TRUE->data.variable->data->type = _DT_INT;
 		_OBJ_BOOL_TRUE->data.variable->data->data.integer = 1;
 	}
 	mb_assert(!_OBJ_BOOL_FALSE);
 	if(!_OBJ_BOOL_FALSE) {
-		_OBJ_BOOL_FALSE = (_object_t*)mb_malloc(sizeof(_object_t));
-		memset(_OBJ_BOOL_FALSE, 0, sizeof(_object_t));
+		_OBJ_BOOL_FALSE = _create_object();
 
 		_OBJ_BOOL_FALSE->type = _DT_VAR;
 		_OBJ_BOOL_FALSE->data.variable = (_var_t*)mb_malloc(sizeof(_var_t));
@@ -7716,8 +7701,7 @@ int mb_init(void) {
 		memset(_OBJ_BOOL_FALSE->data.variable->name, 0, strlen("FALSE") + 1);
 		strcpy(_OBJ_BOOL_FALSE->data.variable->name, "FALSE");
 
-		_OBJ_BOOL_FALSE->data.variable->data = (_object_t*)mb_malloc(sizeof(_object_t));
-		memset(_OBJ_BOOL_FALSE->data.variable->data, 0, sizeof(_object_t));
+		_OBJ_BOOL_FALSE->data.variable->data = _create_object();
 		_OBJ_BOOL_FALSE->data.variable->data->type = _DT_INT;
 		_OBJ_BOOL_FALSE->data.variable->data->data.integer = 0;
 	}
@@ -8231,8 +8215,7 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 		_ls_foreach(s->temp_values, _destroy_object);
 		_ls_clear(s->temp_values);
 
-		val_ptr = (_object_t*)mb_malloc(sizeof(_object_t));
-		memcpy(val_ptr, &val_obj, sizeof(_object_t));
+		val_ptr = _create_object();
 		_ls_pushback(s->temp_values, val_ptr);
 	}
 	_REF(val_ptr)
@@ -8363,8 +8346,7 @@ int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 		_handle_error_on_obj(s, SE_RN_DUPLICATE_CLASS, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
 
-	obj = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(obj);
+	obj = _create_object();
 	obj->type = _DT_CLASS;
 
 	instance = (_class_t*)mb_malloc(sizeof(_class_t));
@@ -9097,8 +9079,7 @@ int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routi
 	routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
 	_init_routine(s, routine, mb_strdup(n, strlen(n) + 1), f);
 
-	obj = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(obj);
+	obj = _create_object();
 	obj->type = _DT_ROUTINE;
 	obj->data.routine = routine;
 	obj->ref = false;
@@ -10053,8 +10034,7 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	}
 
 	ast = ast->next;
-	val = (_object_t*)mb_malloc(sizeof(_object_t));
-	_MAKE_NIL(val);
+	val = _create_object();
 	result = _calc_expression(s, &ast, &val);
 
 	if(var) {
@@ -10208,7 +10188,7 @@ int _core_if(mb_interpreter_t* s, void** l) {
 	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 
-	val = (_object_t*)mb_malloc(sizeof(_object_t));
+	val = _create_object();
 
 _elseif:
 	_MAKE_NIL(val);
@@ -12191,8 +12171,8 @@ int _std_input(mb_interpreter_t* s, void** l) {
 		if(obj->data.variable->data->data.string) {
 			safe_free(obj->data.variable->data->data.string);
 		}
-		obj->data.variable->data->data.string = (char*)mb_malloc(256);
-		memset(obj->data.variable->data->data.string, 0, 256);
+		obj->data.variable->data->data.string = (char*)mb_malloc(sizeof(line));
+		memset(obj->data.variable->data->data.string, 0, sizeof(line));
 		_get_inputer(s)(line, sizeof(line));
 		strcpy(obj->data.variable->data->data.string, line);
 		ast = ast->next;
