@@ -84,7 +84,7 @@ extern "C" {
 /** Macros */
 #define _VER_MAJOR 1
 #define _VER_MINOR 1
-#define _VER_REVISION 112
+#define _VER_REVISION 113
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
@@ -519,6 +519,9 @@ static _object_t* _OBJ_BOOL_TRUE = 0;
 static _object_t* _OBJ_BOOL_FALSE = 0;
 
 /* Parsing context */
+#define _CLASS_STATE_NONE 0
+#define _CLASS_STATE_PROC 1
+
 typedef enum _parsing_state_e {
 	_PS_NORMAL = 0,
 	_PS_STRING,
@@ -1314,7 +1317,7 @@ static void _unreference_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _pop_scope(mb_interpreter_t* s);
 static _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p);
-static _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s);
+static _running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s);
 static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, const char* n, int pathing, _ht_node_t** ht);
 static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o);
 static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i);
@@ -2304,12 +2307,12 @@ char* mb_strdup(const char* p, size_t s) {
 		s = _MB_READ_MEM_TAG_SIZE(p);
 	}
 
-	return (char*)mb_memdup(p, (unsigned)s);
+	return mb_memdup(p, (unsigned)s);
 #else /* MB_ENABLE_ALLOC_STAT */
 	if(s)
-		return (char*)mb_memdup(p, (unsigned)s);
+		return mb_memdup(p, (unsigned)s);
 
-	return (char*)mb_memdup(p, (unsigned)(strlen(p) + 1));
+	return mb_memdup(p, (unsigned)(strlen(p) + 1));
 #endif /* MB_ENABLE_ALLOC_STAT */
 }
 
@@ -3579,7 +3582,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			(*obj)->ref = true;
 			*delsym = true;
 			if(running != (*obj)->data.instance->scope &&
-				context->class_state &&
+				(context->class_state != _CLASS_STATE_NONE) &&
 				_IS_FUNC(context->last_symbol, _core_class)) {
 				_push_scope_by_class(s, (*obj)->data.instance->scope);
 			}
@@ -3641,7 +3644,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			_push_scope_by_routine(s, tmp.routine->func.basic.scope);
 			(*obj)->data.routine = tmp.routine;
 
-			tba = _get_scope_for_add_routine(s);
+			tba = _get_scope_to_add_routine(s);
 			ul = _ht_set_or_insert(tba->var_dict, sym, *obj);
 			mb_assert(ul);
 			if(tba != _OUTTER_SCOPE(running) && tba != running)
@@ -5544,7 +5547,7 @@ void _begin_class(mb_interpreter_t* s) {
 	mb_assert(s);
 
 	context = s->parsing_context;
-	context->class_state++;
+	context->class_state = _CLASS_STATE_PROC;
 }
 
 bool_t _end_class(mb_interpreter_t* s) {
@@ -5557,12 +5560,12 @@ bool_t _end_class(mb_interpreter_t* s) {
 	if(context->routine_state) {
 		_handle_error_now(s, SE_RN_INVALID_ROUTINE, 0, MB_FUNC_ERR);
 	}
-	if(!context->class_state) {
+	if(context->class_state == _CLASS_STATE_NONE) {
 		_handle_error_now(s, SE_RN_INVALID_CLASS, 0, MB_FUNC_ERR);
 
 		return false;
 	}
-	context->class_state--;
+	context->class_state = _CLASS_STATE_NONE;
 	s->last_instance = 0;
 
 	return true;
@@ -6045,11 +6048,11 @@ _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p) {
 	return running;
 }
 
-_running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s) {
+_running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s) {
 	/* Get a proper scope to add a routine */
 	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
-	bool_t class_state = false;
+	unsigned short class_state = _CLASS_STATE_NONE;
 
 	mb_assert(s);
 
@@ -6058,7 +6061,7 @@ _running_context_t* _get_scope_for_add_routine(mb_interpreter_t* s) {
 #ifdef MB_ENABLE_CLASS
 	class_state = context->class_state;
 #endif /* MB_ENABLE_CLASS */
-	if(class_state) {
+	if(class_state != _CLASS_STATE_NONE) {
 		if(running)
 			running = running->prev;
 	} else {
@@ -6848,7 +6851,7 @@ int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn) 
 	_public_value_to_internal_object(pbl, *itn);
 	if((*itn)->type == _DT_STRING) {
 		(*itn)->ref = false;
-		(*itn)->data.string = mb_strdup((*itn)->data.string, strlen((*itn)->data.string) + 1);
+		(*itn)->data.string = mb_strdup((*itn)->data.string, 0);
 	}
 
 	return result;
@@ -6990,12 +6993,12 @@ void _tidy_scope_chain(mb_interpreter_t* s) {
 	context = s->parsing_context;
 	if(!context) return;
 
-	while(context->routine_state) {
+	while(context->routine_state && s->running_context->meta != _SCOPE_META_ROOT) {
 		if(_end_routine(s))
 			_pop_scope(s);
 	}
 #ifdef MB_ENABLE_CLASS
-	while(context->class_state) {
+	while(context->class_state != _CLASS_STATE_NONE) {
 		if(_end_class(s))
 			_pop_scope(s);
 	}

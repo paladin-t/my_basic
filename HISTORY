@@ -1,3 +1,6 @@
+Dec. 30 2015
+Improved error handling with sub routine and class
+
 Dec. 29 2015
 Fixed a multiple disposing bug with expression calculation
 Fixed a memory leak with GC caused by meta class
