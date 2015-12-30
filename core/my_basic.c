@@ -2934,10 +2934,7 @@ _routine:
 		(*val)->type = c->type;
 		if(_is_string(c)) {
 			char* _str = _extract_string(c);
-			size_t _sl = strlen(_str);
-			(*val)->data.string = (char*)mb_malloc(_sl + 1);
-			(*val)->data.string[_sl] = '\0';
-			memcpy((*val)->data.string, _str, _sl + 1);
+			(*val)->data.string = mb_strdup(_str, strlen(_str) + 1);
 			(*val)->ref = false;
 		} else if(c->type == _DT_ARRAY) {
 			(*val)->data = c->data;
