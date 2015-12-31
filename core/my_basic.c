@@ -83,8 +83,8 @@ extern "C" {
 
 /** Macros */
 #define _VER_MAJOR 1
-#define _VER_MINOR 1
-#define _VER_REVISION 113
+#define _VER_MINOR 2
+#define _VER_REVISION 0
 #define _VER_SUFFIX
 #define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
 #define _STRINGIZE(A) _MAKE_STRINGIZE(A)
