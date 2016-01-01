@@ -10701,6 +10701,8 @@ int _core_goto(mb_interpreter_t* s, void** l) {
 
 	mb_assert(label->node && label->node->prev);
 	ast = label->node->prev;
+	if(ast && !ast->data)
+		ast = ast->next;
 
 _exit:
 	*l = ast;
