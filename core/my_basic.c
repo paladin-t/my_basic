@@ -1146,10 +1146,18 @@ static char* _extract_string(_object_t* obj);
 		case _DT_DICT: \
 			_gc_add(&(__o)->data.dict->ref, (__o)->data.dict, (__g)); \
 			break;
+#	define _UNREF_COLL_IT(__o) \
+		case _DT_LIST_IT: \
+			_destroy_list_it(obj->data.list_it); \
+			break; \
+		case _DT_DICT_IT: \
+			_destroy_dict_it(obj->data.dict_it); \
+			break;
 #else /* MB_ENABLE_COLLECTION_LIB */
 #	define _REF_COLL(__o) ((void)(__o));
 #	define _UNREF_COLL(__o) ((void)(__o));
 #	define _ADDGC_COLL(__o, __g) ((void)(__o)); ((void)(__g));
+#	define _UNREF_COLL_IT(__o) ((void)(__o));
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 #	define _REF_CLASS(__o) \
@@ -6331,16 +6339,7 @@ int _dispose_object(_object_t* obj) {
 	_UNREF_ARRAY(obj)
 	_UNREF_COLL(obj)
 	_UNREF_CLASS(obj)
-#ifdef MB_ENABLE_COLLECTION_LIB
-	case _DT_LIST_IT:
-		_destroy_list_it(obj->data.list_it);
-
-		break;
-	case _DT_DICT_IT:
-		_destroy_dict_it(obj->data.dict_it);
-
-		break;
-#endif /* MB_ENABLE_COLLECTION_LIB */
+	_UNREF_COLL_IT(obj)
 	case _DT_LABEL:
 		if(!obj->ref) {
 			safe_free(obj->data.label->name);
@@ -11123,7 +11122,7 @@ int _core_type(mb_interpreter_t* s, void** l) {
 	if(arg.type == MB_DT_STRING) {
 		for(i = 0; i < sizeof(mb_data_e) * 8; i++) {
 			e = 1 << i;
-			if(!strcmp(mb_get_type_string((mb_data_e)e), arg.value.string)) {
+			if(!mb_stricmp(mb_get_type_string((mb_data_e)e), arg.value.string)) {
 				arg.value.type = (mb_data_e)e;
 				arg.type = MB_DT_TYPE;
 

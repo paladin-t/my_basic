@@ -82,7 +82,7 @@ extern "C" {
 #define _USE_MEM_POOL 1
 
 #define _MAX_LINE_LENGTH 256
-#define _str_eq(__str1, __str2) (_strcmpi(__str1, __str2) == 0)
+#define _str_eq(__str1, __str2) (mb_stricmp(__str1, __str2) == 0)
 
 #define _LINE_INC_STEP 16
 

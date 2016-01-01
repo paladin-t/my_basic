@@ -143,17 +143,19 @@ extern "C" {
 #	define MB_NULL_STRING "(empty)"
 #endif /* MB_NULL_STRING */
 
-#ifndef _MSC_VER
-#	ifndef _strcmpi
+#ifndef mb_stricmp
+#	ifdef _MSC_VER
+#		define mb_stricmp _strcmpi
+#	else /* _MSC_VER */
 #		ifdef __BORLANDC__
-#			define _strcmpi stricmp
+#			define mb_stricmp stricmp
 #		elif defined __POCC__
-#			define _strcmpi _stricmp
+#			define mb_stricmp _stricmp
 #		else
-#			define _strcmpi strcasecmp
+#			define mb_stricmp strcasecmp
 #		endif
-#	endif /* _strcmpi */
-#endif /* _MSC_VER */
+#	endif /* _MSC_VER */
+#endif /* mb_stricmp */
 
 #ifndef mb_assert
 #	define mb_assert(__a) do { ((void)(__a)); assert(__a); } while(0)
