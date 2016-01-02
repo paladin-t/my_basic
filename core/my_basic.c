@@ -409,6 +409,7 @@ typedef struct _routine_t {
 #ifdef MB_ENABLE_CLASS
 	_class_t* instance;
 #endif /* MB_ENABLE_CLASS */
+	bool_t is_cloned;
 	bool_t is_basic;
 	union {
 		struct {
@@ -5748,10 +5749,17 @@ int _clone_clsss_field(void* data, void* extra, void* n) {
 	case _DT_ROUTINE:
 		sub = (_routine_t*)obj->data.routine;
 		if(!_search_identifier_in_scope_chain(instance->ref.s, instance->scope, sub->name, 0, 0)) {
+			_routine_t* routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
+			memset(routine, 0, sizeof(_routine_t));
+			routine->name = mb_strdup(sub->name, 0);
+			routine->instance = instance;
+			routine->is_cloned = true;
+			routine->is_basic = sub->is_basic;
+			routine->func = sub->func;
 			ret = _create_object();
 			ret->type = _DT_ROUTINE;
-			ret->data.routine = sub;
-			ret->ref = true;
+			ret->data.routine = routine;
+			ret->ref = false;
 
 			_ht_set_or_insert(instance->scope->var_dict, obj->data.routine->name, ret);
 		}
@@ -6414,16 +6422,18 @@ int _dispose_object(_object_t* obj) {
 	case _DT_ROUTINE:
 		if(!obj->ref) {
 			safe_free(obj->data.routine->name);
-			if(obj->data.routine->is_basic) {
-				if(obj->data.routine->func.basic.scope) {
-					if(obj->data.routine->func.basic.scope->var_dict) {
-						_ht_foreach(obj->data.routine->func.basic.scope->var_dict, _destroy_object);
-						_ht_destroy(obj->data.routine->func.basic.scope->var_dict);
+			if(!obj->data.routine->is_cloned) {
+				if(obj->data.routine->is_basic) {
+					if(obj->data.routine->func.basic.scope) {
+						if(obj->data.routine->func.basic.scope->var_dict) {
+							_ht_foreach(obj->data.routine->func.basic.scope->var_dict, _destroy_object);
+							_ht_destroy(obj->data.routine->func.basic.scope->var_dict);
+						}
+						safe_free(obj->data.routine->func.basic.scope);
 					}
-					safe_free(obj->data.routine->func.basic.scope);
+					if(obj->data.routine->func.basic.parameters)
+						_ls_destroy(obj->data.routine->func.basic.parameters);
 				}
-				if(obj->data.routine->func.basic.parameters)
-					_ls_destroy(obj->data.routine->func.basic.parameters);
 			}
 			safe_free(obj->data.routine);
 		}

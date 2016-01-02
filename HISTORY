@@ -1,6 +1,8 @@
 Jan. 2 2016
 Added support to apply GET statement to a class instance
 Added support to access a collection by brackets
+Fixed a wrong scope bug caused by cloned class instance
+Fixed a GC issue by adding reference count when cloning a collection or a referenced usertype
 Fixed a mistake in VAR statement
 Polished document
 
