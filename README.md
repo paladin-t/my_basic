@@ -96,6 +96,8 @@ The standalone interpreter supports three modes:
 * Pass a file path to the binary to load and run that script file
 * Pass an argument `-e` followed by an expression to evaluate and print it, eg. `-e "2 * (3 + 4)"`
 
+Type "HELP" and hint Enter under interactive mode to view detail usage.
+
 ### Combine with exist projects
 
 MY-BASIC is cleanly written in a single C source file and an associated header file. Just copy `my_basic.c` and `my_basic.h` to your project folder and add them to a build configuration.
