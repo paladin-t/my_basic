@@ -137,6 +137,7 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
  * [File module](https://github.com/paladin-t/my_basic/wiki/File-module)
  * [Bit operation module](https://github.com/paladin-t/my_basic/wiki/Bit-operation-module)
  * [Miscellaneous module](https://github.com/paladin-t/my_basic/wiki/Miscellaneous-module)
+ * [Stack module](https://github.com/paladin-t/my_basic/wiki/Stack-module)
 * [FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
 
 ## References
