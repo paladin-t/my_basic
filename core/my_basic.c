@@ -6282,6 +6282,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 			obj->data.usertype_ref->dtor, obj->data.usertype_ref->clone,
 			obj->data.usertype_ref->hash, obj->data.usertype_ref->cmp, obj->data.usertype_ref->fmt
 		);
+		_ref(&tgt->data.usertype_ref->ref, tgt->data.usertype_ref);
 
 		break;
 	case _DT_FUNC:
@@ -6297,6 +6298,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST:
 		tgt->data.list = _create_list(obj->data.list->ref.s);
+		_ref(&tgt->data.list->ref, tgt->data.list);
 		_LS_FOREACH(obj->data.list->list, _do_nothing_on_object, _clone_to_list, tgt->data.list);
 
 		break;
@@ -6306,6 +6308,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 		break;
 	case _DT_DICT:
 		tgt->data.dict = _create_dict(obj->data.dict->ref.s);
+		_ref(&tgt->data.dict->ref, tgt->data.dict);
 		_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _clone_to_dict, tgt->data.dict);
 
 		break;
