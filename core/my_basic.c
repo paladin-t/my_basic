@@ -11042,6 +11042,7 @@ int _core_class(mb_interpreter_t* s, void** l) {
 	_object_t* obj = 0;
 	_class_t* instance = 0;
 	_class_t* inherit = 0;
+	_class_t* last_inst = 0;
 
 	mb_assert(s && l);
 
@@ -11060,6 +11061,9 @@ int _core_class(mb_interpreter_t* s, void** l) {
 	instance = obj->data.instance;
 	ast = ast->next;
 	obj = (_object_t*)ast->data;
+
+	last_inst = s->last_instance;
+	s->last_instance = instance;
 
 	if(_IS_FUNC(obj, _core_open_bracket)) {
 		/* Process meta_list */
@@ -11119,6 +11123,8 @@ _pop_exit:
 
 _exit:
 	*l = ast;
+
+	s->last_instance = last_inst;
 
 	return result;
 }

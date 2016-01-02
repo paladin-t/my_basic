@@ -1,6 +1,7 @@
 Jan. 2 2016
 Added support to apply GET statement to a class instance
 Added support to access a collection by brackets
+Fixed a mistake in VAR statement
 Polished document
 
 Jan. 1 2016 Version 1.2
