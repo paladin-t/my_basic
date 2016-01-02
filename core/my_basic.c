@@ -2897,8 +2897,9 @@ _routine:
 										mb_make_nil(ret);
 										_internal_object_to_public_value(ocoll, &ret);
 										_assign_public_value(&ret, 0);
+
+										ast = (_ls_node_t*)*l;
 									}
-									ast = (_ls_node_t*)*l;
 
 									break;
 								}
