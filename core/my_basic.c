@@ -136,6 +136,11 @@ extern "C" {
 #define _IS_FUNC(__o, __f) (((_object_t*)(__o))->type == _DT_FUNC && ((_object_t*)(__o))->data.func->pointer == __f)
 #define _IS_UNARY_FUNC(__o) (((_object_t*)(__o))->type == _DT_FUNC && _is_unary(((_object_t*)(__o))->data.func->pointer))
 #define _IS_VAR(__o) ((__o) && ((_object_t*)(__o))->type == _DT_VAR)
+#ifdef MB_ENABLE_COLLECTION_LIB
+#	define _IS_LIST(__o) ((__o) && ((_object_t*)(__o))->type == _DT_LIST)
+#	define _IS_DICT(__o) ((__o) && ((_object_t*)(__o))->type == _DT_DICT)
+#	define _IS_COLL(__o) (_IS_LIST(__o) || _IS_DICT(__o))
+#endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 #	define _IS_CLASS(__o) ((__o) && ((_object_t*)(__o))->type == _DT_CLASS)
 #	define _GET_CLASS(__o) ((!__o) ? 0 : (_IS_CLASS(__o) ? (__o) : (_IS_VAR(__o) && _IS_CLASS((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
@@ -2648,11 +2653,6 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	int* inep = 0;
 	int f = 0;
 
-	unsigned int arr_idx = 0;
-	mb_value_u arr_val;
-	_data_e arr_type;
-	_object_t* arr_elem = 0;
-
 	_object_t* guard_val = 0;
 	int bracket_count = 0;
 	bool_t hack = false;
@@ -2729,6 +2729,11 @@ int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 				}
 			} else {
 				if(c->type == _DT_ARRAY) {
+					unsigned int arr_idx = 0;
+					mb_value_u arr_val;
+					_data_e arr_type;
+					_object_t* arr_elem = 0;
+
 _array:
 					if(ast && !_IS_FUNC(((_object_t*)ast->data), _core_open_bracket)) {
 						_ls_pushback(opnd, c);
@@ -2804,6 +2809,11 @@ _routine:
 					_ls_pushback(opnd, c);
 					f++;
 				} else if(c->type == _DT_VAR && c->data.variable->data->type == _DT_ARRAY) {
+					unsigned int arr_idx = 0;
+					mb_value_u arr_val;
+					_data_e arr_type;
+					_object_t* arr_elem = 0;
+
 					ast = ast->prev;
 					result = _get_array_index(s, &ast, 0, &arr_idx, 0);
 					if(result != MB_FUNC_OK) {
@@ -2847,10 +2857,56 @@ _routine:
 								goto _routine;
 						}
 						if(ast) {
-							_object_t* _err_var = (_object_t*)ast->data;
-							if(_IS_FUNC(_err_var, _core_open_bracket)) {
-								_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
-							}
+							_object_t* _err_or_bracket = (_object_t*)ast->data;
+							do {
+#ifdef MB_ENABLE_COLLECTION_LIB
+								if(_IS_VAR(c) && _IS_COLL(c->data.variable->data)) {
+									if(_IS_FUNC(_err_or_bracket, _core_open_bracket)) {
+										int_t idx = 0;
+										mb_value_t key;
+										mb_value_t ret;
+										_object_t* ocoll = c->data.variable->data;
+
+										mb_make_nil(ret);
+
+										mb_check(mb_attempt_open_bracket(s, l));
+
+										switch(ocoll->type) {
+										case _DT_LIST:
+											mb_check(mb_pop_int(s, l, &idx));
+											if(!_at_list(ocoll->data.list, idx, &ret)) {
+												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, 0, TON(l), MB_FUNC_ERR, _exit, result);
+											}
+
+											break;
+										case _DT_DICT:
+											mb_make_nil(key);
+											mb_check(mb_pop_value(s, l, &key));
+											if(!_find_dict(ocoll->data.dict, &key, &ret)) {
+												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, 0, TON(l), MB_FUNC_ERR, _exit, result);
+											}
+
+											break;
+										}
+
+										mb_check(mb_attempt_close_bracket(s, l));
+
+										_dispose_object(c);
+										_public_value_to_internal_object(&ret, c);
+
+										mb_make_nil(ret);
+										_internal_object_to_public_value(ocoll, &ret);
+										_assign_public_value(&ret, 0);
+									}
+									ast = (_ls_node_t*)*l;
+
+									break;
+								}
+#endif /* MB_ENABLE_COLLECTION_LIB */
+								if(_IS_FUNC(_err_or_bracket, _core_open_bracket)) {
+									_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+								}
+							} while(0);
 						}
 					}
 					if(f) {
@@ -4621,7 +4677,7 @@ void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 
 		_gc_swap_tables(s);
 		s->gc.collecting++;
-	} while(true);
+	} while(1);
 	/* Tidy */
 	_ht_clear(s->gc.collected_table);
 	_ht_clear(valid);
@@ -5212,15 +5268,19 @@ bool_t _set_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval) {
 	_ls_node_t* result = 0;
 	_object_t* oarg = 0;
 
-	mb_assert(coll && val);
+	mb_assert(coll && (val || (oval && *oval)));
 
 	result = _node_at_list(coll, (int)idx);
 	if(result) {
 		if(result->data)
 			_destroy_object(result->data, 0);
-		_create_internal_object_from_public_value(val, &oarg);
-		if(oval)
-			*oval = oarg;
+		if(val) {
+			_create_internal_object_from_public_value(val, &oarg);
+			if(oval)
+				*oval = oarg;
+		} else {
+			oarg = *oval;
+		}
 		result->data = oarg;
 
 		_write_on_ref_object(&coll->lock, &coll->ref, coll);
@@ -9992,6 +10052,11 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	unsigned int arr_idx = 0;
 	bool_t literally = false;
 	_object_t* val = 0;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	int_t idx = 0;
+	mb_value_t key;
+	bool_t is_coll = false;
+#endif /* MB_ENABLE_COLLECTION_LIB */
 
 	mb_assert(s && l);
 
@@ -10027,6 +10092,30 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	if(!ast || !ast->data) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
+#ifdef MB_ENABLE_COLLECTION_LIB
+	if(var && _IS_COLL(var->data)) {
+		obj = (_object_t*)ast->data;
+		if(_IS_FUNC(obj, _core_open_bracket)) {
+			mb_check(mb_attempt_open_bracket(s, l));
+
+			switch(var->data->type) {
+			case _DT_LIST:
+				mb_check(mb_pop_int(s, l, &idx));
+
+				break;
+			case _DT_DICT:
+				mb_make_nil(key);
+				mb_check(mb_pop_value(s, l, &key));
+
+				break;
+			}
+
+			mb_check(mb_attempt_close_bracket(s, l));
+		}
+		ast = (_ls_node_t*)*l;
+		is_coll = true;
+	}
+#endif /* MB_ENABLE_COLLECTION_LIB */
 	obj = (_object_t*)ast->data;
 	if(obj->type != _DT_FUNC || strcmp(obj->data.func->name, "=") != 0) {
 		_handle_error_on_obj(s, SE_RN_ASSIGN_OPERATOR_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -10038,6 +10127,24 @@ int _core_let(mb_interpreter_t* s, void** l) {
 
 	if(var) {
 		if(val->type != _DT_UNKNOWN) {
+#ifdef MB_ENABLE_COLLECTION_LIB
+			if(is_coll) {
+				switch(var->data->type) {
+				case _DT_LIST:
+					if(!_set_list(var->data->data.list, idx, 0, &val)) {
+						_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, 0, TON(l), MB_FUNC_ERR, _exit, result);
+					}
+
+					break;
+				case _DT_DICT:
+					_set_dict(var->data->data.dict, &key, 0, 0, val);
+
+					break;
+				}
+
+				goto _exit;
+			}
+#endif /* MB_ENABLE_COLLECTION_LIB */
 			_dispose_object(var->data);
 			var->data->type = val->type;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -12503,6 +12610,11 @@ int _coll_get(mb_interpreter_t* s, void** l) {
 	int_t index = 0;
 	mb_value_t arg;
 	_object_t ocoi;
+#ifdef MB_ENABLE_CLASS
+	char* field = 0;
+	_ls_node_t* fnode = 0;
+	_object_t* fobj = 0;
+#endif /* MB_ENABLE_CLASS */
 	mb_value_t ret;
 
 	mb_assert(s && l);
@@ -12550,6 +12662,18 @@ int _coll_get(mb_interpreter_t* s, void** l) {
 		}
 
 		break;
+#ifdef MB_ENABLE_CLASS
+	case MB_DT_CLASS:
+		_public_value_to_internal_object(&coi, &ocoi);
+		mb_check(mb_pop_string(s, l, &field));
+		fnode = _search_identifier_in_class(s, ocoi.data.instance, field, 0);
+		if(fnode && fnode->data) {
+			fobj = (_object_t*)fnode->data;
+			_internal_object_to_public_value(fobj, &ret);
+		}
+
+		break;
+#endif /* MB_ENABLE_CLASS */
 	default:
 		_handle_error_on_obj(s, SE_RN_COLLECTION_OR_ITERATOR_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 
