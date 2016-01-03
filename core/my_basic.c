@@ -2888,6 +2888,8 @@ _routine:
 											}
 
 											break;
+										default: /* Do nothing */
+											break;
 										}
 
 										mb_check(mb_attempt_close_bracket(s, (void**)l));
@@ -10122,6 +10124,8 @@ int _core_let(mb_interpreter_t* s, void** l) {
 				mb_check(mb_pop_value(s, l, &key));
 
 				break;
+			default: /* Do nothing */
+				break;
 			}
 
 			mb_check(mb_attempt_close_bracket(s, l));
@@ -10153,6 +10157,8 @@ int _core_let(mb_interpreter_t* s, void** l) {
 				case _DT_DICT:
 					_set_dict(var->data->data.dict, &key, 0, 0, val);
 
+					break;
+				default: /* Do nothing */
 					break;
 				}
 
