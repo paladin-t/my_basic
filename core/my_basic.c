@@ -264,6 +264,7 @@ static const char* _ERR_DESC[] = {
 	"Invalid iterator",
 	"Empty collection",
 	"Referenced type expected",
+	"Stack trace disabled",
 	/** Extended abort */
 	"Extended abort"
 };
@@ -619,6 +620,9 @@ typedef struct mb_interpreter_t {
 	int last_error_pos;
 	unsigned short last_error_row;
 	unsigned short last_error_col;
+#ifdef MB_ENABLE_STACK_TRACE
+	_ls_node_t* stack_frames;
+#endif /* MB_ENABLE_STACK_TRACE */
 	mb_debug_stepped_handler_t debug_stepped_handler;
 	mb_error_handler_t error_handler;
 	mb_print_func_t printer;
@@ -2761,7 +2765,13 @@ _array:
 				} else if(c->type == _DT_FUNC) {
 					ast = ast->prev;
 					if(_IS_UNARY_FUNC(c)) {
+#ifdef MB_ENABLE_STACK_TRACE
+						_ls_pushback(s->stack_frames, c->data.func->name);
+#endif /* MB_ENABLE_STACK_TRACE */
 						result = (c->data.func->pointer)(s, (void**)&ast);
+#ifdef MB_ENABLE_STACK_TRACE
+						_ls_popback(s->stack_frames);
+#endif /* MB_ENABLE_STACK_TRACE */
 					} else {
 						int calc_depth = running->calc_depth;
 						running->calc_depth = _INFINITY_CALC_DEPTH;
@@ -3089,6 +3099,10 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 	/* Evaluate a routine */
 	int result = MB_FUNC_OK;
 
+#ifdef MB_ENABLE_STACK_TRACE
+	_ls_pushback(s->stack_frames, r->name);
+#endif /* MB_ENABLE_STACK_TRACE */
+
 	if(r->is_basic && r->func.basic.entry) {
 		result = _eval_script_routine(s, l, va, ca, r, has_arg, pop_arg);
 	} else if(!r->is_basic && r->func.native.entry) {
@@ -3098,6 +3112,10 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 	}
 
 _exit:
+#ifdef MB_ENABLE_STACK_TRACE
+	_ls_popback(s->stack_frames);
+#endif /* MB_ENABLE_STACK_TRACE */
+
 	return result;
 }
 
@@ -7138,7 +7156,13 @@ int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 _retry:
 	switch(obj->type) {
 	case _DT_FUNC:
+#ifdef MB_ENABLE_STACK_TRACE
+		_ls_pushback(s->stack_frames, obj->data.func->name);
+#endif /* MB_ENABLE_STACK_TRACE */
 		result = (obj->data.func->pointer)(s, (void**)&ast);
+#ifdef MB_ENABLE_STACK_TRACE
+		_ls_popback(s->stack_frames);
+#endif /* MB_ENABLE_STACK_TRACE */
 		if(result == MB_FUNC_IGNORE) {
 			result = MB_FUNC_OK;
 			obj = (_object_t*)ast->data;
@@ -7843,17 +7867,21 @@ int mb_open(struct mb_interpreter_t** s) {
 	(*s)->temp_values = _ls_create();
 	(*s)->lazy_destroy_objects = _ls_create();
 
+#ifdef MB_ENABLE_GC
+	(*s)->gc.table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
+	(*s)->gc.recursive_table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
+	(*s)->gc.collected_table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
+#endif /* MB_ENABLE_GC */
+
 	running = _create_running_context();
 	running->meta = _SCOPE_META_ROOT;
 	(*s)->running_context = running;
 	global_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
 	running->var_dict = global_scope;
 
-#ifdef MB_ENABLE_GC
-	(*s)->gc.table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
-	(*s)->gc.recursive_table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
-	(*s)->gc.collected_table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
-#endif /* MB_ENABLE_GC */
+#ifdef MB_ENABLE_STACK_TRACE
+	(*s)->stack_frames = _ls_create();
+#endif /* MB_ENABLE_STACK_TRACE */
 
 	(*s)->sub_stack = _ls_create();
 
@@ -7891,6 +7919,10 @@ int mb_close(struct mb_interpreter_t** s) {
 	_ls_destroy(ast);
 
 	_ls_destroy((*s)->sub_stack);
+
+#ifdef MB_ENABLE_STACK_TRACE
+	_ls_destroy((*s)->stack_frames);
+#endif /* MB_ENABLE_STACK_TRACE */
 
 	_tidy_scope_chain(*s);
 	_dispose_scope_chain(*s);
@@ -7964,6 +7996,10 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
 	ast = (*s)->ast;
 	_ls_foreach(ast, _destroy_object);
 	_ls_clear(ast);
+
+#ifdef MB_ENABLE_STACK_TRACE
+	_ls_clear((*s)->stack_frames);
+#endif /* MB_ENABLE_STACK_TRACE */
 
 	_clear_scope_chain(*s);
 
@@ -9396,6 +9432,39 @@ int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
 	}
 
 	return result;
+}
+
+int mb_debug_get_stack_trace(struct mb_interpreter_t* s, void** l, char** fs, unsigned fc) {
+	/* Get stack frame names of an interpreter instance */
+#ifdef MB_ENABLE_STACK_TRACE
+	int result = MB_FUNC_OK;
+	_ls_node_t* f = 0;
+	unsigned i = 0;
+	mb_unrefvar(l);
+
+	mb_assert(s);
+
+	if(fs && fc) {
+		f = s->stack_frames->prev;
+		while(f && f->data && i < fc) {
+			fs[i++] = (char*)f->data;
+			f = f->prev;
+		}
+	}
+	while(i < fc)
+		fs[i++] = 0;
+
+	return result;
+#else /* MB_ENABLE_STACK_TRACE */
+	int result = MB_FUNC_OK;
+	mb_unrefvar(fs);
+	mb_unrefvar(fc);
+
+	_handle_error_on_obj(s, SE_RN_STACK_TRACE_DISABLED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+_exit:
+	return result;
+#endif /* MB_ENABLE_STACK_TRACE */
 }
 
 int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t h) {

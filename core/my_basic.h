@@ -62,6 +62,10 @@ extern "C" {
 #	define MB_ENABLE_SOURCE_TRACE
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
+#ifndef MB_ENABLE_STACK_TRACE
+#	define MB_ENABLE_STACK_TRACE
+#endif /* MB_ENABLE_STACK_TRACE */
+
 #ifndef MB_ENABLE_UNICODE
 #	define MB_ENABLE_UNICODE
 #endif /* MB_ENABLE_UNICODE */
@@ -327,6 +331,7 @@ typedef enum mb_error_e {
 	SE_RN_INVALID_ITERATOR,
 	SE_RN_EMPTY_COLLECTION,
 	SE_RN_REFERENCED_EXPECTED,
+	SE_RN_STACK_TRACE_DISABLED,
 	/** Extended abort */
 	SE_EA_EXTENDED_ABORT,
 	/** Extra */
@@ -472,6 +477,7 @@ MBAPI int mb_schedule_suspend(struct mb_interpreter_t* s, int t);
 
 MBAPI int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val);
 MBAPI int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val);
+MBAPI int mb_debug_get_stack_trace(struct mb_interpreter_t* s, void** l, char** fs, unsigned fc);
 MBAPI int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t h);
 
 MBAPI const char* mb_get_type_string(mb_data_e t);

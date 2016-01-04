@@ -1,4 +1,6 @@
 Jan. 4 2016
+Added stack tracing
+Added an mb_debug_get_stack_trace function and an MB_ENABLE_STACK_TRACE macro
 Added support to duplicate a class instance by NEW statement with an identifier string
 Fixed a string value copy issue in mb_pop_value
 
