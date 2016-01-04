@@ -1,3 +1,7 @@
+Jan. 4 2016
+Added support to duplicate a class instance by NEW statement with an identifier string
+Fixed a string value copy issue in mb_pop_value
+
 Jan. 2 2016
 Added support to apply GET statement to a class instance
 Added support to access a collection by brackets

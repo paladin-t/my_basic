@@ -8291,6 +8291,7 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 		_ls_clear(s->temp_values);
 
 		val_ptr = _create_object();
+		memcpy(val_ptr, &val_obj, sizeof(_object_t));
 		_ls_pushback(s->temp_values, val_ptr);
 	}
 	_REF(val_ptr)
@@ -11166,6 +11167,8 @@ int _core_new(mb_interpreter_t* s, void** l) {
 	_object_t obj;
 	_object_t tgt;
 	mb_value_t ret;
+	_ls_node_t* cs = 0;
+	_object_t* c = 0;
 
 	mb_assert(s && l);
 
@@ -11179,6 +11182,17 @@ int _core_new(mb_interpreter_t* s, void** l) {
 
 	_MAKE_NIL(&obj);
 	switch(arg.type) {
+	case MB_DT_STRING:
+		arg.value.string = mb_strupr(arg.value.string);
+		cs = _search_identifier_in_scope_chain(s, 0, arg.value.string, 0, 0);
+		if(!cs || !cs->data) goto _default;
+		c = (_object_t*)cs->data;
+		if(!c) goto _default;
+		c = _GET_CLASS(c);
+		if(!c) goto _default;
+		_internal_object_to_public_value(c, &arg);
+		_ref(&c->data.instance->ref, c->data.instance);
+		/* Fall through */
 	case MB_DT_CLASS:
 		_public_value_to_internal_object(&arg, &obj);
 		_clone_object(s, &obj, &tgt);
@@ -11187,6 +11201,7 @@ int _core_new(mb_interpreter_t* s, void** l) {
 
 		break;
 	default:
+_default:
 		_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
 
 		break;
