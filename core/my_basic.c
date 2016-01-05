@@ -405,19 +405,42 @@ typedef struct _class_t {
 } _class_t;
 #endif /* MB_ENABLE_CLASS */
 
+typedef enum _invokable_e {
+	_IT_BASIC,
+#ifdef MB_ENABLE_LAMBDA
+	_IT_LAMBDA,
+#endif /* MB_ENABLE_LAMBDA */
+	_IT_NATIVE
+} _invokable_e;
+
+#ifdef MB_ENABLE_LAMBDA
+typedef struct _running_context_ref_t {
+	_ref_t ref;
+	struct _running_context_t* running;
+} _running_context_ref_t;
+#endif /* MB_ENABLE_LAMBDA */
+
 typedef struct _routine_t {
 	char* name;
 #ifdef MB_ENABLE_CLASS
 	_class_t* instance;
 #endif /* MB_ENABLE_CLASS */
 	bool_t is_cloned;
-	bool_t is_basic;
+	_invokable_e type;
 	union {
 		struct {
 			struct _running_context_t* scope;
 			_ls_node_t* entry;
 			_ls_node_t* parameters;
 		} basic;
+#ifdef MB_ENABLE_LAMBDA
+		struct {
+			_ref_t ref;
+			struct _running_context_ref_t* scope;
+			_ls_node_t* entry;
+			_ls_node_t* parameters;
+		} lambda;
+#endif /* MB_ENABLE_LAMBDA */
 		struct {
 			mb_routine_func_t entry;
 		} native;
@@ -1189,12 +1212,36 @@ static char* _extract_string(_object_t* obj);
 #	define _UNREF_CLASS(__o) ((void)(__o));
 #	define _ADDGC_CLASS(__o, __g) ((void)(__o)); ((void)(__g));
 #endif /* MB_ENABLE_CLASS */
+#ifdef MB_ENABLE_LAMBDA
+#	define _REF_ROUTINE(__o) \
+		case _DT_ROUTINE: \
+			_ref(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine); \
+			break;
+#	define _UNREF_ROUTINE(__o) \
+		case _DT_ROUTINE: \
+			if(!(__o)->ref && (__o)->data.routine->type == _IT_LAMBDA) \
+				_unref(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine); \
+			else if(!(__o)->ref && (__o)->data.routine->type != _IT_LAMBDA)\
+				_destroy_routine((__o)->data.routine); \
+			break;
+#	define _ADDGC_ROUTINE(__o, __g) \
+		case _DT_ROUTINE: \
+			if(!(__o)->ref && (__o)->data.routine->type == _IT_LAMBDA) \
+				_gc_add(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine, (__g)); \
+			else if(!(__o)->ref && (__o)->data.routine->type != _IT_LAMBDA)\
+				_dispose_object(__o); \
+			break;
+#else /* MB_ENABLE_LAMBDA */
+#	define _REF_ROUTINE(__o) ((void)(__o));
+#	define _UNREF_ROUTINE(__o) ((void)(__o));
+#	define _ADDGC_ROUTINE(__o, __g) \
+		case _DT_ROUTINE: \
+			((void)(__g)); \
+			_dispose_object(__o); \
+			break;
+#endif /* MB_ENABLE_LAMBDA */
 #define _ADDGC_STRING(__o) \
 	case _DT_STRING: \
-		_dispose_object(__o); \
-		break;
-#define _ADDGC_ROUTINE(__o) \
-	case _DT_ROUTINE: \
 		_dispose_object(__o); \
 		break;
 #define _REF(__o) \
@@ -1203,6 +1250,7 @@ static char* _extract_string(_object_t* obj);
 	_REF_ARRAY(__o) \
 	_REF_COLL(__o) \
 	_REF_CLASS(__o) \
+	_REF_ROUTINE(__o) \
 	default: break; \
 	}
 #define _UNREF(__o) \
@@ -1211,6 +1259,7 @@ static char* _extract_string(_object_t* obj);
 	_UNREF_ARRAY(__o) \
 	_UNREF_COLL(__o) \
 	_UNREF_CLASS(__o) \
+	_UNREF_ROUTINE(__o) \
 	default: break; \
 	}
 #define _ADDGC(__o, __g) \
@@ -1219,8 +1268,8 @@ static char* _extract_string(_object_t* obj);
 	_ADDGC_ARRAY(__o, __g) \
 	_ADDGC_COLL(__o, __g) \
 	_ADDGC_CLASS(__o, __g) \
+	_ADDGC_ROUTINE(__o, __g) \
 	_ADDGC_STRING(__o) \
-	_ADDGC_ROUTINE(__o) \
 	default: break; \
 	}
 
@@ -1322,6 +1371,10 @@ static bool_t _end_routine(mb_interpreter_t* s);
 static void _begin_routine_parameter_list(mb_interpreter_t* s);
 static void _end_routine_parameter_list(mb_interpreter_t* s);
 static _object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* running);
+#ifdef MB_ENABLE_LAMBDA
+static void _unref_routine(_ref_t* ref, void* data);
+static void _destroy_routine(_routine_t* r);
+#endif /* MB_ENABLE_LAMBDA */
 #ifdef MB_ENABLE_CLASS
 static _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c);
 static _running_context_t* _push_scope_by_class(mb_interpreter_t* s, _running_context_t* p);
@@ -1490,6 +1543,9 @@ static int _core_endclass(mb_interpreter_t* s, void** l);
 static int _core_new(mb_interpreter_t* s, void** l);
 static int _core_var(mb_interpreter_t* s, void** l);
 #endif /* MB_ENABLE_CLASS */
+#ifdef MB_ENABLE_LAMBDA
+static int _core_lambda(mb_interpreter_t* s, void** l);
+#endif /* MB_ENABLE_LAMBDA */
 #ifdef MB_ENABLE_ALLOC_STAT
 static int _core_mem(mb_interpreter_t* s, void** l);
 #endif /* MB_ENABLE_ALLOC_STAT */
@@ -1603,6 +1659,10 @@ static const _func_t _core_libs[] = {
 	{ "NEW", _core_new },
 	{ "VAR", _core_var },
 #endif /* MB_ENABLE_CLASS */
+
+#ifdef MB_ENABLE_LAMBDA
+	{ "LAMBDA", _core_lambda },
+#endif /* MB_ENABLE_LAMBDA */
 
 #ifdef MB_ENABLE_ALLOC_STAT
 	{ "MEM", _core_mem },
@@ -3103,9 +3163,9 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 	_ls_pushback(s->stack_frames, r->name);
 #endif /* MB_ENABLE_STACK_TRACE */
 
-	if(r->is_basic && r->func.basic.entry) {
+	if(r->type == _IT_BASIC && r->func.basic.entry) {
 		result = _eval_script_routine(s, l, va, ca, r, has_arg, pop_arg);
-	} else if(!r->is_basic && r->func.native.entry) {
+	} else if(r->type == _IT_NATIVE && r->func.native.entry) {
 		result = _eval_native_routine(s, l, va, ca, r, has_arg, pop_arg);
 	} else {
 		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, 0, TON(l), MB_FUNC_ERR, _exit, result);
@@ -5774,7 +5834,7 @@ int _clone_clsss_field(void* data, void* extra, void* n) {
 			routine->name = mb_strdup(sub->name, 0);
 			routine->instance = instance;
 			routine->is_cloned = true;
-			routine->is_basic = sub->is_basic;
+			routine->type = sub->type;
 			routine->func = sub->func;
 			ret = _create_object();
 			ret->type = _DT_ROUTINE;
@@ -5835,18 +5895,39 @@ void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine
 	/* Initialize a routine */
 	_running_context_t* running = 0;
 
-	mb_assert(s && routine && n);
+	mb_assert(s && routine);
 
 	running = s->running_context;
 
 	memset(routine, 0, sizeof(_routine_t));
 	routine->name = n;
-	routine->is_basic = !f;
-	if(routine->is_basic) {
+
+	if(n && f)
+		routine->type = _IT_NATIVE;
+	else if(n && !f)
+		routine->type = _IT_BASIC;
+#ifdef MB_ENABLE_LAMBDA
+	else if(!n && !f)
+		routine->type = _IT_LAMBDA;
+#endif /* MB_ENABLE_LAMBDA */
+
+	switch(routine->type) {
+	case _IT_BASIC:
 		routine->func.basic.scope = _create_running_context();
 		routine->func.basic.scope->var_dict = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
-	} else {
+
+		break;
+#ifdef MB_ENABLE_LAMBDA
+	case _IT_LAMBDA:
+		_create_ref(&routine->func.lambda.ref, _unref_routine, _DT_ROUTINE, s);
+		_ref(&routine->func.lambda.ref, routine);
+
+		break;
+#endif /* MB_ENABLE_LAMBDA */
+	case _IT_NATIVE:
 		routine->func.native.entry = f;
+
+		break;
 	}
 }
 
@@ -5917,6 +5998,44 @@ _object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* run
 
 	return obj;
 }
+
+#ifdef MB_ENABLE_LAMBDA
+void _unref_routine(_ref_t* ref, void* data) {
+	/* Unreference a lambda routine */
+	if(!(*(ref->count)))
+		_destroy_routine((_routine_t*)data);
+}
+
+void _destroy_routine(_routine_t* r) {
+	/* Destroy a lambda routine */
+	if(r->name) {
+		safe_free(r->name);
+	}
+	if(!r->is_cloned) {
+		switch(r->type) {
+		case _IT_BASIC:
+			if(r->func.basic.scope) {
+				if(r->func.basic.scope->var_dict) {
+					_ht_foreach(r->func.basic.scope->var_dict, _destroy_object);
+					_ht_destroy(r->func.basic.scope->var_dict);
+				}
+				safe_free(r->func.basic.scope);
+			}
+			if(r->func.basic.parameters)
+				_ls_destroy(r->func.basic.parameters);
+
+			break;
+		case _IT_LAMBDA:
+			_destroy_ref(&r->func.lambda.ref);
+
+			break;
+		case _IT_NATIVE: /* Do nothing */
+			break;
+		}
+	}
+	safe_free(r);
+}
+#endif /* MB_ENABLE_LAMBDA */
 
 #ifdef MB_ENABLE_CLASS
 _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c) {
@@ -6432,30 +6551,11 @@ int _dispose_object(_object_t* obj) {
 	_UNREF_COLL(obj)
 	_UNREF_CLASS(obj)
 	_UNREF_COLL_IT(obj)
+	_UNREF_ROUTINE(obj)
 	case _DT_LABEL:
 		if(!obj->ref) {
 			safe_free(obj->data.label->name);
 			safe_free(obj->data.label);
-		}
-
-		break;
-	case _DT_ROUTINE:
-		if(!obj->ref) {
-			safe_free(obj->data.routine->name);
-			if(!obj->data.routine->is_cloned) {
-				if(obj->data.routine->is_basic) {
-					if(obj->data.routine->func.basic.scope) {
-						if(obj->data.routine->func.basic.scope->var_dict) {
-							_ht_foreach(obj->data.routine->func.basic.scope->var_dict, _destroy_object);
-							_ht_destroy(obj->data.routine->func.basic.scope->var_dict);
-						}
-						safe_free(obj->data.routine->func.basic.scope);
-					}
-					if(obj->data.routine->func.basic.parameters)
-						_ls_destroy(obj->data.routine->func.basic.parameters);
-				}
-			}
-			safe_free(obj->data.routine);
 		}
 
 		break;
@@ -10245,10 +10345,15 @@ int _core_let(mb_interpreter_t* s, void** l) {
 #else /* MB_ENABLE_COLLECTION_LIB */
 			var->data->data = val->data;
 #endif /* MB_ENABLE_COLLECTION_LIB */
-			if(val->type == _DT_ROUTINE)
-				var->data->ref = 1;
-			else
+			if(val->type == _DT_ROUTINE) {
+#ifdef MB_ENABLE_LAMBDA
 				var->data->ref = val->ref;
+#else /* MB_ENABLE_LAMBDA */
+				var->data->ref = 1;
+#endif /* MB_ENABLE_LAMBDA */
+			} else {
+				var->data->ref = val->ref;
+			}
 		}
 	} else if(arr && literally) {
 		if(val->type != _DT_UNKNOWN) {
@@ -11304,6 +11409,30 @@ _exit:
 	return result;
 }
 #endif /* MB_ENABLE_CLASS */
+
+#ifdef MB_ENABLE_LAMBDA
+int _core_lambda(mb_interpreter_t* s, void** l) {
+	/* LAMBDA statement */
+	int result = MB_FUNC_OK;
+	mb_value_t ret;
+	_routine_t* routine = 0;
+
+	mb_assert(s && l);
+
+	routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
+	_init_routine(s, routine, 0, 0);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	ret.type = MB_DT_ROUTINE;
+	ret.value.routine = routine;
+
+	mb_check(mb_push_value(s, l, ret));
+
+	return result;
+}
+#endif /* MB_ENABLE_LAMBDA */
 
 #ifdef MB_ENABLE_ALLOC_STAT
 int _core_mem(mb_interpreter_t* s, void** l) {

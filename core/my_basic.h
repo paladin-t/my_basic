@@ -89,6 +89,10 @@ extern "C" {
 #	define MB_ENABLE_CLASS
 #endif /* MB_ENABLE_CLASS */
 
+#ifndef MB_ENABLE_LAMBDA
+#	define MB_ENABLE_LAMBDA
+#endif /* MB_ENABLE_LAMBDA */
+
 #ifndef MB_COMPACT_MODE
 #	define MB_COMPACT_MODE
 #endif /* MB_COMPACT_MODE */

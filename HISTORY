@@ -1,3 +1,8 @@
+Jan. 5 2016
+Developing lambda, added data structure
+Developing lambda, added a LAMBDA statement
+Developing lambda, added an MB_ENABLE_LAMBDA macro
+
 Jan. 4 2016
 Added stack tracing
 Added an mb_debug_get_stack_trace function and an MB_ENABLE_STACK_TRACE macro
