@@ -127,6 +127,7 @@ extern "C" {
 #define _cmp_bytes(__l, __r) (memcmp((__l), (__r), sizeof(mb_val_bytes_t)))
 
 #define _mb_check(__expr, __exit) do { if((__expr) != MB_FUNC_OK) goto __exit; } while(0)
+#define _mb_check_mark(__expr, __err, __exit) do { __err |= (__expr) != MB_FUNC_OK; if(__err) goto __exit; } while(0)
 
 #define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
 #define TON(__t) (((__t) && *(__t)) ? ((_object_t*)(((_tuple3_t*)(*(__t)))->e1)) : 0)
@@ -439,6 +440,7 @@ typedef struct _routine_t {
 			struct _running_context_ref_t* scope;
 			_ls_node_t* entry;
 			_ls_node_t* parameters;
+			_ls_node_t* upvalues;
 		} lambda;
 #endif /* MB_ENABLE_LAMBDA */
 		struct {
@@ -6027,6 +6029,10 @@ void _destroy_routine(_routine_t* r) {
 			break;
 		case _IT_LAMBDA:
 			_destroy_ref(&r->func.lambda.ref);
+			if(r->func.lambda.parameters)
+				_ls_destroy(r->func.lambda.parameters);
+			if(r->func.lambda.upvalues)
+				_ls_destroy(r->func.lambda.upvalues);
 
 			break;
 		case _IT_NATIVE: /* Do nothing */
@@ -11415,20 +11421,67 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 	/* LAMBDA statement */
 	int result = MB_FUNC_OK;
 	mb_value_t ret;
+	bool_t err = false;
 	_routine_t* routine = 0;
+	_ls_node_t* ast = 0;
+	int brackets = 0;
 
 	mb_assert(s && l);
 
 	routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
 	_init_routine(s, routine, 0, 0);
 
-	mb_check(mb_attempt_open_bracket(s, l));
-	mb_check(mb_attempt_close_bracket(s, l));
+	/* Parameter list */
+	_mb_check_mark(mb_attempt_open_bracket(s, l), err, _error);
 
+	while(mb_has_arg(s, l)) {
+		void* v = 0;
+		_mb_check_mark(mb_get_var(s, l, &v), err, _error);
+
+		if(!routine->func.lambda.parameters)
+			routine->func.lambda.parameters = _ls_create();
+		_ls_pushback(routine->func.lambda.parameters, v);
+
+		ast = (_ls_node_t*)*l;
+		if(_IS_FUNC(ast->data, _core_close_bracket))
+			break;
+		ast = ast->next;
+		*l = ast;
+	}
+
+	_mb_check_mark(mb_attempt_close_bracket(s, l), err, _error);
+
+	/* Lambda body */
+	ast = (_ls_node_t*)*l;
+	if(ast) ast = ast->prev;
+	*l = ast;
+	_mb_check_mark(mb_attempt_open_bracket(s, l), err, _error);
+
+	ast = (_ls_node_t*)*l;
+	routine->func.lambda.entry = ast;
+	while(ast && (brackets || !_IS_FUNC(ast->data, _core_close_bracket))) {
+		if(_IS_FUNC(ast->data, _core_open_bracket))
+			brackets++;
+		else if(_IS_FUNC(ast->data, _core_close_bracket))
+			brackets--;
+		ast = ast->next;
+	}
+	*l = ast;
+
+	_mb_check_mark(mb_attempt_close_bracket(s, l), err, _error);
+
+	/* Return the value */
 	ret.type = MB_DT_ROUTINE;
 	ret.value.routine = routine;
 
-	mb_check(mb_push_value(s, l, ret));
+	_mb_check_mark(mb_push_value(s, l, ret), err, _error);
+
+	/* Error processing */
+	while(0) {
+_error:
+		if(routine)
+			_destroy_routine(routine);
+	}
 
 	return result;
 }

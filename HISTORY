@@ -1,6 +1,7 @@
 Jan. 5 2016
 Developing lambda, added data structure
 Developing lambda, added a LAMBDA statement
+Developing lambda, added a _core_lambda function 
 Developing lambda, added an MB_ENABLE_LAMBDA macro
 
 Jan. 4 2016
