@@ -9592,9 +9592,11 @@ const char* mb_get_type_string(mb_data_e t) {
 	case MB_DT_TYPE:
 		return "TYPE";
 	case MB_DT_INT:
-		return "INT";
+		return "INTEGER";
 	case MB_DT_REAL:
 		return "REAL";
+	case MB_DT_NUM:
+		return "NUMBER";
 	case MB_DT_STRING:
 		return "STRING";
 	case MB_DT_USERTYPE:
@@ -10213,7 +10215,10 @@ int _core_is(mb_interpreter_t* s, void** l) {
 	}
 	if(scd->type == _DT_TYPE) {
 		val->type = _DT_INT;
-		val->data.integer = (int_t)(_internal_type_to_public_type(fst->type) == scd->data.type);
+		if((fst->type == _DT_INT || fst->type == _DT_REAL) && scd->data.type == MB_DT_NUM)
+			val->data.integer = 1;
+		else
+			val->data.integer = (int_t)(_internal_type_to_public_type(fst->type) == scd->data.type);
 	} else {
 #ifdef MB_ENABLE_CLASS
 		if(!_IS_CLASS(fst) || !_IS_CLASS(scd)) {

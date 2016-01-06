@@ -348,20 +348,21 @@ typedef enum mb_data_e {
 	MB_DT_TYPE = 1 << 2,
 	MB_DT_INT = 1 << 3,
 	MB_DT_REAL = 1 << 4,
-	MB_DT_STRING = 1 << 5,
-	MB_DT_USERTYPE = 1 << 6,
-	MB_DT_USERTYPE_REF = 1 << 7,
-	MB_DT_ARRAY = 1 << 8,
+	MB_DT_NUM = 1 << 5,
+	MB_DT_STRING = 1 << 6,
+	MB_DT_USERTYPE = 1 << 7,
+	MB_DT_USERTYPE_REF = 1 << 8,
+	MB_DT_ARRAY = 1 << 9,
 #ifdef MB_ENABLE_COLLECTION_LIB
-	MB_DT_LIST = 1 << 9,
-	MB_DT_LIST_IT = 1 << 10,
-	MB_DT_DICT = 1 << 11,
-	MB_DT_DICT_IT = 1 << 12,
+	MB_DT_LIST = 1 << 10,
+	MB_DT_LIST_IT = 1 << 11,
+	MB_DT_DICT = 1 << 12,
+	MB_DT_DICT_IT = 1 << 13,
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
-	MB_DT_CLASS = 1 << 13,
+	MB_DT_CLASS = 1 << 14,
 #endif /* MB_ENABLE_CLASS */
-	MB_DT_ROUTINE = 1 << 14
+	MB_DT_ROUTINE = 1 << 15
 } mb_data_e;
 
 typedef unsigned char mb_val_bytes_t[sizeof(void*) > sizeof(unsigned long) ? sizeof(void*) : sizeof(unsigned long)];
