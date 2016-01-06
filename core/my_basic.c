@@ -10219,6 +10219,8 @@ int _core_is(mb_interpreter_t* s, void** l) {
 	scd = (_object_t*)((_tuple3_t*)*l)->e2;
 	val = (_object_t*)((_tuple3_t*)*l)->e3;
 
+	if(fst && fst->type == _DT_VAR) fst = fst->data.variable->data;
+	if(scd && scd->type == _DT_VAR) scd = scd->data.variable->data;
 	if(!fst || !scd) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}

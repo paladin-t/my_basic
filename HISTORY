@@ -1,6 +1,7 @@
 Jan. 6 2016
-Added support to use TYPE("NUMBER") to represent both integer and real
 Developing lambda, added cloning support
+Added support to use TYPE("NUMBER") to represent both integer and real
+Improved IS statement
 
 Jan. 5 2016
 Developing lambda, added data structure
