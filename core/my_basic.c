@@ -1655,6 +1655,7 @@ static const _func_t _core_libs[] = {
 	{ "CALL", _core_call },
 	{ "DEF", _core_def },
 	{ "ENDDEF", _core_enddef },
+
 #ifdef MB_ENABLE_CLASS
 	{ "CLASS", _core_class },
 	{ "ENDCLASS", _core_endclass },
@@ -6486,6 +6487,13 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 		break;
 #endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
+#ifdef MB_ENABLE_LAMBDA
+		if(obj->data.routine->type == _IT_LAMBDA) {
+			tgt->data.routine = obj->data.routine;
+
+			break;
+		}
+#endif /* MB_ENABLE_LAMBDA */
 		mb_assert(0 && "Not implemented.");
 
 		break;
@@ -11433,6 +11441,7 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	/* Create lambda struct */
 	routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
 	_init_routine(s, routine, 0, 0);
 
@@ -11460,6 +11469,7 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 	ast = (_ls_node_t*)*l;
 	if(ast) ast = ast->prev;
 	*l = ast;
+
 	_mb_check_mark(mb_attempt_open_bracket(s, l), err, _error);
 
 	ast = (_ls_node_t*)*l;
@@ -11475,7 +11485,7 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 
 	_mb_check_mark(mb_attempt_close_bracket(s, l), err, _error);
 
-	/* Return the value */
+	/* Push the return value */
 	ret.type = MB_DT_ROUTINE;
 	ret.value.routine = routine;
 
