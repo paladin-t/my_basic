@@ -417,6 +417,7 @@ typedef enum _invokable_e {
 #ifdef MB_ENABLE_LAMBDA
 typedef struct _running_context_ref_t {
 	_ref_t ref;
+	struct _running_context_ref_t* prev;
 	struct _running_context_t* running;
 } _running_context_ref_t;
 #endif /* MB_ENABLE_LAMBDA */
@@ -11455,6 +11456,7 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 		if(!routine->func.lambda.parameters)
 			routine->func.lambda.parameters = _ls_create();
 		_ls_pushback(routine->func.lambda.parameters, v);
+		/* TODO: Add lambda parameters */
 
 		ast = (_ls_node_t*)*l;
 		if(_IS_FUNC(ast->data, _core_close_bracket))
@@ -11479,6 +11481,7 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 			brackets++;
 		else if(_IS_FUNC(ast->data, _core_close_bracket))
 			brackets--;
+		/* TODO: Mark upvalues */
 		ast = ast->next;
 	}
 	*l = ast;
