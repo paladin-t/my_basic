@@ -10308,6 +10308,14 @@ int _core_close_bracket(mb_interpreter_t* s, void** l) {
 	/* Operator ) */
 	int result = MB_FUNC_OK;
 
+#ifdef MB_ENABLE_LAMBDA
+	if(s->last_routine && s->last_routine->type == _IT_LAMBDA) {
+		result = _core_return(s, l);
+
+		goto _exit;
+	}
+#endif /* MB_ENABLE_LAMBDA */
+
 	_do_nothing(s, l, _exit, result);
 
 _exit:
