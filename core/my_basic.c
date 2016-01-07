@@ -6364,7 +6364,7 @@ _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lam
 	}
 
 	if(weak)
-		result = _push_weak_scope_by_routine(s, lambda->scope, 0);
+		result = _push_weak_scope_by_routine(s, result, 0);
 	else
 		result = _push_scope_by_routine(s, running);
 

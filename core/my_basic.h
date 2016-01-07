@@ -90,7 +90,7 @@ extern "C" {
 #endif /* MB_ENABLE_CLASS */
 
 #ifndef MB_ENABLE_LAMBDA
-#	define MB_ENABLE_LAMBDA /* The Lambda is still under development */
+#	define MB_ENABLE_LAMBDA
 #endif /* MB_ENABLE_LAMBDA */
 
 #ifndef MB_COMPACT_MODE
