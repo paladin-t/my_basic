@@ -1056,6 +1056,9 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg, bool_t proc_ref);
 static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg);
 static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg);
+#ifdef MB_ENABLE_LAMBDA
+static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg);
+#endif /* MB_ENABLE_LAMBDA */
 static int _eval_native_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg);
 static int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r);
 static int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r, mb_value_t* val);
@@ -3144,15 +3147,22 @@ _exit:
 int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg, bool_t proc_ref) {
 	/* Process arguments of a routine */
 	int result = MB_FUNC_OK;
+	_ls_node_t* parameters = 0;
 	mb_value_t arg;
 	_ls_node_t* pars = 0;
 	_var_t* var = 0;
 	_ls_node_t* rnode = 0;
 	unsigned ia = 0;
 
-	if(r->func.basic.parameters) {
+	parameters = r->func.basic.parameters;
+#ifdef MB_ENABLE_LAMBDA
+	if(r->type == _IT_LAMBDA)
+		parameters = r->func.lambda.parameters;
+#endif /* MB_ENABLE_LAMBDA */
+
+	if(parameters) {
 		mb_make_nil(arg);
-		pars = r->func.basic.parameters;
+		pars = parameters;
 		pars = pars->next;
 		while(pars && (!has_arg || (has_arg && has_arg(s, (void**)l, va, ca, &ia, r)))) {
 			_object_t* obj = 0;
@@ -3197,12 +3207,12 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 
 	if(r->type == _IT_BASIC && r->func.basic.entry) {
 		result = _eval_script_routine(s, l, va, ca, r, has_arg, pop_arg);
-	} else if(r->type == _IT_NATIVE && r->func.native.entry) {
-		result = _eval_native_routine(s, l, va, ca, r, has_arg, pop_arg);
 #ifdef MB_ENABLE_LAMBDA
 	} else if(r->type == _IT_LAMBDA && r->func.lambda.entry) {
-		/* TODO: Evaluate lambda */
+		result = _eval_lambda_routine(s, l, va, ca, r, has_arg, pop_arg);
 #endif /* MB_ENABLE_LAMBDA */
+	} else if(r->type == _IT_NATIVE && r->func.native.entry) {
+		result = _eval_native_routine(s, l, va, ca, r, has_arg, pop_arg);
 	} else {
 		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, 0, TON(l), MB_FUNC_ERR, _exit, result);
 	}
@@ -3315,6 +3325,94 @@ _exit:
 _tail:
 	return result;
 }
+
+#ifdef MB_ENABLE_LAMBDA
+int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
+	/* Evaluate a lambda routine */
+	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
+	_running_context_t* running = 0;
+	_routine_t* lastr = 0;
+	mb_value_t inte;
+
+	mb_assert(s && l && r);
+
+	lastr = s->last_routine;
+	s->last_routine = r;
+
+	if(!va) {
+		mb_check(mb_attempt_open_bracket(s, (void**)l));
+	}
+
+	running = _push_weak_scope_by_routine(s, r->func.lambda.scope, r);
+	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true);
+	if(result != MB_FUNC_OK) {
+		if(running->meta == _SCOPE_META_REF)
+			_destroy_scope(s, running);
+		else
+			_pop_weak_scope(s, running);
+
+		goto _exit;
+	}
+	running = _pop_weak_scope(s, running);
+
+	if(!va) {
+		mb_check(mb_attempt_close_bracket(s, (void**)l));
+	}
+
+	ast = (_ls_node_t*)*l;
+	_ls_pushback(s->sub_stack, ast);
+
+	running = _push_scope_by_routine(s, running);
+
+	*l = r->func.lambda.entry;
+	if(!(*l)) {
+		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+	}
+
+	do {
+		result = _execute_statement(s, l);
+		ast = (_ls_node_t*)*l;
+		if(result == MB_SUB_RETURN) {
+			result = MB_FUNC_OK;
+
+			break;
+		}
+		if(result == MB_FUNC_SUSPEND && s->error_handler) {
+			_handle_error_now(s, SE_RN_DONT_SUSPEND_IN_A_ROUTINE, s->last_error_func, result);
+
+			goto _exit;
+		}
+		if(result != MB_FUNC_OK && s->error_handler) {
+			if(result >= MB_EXTENDED_ABORT)
+				s->last_error = SE_EA_EXTENDED_ABORT;
+			_handle_error_now(s, s->last_error, s->last_error_func, result);
+
+			goto _exit;
+		}
+	} while(ast);
+
+	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false);
+	if(result != MB_FUNC_OK)
+		goto _exit;
+
+	mb_make_nil(inte);
+
+	_swap_public_value(&inte, &running->intermediate_value);
+
+	_pop_scope(s, true);
+
+	_assign_public_value(&s->running_context->intermediate_value, &inte);
+
+_exit:
+	if(result != MB_FUNC_OK)
+		_pop_scope(s, true);
+
+	s->last_routine = lastr;
+
+	return result;
+}
+#endif /* MB_ENABLE_LAMBDA */
 
 int _eval_native_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
 	/* Evaluate a native routine */
@@ -6456,15 +6554,17 @@ void _out_of_scope(mb_interpreter_t* s, _running_context_t* running) {
 	mb_assert(s);
 
 #ifdef MB_ENABLE_LAMBDA
-	tuple.s = s;
-	tuple.scope = running;
-	tuple.outer_scope = _create_outer_scope(s);
-	tuple.lambda = 0;
+	if(running->refered_lambdas) {
+		tuple.s = s;
+		tuple.scope = running;
+		tuple.outer_scope = _create_outer_scope(s);
+		tuple.lambda = 0;
 
-	_LS_FOREACH(running->refered_lambdas, _do_nothing_on_ht_for_lambda, _fill_outer_scope, &tuple);
+		_LS_FOREACH(running->refered_lambdas, _do_nothing_on_ht_for_lambda, _fill_outer_scope, &tuple);
 
-	_ls_destroy(running->refered_lambdas);
-	running->refered_lambdas = 0;
+		_ls_destroy(running->refered_lambdas);
+		running->refered_lambdas = 0;
+	}
 #else /* MB_ENABLE_LAMBDA */
 	mb_unrefvar(running);
 #endif /* MB_ENABLE_LAMBDA */
