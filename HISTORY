@@ -1,3 +1,8 @@
+Jan. 7 2016
+Developing lambda, added parameter and upvalue processing
+Developing lambda, added closure maintenance
+Developing lambda, added lambda unreferencing functions
+
 Jan. 6 2016
 Developing lambda, added cloning support
 Added support to use TYPE("NUMBER") to represent both integer and real
