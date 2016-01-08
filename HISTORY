@@ -1,3 +1,6 @@
+Jan. 8 2016
+Developing lambda, fixed a lambda scope linkage issue
+
 Jan. 7 2016
 Developing lambda, added parameter and upvalue processing
 Developing lambda, added closure maintenance

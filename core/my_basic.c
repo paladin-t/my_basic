@@ -1407,8 +1407,8 @@ static int _do_nothing_on_ht_for_lambda(void* data, void* extra);
 static int _fill_with_upvalue(void* data, void* extra, void* p);
 static int _remove_filled_upvalue(void* data, void* extra, void* u);
 static int _fill_outer_scope(void* data, void* extra, void* t);
-static _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, _running_context_t* running, bool_t weak);
-static _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, _running_context_t* running, bool_t weak);
+static _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak);
+static _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak);
 #endif /* MB_ENABLE_LAMBDA */
 #ifdef MB_ENABLE_CLASS
 static _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c);
@@ -1425,6 +1425,9 @@ static _running_context_t* _pop_scope(mb_interpreter_t* s, bool_t tidy);
 static void _out_of_scope(mb_interpreter_t* s, _running_context_t* running);
 static _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _get_root_scope(_running_context_t* scope);
+#ifdef MB_ENABLE_LAMBDA
+static _running_context_ref_t* _get_root_ref_scope(_running_context_ref_t* scope);
+#endif /* MB_ENABLE_LAMBDA */
 static _running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s);
 static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, const char* n, int pathing, _ht_node_t** ht, _running_context_t** sp);
 static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o);
@@ -3347,14 +3350,14 @@ int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		mb_check(mb_attempt_open_bracket(s, (void**)l));
 	}
 
-	running = _link_lambda_scope_chain(s, &r->func.lambda, 0, true);
+	running = _link_lambda_scope_chain(s, &r->func.lambda, true);
 	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true);
 	if(result != MB_FUNC_OK) {
-		_unlink_lambda_scope_chain(s, &r->func.lambda, running, true);
+		_unlink_lambda_scope_chain(s, &r->func.lambda, true);
 
 		goto _exit;
 	}
-	running = _unlink_lambda_scope_chain(s, &r->func.lambda, running, true);
+	running = _unlink_lambda_scope_chain(s, &r->func.lambda, true);
 
 	if(!va) {
 		mb_check(mb_attempt_close_bracket(s, (void**)l));
@@ -3363,7 +3366,7 @@ int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	ast = (_ls_node_t*)*l;
 	_ls_pushback(s->sub_stack, ast);
 
-	running = _link_lambda_scope_chain(s, 0, running, false);
+	running = _link_lambda_scope_chain(s, &r->func.lambda, false);
 
 	*l = r->func.lambda.entry;
 	if(!(*l)) {
@@ -3400,13 +3403,13 @@ int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 
 	_swap_public_value(&inte, &running->intermediate_value);
 
-	_unlink_lambda_scope_chain(s, &r->func.lambda, 0, false);
+	running = _unlink_lambda_scope_chain(s, &r->func.lambda, false);
 
 	_assign_public_value(&s->running_context->intermediate_value, &inte);
 
 _exit:
 	if(result != MB_FUNC_OK)
-		_unlink_lambda_scope_chain(s, &r->func.lambda, 0, false);
+		_unlink_lambda_scope_chain(s, &r->func.lambda, false);
 
 	s->last_routine = lastr;
 
@@ -6354,36 +6357,49 @@ int _fill_outer_scope(void* data, void* extra, void* t) {
 	return 0;
 }
 
-_running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, _running_context_t* running, bool_t weak) {
+_running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak) {
 	/* Link a lambda's local scope and its upvalue scope chain to a given scope */
-	_running_context_t* result = 0;
+	_running_context_ref_t* root_ref = 0;
+	_running_context_t* root = 0;
 
-	if(lambda) {
+	if(lambda->outer_scope) {
 		lambda->scope->prev = lambda->outer_scope->scope;
-		result = _get_root_scope(lambda->scope);
+		root_ref = _get_root_ref_scope(lambda->outer_scope);
+		root_ref->scope->prev = 0;
+	}
+	root = _get_root_scope(lambda->scope);
+
+	if(weak) {
+		_push_weak_scope_by_routine(s, root, 0);
+	} else {
+		root->prev = s->running_context;
+		s->running_context = lambda->scope;
+	}
+
+	return lambda->scope;
+}
+
+_running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak) {
+	/* Unlink a lambda's local scope and its upvalue scope chain from a given scope */
+	_running_context_ref_t* root_ref = 0;
+	_running_context_t* root = 0;
+
+	if(lambda->outer_scope) {
+		root_ref = _get_root_ref_scope(lambda->outer_scope);
+		root = root_ref->scope;
+	} else {
+		root = lambda->scope;
 	}
 
 	if(weak)
-		result = _push_weak_scope_by_routine(s, result, 0);
+		_pop_weak_scope(s, root);
 	else
-		result = _push_scope_by_routine(s, running);
+		s->running_context = root->prev;
 
-	return result;
-}
+	root->prev = 0;
+	lambda->scope->prev = 0;
 
-_running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, _running_context_t* running, bool_t weak) {
-	/* Unlink a lambda's local scope and its upvalue scope chain from a given scope */
-	_running_context_t* result = 0;
-
-	if(weak)
-		result = _pop_weak_scope(s, running);
-	else
-		result = _pop_scope(s, true);
-
-	if(lambda)
-		lambda->scope->prev = 0;
-
-	return result;
+	return lambda->scope;
 }
 #endif /* MB_ENABLE_LAMBDA */
 
@@ -6639,6 +6655,20 @@ _running_context_t* _get_root_scope(_running_context_t* scope) {
 
 	return result;
 }
+
+#ifdef MB_ENABLE_LAMBDA
+_running_context_ref_t* _get_root_ref_scope(_running_context_ref_t* scope) {
+	/* Get the root scope in a referenced scope chain */
+	_running_context_ref_t* result = 0;
+
+	while(scope) {
+		result = scope;
+		scope = scope->prev;
+	}
+
+	return result;
+}
+#endif /* MB_ENABLE_LAMBDA */
 
 _running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s) {
 	/* Get a proper scope to add a routine */
