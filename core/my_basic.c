@@ -3310,6 +3310,8 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		}
 	} while(ast);
 
+	_out_of_scope(s, running);
+
 	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false);
 	if(result != MB_FUNC_OK)
 		goto _exit;
@@ -3394,6 +3396,8 @@ int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 			goto _exit;
 		}
 	} while(ast);
+
+	_out_of_scope(s, running);
 
 	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false);
 	if(result != MB_FUNC_OK)
@@ -6301,6 +6305,7 @@ int _fill_with_upvalue(void* data, void* extra, void* p) {
 		_ls_node_t* nori = _ht_find(tuple->scope->var_dict, (void*)n);
 		if(nori) {
 			_object_t* ovar = _create_object();
+			obj = (_object_t*)nori->data;
 			ovar->type = _DT_VAR;
 			ovar->data.variable = (_var_t*)mb_malloc(sizeof(_var_t));
 			memset(ovar->data.variable, 0, sizeof(_var_t));
