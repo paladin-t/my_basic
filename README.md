@@ -21,7 +21,7 @@ Why are existing script interpreters so complex? Why is it so difficult to integ
 
 ## Introduction
 
-MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 14,000 lines of source code. It supports structured grammar, and implements a style of OOP called [prototype-based](https://en.wikipedia.org/wiki/Prototype-based_programming) programming paradigm, furthermore it implementes a functional programming ability with [lambda](https://en.wikipedia.org/wiki/Anonymous_function). It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, C#, etc. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
+MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 14,000 lines of source code. It supports structured grammar, and implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm, furthermore it implementes a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, C#, etc. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
 
 ## Compatibility
 
@@ -35,8 +35,8 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * Written in clean **ANSI C**, source code is portable for a dozen of platforms
 * With most both retro and modern BASIC syntax
 * Case-insensitive tokenization
-* **[Prototype-based](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm
-* **[Lambda](https://en.wikipedia.org/wiki/Anonymous_function)** abstraction
+* **[Prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm
+* **[Lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function)**
 * **Lightweight** (within memory usage less than 128KB) and fast
 * **Dynamic typed** integer, float point, string, boolean, user defined data types, etc. with array support
 * Standard numeric functions, and standard string functions
@@ -118,6 +118,7 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
  * [Import another file](https://github.com/paladin-t/my_basic/wiki/Import-another-file)
  * [Module (namespace)](https://github.com/paladin-t/my_basic/wiki/Module-(namespace))
  * [Sub routine](https://github.com/paladin-t/my_basic/wiki/Sub-routine)
+ * [Lambda abstraction](https://github.com/paladin-t/my_basic/wiki/Lambda-abstraction)
 * Understanding data type system in MY-BASIC
  * [Collection manipulation](https://github.com/paladin-t/my_basic/wiki/Collection-manipulation)
  * [Manipulate an array](https://github.com/paladin-t/my_basic/wiki/Manipulate-an-array)
@@ -146,6 +147,8 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
 ## References
 
 * [BASIC - Wikipedia](http://en.wikipedia.org/wiki/BASIC)
+* [Prototype-based programming - Wikipedia](https://en.wikipedia.org/wiki/Prototype-based_programming)
+* [Lambda abstraction - Wikipedia](https://en.wikipedia.org/wiki/Anonymous_function)
 
 -----
 
