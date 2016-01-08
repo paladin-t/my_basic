@@ -21,7 +21,7 @@ Why are existing script interpreters so complex? Why is it so difficult to integ
 
 ## Introduction
 
-MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 13,000 lines of source code. It supports structured grammar, and implements a style of OOP called [prototype-based](https://en.wikipedia.org/wiki/Prototype-based_programming) programming paradigm. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, C#, etc. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
+MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 14,000 lines of source code. It supports structured grammar, and implements a style of OOP called [prototype-based](https://en.wikipedia.org/wiki/Prototype-based_programming) programming paradigm, furthermore it implementes a functional programming ability with [lambda](https://en.wikipedia.org/wiki/Anonymous_function). It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, C#, etc. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
 
 ## Compatibility
 
@@ -36,6 +36,7 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * With most both retro and modern BASIC syntax
 * Case-insensitive tokenization
 * **[Prototype-based](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm
+* **[Lambda](https://en.wikipedia.org/wiki/Anonymous_function)** abstraction
 * **Lightweight** (within memory usage less than 128KB) and fast
 * **Dynamic typed** integer, float point, string, boolean, user defined data types, etc. with array support
 * Standard numeric functions, and standard string functions
