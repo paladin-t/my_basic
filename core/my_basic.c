@@ -259,6 +259,7 @@ static const char* _ERR_DESC[] = {
 	"Class expected",
 	"Duplicate class",
 	"Wrong meta class",
+	"Invalid lambda",
 	"Collection expected",
 	"Iterator expected",
 	"Collection or iterator expected",
@@ -1410,6 +1411,7 @@ static int _remove_filled_upvalue(void* data, void* extra, void* u);
 static int _fill_outer_scope(void* data, void* extra, void* t);
 static _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak);
 static _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak);
+static bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj);
 #endif /* MB_ENABLE_LAMBDA */
 #ifdef MB_ENABLE_CLASS
 static _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c);
@@ -6406,6 +6408,15 @@ _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* l
 	lambda->scope->prev = 0;
 
 	return lambda->scope;
+}
+
+bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj) {
+	/* Check whether an object is a valid lambda body node */
+	return
+		!_IS_FUNC(obj, _core_def) &&
+		!_IS_FUNC(obj, _core_enddef) &&
+		!_IS_FUNC(obj, _core_class) &&
+		!_IS_FUNC(obj, _core_endclass);
 }
 #endif /* MB_ENABLE_LAMBDA */
 
@@ -11936,6 +11947,9 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 
 		if(!routine->func.lambda.parameters)
 			routine->func.lambda.parameters = _ls_create();
+		if(!v || ((_object_t*)v)->type != _DT_VAR) {
+			_handle_error_on_obj(s, SE_RN_INVALID_LAMBDA, 0, TON(l), MB_FUNC_ERR, _error, result);
+		}
 		var = ((_object_t*)v)->data.variable;
 
 		/* Add lambda parameters */
@@ -11978,6 +11992,10 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 			brackets++;
 		else if(_IS_FUNC(ast->data, _core_close_bracket))
 			brackets--;
+
+		if(ast && !_is_valid_lambda_body_node(s, &routine->func.lambda, (_object_t*)ast->data)) {
+			_handle_error_on_obj(s, SE_RN_INVALID_LAMBDA, 0, TON(l), MB_FUNC_ERR, _error, result);
+		}
 
 		/* Mark upvalues */
 		if(ast)
