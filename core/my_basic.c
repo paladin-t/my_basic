@@ -439,6 +439,7 @@ typedef struct _lambda_t {
 	struct _running_context_ref_t* outer_scope;
 	_ht_node_t* upvalues;
 	_ls_node_t* entry;
+	_ls_node_t* end;
 } _lambda_t;
 #endif /* MB_ENABLE_LAMBDA */
 
@@ -7824,6 +7825,10 @@ _retry:
 			_handle_error_on_obj(s, SE_RN_COLON_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 		} else if(_IS_FUNC(obj, _core_enddef) && result != MB_SUB_RETURN) {
 			ast = (_ls_node_t*)_ls_popback(sub_stack);
+#ifdef MB_ENABLE_LAMBDA
+		} else if(obj && _IS_FUNC(obj, _core_close_bracket) && s->last_routine && s->last_routine->type == _IT_LAMBDA) {
+			/* Do nothing */
+#endif /* MB_ENABLE_LAMBDA */
 		} else if(obj && obj->type == _DT_FUNC && (_is_operator(obj->data.func->pointer) || _is_flow(obj->data.func->pointer))) {
 			ast = ast->next;
 		} else if(obj && obj->type == _DT_FUNC) {
@@ -11981,6 +11986,7 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 		ast = ast->next;
 	}
 	*l = ast;
+	routine->func.lambda.end = ast;
 
 	_mb_check_mark(mb_attempt_close_bracket(s, l), err, _error);
 
@@ -13018,7 +13024,7 @@ _print:
 		} else {
 			_handle_error_on_obj(s, SE_RN_COMMA_OR_SEMICOLON_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
-	} while(ast && !_IS_SEP(obj, ':') && (obj->type == _DT_SEP || !_is_expression_terminal(s, obj)));
+	} while(ast && !_IS_SEP(obj, ':') && !_IS_FUNC(obj, _core_close_bracket) && (obj->type == _DT_SEP || !_is_expression_terminal(s, obj)));
 
 _exit:
 	--s->no_eat_comma_mark;

@@ -1,3 +1,6 @@
+Jan. 9 2016
+Developing lambda, fixed an issue with only a PRINT statement
+
 Jan. 8 2016
 Developing lambda, fixed a lambda scope linkage issue
 Developing lambda, fixed an upvalue passing issue
