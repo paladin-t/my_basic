@@ -6412,6 +6412,9 @@ _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* l
 
 bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj) {
 	/* Check whether an object is a valid lambda body node */
+	mb_unrefvar(s);
+	mb_unrefvar(lambda);
+
 	return
 		!_IS_FUNC(obj, _core_def) &&
 		!_IS_FUNC(obj, _core_enddef) &&
