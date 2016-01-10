@@ -21,11 +21,11 @@ Why are existing script interpreters so complex? Why is it so difficult to integ
 
 ## Introduction
 
-MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 14,000 lines of source code. It supports structured grammar, and implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm, furthermore it implementes a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, C#, etc. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
+MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about 14,000 lines of source code. It supports structured grammar, and implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm, furthermore it offers a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). Most advanced features are easily cuttable by modifying macros. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, C#, etc. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
 
 ## Compatibility
 
-It fits well with Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Console, Raspberry Pi, Arduino Mega and even MCU; totally portable to Windows, OS X, Linux, iOS, Android, RTOS, etc.
+It fits well with Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Console, Raspberry Pi, Intel Edison, Arduino and even MCU; totally portable to Windows, OS X, Unix, Linux, iOS, Android, RTOS, etc.
 
 ## Main features
 
@@ -33,11 +33,11 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 
 * It is totally **free** to use MY-BASIC for individual or commercial purpose under the MIT license
 * Written in clean **ANSI C**, source code is portable for a dozen of platforms
+* **Lightweight** (within memory usage less than 128KB), fast, and cuttable
 * With most both retro and modern BASIC syntax
-* Case-insensitive tokenization
+* Case-insensitive tokenization, and many other indelible BASIC feelings
 * **[Prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm
 * **[Lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function)**
-* **Lightweight** (within memory usage less than 128KB) and fast
 * **Dynamic typed** integer, float point, string, boolean, user defined data types, etc. with array support
 * Standard numeric functions, and standard string functions
 * Referenced usertype support
@@ -52,7 +52,7 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * Customizable memory pool
 * High expansibility, easy to use APIs, easy to write customized scripting interfaces
 * Powerful interactive ability to use native functionalities in script, and vice versa
-* More features/modules under developing
+* More features/modules under development
 
 ## Script at a glance
 
@@ -83,21 +83,21 @@ This repository contains precompiled binaries for [Windows](output/my_basic.exe)
 
 * Open the Visual Studio solution `my_basic.sln` on Windows to build an executable
 * Open the Xcode solution `my_basic_mac.xcodeproj` on OS X to build an OS X executable
-* If you are not using VS or Xcode, use the `makefile` with a "make" toolchain to build an interpreter binary according to your own platform
+* If you are not using VS or Xcode, then use the `makefile` with a "make" toolchain to build an interpreter binary according to your specific platform
 
 To compile an interpreter binary for your own platform manually, please follow the steps:
 
-1. Retrieve at least `core` and `shell` folders for minimum build
+1. Retrieve at least `core` and `shell` folders for a minimum build
 2. Setup your compile toolchain configuration
-3. Use your compiler to compile `core/my_basic.c` and `shell/main.c`, including `core/my_basic.h` is required for both source files, then link up your own executable
+3. Use your compiler to compile `core/my_basic.c` and `shell/main.c`, including `core/my_basic.h` is required by both of the source files, then link up your own executable
 
-The standalone interpreter supports three modes:
+The standalone interpreter supports three running modes:
 
-* Execute the binary directly without arguments to enter MY-BASIC interactive mode
+* Execute the binary directly without arguments to enter MY-BASIC's interactive mode
 * Pass a file path to the binary to load and run that script file
 * Pass an argument `-e` followed by an expression to evaluate and print it, eg. `-e "2 * (3 + 4)"`
 
-Type "HELP" and hint Enter under interactive mode to view detail usage.
+Type "HELP" and hint Enter under interactive mode to view full detail usage of the interpreter.
 
 ### Combine with exist projects
 
@@ -105,11 +105,11 @@ MY-BASIC is cleanly written in a single C source file and an associated header f
 
 You can definitely [link with MY-BASIC as a lib](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC) as well.
 
-For more details about using MY-BASIC when it's already integrated with a project, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf).
+For more details about using MY-BASIC when it's already integrated with a project, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) or read the Wiki pages below.
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
-Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf). There are some other scattered topics besides these aspects, such as the desine principle, machinism behind MY-BASIC, effective practice, etc; they are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki):
+Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf). There are still some other scattered topics besides these aspects, such as the desine principle, machinism behind MY-BASIC, effective practice, etc; all issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki):
 
 * Principles
  * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
