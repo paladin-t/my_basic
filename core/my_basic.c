@@ -1457,6 +1457,7 @@ static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl);
 static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn);
 static int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t* itn);
 static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s);
+static void _destroy_lazy_objects(mb_interpreter_t* s);
 static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch);
 static void _assign_public_value(mb_value_t* tgt, mb_value_t* src);
 static void _swap_public_value(mb_value_t* tgt, mb_value_t* src);
@@ -7528,6 +7529,12 @@ void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s)
 	}
 }
 
+void _destroy_lazy_objects(mb_interpreter_t* s) {
+	/* Destroy lazy objects */
+	_ls_foreach(s->lazy_destroy_objects, _destroy_object);
+	_ls_clear(s->lazy_destroy_objects);
+}
+
 void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
 	/* Mark a string as lazy destroy */
 	_object_t* temp_obj = 0;
@@ -7865,6 +7872,8 @@ _retry:
 	}
 
 _exit:
+	_destroy_lazy_objects(s);
+
 	*l = ast;
 
 	_stepped(s, ast);
@@ -9930,8 +9939,6 @@ int mb_run(struct mb_interpreter_t* s) {
 
 	do {
 		result = _execute_statement(s, &ast);
-		_ls_foreach(s->lazy_destroy_objects, _destroy_object);
-		_ls_clear(s->lazy_destroy_objects);
 		if(result != MB_FUNC_OK && result != MB_SUB_RETURN) {
 			if(result != MB_FUNC_SUSPEND && s->error_handler) {
 				if(result >= MB_EXTENDED_ABORT)
