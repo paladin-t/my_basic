@@ -11444,7 +11444,8 @@ _loop_begin:
 
 	if(loop_cond_ptr->data.integer) {
 		/* End looping */
-		_skip_to(s, &ast, 0, _DT_EOS);
+		if(ast)
+			_skip_to(s, &ast, 0, _DT_EOS);
 
 		goto _exit;
 	} else {

@@ -1,3 +1,6 @@
+Jan. 11 2016
+Fixed a crash bug when a DO-UNTIL statement is the end of a program
+
 Jan. 9 2016
 Developing lambda, improved error handling
 Developing lambda, fixed an issue with only a PRINT statement
