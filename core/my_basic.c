@@ -3027,12 +3027,9 @@ _routine:
 
 										mb_check(mb_attempt_close_bracket(s, (void**)l));
 
-										_dispose_object(c);
+										c = _create_object();
+										_ls_pushback(garbage, c);
 										_public_value_to_internal_object(&ret, c);
-
-										mb_make_nil(ret);
-										_internal_object_to_public_value(ocoll, &ret);
-										_assign_public_value(&ret, 0);
 
 										ast = (_ls_node_t*)*l;
 									}
