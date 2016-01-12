@@ -1459,6 +1459,7 @@ static int _destroy_object_not_compile_time(void* data, void* extra);
 static int _destroy_object_capsule_only(void* data, void* extra);
 static int _destroy_object_capsule_only_with_extra(void* data, void* extra);
 static int _do_nothing_on_object(void* data, void* extra);
+static int _lose_object(void* data, void* extra);
 static int _remove_source_object(void* data, void* extra);
 static int _destroy_memory(void* data, void* extra);
 static int _compare_numbers(const _object_t* first, const _object_t* second);
@@ -6723,9 +6724,10 @@ void _out_of_scope(mb_interpreter_t* s, _running_context_t* running) {
 		_ls_destroy(running->refered_lambdas);
 		running->refered_lambdas = 0;
 	}
-#else /* MB_ENABLE_LAMBDA */
-	mb_unrefvar(running);
 #endif /* MB_ENABLE_LAMBDA */
+
+	if(running->var_dict)
+		_ht_foreach(running->var_dict, _lose_object);
 }
 
 _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p) {
@@ -7230,6 +7232,39 @@ int _do_nothing_on_object(void* data, void* extra) {
 	int result = _OP_RESULT_NORMAL;
 	mb_unrefvar(data);
 	mb_unrefvar(extra);
+
+	return result;
+}
+
+int _lose_object(void* data, void* extra) {
+	/* Lose an object of of scope */
+	int result = _OP_RESULT_NORMAL;
+	_object_t* obj = 0;
+	bool_t make_nil = true;
+
+	mb_assert(data && extra);
+
+	obj = (_object_t*)data;
+	switch(obj->type) {
+	case _DT_VAR:
+		_lose_object(obj->data.variable->data, extra);
+		make_nil = false;
+
+		break;
+	_UNREF_USERTYPE_REF(obj)
+	_UNREF_ARRAY(obj)
+	_UNREF_COLL(obj)
+	_UNREF_CLASS(obj)
+	_UNREF_ROUTINE(obj)
+	default:
+		make_nil = false;
+
+		break;
+	}
+
+	if(make_nil) {
+		_MAKE_NIL(obj);
+	}
 
 	return result;
 }
