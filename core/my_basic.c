@@ -1211,11 +1211,19 @@ static char* _extract_string(_object_t* obj);
 		case _DT_DICT_IT: \
 			_destroy_dict_it(obj->data.dict_it); \
 			break;
+#	define _ADDGC_COLL_IT(__o, __g) \
+		case _DT_LIST_IT: \
+			_destroy_list_it(obj->data.list_it); \
+			break; \
+		case _DT_DICT_IT: \
+			_destroy_dict_it(obj->data.dict_it); \
+			break;
 #else /* MB_ENABLE_COLLECTION_LIB */
 #	define _REF_COLL(__o) ((void)(__o));
 #	define _UNREF_COLL(__o) ((void)(__o));
 #	define _ADDGC_COLL(__o, __g) ((void)(__o)); ((void)(__g));
 #	define _UNREF_COLL_IT(__o) ((void)(__o));
+#	define _ADDGC_COLL_IT(__o, __g) ((void)(__o)); ((void)(__g));
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 #	define _REF_CLASS(__o) \
@@ -1292,6 +1300,7 @@ static char* _extract_string(_object_t* obj);
 	_ADDGC_USERTYPE_REF(__o, __g) \
 	_ADDGC_ARRAY(__o, __g) \
 	_ADDGC_COLL(__o, __g) \
+	_ADDGC_COLL_IT(__o, __g) \
 	_ADDGC_CLASS(__o, __g) \
 	_ADDGC_ROUTINE(__o, __g) \
 	_ADDGC_STRING(__o) \
@@ -1317,6 +1326,10 @@ static int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc);
 #ifdef MB_ENABLE_CLASS
 static int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc);
 #endif /* MB_ENABLE_CLASS */
+#ifdef MB_ENABLE_LAMBDA
+static int _gc_destroy_garbage_in_lambda(void* data, void* extra, void* gc);
+static void _gc_destroy_garbage_in_outer_scope(_running_context_ref_t* p, _gc_t* gc);
+#endif /* MB_ENABLE_LAMBDA */
 static int _gc_destroy_garbage(void* data, void* extra);
 static void _gc_swap_tables(mb_interpreter_t* s);
 static void _gc_try_trigger(mb_interpreter_t* s);
@@ -2969,12 +2982,11 @@ _routine:
 						);
 						if(cs) {
 							c = (_object_t*)cs->data;
-							if(c && c->type == _DT_ROUTINE) {
-								goto _routine;
-							} else if(c && c->type == _DT_VAR && c->data.variable->data->type == _DT_ROUTINE) {
+							if(c && c->type == _DT_VAR && c->data.variable->data->type == _DT_ROUTINE)
 								c = c->data.variable->data;
-
-								goto _routine;
+							if(ast && ast && _IS_FUNC(ast->data, _core_open_bracket)) {
+								if(c && c->type == _DT_ROUTINE)
+									goto _routine;
 							}
 						}
 						if(ast) {
@@ -4800,6 +4812,42 @@ int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc) {
 }
 #endif /* MB_ENABLE_CLASS */
 
+#ifdef MB_ENABLE_LAMBDA
+int _gc_destroy_garbage_in_lambda(void* data, void* extra, void* gc) {
+	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
+	int result = _OP_RESULT_NORMAL;
+	_object_t* obj = 0;
+	_gc_t* _gc = (_gc_t*)gc;
+	mb_unrefvar(extra);
+
+	mb_assert(data);
+
+	obj = (_object_t*)data;
+	if(obj->type == _DT_VAR) {
+		_gc_destroy_garbage_in_lambda(obj->data.variable->data, 0, gc);
+		safe_free(obj->data.variable->name);
+		safe_free(obj->data.variable);
+	} else {
+		_ADDGC(obj, _gc);
+	}
+	safe_free(obj);
+
+	result = _OP_RESULT_DEL_NODE;
+
+	return result;
+}
+
+void _gc_destroy_garbage_in_outer_scope(_running_context_ref_t* p, _gc_t* gc) {
+	/* Collect garbage of outer scopes */
+	while(p) {
+		_running_context_ref_t* scope = p;
+		p = p->prev;
+		_HT_FOREACH(scope->scope->var_dict, _do_nothing_on_object, _gc_destroy_garbage_in_lambda, gc);
+		_ht_clear(scope->scope->var_dict);
+	}
+}
+#endif /* MB_ENABLE_LAMBDA */
+
 int _gc_destroy_garbage(void* data, void* extra) {
 	/* Destroy a garbage */
 	int result = _OP_RESULT_NORMAL;
@@ -4813,6 +4861,9 @@ int _gc_destroy_garbage(void* data, void* extra) {
 #ifdef MB_ENABLE_CLASS
 	_class_t* instance = 0;
 #endif /* MB_ENABLE_CLASS */
+#ifdef MB_ENABLE_LAMBDA
+	_routine_t* routine = 0;
+#endif /* MB_ENABLE_LAMBDA */
 
 	mb_assert(data && extra);
 
@@ -4848,9 +4899,26 @@ int _gc_destroy_garbage(void* data, void* extra) {
 		_HT_FOREACH(instance->scope->var_dict, _do_nothing_on_object, _gc_destroy_garbage_in_class, gc);
 		_ht_clear(instance->scope->var_dict);
 		_ls_clear(instance->meta_list);
+#ifdef MB_ENABLE_LAMBDA
+		if(instance->scope->refered_lambdas) {
+			_ls_destroy(instance->scope->refered_lambdas);
+			instance->scope->refered_lambdas = 0;
+		}
+#endif /* MB_ENABLE_LAMBDA */
 
 		break;
 #endif /* MB_ENABLE_CLASS */
+#ifdef MB_ENABLE_LAMBDA
+	case _DT_ROUTINE:
+		routine = (_routine_t*)data;
+		if(routine->type == _IT_LAMBDA) {
+			_HT_FOREACH(routine->func.lambda.scope->var_dict, _do_nothing_on_object, _gc_destroy_garbage_in_lambda, gc);
+			_ht_clear(routine->func.lambda.scope->var_dict);
+			_gc_destroy_garbage_in_outer_scope(routine->func.lambda.outer_scope, gc);
+		}
+
+		break;
+#endif /* MB_ENABLE_LAMBDA */
 	default: /* Do nothing */
 		break;
 	}
@@ -5870,6 +5938,12 @@ void _destroy_class(_class_t* c) {
 		_ht_foreach(c->scope->var_dict, _destroy_object);
 		_ht_destroy(c->scope->var_dict);
 	}
+#ifdef MB_ENABLE_LAMBDA
+	if(c->scope->refered_lambdas) {
+		_ls_destroy(c->scope->refered_lambdas);
+		c->scope->refered_lambdas = 0;
+	}
+#endif /* MB_ENABLE_LAMBDA */
 	safe_free(c->scope);
 	_destroy_ref(&c->ref);
 	safe_free(c->name);
@@ -6286,9 +6360,9 @@ void _destroy_outer_scope(_running_context_ref_t* p) {
 
 	while(p) {
 		_running_context_ref_t* scope = p;
+		p = p->prev;
 		_destroy_scope(scope->ref.s, scope->scope);
 		_destroy_ref(&scope->ref);
-		p = p->prev;
 		mb_free(scope);
 	}
 }
@@ -6424,8 +6498,12 @@ bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda, _objec
 	return
 		!_IS_FUNC(obj, _core_def) &&
 		!_IS_FUNC(obj, _core_enddef) &&
+#ifdef MB_ENABLE_CLASS
 		!_IS_FUNC(obj, _core_class) &&
-		!_IS_FUNC(obj, _core_endclass);
+		!_IS_FUNC(obj, _core_endclass) &&
+#endif /* MB_ENABLE_CLASS */
+		true
+	;
 }
 #endif /* MB_ENABLE_LAMBDA */
 
@@ -6905,7 +6983,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 
 		break;
 	case _DT_LIST_IT:
-		tgt->data.list_it = _create_list_it(obj->data.list_it->list, false);
+		tgt->data.list_it = _create_list_it(obj->data.list_it->list, true);
 
 		break;
 	case _DT_DICT:
@@ -6915,7 +6993,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 
 		break;
 	case _DT_DICT_IT:
-		tgt->data.dict_it = _create_dict_it(obj->data.dict_it->dict, false);
+		tgt->data.dict_it = _create_dict_it(obj->data.dict_it->dict, true);
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
@@ -7329,6 +7407,7 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	case MB_DT_STRING:
 		itn->type = _DT_STRING;
 		itn->data.string = pbl->value.string;
+		itn->ref = true;
 
 		break;
 	case MB_DT_USERTYPE:

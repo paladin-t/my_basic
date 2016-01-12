@@ -1,5 +1,10 @@
 Jan. 12 2016
 Fixed a routine evaluation bug when it's stored in a variable
+Fixed a disposing issue with collection iterators
+Fixed some memory leak with lambda
+Fixed a multiple disposing bug with string expression calculation
+Improved GC with outer scopes of lambda
+Fixed some other minor bugs with lambda
 
 Jan. 11 2016
 Fixed a crash bug when a DO-UNTIL statement is the end of a program
