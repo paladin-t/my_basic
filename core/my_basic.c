@@ -6234,7 +6234,6 @@ _running_context_t* _init_lambda(mb_interpreter_t* s, _routine_t* routine) {
 	lambda = &routine->func.lambda;
 	lambda->scope = _create_running_context(true);
 	result = _push_scope_by_routine(s, lambda->scope);
-	lambda->upvalues = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
 
 	return result;
 }
@@ -6301,6 +6300,8 @@ void _mark_upvalue(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj, const
 		_ls_pushback(found_in_scope->refered_lambdas, lambda);
 	}
 
+	if(!lambda->upvalues)
+		lambda->upvalues = _ht_create(0, _ht_cmp_string, _ht_hash_string, 0);
 	_ht_set_or_insert(lambda->upvalues, obj->data.variable->name, obj);
 }
 
@@ -6422,13 +6423,15 @@ int _fill_outer_scope(void* data, void* extra, void* t) {
 	_upvalue_scope_tuple_t* tuple = (_upvalue_scope_tuple_t*)t;
 	mb_unrefvar(extra);
 
-	tuple->filled = _ht_create(0, _ht_cmp_intptr, _ht_hash_intptr, 0); {
-		tuple->lambda = lambda;
-		_HT_FOREACH(lambda->upvalues, _do_nothing_on_ht_for_lambda, _fill_with_upvalue, tuple);
-		tuple->lambda = 0;
+	if(lambda->upvalues) {
+		tuple->filled = _ht_create(0, _ht_cmp_intptr, _ht_hash_intptr, 0); {
+			tuple->lambda = lambda;
+			_HT_FOREACH(lambda->upvalues, _do_nothing_on_ht_for_lambda, _fill_with_upvalue, tuple);
+			tuple->lambda = 0;
+		}
+		_HT_FOREACH(tuple->filled, _do_nothing_on_ht_for_lambda, _remove_filled_upvalue, lambda->upvalues);
+		_ht_destroy(tuple->filled);
 	}
-	_HT_FOREACH(tuple->filled, _do_nothing_on_ht_for_lambda, _remove_filled_upvalue, lambda->upvalues);
-	_ht_destroy(tuple->filled);
 
 	if(lambda->outer_scope) {
 		if(tuple->outer_scope->scope != lambda->outer_scope->scope)

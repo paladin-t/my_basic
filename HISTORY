@@ -7,6 +7,7 @@ Fixed a multiple disposing bug with string expression calculation
 Improved GC with outer scopes of lambda
 Fixed some other minor bugs with lambda
 Fixed a wrong disposing bug when accessing a collection by brackets
+Optimized memory occupation with lambda
 
 Jan. 11 2016
 Fixed a crash bug when a DO-UNTIL statement is the end of a program
