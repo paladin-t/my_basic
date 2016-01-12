@@ -1,3 +1,6 @@
+Jan. 12 2016
+Fixed a routine evaluation bug when it's stored in a variable
+
 Jan. 11 2016
 Fixed a crash bug when a DO-UNTIL statement is the end of a program
 Fixed a memory leak with string manipulation

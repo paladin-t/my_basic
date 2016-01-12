@@ -2969,8 +2969,13 @@ _routine:
 						);
 						if(cs) {
 							c = (_object_t*)cs->data;
-							if(c && c->type == _DT_ROUTINE)
+							if(c && c->type == _DT_ROUTINE) {
 								goto _routine;
+							} else if(c && c->type == _DT_VAR && c->data.variable->data->type == _DT_ROUTINE) {
+								c = c->data.variable->data;
+
+								goto _routine;
+							}
 						}
 						if(ast) {
 							_object_t* _err_or_bracket = (_object_t*)ast->data;
