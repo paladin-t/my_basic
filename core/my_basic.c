@@ -95,6 +95,9 @@ extern "C" {
 #	define _MB_VERSION_STRING _STRINGIZE(_VER_MAJOR._VER_MINOR._VER_REVISION _VER_SUFFIX)
 #endif /* _VER_REVISION == 0 */
 
+/* Define as 1 to create hash table nodes lazily, 0 obligingly */
+#define _LAZY_HASH_TABLE 1
+
 /* Define as 1 to treat warning as error, 0 just leave it */
 #define _WARING_AS_ERROR 0
 
@@ -1007,10 +1010,12 @@ static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht);
 	do { \
 		_ls_node_t* __bucket = 0; \
 		unsigned int __ul = 0; \
-		for(__ul = 0; __ul < (H)->array_size; ++__ul) { \
-			__bucket = (H)->array[__ul]; \
-			if(__bucket) \
-				_LS_FOREACH(__bucket, O, P, E); \
+		if((H)->array) { \
+			for(__ul = 0; __ul < (H)->array_size; ++__ul) { \
+				__bucket = (H)->array[__ul]; \
+				if(__bucket) \
+					_LS_FOREACH(__bucket, O, P, E); \
+			} \
 		} \
 	} while(0)
 
@@ -2245,9 +2250,14 @@ _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_oper
 	result->hash = hs;
 	result->array_size = array_size;
 	result->count = 0;
+#if _LAZY_HASH_TABLE
+	mb_unrefvar(ul);
+	result->array = 0;
+#else /* _LAZY_HASH_TABLE */
 	result->array = (_ls_node_t**)mb_malloc(sizeof(_ls_node_t*) * result->array_size);
 	for(ul = 0; ul < result->array_size; ++ul)
 		result->array[ul] = _ls_create();
+#endif /* _LAZY_HASH_TABLE */
 
 	return result;
 }
@@ -2260,8 +2270,10 @@ _ls_node_t* _ht_find(_ht_node_t* ht, void* key) {
 	mb_assert(ht && key);
 
 	hash_code = ht->hash(ht, key);
-	bucket = ht->array[hash_code];
-	bucket = bucket->next;
+	if(ht->array && ht->array[hash_code]) {
+		bucket = ht->array[hash_code];
+		bucket = bucket->next;
+	}
 	while(bucket) {
 		if(ht->compare(bucket->extra, key) == 0) {
 			result = bucket;
@@ -2278,6 +2290,7 @@ unsigned int _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
 	unsigned int result = 0;
 	_ls_node_t* bucket = 0;
 	unsigned int hash_code = 0;
+	unsigned int ul = 0;
 
 	mb_assert(ht && key);
 
@@ -2287,6 +2300,13 @@ unsigned int _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
 		++result;
 	} else { /* Insert */
 		hash_code = ht->hash(ht, key);
+		if(!ht->array) {
+			ht->array = (_ls_node_t**)mb_malloc(sizeof(_ls_node_t*) * ht->array_size);
+			for(ul = 0; ul < ht->array_size; ++ul)
+				ht->array[ul] = 0;
+		}
+		if(!ht->array[hash_code])
+			ht->array[hash_code] = _ls_create();
 		bucket = ht->array[hash_code];
 		bucket = _ls_pushback(bucket, value);
 		mb_assert(bucket);
@@ -2310,9 +2330,11 @@ unsigned int _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
 
 	bucket = _ht_find(ht, key);
 	hash_code = ht->hash(ht, key);
-	bucket = ht->array[hash_code];
-	result = _ls_try_remove(bucket, key, cmp, ht->free_extra);
-	ht->count -= result;
+	if(ht->array && ht->array[hash_code]) {
+		bucket = ht->array[hash_code];
+		result = _ls_try_remove(bucket, key, cmp, ht->free_extra);
+		ht->count -= result;
+	}
 
 	return result;
 }
@@ -2322,10 +2344,12 @@ unsigned int _ht_foreach(_ht_node_t* ht, _ht_operation op) {
 	_ls_node_t* bucket = 0;
 	unsigned int ul = 0;
 
-	for(ul = 0; ul < ht->array_size; ++ul) {
-		bucket = ht->array[ul];
-		if(bucket)
-			result += _ls_foreach(bucket, op);
+	if(ht->array) {
+		for(ul = 0; ul < ht->array_size; ++ul) {
+			bucket = ht->array[ul];
+			if(bucket)
+				result += _ls_foreach(bucket, op);
+		}
 	}
 
 	return result;
@@ -2340,25 +2364,33 @@ unsigned int _ht_count(_ht_node_t* ht) {
 void _ht_clear(_ht_node_t* ht) {
 	unsigned int ul = 0;
 
-	mb_assert(ht && ht->array);
+	mb_assert(ht);
 
-	for(ul = 0; ul < ht->array_size; ++ul)
-		_ls_clear(ht->array[ul]);
-	ht->count = 0;
+	if(ht->array) {
+		for(ul = 0; ul < ht->array_size; ++ul) {
+			if(ht->array[ul])
+				_ls_clear(ht->array[ul]);
+		}
+		ht->count = 0;
+	}
 }
 
 void _ht_destroy(_ht_node_t* ht) {
 	unsigned int ul = 0;
 
-	mb_assert(ht && ht->array);
+	mb_assert(ht);
 
-	if(ht->free_extra)
-		_ht_foreach(ht, ht->free_extra);
+	if(ht->array) {
+		if(ht->free_extra)
+			_ht_foreach(ht, ht->free_extra);
 
-	for(ul = 0; ul < ht->array_size; ++ul)
-		_ls_destroy(ht->array[ul]);
+		for(ul = 0; ul < ht->array_size; ++ul) {
+			if(ht->array[ul])
+				_ls_destroy(ht->array[ul]);
+		}
 
-	safe_free(ht->array);
+		safe_free(ht->array);
+	}
 	safe_free(ht);
 }
 

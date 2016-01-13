@@ -1,3 +1,6 @@
+Jan. 13 2016
+Optimized hash table algorithm
+
 Jan. 12 2016
 Improved sub routine by unreference objects which were out of scope
 Fixed a routine evaluation bug when it's stored in a variable
