@@ -3362,7 +3362,11 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		}
 	} while(ast);
 
+#ifdef MB_ENABLE_CLASS
 	_out_of_scope(s, running, r->instance, true);
+#else /* MB_ENABLE_CLASS */
+	_out_of_scope(s, running, 0, true);
+#endif /* MB_ENABLE_CLASS */
 
 	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false);
 	if(result != MB_FUNC_OK)
