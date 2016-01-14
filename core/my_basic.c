@@ -101,9 +101,6 @@ extern "C" {
 /* Define as 1 to treat warning as error, 0 just leave it */
 #define _WARING_AS_ERROR 0
 
-/* Define as 1 to create class instance without variable, 0 to put class instance into a variable */
-#define _CLASS_IN_VAR 1
-
 /* Define as 1 to use a comma to PRINT a new line, 0 to use a semicolon */
 #define _COMMA_AS_NEWLINE 0
 
@@ -639,6 +636,7 @@ typedef struct _tuple3_t {
 #define _JMP_STR 0x02
 
 typedef struct mb_interpreter_t {
+	bool_t valid;
 	_ht_node_t* local_func_dict;
 	_ht_node_t* global_func_dict;
 #ifdef MB_ENABLE_MODULE
@@ -1446,7 +1444,7 @@ static _running_context_t* _push_scope_by_routine(mb_interpreter_t* s, _running_
 static void _destroy_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _pop_scope(mb_interpreter_t* s, bool_t tidy);
-static void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* instance);
+static void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* instance, bool_t lose);
 static _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _get_root_scope(_running_context_t* scope);
 #ifdef MB_ENABLE_LAMBDA
@@ -3364,7 +3362,7 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		}
 	} while(ast);
 
-	_out_of_scope(s, running, 0);
+	_out_of_scope(s, running, 0, true);
 
 	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false);
 	if(result != MB_FUNC_OK)
@@ -3451,7 +3449,7 @@ int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		}
 	} while(ast);
 
-	_out_of_scope(s, running, 0);
+	_out_of_scope(s, running, 0, true);
 
 	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false);
 	if(result != MB_FUNC_OK)
@@ -3928,20 +3926,6 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			_push_scope_by_class(s, tmp.instance->scope);
 			s->last_instance = tmp.instance;
 
-#if _CLASS_IN_VAR
-			var = _create_var(obj, sym, strlen(sym) + 1, true);
-
-			ul = _ht_set_or_insert(running->var_dict, sym, *obj);
-			mb_assert(ul);
-
-			var->data->type = _DT_CLASS;
-			var->data->data.instance = tmp.instance;
-
-			*obj = _create_object();
-			(*obj)->type = type;
-			(*obj)->data.variable = tmp.var;
-			(*obj)->ref = true;
-#else /* _CLASS_IN_VAR */
 			mb_unrefvar(var);
 
 			(*obj)->data.instance = tmp.instance;
@@ -3953,7 +3937,6 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			(*obj)->type = type;
 			(*obj)->data.instance = tmp.instance;
 			(*obj)->ref = true;
-#endif /* _CLASS_IN_VAR */
 		}
 
 		break;
@@ -4659,6 +4642,9 @@ void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 	_ht_node_t* table = 0;
 
 	mb_assert(ref && data);
+
+	if(!ref->count)
+		return;
 
 	if(gc && _ht_find(gc->collected_table, ref))
 		return;
@@ -5957,13 +5943,15 @@ bool_t _end_class(mb_interpreter_t* s) {
 
 void _unref_class(_ref_t* ref, void* data) {
 	/* Unreference a class instance */
+	if(ref->s->valid)
+		_out_of_scope(ref->s, ((_class_t*)data)->scope, (_class_t*)data, false);
+
 	if(!(*(ref->count)))
 		_destroy_class((_class_t*)data);
 }
 
 void _destroy_class(_class_t* c) {
 	/* Destroy a class instance */
-	_out_of_scope(c->ref.s, c->scope, c);
 	if(c->meta_list) {
 		_unlink_meta_class(c->ref.s, c);
 		_ls_destroy(c->meta_list);
@@ -6766,12 +6754,12 @@ _running_context_t* _pop_scope(mb_interpreter_t* s, bool_t tidy) {
 	if(running->meta == _SCOPE_META_REF)
 		_destroy_scope(s, running);
 	else if(tidy)
-		_out_of_scope(s, running, 0);
+		_out_of_scope(s, running, 0, true);
 
 	return s->running_context;
 }
 
-void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* instance) {
+void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* instance, bool_t lose) {
 	/* Out of current scope */
 #ifdef MB_ENABLE_LAMBDA
 	_upvalue_scope_tuple_t tuple;
@@ -6800,7 +6788,7 @@ void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* insta
 	mb_unrefvar(instance);
 #endif /* MB_ENABLE_LAMBDA */
 
-	if(running->var_dict)
+	if(lose && running->var_dict)
 		_ht_foreach(running->var_dict, _lose_object);
 }
 
@@ -8628,6 +8616,7 @@ int mb_open(struct mb_interpreter_t** s) {
 
 	*s = (mb_interpreter_t*)mb_malloc(sizeof(mb_interpreter_t));
 	memset(*s, 0, sizeof(mb_interpreter_t));
+	(*s)->valid = true;
 
 	(*s)->in_neg_expr = _ls_create();
 
@@ -8686,6 +8675,8 @@ int mb_close(struct mb_interpreter_t** s) {
 	_ls_node_t* ast;
 
 	mb_assert(s);
+
+	(*s)->valid = false;
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 	_close_coll_lib(*s);
@@ -10991,9 +10982,10 @@ int _core_let(mb_interpreter_t* s, void** l) {
 			}
 
 			mb_check(mb_attempt_close_bracket(s, l));
+
+			ast = (_ls_node_t*)*l;
+			is_coll = true;
 		}
-		ast = (_ls_node_t*)*l;
-		is_coll = true;
 	}
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	obj = (_object_t*)ast->data;
@@ -11039,7 +11031,10 @@ int _core_let(mb_interpreter_t* s, void** l) {
 #endif /* MB_ENABLE_COLLECTION_LIB */
 			if(val->type == _DT_ROUTINE) {
 #ifdef MB_ENABLE_LAMBDA
-				var->data->ref = val->ref;
+				if(val->data.routine->type == _IT_LAMBDA)
+					var->data->ref = val->ref;
+				else
+					var->data->ref = 1;
 #else /* MB_ENABLE_LAMBDA */
 				var->data->ref = 1;
 #endif /* MB_ENABLE_LAMBDA */

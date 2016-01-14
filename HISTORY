@@ -1,6 +1,9 @@
 Jan. 14 2016
+Fixed a collection accessing bug in an assignment statement
 Fixed a lambda unreferencing issue
+Fixed a routine disposing issue
 Fixed an issue with lambda when a class instance went out of use
+Removed support of storing a literal instance in a variable
 Simplified variable creation
 
 Jan. 13 2016
