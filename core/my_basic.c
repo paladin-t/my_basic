@@ -11023,8 +11023,10 @@ int _core_let(mb_interpreter_t* s, void** l) {
 
 				goto _exit;
 			}
-_proc_extra_var:
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+_proc_extra_var:
+#endif /* MB_ENABLE_CLASS */
 			_dispose_object(var->data);
 			var->data->type = val->type;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -11047,6 +11049,7 @@ _proc_extra_var:
 			} else {
 				var->data->ref = val->ref;
 			}
+#ifdef MB_ENABLE_CLASS
 			if(evar && evar->pathing) {
 				var = evar;
 				evar = 0;
@@ -11054,6 +11057,7 @@ _proc_extra_var:
 
 				goto _proc_extra_var;
 			}
+#endif /* MB_ENABLE_CLASS */
 		}
 	} else if(arr && literally) {
 		if(val->type != _DT_UNKNOWN) {
