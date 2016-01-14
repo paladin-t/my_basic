@@ -3,6 +3,7 @@ Fixed a collection accessing bug in an assignment statement
 Fixed a lambda unreferencing issue
 Fixed a lambda evaluation bug with upvalues from meta class
 Fixed a routine disposing issue
+Fixed a variable assignment bug when it was holding a routine
 Fixed a missing assignment bug with class field accessor
 Fixed an issue with lambda when a class instance went out of use
 Removed support of storing a literal instance in a variable

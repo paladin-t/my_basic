@@ -7971,9 +7971,13 @@ _retry:
 				mb_assert(0 && "Impossible.");
 			}
 		} else if(obj->data.variable->data->type == _DT_ROUTINE) {
-			obj = obj->data.variable->data;
+			if(ast && ast->next && _IS_FUNC(ast->next->data, _core_open_bracket)) {
+				obj = obj->data.variable->data;
 
-			goto _retry;
+				goto _retry;
+			} else {
+				result = _core_let(s, (void**)&ast);
+			}
 		} else {
 			/* Do not need to path */
 			result = _core_let(s, (void**)&ast);
