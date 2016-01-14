@@ -574,6 +574,7 @@ static void _edit_program(const char* no) {
 static void _insert_program(const char* no) {
 	char line[_MAX_LINE_LENGTH];
 	long lno = 0;
+	int l = 0;
 	int i = 0;
 
 	mb_assert(no);
@@ -594,8 +595,11 @@ static void _insert_program(const char* no) {
 	}
 	for(i = c->count; i > lno; i--)
 		c->lines[i] = c->lines[i - 1];
-	c->lines[lno] = (char*)realloc(0, strlen(line) + 1);
+	l = (int)strlen(line);
+	c->lines[lno] = (char*)realloc(0, l + 2);
 	strcpy(c->lines[lno], line);
+	c->lines[lno][l] = '\n';
+	c->lines[lno][l + 1] = '\0';
 	c->count++;
 }
 
