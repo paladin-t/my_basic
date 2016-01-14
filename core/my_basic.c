@@ -411,7 +411,7 @@ typedef struct _class_t {
 #endif /* MB_ENABLE_CLASS */
 
 typedef enum _invokable_e {
-	_IT_BASIC,
+	_IT_SCRIPT,
 #ifdef MB_ENABLE_LAMBDA
 	_IT_LAMBDA,
 #endif /* MB_ENABLE_LAMBDA */
@@ -3263,7 +3263,7 @@ int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned 
 	_ls_pushback(s->stack_frames, r->name);
 #endif /* MB_ENABLE_STACK_TRACE */
 
-	if(r->type == _IT_BASIC && r->func.basic.entry) {
+	if(r->type == _IT_SCRIPT && r->func.basic.entry) {
 		result = _eval_script_routine(s, l, va, ca, r, has_arg, pop_arg);
 #ifdef MB_ENABLE_LAMBDA
 	} else if(r->type == _IT_LAMBDA && r->func.lambda.entry) {
@@ -4183,8 +4183,9 @@ _end_import:
 	if(context->last_symbol) {
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_CLASS) {
-			if(_IS_FUNC(context->last_symbol, _core_class))
-				_begin_class(s);
+			if(_IS_FUNC(context->last_symbol, _core_class)) {
+				_handle_error_now(s, SE_RN_DUPLICATE_CLASS, 0, MB_FUNC_ERR);
+			}
 			result = _DT_CLASS;
 
 			goto _exit;
@@ -6152,14 +6153,14 @@ void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine
 	if(n && f)
 		routine->type = _IT_NATIVE;
 	else if(n && !f)
-		routine->type = _IT_BASIC;
+		routine->type = _IT_SCRIPT;
 #ifdef MB_ENABLE_LAMBDA
 	else if(!n && !f)
 		routine->type = _IT_LAMBDA;
 #endif /* MB_ENABLE_LAMBDA */
 
 	switch(routine->type) {
-	case _IT_BASIC:
+	case _IT_SCRIPT:
 		routine->func.basic.scope = _create_running_context(true);
 
 		break;
@@ -6277,7 +6278,7 @@ void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 	}
 	if(!r->is_cloned) {
 		switch(r->type) {
-		case _IT_BASIC:
+		case _IT_SCRIPT:
 			if(r->func.basic.scope) {
 				_destroy_scope(s, r->func.basic.scope);
 				r->func.basic.scope = 0;
@@ -10916,6 +10917,8 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	_object_t* obj = 0;
 	_running_context_t* running = 0;
 	_var_t* var = 0;
+	_var_t* evar = 0;
+	int refc = 1;
 	_array_t* arr = 0;
 	_object_t* arr_obj = 0;
 	unsigned int arr_idx = 0;
@@ -10952,7 +10955,9 @@ int _core_let(mb_interpreter_t* s, void** l) {
 		if(result != MB_FUNC_OK)
 			goto _exit;
 	} else if(obj->type == _DT_VAR) {
+		evar = obj->data.variable;
 		var = _search_var_in_scope_chain(s, obj->data.variable);
+		if(var == evar) evar = 0;
 	} else {
 		_handle_error_on_obj(s, SE_RN_VAR_OR_ARRAY_EXPECTED, 0, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -11018,6 +11023,7 @@ int _core_let(mb_interpreter_t* s, void** l) {
 
 				goto _exit;
 			}
+_proc_extra_var:
 #endif /* MB_ENABLE_COLLECTION_LIB */
 			_dispose_object(var->data);
 			var->data->type = val->type;
@@ -11040,6 +11046,13 @@ int _core_let(mb_interpreter_t* s, void** l) {
 #endif /* MB_ENABLE_LAMBDA */
 			} else {
 				var->data->ref = val->ref;
+			}
+			if(evar && evar->pathing) {
+				var = evar;
+				evar = 0;
+				refc++;
+
+				goto _proc_extra_var;
 			}
 		}
 	} else if(arr && literally) {
@@ -11080,7 +11093,9 @@ int _core_let(mb_interpreter_t* s, void** l) {
 			safe_free(val->data.string);
 		}
 	}
-	_REF(val)
+	while(refc--) {
+		_REF(val)
+	}
 	safe_free(val);
 
 _exit:
