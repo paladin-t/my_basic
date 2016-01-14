@@ -1,3 +1,8 @@
+Jan. 14 2016
+Fixed a lambda unreferencing issue
+Fixed an issue with lambda when a class instance went out of use
+Simplified variable creation
+
 Jan. 13 2016
 Optimized hash table algorithm
 
