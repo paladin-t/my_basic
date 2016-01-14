@@ -3362,7 +3362,7 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		}
 	} while(ast);
 
-	_out_of_scope(s, running, 0, true);
+	_out_of_scope(s, running, r->instance, true);
 
 	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false);
 	if(result != MB_FUNC_OK)
@@ -6430,6 +6430,10 @@ int _fill_with_upvalue(void* data, void* extra, void* p) {
 			obj = (_object_t*)nori->data;
 			_clone_object(tuple->s, obj, var->data);
 			_REF(var->data)
+			if(_IS_ROUTINE(obj) && obj->data.routine->type != _IT_LAMBDA) {
+				ovar->ref = true;
+				var->data->ref = true;
+			}
 #ifdef MB_ENABLE_CLASS
 			var->pathing = 0;
 #endif /* MB_ENABLE_CLASS */
@@ -7078,14 +7082,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 		break;
 #endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
-#ifdef MB_ENABLE_LAMBDA
-		if(obj->data.routine->type == _IT_LAMBDA) {
-			tgt->data.routine = obj->data.routine;
-
-			break;
-		}
-#endif /* MB_ENABLE_LAMBDA */
-		mb_assert(0 && "Not implemented.");
+		tgt->data.routine = obj->data.routine;
 
 		break;
 	case _DT_NIL: /* Fall through */
