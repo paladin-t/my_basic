@@ -38,6 +38,10 @@ extern "C" {
 #	define MB_SIMPLE_ARRAY
 #endif /* MB_SIMPLE_ARRAY */
 
+#ifndef MB_ENABLE_ARRAY_REF
+#	define MB_ENABLE_ARRAY_REF
+#endif /* MB_ENABLE_ARRAY_REF */
+
 #ifndef MB_MAX_DIMENSION_COUNT
 #	define MB_MAX_DIMENSION_COUNT 4
 #endif /* MB_MAX_DIMENSION_COUNT */
@@ -84,6 +88,10 @@ extern "C" {
 #ifndef MB_ENABLE_MODULE
 #	define MB_ENABLE_MODULE
 #endif /* MB_ENABLE_MODULE */
+
+#ifndef MB_ENABLE_USERTYPE_REF
+#	define MB_ENABLE_USERTYPE_REF
+#endif /* MB_ENABLE_USERTYPE_REF */
 
 #ifndef MB_ENABLE_CLASS
 #	define MB_ENABLE_CLASS
@@ -352,7 +360,9 @@ typedef enum mb_data_e {
 	MB_DT_NUM = 1 << 5,
 	MB_DT_STRING = 1 << 6,
 	MB_DT_USERTYPE = 1 << 7,
+#ifdef MB_ENABLE_USERTYPE_REF
 	MB_DT_USERTYPE_REF = 1 << 8,
+#endif /* MB_ENABLE_USERTYPE_REF */
 	MB_DT_ARRAY = 1 << 9,
 #ifdef MB_ENABLE_COLLECTION_LIB
 	MB_DT_LIST = 1 << 10,
@@ -374,7 +384,9 @@ typedef union mb_value_u {
 	real_t float_point;
 	char* string;
 	void* usertype;
+#ifdef MB_ENABLE_USERTYPE_REF
 	void* usertype_ref;
+#endif /* MB_ENABLE_USERTYPE_REF */
 	void* array;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	void* list;

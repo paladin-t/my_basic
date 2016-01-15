@@ -1,4 +1,6 @@
 Jan. 15 2016
+Added an MB_ENABLE_USERTYPE_REF macro
+Added an MB_ENABLE_ARRAY_REF macro
 Fixed some crash bugs with invalid syntax
 Fixed some memory leak with invalid syntax
 Fixed an invalid GC table iteration bug

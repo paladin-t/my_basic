@@ -353,7 +353,9 @@ typedef struct _usertype_ref_t {
 } _usertype_ref_t;
 
 typedef struct _array_t {
+#ifdef MB_ENABLE_ARRAY_REF
 	_ref_t ref;
+#endif /* MB_ENABLE_ARRAY_REF */
 	char* name;
 	_data_e type;
 #ifndef MB_SIMPLE_ARRAY
@@ -1173,21 +1175,27 @@ static char* _extract_string(_object_t* obj);
 	case _DT_USERTYPE_REF: \
 		_gc_add(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref, (__g)); \
 		break;
-#define _REF_ARRAY(__o) \
-	case _DT_ARRAY: \
-		if(!(__o)->ref) \
-			_ref(&(__o)->data.array->ref, (__o)->data.array); \
-		break;
-#define _UNREF_ARRAY(__o) \
-	case _DT_ARRAY: \
-		if(!(__o)->ref) \
-			_unref(&(__o)->data.array->ref, (__o)->data.array); \
-		break;
-#define _ADDGC_ARRAY(__o, __g) \
-	case _DT_ARRAY: \
-		if(!(__o)->ref) \
-			_gc_add(&(__o)->data.array->ref, (__o)->data.array, (__g)); \
-		break;
+#ifdef MB_ENABLE_ARRAY_REF
+#	define _REF_ARRAY(__o) \
+		case _DT_ARRAY: \
+			if(!(__o)->ref) \
+				_ref(&(__o)->data.array->ref, (__o)->data.array); \
+			break;
+#	define _UNREF_ARRAY(__o) \
+		case _DT_ARRAY: \
+			if(!(__o)->ref) \
+				_unref(&(__o)->data.array->ref, (__o)->data.array); \
+			break;
+#	define _ADDGC_ARRAY(__o, __g) \
+		case _DT_ARRAY: \
+			if(!(__o)->ref) \
+				_gc_add(&(__o)->data.array->ref, (__o)->data.array, (__g)); \
+			break;
+#else /* MB_ENABLE_ARRAY_REF */
+#	define _REF_ARRAY(__o) ((void)(__o));
+#	define _UNREF_ARRAY(__o) ((void)(__o));
+#	define _ADDGC_ARRAY(__o, __g) ((void)(__o)); ((void)(__g));
+#endif /* MB_ENABLE_ARRAY_REF */
 #ifdef MB_ENABLE_COLLECTION_LIB
 #	define _REF_COLL(__o) \
 		case _DT_LIST: \
@@ -1342,9 +1350,11 @@ static void _gc_try_trigger(mb_interpreter_t* s);
 static void _gc_collect_garbage(mb_interpreter_t* s, int depth);
 #endif /* MB_ENABLE_GC */
 
+#ifdef MB_ENABLE_USERTYPE_REF
 static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
 static void _destroy_usertype_ref(_usertype_ref_t* c);
 static void _unref_usertype_ref(_ref_t* ref, void* data);
+#endif /* MB_ENABLE_USERTYPE_REF */
 
 static _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s);
 static void _destroy_array(_array_t* arr);
@@ -4052,7 +4062,7 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 		safe_free(sym);
 
 		break;
-	default:
+	default: /* Do nothing */
 		break;
 	}
 
@@ -4671,7 +4681,6 @@ void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 void _gc_remove(_ref_t* ref, void* data) {
 	/* Remove a referenced object from GC */
 	_ht_node_t* table = 0;
-	mb_unrefvar(data);
 
 	mb_assert(ref && data);
 
@@ -4707,11 +4716,13 @@ int _gc_add_reachable(void* data, void* extra, void* ht) {
 			_ht_set_or_insert(htable, &obj->data.usertype_ref->ref, obj->data.usertype_ref);
 
 		break;
+#ifdef MB_ENABLE_ARRAY_REF
 	case _DT_ARRAY:
 		if(!_ht_find(htable, &obj->data.array->ref))
 			_ht_set_or_insert(htable, &obj->data.array->ref, obj->data.array);
 
 		break;
+#endif /* MB_ENABLE_ARRAY_REF */
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST:
 		if(!_ht_find(htable, &obj->data.list->ref)) {
@@ -5019,6 +5030,7 @@ void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 }
 #endif /* MB_ENABLE_GC */
 
+#ifdef MB_ENABLE_USERTYPE_REF
 _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft) {
 	/* Create a referenced usertype */
 	_usertype_ref_t* result = (_usertype_ref_t*)mb_malloc(sizeof(_usertype_ref_t));
@@ -5047,6 +5059,7 @@ void _unref_usertype_ref(_ref_t* ref, void* data) {
 	if(!(*(ref->count)))
 		_destroy_usertype_ref((_usertype_ref_t*)data);
 }
+#endif /* MB_ENABLE_USERTYPE_REF */
 
 _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s) {
 	/* Create an array */
@@ -5054,8 +5067,12 @@ _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s) {
 	memset(result, 0, sizeof(_array_t));
 	result->type = t;
 	result->name = (char*)n;
+#ifdef MB_ENABLE_ARRAY_REF
 	_create_ref(&result->ref, _unref_array, _DT_ARRAY, s);
 	_ref(&result->ref, result);
+#else /* MB_ENABLE_ARRAY_REF */
+	mb_unrefvar(s);
+#endif /* MB_ENABLE_ARRAY_REF */
 
 	return result;
 }
@@ -5073,7 +5090,9 @@ void _destroy_array(_array_t* arr) {
 		safe_free(arr->types);
 	}
 #endif /* MB_SIMPLE_ARRAY */
+#ifdef MB_ENABLE_ARRAY_REF
 	_destroy_ref(&arr->ref);
+#endif /* MB_ENABLE_ARRAY_REF */
 	safe_free(arr);
 }
 
@@ -6281,8 +6300,6 @@ void _unref_routine(_ref_t* ref, void* data) {
 
 void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 	/* Destroy a lambda routine */
-	mb_unrefvar(s);
-
 	if(r->name) {
 		safe_free(r->name);
 	}
@@ -6573,8 +6590,7 @@ bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda, _objec
 		!_IS_FUNC(obj, _core_class) &&
 		!_IS_FUNC(obj, _core_endclass) &&
 #endif /* MB_ENABLE_CLASS */
-		true
-	;
+		true;
 }
 #endif /* MB_ENABLE_LAMBDA */
 
@@ -6663,7 +6679,7 @@ _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t*
 				instance = obj->data.instance;
 
 				break;
-			case _DT_ROUTINE:
+			case _DT_ROUTINE: /* Do nothing */
 				break;
 			default:
 				mb_assert(0 && "Unsupported.");
@@ -7034,6 +7050,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 		tgt->data.string = mb_strdup(obj->data.string, 0);
 
 		break;
+#ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
 		tgt->data.usertype_ref = _create_usertype_ref(
 			obj->data.usertype_ref->ref.s,
@@ -7044,6 +7061,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 		_ref(&tgt->data.usertype_ref->ref, tgt->data.usertype_ref);
 
 		break;
+#endif /* MB_ENABLE_USERTYPE_REF */
 	case _DT_FUNC:
 		tgt->data.func->name = mb_strdup(obj->data.func->name, strlen(obj->data.func->name) + 1);
 		tgt->data.func->pointer = obj->data.func->pointer;
@@ -7415,8 +7433,10 @@ _data_e _public_type_to_internal_type(mb_data_e t) {
 		return _DT_STRING;
 	case MB_DT_USERTYPE:
 		return _DT_USERTYPE;
+#ifdef MB_ENABLE_USERTYPE_REF
 	case MB_DT_USERTYPE_REF:
 		return _DT_USERTYPE_REF;
+#endif /* MB_ENABLE_USERTYPE_REF */
 	case MB_DT_ARRAY:
 		return _DT_ARRAY;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -7455,8 +7475,10 @@ mb_data_e _internal_type_to_public_type(_data_e t) {
 		return MB_DT_STRING;
 	case _DT_USERTYPE:
 		return MB_DT_USERTYPE;
+#ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
 		return MB_DT_USERTYPE_REF;
+#endif /* MB_ENABLE_USERTYPE_REF */
 	case _DT_ARRAY:
 		return MB_DT_ARRAY;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -7520,11 +7542,13 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 		memcpy(itn->data.raw, pbl->value.bytes, sizeof(mb_val_bytes_t));
 
 		break;
+#ifdef MB_ENABLE_USERTYPE_REF
 	case MB_DT_USERTYPE_REF:
 		itn->type = _DT_USERTYPE_REF;
 		itn->data.usertype_ref = (_usertype_ref_t*)pbl->value.usertype_ref;
 
 		break;
+#endif /* MB_ENABLE_USERTYPE_REF */
 	case MB_DT_ARRAY:
 		itn->type = _DT_ARRAY;
 		itn->data.array = (_array_t*)pbl->value.array;
@@ -7614,11 +7638,13 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 		memcpy(pbl->value.bytes, itn->data.raw, sizeof(mb_val_bytes_t));
 
 		break;
+#ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
 		pbl->type = MB_DT_USERTYPE_REF;
 		pbl->value.usertype_ref = itn->data.usertype_ref;
 
 		break;
+#endif /* MB_ENABLE_USERTYPE_REF */
 	case _DT_ARRAY:
 		pbl->type = MB_DT_ARRAY;
 		pbl->value.array = itn->data.array;
@@ -9819,6 +9845,7 @@ _exit:
 
 int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft) {
 	/* Create a referenced usertype value */
+#ifdef MB_ENABLE_USERTYPE_REF
 	int result = MB_FUNC_OK;
 	_usertype_ref_t* ref = 0;
 
@@ -9831,10 +9858,23 @@ int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb
 	}
 
 	return result;
+#else /* MB_ENABLE_USERTYPE_REF */
+	mb_unrefvar(s);
+	mb_unrefvar(val);
+	mb_unrefvar(out);
+	mb_unrefvar(un);
+	mb_unrefvar(cl);
+	mb_unrefvar(hs);
+	mb_unrefvar(cp);
+	mb_unrefvar(ft);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_USERTYPE_REF */
 }
 
 int mb_get_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val, void** out) {
 	/* Get the data of a referenced usertype value */
+#ifdef MB_ENABLE_USERTYPE_REF
 	int result = MB_FUNC_OK;
 	_usertype_ref_t* ref = 0;
 
@@ -9851,6 +9891,14 @@ int mb_get_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val, void*
 
 _exit:
 	return result;
+#else /* MB_ENABLE_USERTYPE_REF */
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(val);
+	mb_unrefvar(out);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_USERTYPE_REF */
 }
 
 int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
@@ -10275,8 +10323,10 @@ const char* mb_get_type_string(mb_data_e t) {
 		return "STRING";
 	case MB_DT_USERTYPE:
 		return "USERTYPE";
+#ifdef MB_ENABLE_USERTYPE_REF
 	case MB_DT_USERTYPE_REF:
 		return "USERTYPE_REF";
+#endif /* MB_ENABLE_USERTYPE_REF */
 	case MB_DT_ARRAY:
 		return "ARRAY";
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -11072,7 +11122,9 @@ _proc_extra_var:
 		}
 	} else if(arr && literally) {
 		if(val->type != _DT_UNKNOWN) {
+#ifdef MB_ENABLE_ARRAY_REF
 			_unref(&arr_obj->data.array->ref, arr_obj->data.array);
+#endif /* MB_ENABLE_ARRAY_REF */
 			arr_obj->type = val->type;
 #ifdef MB_ENABLE_COLLECTION_LIB
 			if(val->type == _DT_LIST_IT || val->type == _DT_DICT_IT)
@@ -11174,7 +11226,9 @@ int _core_dim(mb_interpreter_t* s, void** l) {
 	}
 	/* Create or modify raw data */
 	_clear_array(arr->data.array);
+#ifdef MB_ENABLE_ARRAY_REF
 	dummy.ref = arr->data.array->ref;
+#endif /* MB_ENABLE_ARRAY_REF */
 	*(arr->data.array) = dummy;
 	_init_array(arr->data.array);
 	if(!arr->data.array->raw) {
