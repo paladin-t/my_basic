@@ -127,7 +127,7 @@ extern "C" {
 #define _cmp_bytes(__l, __r) (memcmp((__l), (__r), sizeof(mb_val_bytes_t)))
 
 #define _mb_check(__expr, __exit) do { if((__expr) != MB_FUNC_OK) goto __exit; } while(0)
-#define _mb_check_mark(__expr, __err, __exit) do { __err |= (__expr) != MB_FUNC_OK; if(__err) goto __exit; } while(0)
+#define _mb_check_mark(__expr, __result, __exit) do { __result = (__expr); if(__result != MB_FUNC_OK) goto __exit; } while(0)
 
 #define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
 #define TON(__t) (((__t) && *(__t)) ? ((_object_t*)(((_tuple3_t*)(*(__t)))->e1)) : 0)
@@ -11559,6 +11559,9 @@ _loop_begin:
 				goto _exit;
 			}
 
+			if(!ast) {
+				_handle_error_on_obj(s, SE_RN_SYNTAX, 0, DON(ast), MB_FUNC_ERR, _exit, result);
+			}
 			obj = (_object_t*)ast->data;
 		}
 
@@ -12128,7 +12131,6 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	mb_value_t ret;
 	_running_context_t* running = 0;
-	bool_t err = false;
 	_routine_t* routine = 0;
 	_ls_node_t* ast = 0;
 	int brackets = 0;
@@ -12144,11 +12146,11 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 	running = _init_lambda(s, routine);
 
 	/* Parameter list */
-	_mb_check_mark(mb_attempt_open_bracket(s, l), err, _error);
+	_mb_check_mark(mb_attempt_open_bracket(s, l), result, _error);
 
 	while(mb_has_arg(s, l)) {
 		void* v = 0;
-		_mb_check_mark(mb_get_var(s, l, &v), err, _error);
+		_mb_check_mark(mb_get_var(s, l, &v), result, _error);
 
 		if(!routine->func.lambda.parameters)
 			routine->func.lambda.parameters = _ls_create();
@@ -12174,7 +12176,7 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 		*l = ast;
 	}
 
-	_mb_check_mark(mb_attempt_close_bracket(s, l), err, _error);
+	_mb_check_mark(mb_attempt_close_bracket(s, l), result, _error);
 
 	/* Lambda body */
 	ast = (_ls_node_t*)*l;
@@ -12183,7 +12185,7 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 		ast = ast->next;
 	*l = ast;
 
-	_mb_check_mark(mb_attempt_open_bracket(s, l), err, _error);
+	_mb_check_mark(mb_attempt_open_bracket(s, l), result, _error);
 
 	ast = (_ls_node_t*)*l;
 	routine->func.lambda.entry = ast;
@@ -12206,7 +12208,7 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 	*l = ast;
 	routine->func.lambda.end = ast;
 
-	_mb_check_mark(mb_attempt_close_bracket(s, l), err, _error);
+	_mb_check_mark(mb_attempt_close_bracket(s, l), result, _error);
 
 	_pop_scope(s, false);
 	popped = true;
@@ -12215,7 +12217,7 @@ int _core_lambda(mb_interpreter_t* s, void** l) {
 	ret.type = MB_DT_ROUTINE;
 	ret.value.routine = routine;
 
-	_mb_check_mark(mb_push_value(s, l, ret), err, _error);
+	_mb_check_mark(mb_push_value(s, l, ret), result, _error);
 
 	/* Error processing */
 	while(0) {
@@ -13333,15 +13335,22 @@ int _coll_list(mb_interpreter_t* s, void** l) {
 
 	while(mb_has_arg(s, l)) {
 		mb_make_nil(arg);
-		mb_check(mb_pop_value(s, l, &arg));
+		_mb_check_mark(mb_pop_value(s, l, &arg), result, _error);
 		_push_list(coll, &arg, 0);
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark(mb_attempt_close_bracket(s, l), result, _error);
 
 	arg.type = MB_DT_LIST;
 	arg.value.list = coll;
-	mb_check(mb_push_value(s, l, arg));
+	_mb_check_mark(mb_push_value(s, l, arg), result, _error);
+
+	while(0) {
+_error:
+		mb_make_nil(arg);
+		mb_push_value(s, l, arg);
+		_destroy_list(coll);
+	}
 
 	return result;
 }
@@ -13362,16 +13371,23 @@ int _coll_dict(mb_interpreter_t* s, void** l) {
 	while(mb_has_arg(s, l)) {
 		mb_make_nil(arg);
 		mb_make_nil(val);
-		mb_check(mb_pop_value(s, l, &arg));
-		mb_check(mb_pop_value(s, l, &val));
+		_mb_check_mark(mb_pop_value(s, l, &arg), result, _error);
+		_mb_check_mark(mb_pop_value(s, l, &val), result, _error);
 		_set_dict(coll, &arg, &val, 0, 0);
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark(mb_attempt_close_bracket(s, l), result, _error);
 
 	arg.type = MB_DT_DICT;
 	arg.value.dict = coll;
-	mb_check(mb_push_value(s, l, arg));
+	_mb_check_mark(mb_push_value(s, l, arg), result, _error);
+
+	while(0) {
+_error:
+		mb_make_nil(arg);
+		mb_push_value(s, l, arg);
+		_destroy_dict(coll);
+	}
 
 	return result;
 }
