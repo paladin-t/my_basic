@@ -191,6 +191,9 @@ extern "C" {
 #ifndef mb_make_nil
 #	define mb_make_nil(__v) do { (__v).value.integer = 0; (__v).type = MB_DT_NIL; } while(0)
 #endif /* mb_make_nil */
+#ifndef mb_make_type
+#	define mb_make_type(__v, __d) do { (__v).value.type = (__d); (__v).type = MB_DT_TYPE; } while(0)
+#endif /* mb_make_type */
 #ifndef mb_make_int
 #	define mb_make_int(__v, __d) do { (__v).value.integer = (__d); (__v).type = MB_DT_INT; } while(0)
 #endif /* mb_make_int */
@@ -203,9 +206,11 @@ extern "C" {
 #ifndef mb_make_usertype
 #	define mb_make_usertype(__v, __d) do { (__v).value.usertype = (__d); (__v).type = MB_DT_USERTYPE; } while(0)
 #endif /* mb_make_usertype */
-#ifndef mb_make_usertype_ref
-#	define mb_make_usertype_ref(__v, __d) do { (__v).value.usertype_ref = (__d); (__v).type = MB_DT_USERTYPE_REF; } while(0)
-#endif /* mb_make_usertype_ref */
+#ifdef MB_ENABLE_USERTYPE_REF
+#	ifndef mb_make_usertype_ref
+#		define mb_make_usertype_ref(__v, __d) do { (__v).value.usertype_ref = (__d); (__v).type = MB_DT_USERTYPE_REF; } while(0)
+#	endif /* mb_make_usertype_ref */
+#endif /* MB_ENABLE_USERTYPE_REF */
 #ifndef mb_make_array
 #	define mb_make_array(__v, __d) do { (__v).value.array = (__d); (__v).type = MB_DT_ARRAY; } while(0)
 #endif /* mb_make_array */
@@ -219,7 +224,7 @@ extern "C" {
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 #ifndef mb_int_val
-#	define mb_int_val(__v, __i) do { if((__v).type == MB_DT_INT) (__i) = (__v).value.integer; else if((__v).type == MB_DT_REAL) (__i) = (int_t)((__v).value.float_point); else (__i) = ~((int_t)0); } while(0)
+#	define mb_int_val(__v, __d) do { if((__v).type == MB_DT_INT) (__d) = (__v).value.integer; else if((__v).type == MB_DT_REAL) (__d) = (int_t)((__v).value.float_point); else (__d) = ~((int_t)0); } while(0)
 #endif /* mb_int_val */
 
 #ifndef MB_CODES

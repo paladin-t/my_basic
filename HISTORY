@@ -1,4 +1,5 @@
 Jan. 15 2016
+Added a REFLECT statement
 Added an MB_ENABLE_USERTYPE_REF macro
 Added an MB_ENABLE_ARRAY_REF macro
 Fixed some crash bugs with invalid syntax

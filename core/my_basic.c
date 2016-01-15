@@ -1418,6 +1418,10 @@ static int _clone_clsss_field(void* data, void* extra, void* n);
 static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret);
 static bool_t _is_class(_class_t* instance, void* m, void* ret);
 static bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret);
+#ifdef MB_ENABLE_COLLECTION_LIB
+static int _reflect_class_field(void* data, void* extra, void* d);
+#endif /* MB_ENABLE_COLLECTION_LIB */
+static _class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb_value_t* arg);
 #endif /* MB_ENABLE_CLASS */
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f);
 static void _begin_routine(mb_interpreter_t* s);
@@ -1617,6 +1621,7 @@ static int _core_class(mb_interpreter_t* s, void** l);
 static int _core_endclass(mb_interpreter_t* s, void** l);
 static int _core_new(mb_interpreter_t* s, void** l);
 static int _core_var(mb_interpreter_t* s, void** l);
+static int _core_reflect(mb_interpreter_t* s, void** l);
 #endif /* MB_ENABLE_CLASS */
 #ifdef MB_ENABLE_LAMBDA
 static int _core_lambda(mb_interpreter_t* s, void** l);
@@ -1734,6 +1739,7 @@ static const _func_t _core_libs[] = {
 	{ "ENDCLASS", _core_endclass },
 	{ "NEW", _core_new },
 	{ "VAR", _core_var },
+	{ "REFLECT", _core_reflect },
 #endif /* MB_ENABLE_CLASS */
 
 #ifdef MB_ENABLE_LAMBDA
@@ -6166,6 +6172,67 @@ bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret) {
 
 	return true;
 }
+
+#ifdef MB_ENABLE_COLLECTION_LIB
+int _reflect_class_field(void* data, void* extra, void* d) {
+	/* Reflect each field of a class instance to a dictionary */
+	int result = _OP_RESULT_NORMAL;
+	_object_t* obj = 0;
+	_var_t* var = 0;
+	_routine_t* sub = 0;
+	_dict_t* coll = (_dict_t*)d;
+	mb_unrefvar(extra);
+
+	mb_assert(data && d);
+
+	obj = (_object_t*)data;
+	if(_is_internal_object(obj))
+		goto _exit;
+	switch(obj->type) {
+	case _DT_VAR:
+		var = (_var_t*)obj->data.variable;
+		if(!_ht_find(coll->dict, var->name)) {
+			mb_value_t kv, vv;
+			mb_make_string(kv, var->name);
+			_internal_object_to_public_value(obj, &vv);
+			_set_dict(coll, &kv, &vv, 0, 0);
+		}
+
+		break;
+	case _DT_ROUTINE:
+		sub = (_routine_t*)obj->data.routine;
+		if(!_ht_find(coll->dict, sub->name)) {
+			mb_value_t kv, vv;
+			mb_make_string(kv, sub->name);
+			mb_make_type(vv, _internal_type_to_public_type(obj->type));
+			_set_dict(coll, &kv, &vv, 0, 0);
+		}
+
+		break;
+	default: /* Do nothing */
+		break;
+	}
+
+_exit:
+	return result;
+}
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
+_class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb_value_t* arg) {
+	/* Reflect a class instance from a string */
+	_ls_node_t* cs = 0;
+	_object_t* c = 0;
+
+	cs = _search_identifier_in_scope_chain(s, 0, n, 0, 0, 0);
+	if(!cs || !cs->data) return 0;
+	c = (_object_t*)cs->data;
+	if(!c) return 0;
+	c = _GET_CLASS(c);
+	if(!c) return 0;
+	if(arg) _internal_object_to_public_value(c, arg);
+
+	return c->data.instance;
+}
 #endif /* MB_ENABLE_CLASS */
 
 void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f) {
@@ -7104,7 +7171,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 		tgt->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
 		_init_class(s, tgt->data.instance, mb_strdup(obj->data.instance->name, 0));
 		_push_scope_by_class(s, tgt->data.instance->scope);
-		_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, 1, false, tgt->data.instance, 0);
+		_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, _META_LIST_MAX_DEPTH, false, tgt->data.instance, 0);
 		_pop_scope(s, false);
 
 		break;
@@ -12116,8 +12183,7 @@ int _core_new(mb_interpreter_t* s, void** l) {
 	_object_t obj;
 	_object_t tgt;
 	mb_value_t ret;
-	_ls_node_t* cs = 0;
-	_object_t* c = 0;
+	_class_t* instance = 0;
 
 	mb_assert(s && l);
 
@@ -12133,14 +12199,9 @@ int _core_new(mb_interpreter_t* s, void** l) {
 	switch(arg.type) {
 	case MB_DT_STRING:
 		arg.value.string = mb_strupr(arg.value.string);
-		cs = _search_identifier_in_scope_chain(s, 0, arg.value.string, 0, 0, 0);
-		if(!cs || !cs->data) goto _default;
-		c = (_object_t*)cs->data;
-		if(!c) goto _default;
-		c = _GET_CLASS(c);
-		if(!c) goto _default;
-		_internal_object_to_public_value(c, &arg);
-		_ref(&c->data.instance->ref, c->data.instance);
+		if((instance = _reflect_string_to_class(s, arg.value.string, &arg)) == 0)
+			goto _default;
+		_ref(&instance->ref, instance);
 		/* Fall through */
 	case MB_DT_CLASS:
 		_public_value_to_internal_object(&arg, &obj);
@@ -12182,6 +12243,63 @@ _exit:
 	*l = ast;
 
 	return result;
+}
+
+int _core_reflect(mb_interpreter_t* s, void** l) {
+	/* REFLECT statement */
+#ifdef MB_ENABLE_COLLECTION_LIB
+	int result = MB_FUNC_OK;
+	mb_value_t arg;
+	_object_t obj;
+	mb_value_t ret;
+	_class_t* instance = 0;
+	_dict_t* coll = 0;
+
+	mb_assert(s && l);
+
+	mb_make_nil(ret);
+
+	mb_check(mb_attempt_func_begin(s, l));
+
+	mb_check(mb_pop_value(s, l, &arg));
+
+	mb_check(mb_attempt_func_end(s, l));
+
+	_MAKE_NIL(&obj);
+	switch(arg.type) {
+	case MB_DT_STRING:
+		arg.value.string = mb_strupr(arg.value.string);
+		if((instance = _reflect_string_to_class(s, arg.value.string, &arg)) == 0)
+			goto _default;
+		_ref(&instance->ref, instance);
+		/* Fall through */
+	case MB_DT_CLASS:
+		_public_value_to_internal_object(&arg, &obj);
+		coll = _create_dict(s);
+		_traverse_class(obj.data.instance, _reflect_class_field, 0, _META_LIST_MAX_DEPTH, false, coll, 0);
+		ret.type = MB_DT_DICT;
+		ret.value.dict = coll;
+
+		break;
+	default:
+_default:
+		_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, 0, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+
+	mb_check(mb_push_value(s, l, ret));
+
+_exit:
+	_assign_public_value(&arg, 0);
+
+	return result;
+#else /* MB_ENABLE_COLLECTION_LIB */
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_COLLECTION_LIB */
 }
 #endif /* MB_ENABLE_CLASS */
 
@@ -13763,6 +13881,7 @@ int _coll_get(mb_interpreter_t* s, void** l) {
 	case MB_DT_CLASS:
 		_public_value_to_internal_object(&coi, &ocoi);
 		mb_check(mb_pop_string(s, l, &field));
+		field = mb_strupr(field);
 		fnode = _search_identifier_in_class(s, ocoi.data.instance, field, 0, 0);
 		if(fnode && fnode->data) {
 			fobj = (_object_t*)fnode->data;
