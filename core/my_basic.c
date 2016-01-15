@@ -4670,12 +4670,18 @@ void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 
 void _gc_remove(_ref_t* ref, void* data) {
 	/* Remove a referenced object from GC */
+	_ht_node_t* table = 0;
 	mb_unrefvar(data);
 
 	mb_assert(ref && data);
 
-	if(ref->s->gc.table)
-		_ht_remove(ref->s->gc.table, ref, 0);
+	if(ref->s->gc.collecting)
+		table = ref->s->gc.recursive_table;
+	else
+		table = ref->s->gc.table;
+
+	if(table)
+		_ht_remove(table, ref, 0);
 }
 
 int _gc_add_reachable(void* data, void* extra, void* ht) {

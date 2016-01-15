@@ -1,6 +1,7 @@
 Jan. 15 2016
 Fixed some crash bugs with invalid syntax
 Fixed some memory leak with invalid syntax
+Fixed an invalid GC table iteration bug
 
 Jan. 14 2016
 Fixed a collection accessing bug in an assignment statement
