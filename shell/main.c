@@ -571,7 +571,11 @@ static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
 		char* d = importing_dirs->dirs[i];
 		int m = (int)strlen(d);
 		int n = (int)strlen(p);
+#if _USE_MEM_POOL
 		char* buf = _pop_mem(m + n + 1);
+#else /* _USE_MEM_POOL */
+		char* buf = (char*)malloc(m + n + 1);
+#endif /* _USE_MEM_POOL */
 		memcpy(buf, d, m);
 		memcpy(buf + m, p, n);
 		buf[m + n] = '\0';
@@ -581,7 +585,11 @@ static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
 				result = true;
 			free(t);
 		}
+#if _USE_MEM_POOL
 		_push_mem(buf);
+#else /* _USE_MEM_POOL */
+		free(buf);
+#endif /* _USE_MEM_POOL */
 		if(result)
 			break;
 	}
