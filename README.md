@@ -44,7 +44,7 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * Collection implementation and manipulation functions for **`LIST`** and **`DICT`**
 * Automatic releasing of referenced objects (list, dictionary, referenced usertype, prototype, lambda, etc.) benefited from **Reference Counting** and **Garbage Collection**
 * Multiple file support by `IMPORT` statement
-* Structured user customizable **sub routine** definition by **`DEF/ENDDEF`** support, including tail recursion optimization
+* Structured user customizable **sub routine** definition by **`DEF-ENDDEF`** support, including tail recursion optimization
 * Structured `IF-THEN-ELSEIF-ELSE-ENDIF` support
 * Structured `FOR-TO-STEP-NEXT/WHILE-WEND/DO-UNTIL` support
 * Reserved retro `GOTO/GOSUB-RETURN` support

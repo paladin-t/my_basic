@@ -13511,10 +13511,37 @@ int _coll_list(mb_interpreter_t* s, void** l) {
 
 	coll = _create_list(s);
 
-	while(mb_has_arg(s, l)) {
+	if(mb_has_arg(s, l)) {
+		_ls_node_t* ast = 0;
+		_object_t* obj = 0;
 		mb_make_nil(arg);
 		_mb_check_mark(mb_pop_value(s, l, &arg), result, _error);
-		_push_list(coll, &arg, 0);
+		ast = (_ls_node_t*)*l;
+		if(ast) obj = (_object_t*)ast->data;
+		if(arg.type == MB_DT_INT && obj && _IS_FUNC(obj, _core_to)) {
+			/* Push a range of integer */
+			int_t begin = arg.value.integer;
+			int_t end = 0;
+			int_t step = 0;
+			ast = ast->next;
+			_mb_check_mark(mb_pop_int(s, (void**)&ast, &end), result, _error);
+			step = sgn(end - begin);
+			end += step;
+			do {
+				mb_make_int(arg, begin);
+				_push_list(coll, &arg, 0);
+				begin += step;
+			} while(begin != end);
+			*l = ast;
+		} else {
+			/* Push arguments */
+			_push_list(coll, &arg, 0);
+			while(mb_has_arg(s, l)) {
+				mb_make_nil(arg);
+				_mb_check_mark(mb_pop_value(s, l, &arg), result, _error);
+				_push_list(coll, &arg, 0);
+			}
+		}
 	}
 
 	_mb_check_mark(mb_attempt_close_bracket(s, l), result, _error);
