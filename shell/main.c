@@ -356,7 +356,7 @@ typedef struct _code_line_t {
 	int size;
 } _code_line_t;
 
-static _code_line_t* c = 0;
+static _code_line_t* code = 0;
 
 static _code_line_t* _create_code(void) {
 	_code_line_t* result = (_code_line_t*)malloc(sizeof(_code_line_t));
@@ -364,10 +364,12 @@ static _code_line_t* _create_code(void) {
 	result->size = _LINE_INC_STEP;
 	result->lines = (char**)malloc(sizeof(char*) * result->size);
 
+	code = result;
+
 	return result;
 }
 
-static void _destroy_code(_code_line_t* code) {
+static void _destroy_code(void) {
 	int i = 0;
 
 	mb_assert(code);
@@ -493,6 +495,104 @@ static int _save_file(const char* path, const char* txt) {
 
 /*
 ** {========================================================
+** Importing directories
+*/
+
+typedef struct _importing_dirs_t {
+	char** dirs;
+	int count;
+	int size;
+} _importing_dirs_t;
+
+static _importing_dirs_t* importing_dirs = 0;
+
+static _importing_dirs_t* _set_importing_directories(char* dirs) {
+	if(dirs) {
+		char* end = dirs + strlen(dirs);
+		_importing_dirs_t* result = (_importing_dirs_t*)malloc(sizeof(_importing_dirs_t));
+		result->count = 0;
+		result->size = _LINE_INC_STEP;
+		result->dirs = (char**)malloc(sizeof(char*) * result->size);
+
+		while(dirs && dirs < end && *dirs) {
+			int l = 0;
+			char* buf = 0;
+			bool_t as = false;
+			strtok(dirs, ";");
+			if(!(*dirs)) continue;
+			if(*dirs == ';') { dirs++; continue; }
+			if(result->count + 1 == result->size) {
+				result->size += _LINE_INC_STEP;
+				result->dirs = (char**)realloc(result->dirs, sizeof(char*) * result->size);
+			}
+			l = (int)strlen(dirs);
+			as = dirs[l - 1] != '/' && dirs[l - 1] != '\\';
+			buf = (char*)malloc(l + as ? 2 : 1);
+			memcpy(buf, dirs, l);
+			if(as) {
+				buf[l] = '/';
+				buf[l + 1] = '\0';
+			} else {
+				buf[l] = '\0';
+			}
+			result->dirs[result->count++] = buf;
+			while(*buf) {
+				if(*buf == '\\') *buf = '/';
+				buf++;
+			}
+			dirs += l + 1;
+		}
+
+		importing_dirs = result;
+
+		return result;
+	}
+
+	return 0;
+}
+
+static void _destroy_importing_directories(void) {
+	int i = 0;
+
+	mb_assert(importing_dirs);
+
+	for(i = 0; i < importing_dirs->count; ++i) {
+		free(importing_dirs->dirs[i]);
+	}
+	free(importing_dirs->dirs);
+	free(importing_dirs);
+}
+
+static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
+	bool_t result = false;
+	int i = 0;
+	for(i = 0; i < importing_dirs->count; i++) {
+		char* t = 0;
+		char* d = importing_dirs->dirs[i];
+		int m = (int)strlen(d);
+		int n = (int)strlen(p);
+		char* buf = _pop_mem(m + n + 1);
+		memcpy(buf, d, m);
+		memcpy(buf + m, p, n);
+		buf[m + n] = '\0';
+		t = _load_file(buf);
+		if(t) {
+			if(mb_load_string(bas, t) == MB_FUNC_OK)
+				result = true;
+			free(t);
+		}
+		_push_mem(buf);
+		if(result)
+			break;
+	}
+
+	return result;
+}
+
+/* ========================================================} */
+
+/*
+** {========================================================
 ** Interactive commands
 */
 
@@ -505,7 +605,7 @@ static void _clear_screen(void) {
 }
 
 static int _new_program(void) {
-	_clear_code(c);
+	_clear_code(code);
 
 	return mb_reset(&bas, false);
 }
@@ -520,13 +620,13 @@ static void _list_program(const char* sn, const char* cn) {
 	lcn = atoi(cn);
 	if(lsn == 0 && lcn == 0) {
 		long i = 0;
-		for(i = 0; i < c->count; ++i) {
-			_printf("%ld]%s", i + 1, c->lines[i]);
+		for(i = 0; i < code->count; ++i) {
+			_printf("%ld]%s", i + 1, code->lines[i]);
 		}
 	} else {
 		long i = 0;
 		long e = 0;
-		if(lsn < 1 || lsn > c->count) {
+		if(lsn < 1 || lsn > code->count) {
 			_printf("Line number %ld out of bound.\n", lsn);
 
 			return;
@@ -537,12 +637,12 @@ static void _list_program(const char* sn, const char* cn) {
 			return;
 		}
 		--lsn;
-		e = lcn ? lsn + lcn : c->count;
+		e = lcn ? lsn + lcn : code->count;
 		for(i = lsn; i < e; ++i) {
-			if(i >= c->count)
+			if(i >= code->count)
 				break;
 
-			_printf("%ld]%s\n", i + 1, c->lines[i]);
+			_printf("%ld]%s\n", i + 1, code->lines[i]);
 		}
 	}
 }
@@ -555,7 +655,7 @@ static void _edit_program(const char* no) {
 	mb_assert(no);
 
 	lno = atoi(no);
-	if(lno < 1 || lno > c->count) {
+	if(lno < 1 || lno > code->count) {
 		_printf("Line number %ld out of bound.\n", lno);
 
 		return;
@@ -565,10 +665,10 @@ static void _edit_program(const char* no) {
 	_printf("%ld]", lno + 1);
 	mb_gets(line, _MAX_LINE_LENGTH);
 	l = (int)strlen(line);
-	c->lines[lno] = (char*)realloc(c->lines[lno], l + 2);
-	strcpy(c->lines[lno], line);
-	c->lines[lno][l] = '\n';
-	c->lines[lno][l + 1] = '\0';
+	code->lines[lno] = (char*)realloc(code->lines[lno], l + 2);
+	strcpy(code->lines[lno], line);
+	code->lines[lno][l] = '\n';
+	code->lines[lno][l + 1] = '\0';
 }
 
 static void _insert_program(const char* no) {
@@ -580,7 +680,7 @@ static void _insert_program(const char* no) {
 	mb_assert(no);
 
 	lno = atoi(no);
-	if(lno < 1 || lno > c->count) {
+	if(lno < 1 || lno > code->count) {
 		_printf("Line number %ld out of bound.\n", lno);
 
 		return;
@@ -589,18 +689,18 @@ static void _insert_program(const char* no) {
 	memset(line, 0, _MAX_LINE_LENGTH);
 	_printf("%ld]", lno + 1);
 	mb_gets(line, _MAX_LINE_LENGTH);
-	if(c->count + 1 == c->size) {
-		c->size += _LINE_INC_STEP;
-		c->lines = (char**)realloc(c->lines, sizeof(char*) * c->size);
+	if(code->count + 1 == code->size) {
+		code->size += _LINE_INC_STEP;
+		code->lines = (char**)realloc(code->lines, sizeof(char*) * code->size);
 	}
-	for(i = c->count; i > lno; i--)
-		c->lines[i] = c->lines[i - 1];
+	for(i = code->count; i > lno; i--)
+		code->lines[i] = code->lines[i - 1];
 	l = (int)strlen(line);
-	c->lines[lno] = (char*)realloc(0, l + 2);
-	strcpy(c->lines[lno], line);
-	c->lines[lno][l] = '\n';
-	c->lines[lno][l + 1] = '\0';
-	c->count++;
+	code->lines[lno] = (char*)realloc(0, l + 2);
+	strcpy(code->lines[lno], line);
+	code->lines[lno][l] = '\n';
+	code->lines[lno][l + 1] = '\0';
+	code->count++;
 }
 
 static void _alter_program(const char* no) {
@@ -610,28 +710,28 @@ static void _alter_program(const char* no) {
 	mb_assert(no);
 
 	lno = atoi(no);
-	if(lno < 1 || lno > c->count) {
+	if(lno < 1 || lno > code->count) {
 		_printf("Line number %ld out of bound.\n", lno);
 
 		return;
 	}
 	--lno;
-	free(c->lines[lno]);
-	for(i = lno; i < c->count - 1; i++)
-		c->lines[i] = c->lines[i + 1];
-	c->count--;
+	free(code->lines[lno]);
+	for(i = lno; i < code->count - 1; i++)
+		code->lines[i] = code->lines[i + 1];
+	code->count--;
 }
 
 static void _load_program(const char* path) {
 	char* txt = _load_file(path);
 	if(txt) {
 		_new_program();
-		_set_code(c, txt);
+		_set_code(code, txt);
 		free(txt);
-		if(c->count == 1) {
-			_printf("Load done. %d line loaded.\n", c->count);
+		if(code->count == 1) {
+			_printf("Load done. %d line loaded.\n", code->count);
 		} else {
-			_printf("Load done. %d lines loaded.\n", c->count);
+			_printf("Load done. %d lines loaded.\n", code->count);
 		}
 	} else {
 		_printf("Cannot load file \"%s\".\n", path);
@@ -639,14 +739,14 @@ static void _load_program(const char* path) {
 }
 
 static void _save_program(const char* path) {
-	char* txt = _get_code(c);
+	char* txt = _get_code(code);
 	if(!_save_file(path, txt)) {
 		_printf("Cannot save file \"%s\".\n", path);
 	} else {
-		if(c->count == 1) {
-			_printf("Save done. %d line saved.\n", c->count);
+		if(code->count == 1) {
+			_printf("Save done. %d line saved.\n", code->count);
 		} else {
-			_printf("Save done. %d lines saved.\n", c->count);
+			_printf("Save done. %d lines saved.\n", code->count);
 		}
 	}
 	free(txt);
@@ -686,7 +786,10 @@ static void _show_help(void) {
 	_printf("  %s -e \"expr\" - Evaluate an expression directly\n", _BIN_FILE_NAME);
 	_printf("\n");
 	_printf("Options:\n");
-	_printf("  -p n  - Set memory pool threashold size, n is size in bytes\n");
+#if _USE_MEM_POOL
+	_printf("  -p n       - Set memory pool threashold size, n is size in bytes\n");
+#endif /* _USE_MEM_POOL */
+	_printf("  -f \"dirs\"  - Set importing directories, separated by semicolon\n");
 	_printf("\n");
 	_printf("Interactive commands:\n");
 	_printf("  HELP  - View help information\n");
@@ -734,13 +837,13 @@ static int _do_line(void) {
 		result = _new_program();
 	} else if(_str_eq(line, "RUN")) {
 		int i = 0;
-		mb_assert(c);
+		mb_assert(code);
 		result = mb_reset(&bas, false);
-		for(i = 0; i < c->count; ++i) {
+		for(i = 0; i < code->count; ++i) {
 			if(result)
 				break;
 
-			result = mb_load_string(bas, c->lines[i]);
+			result = mb_load_string(bas, code->lines[i]);
 		}
 		if(result == MB_FUNC_OK)
 			result = mb_run(bas);
@@ -777,7 +880,7 @@ static int _do_line(void) {
 		char* path = line + strlen(line) + 1;
 		_list_directory(path);
 	} else {
-		_append_line(c, dup);
+		_append_line(code, dup);
 	}
 
 	return result;
@@ -851,6 +954,7 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 	char* prog = 0;
 	bool_t eval = false;
 	char* memp = 0;
+	char* diri = 0;
 
 	while(i < argc) {
 		if(!memcmp(argv[i], "-", 1)) {
@@ -865,6 +969,9 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 				if(argc > i + 1)
 					prog = argv[++i];
 #endif /* _USE_MEM_POOL */
+			} else if(!memcmp(argv[i] + 1, "f", 1)) {
+				_CHECK_ARG(argc, i, "-f: Importing directories expected.\n");
+				diri = argv[++i];
 			} else {
 				_printf("Unknown argument: %s.\n", argv[i]);
 			}
@@ -881,6 +988,8 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 #else /* _USE_MEM_POOL */
 	mb_unrefvar(memp);
 #endif /* _USE_MEM_POOL */
+	if(diri)
+		importing_dirs = _set_importing_directories(diri);
 	if(eval)
 		_evaluate_expression(prog);
 	else if(prog)
@@ -967,6 +1076,16 @@ static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f
 	}
 }
 
+static int _on_import(struct mb_interpreter_t* s, const char* p) {
+	if(!importing_dirs)
+		return MB_FUNC_ERR;
+
+	if(!_try_import(s, p))
+		return MB_FUNC_ERR;
+
+	return MB_FUNC_OK;
+}
+
 /* ========================================================} */
 
 /*
@@ -981,7 +1100,7 @@ static void _on_startup(void) {
 	mb_set_memory_manager(_pop_mem, _push_mem);
 #endif /* _USE_MEM_POOL */
 
-	c = _create_code();
+	code = _create_code();
 
 #ifdef _HAS_TICKS
 	srand((unsigned)_ticks());
@@ -993,6 +1112,7 @@ static void _on_startup(void) {
 
 	mb_debug_set_stepped_handler(bas, _on_stepped);
 	mb_set_error_handler(bas, _on_error);
+	mb_set_import_handler(bas, _on_import);
 
 #ifdef _HAS_TICKS
 	mb_reg_fun(bas, ticks);
@@ -1001,12 +1121,13 @@ static void _on_startup(void) {
 }
 
 static void _on_exit(void) {
+	_destroy_importing_directories();
+
 	mb_close(&bas);
 
 	mb_dispose();
 
-	_destroy_code(c);
-	c = 0;
+	_destroy_code();
 
 #if _USE_MEM_POOL
 	_close_mem_pool();
