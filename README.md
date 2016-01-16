@@ -36,18 +36,18 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * **Lightweight** (within memory usage less than 128KB), fast, and cuttable
 * With most both retro and modern BASIC syntax
 * Case-insensitive tokenization, and many other indelible BASIC feelings
-* **[Prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm
-* **[Lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function)**
+* **[Prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm, with reflection support
+* **[Lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function)** enhanced functional programming
 * **Dynamic typed** integer, float point, string, boolean, user defined data types, etc. with array support
 * Standard numeric functions, and standard string functions
 * Referenced usertype support
 * Collection implementation and manipulation functions for **`LIST`** and **`DICT`**
-* Automatic releasing of referenced objects (list, dictionary, referenced usertype, etc.) benefited from **Reference Counting** and **Garbage Collection**
+* Automatic releasing of referenced objects (list, dictionary, referenced usertype, prototype, lambda, etc.) benefited from **Reference Counting** and **Garbage Collection**
 * Multiple file support by `IMPORT` statement
-* Structured user customizable **sub** routine definition by **`DEF/ENDDEF`** support, including tail recursion optimization
+* Structured user customizable **sub routine** definition by **`DEF/ENDDEF`** support, including tail recursion optimization
 * Structured `IF-THEN-ELSEIF-ELSE-ENDIF` support
 * Structured `FOR-TO-STEP-NEXT/WHILE-WEND/DO-UNTIL` support
-* Retro `GOTO/GOSUB-RETURN` support
+* Reserved retro `GOTO/GOSUB-RETURN` support
 * Debug APIs
 * Customizable memory pool
 * High expansibility, easy to use APIs, easy to write customized scripting interfaces
