@@ -554,7 +554,7 @@ static _importing_dirs_t* _set_importing_directories(char* dirs) {
 static void _destroy_importing_directories(void) {
 	int i = 0;
 
-	mb_assert(importing_dirs);
+	if(!importing_dirs) return;
 
 	for(i = 0; i < importing_dirs->count; ++i) {
 		free(importing_dirs->dirs[i]);

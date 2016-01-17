@@ -1077,9 +1077,9 @@ static int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, u
 static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 
 /** Handlers */
-#define _handle_error_now(__s, __err, __func, __result) \
+#define _handle_error_now(__s, __err, __f, __result) \
 	do { \
-		_set_current_error((__s), (__err), (__func)); \
+		_set_current_error((__s), (__err), (__f)); \
 		if((__s)->error_handler) { \
 			if((__s)->handled_error) break; \
 			(__s)->handled_error = true; \
@@ -1092,17 +1092,17 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 		} \
 	} while(0)
 #if _WARING_AS_ERROR
-#	define _handle_error(__s, __err, __func, __pos, __row, __col, __ret, __exit, __result) \
+#	define _handle_error(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
-			_set_current_error((__s), (__err), (__func)); \
+			_set_current_error((__s), (__err), (__f)); \
 			_set_error_pos((__s), (__pos), (__row), (__col)); \
 			__result = (__ret); \
 			goto __exit; \
 		} while(0)
 #else /* _WARING_AS_ERROR */
-#	define _handle_error(__s, __err, __func, __pos, __row, __col, __ret, __exit, __result) \
+#	define _handle_error(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
-			_set_current_error((__s), (__err), (__func)); \
+			_set_current_error((__s), (__err), (__f)); \
 			_set_error_pos((__s), (__pos), (__row), (__col)); \
 			if((__ret) != MB_FUNC_WARNING) { \
 				__result = (__ret); \
@@ -1111,16 +1111,16 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 		} while(0)
 #endif /* _WARING_AS_ERROR */
 #ifdef MB_ENABLE_SOURCE_TRACE
-#	define _HANDLE_ERROR(__s, __err, __func, __obj, __ret, __exit, __result) _handle_error((__s), (__err), (__func), (__obj)->source_pos, (__obj)->source_row, (__obj)->source_col, (__ret), __exit, (__result))
+#	define _HANDLE_ERROR(__s, __err, __f, __obj, __ret, __exit, __result) _handle_error((__s), (__err), (__f), (__obj)->source_pos, (__obj)->source_row, (__obj)->source_col, (__ret), __exit, (__result))
 #else /* MB_ENABLE_SOURCE_TRACE */
-#	define _HANDLE_ERROR(__s, __err, __func, __obj, __ret, __exit, __result) _handle_error((__s), (__err), (__func), 0, 0, 0, (__ret), __exit, (__result))
+#	define _HANDLE_ERROR(__s, __err, __f, __obj, __ret, __exit, __result) _handle_error((__s), (__err), (__f), 0, 0, 0, (__ret), __exit, (__result))
 #endif /* MB_ENABLE_SOURCE_TRACE */
-#define _handle_error_on_obj(__s, __err, __func, __obj, __ret, __exit, __result) \
+#define _handle_error_on_obj(__s, __err, __f, __obj, __ret, __exit, __result) \
 	do { \
 		if(__obj) { \
-			_HANDLE_ERROR((__s), (__err), (__func), (__obj), (__ret), __exit, (__result)); \
+			_HANDLE_ERROR((__s), (__err), (__f), (__obj), (__ret), __exit, (__result)); \
 		} else { \
-			_handle_error((__s), (__err), (__func), 0, 0, 0, (__ret), __exit, (__result)); \
+			_handle_error((__s), (__err), (__f), 0, 0, 0, (__ret), __exit, (__result)); \
 		} \
 	} while(0)
 
@@ -3625,12 +3625,12 @@ char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
 	if(_ls_find(context->imported, (void*)f, (_ls_compare)_ht_cmp_string)) {
 		buf = (char*)f;
 	} else {
-		buf = mb_strdup(f, strlen(f) + 1);
-		_ls_pushback(context->imported, buf);
-		buf = 0;
-
 		fp = fopen(f, "rb");
 		if(fp) {
+			buf = mb_strdup(f, strlen(f) + 1);
+			_ls_pushback(context->imported, buf);
+			buf = 0;
+
 			curpos = ftell(fp);
 			fseek(fp, 0L, SEEK_END);
 			l = ftell(fp);
