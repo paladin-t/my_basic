@@ -1,3 +1,7 @@
+Jan. 17 2016
+Added source file information to error handling
+Fixed a memory leak with sub routine which returns a string
+
 Jan. 16 2016
 Added a range of integer syntax for the LIST statement, eg. LIST(m TO n)
 Added extra importing directories support to shell
