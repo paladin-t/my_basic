@@ -870,7 +870,7 @@ static int _do_line(void) {
 		result = _new_program();
 	} else if(_str_eq(line, "RUN")) {
 		int i = 0;
-		mb_assert(_get_code());
+		mb_assert(_code());
 		result = mb_reset(&bas, false);
 		for(i = 0; i < _code()->count; ++i) {
 			if(result)

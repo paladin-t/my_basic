@@ -132,6 +132,8 @@ extern "C" {
 #define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
 #define TON(__t) (((__t) && *(__t)) ? ((_object_t*)(((_tuple3_t*)(*(__t)))->e1)) : 0)
 
+#define _IS_VAR_ARGS(__v) ((__v) == &_VAR_ARGS)
+
 #define _IS_EOS(__o) (__o && ((_object_t*)(__o))->type == _DT_EOS)
 #define _IS_SEP(__o, __c) (((_object_t*)(__o))->type == _DT_SEP && ((_object_t*)(__o))->data.separator == __c)
 #define _IS_FUNC(__o, __f) (((_object_t*)(__o))->type == _DT_FUNC && ((_object_t*)(__o))->data.func->pointer == __f)
@@ -599,6 +601,12 @@ static const _object_t _OBJ_INT_ZERO = { _DT_INT, (mb_data_e)0, false, 0 };
 static _object_t* _OBJ_BOOL_TRUE = 0;
 static _object_t* _OBJ_BOOL_FALSE = 0;
 
+#ifdef MB_ENABLE_CLASS
+static const _var_t _VAR_ARGS = { "...", 0, 0 };
+#else /* MB_ENABLE_CLASS */
+static const _var_t _VAR_ARGS = { "...", 0 };
+#endif /* MB_ENABLE_CLASS */
+
 /* Parsing context */
 #define _CLASS_STATE_NONE 0
 #define _CLASS_STATE_PROC 1
@@ -677,6 +685,7 @@ typedef struct mb_interpreter_t {
 	_ls_node_t* ast;
 	_parsing_context_t* parsing_context;
 	_running_context_t* running_context;
+	_ls_node_t* var_args;
 	unsigned char jump_set;
 #ifdef MB_ENABLE_CLASS
 	_class_t* last_instance;
@@ -978,6 +987,8 @@ static _ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp);
 static _ls_node_t* _ls_back(_ls_node_t* node);
 static _ls_node_t* _ls_pushback(_ls_node_t* list, void* data);
 static void* _ls_popback(_ls_node_t* list);
+static _ls_node_t* _ls_front(_ls_node_t* node);
+static void* _ls_popfront(_ls_node_t* list);
 static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data);
 static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op);
 static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
@@ -1091,7 +1102,10 @@ static int _get_priority_index(mb_func_t op);
 static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opnd1, _object_t* opnd2, int* status);
 static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj);
 static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val);
-static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg, bool_t proc_ref);
+static _ls_node_t* _push_var_args(mb_interpreter_t* s);
+static void _pop_var_args(mb_interpreter_t* s, _ls_node_t* last_var_args);
+static int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_pop_routine_arg_func_t pop_arg, _ls_node_t* args, mb_value_t* arg);
+static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg, bool_t proc_ref, _ls_node_t* args);
 static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg);
 static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg);
 #ifdef MB_ENABLE_LAMBDA
@@ -1646,6 +1660,7 @@ static int _core_return(mb_interpreter_t* s, void** l);
 static int _core_call(mb_interpreter_t* s, void** l);
 static int _core_def(mb_interpreter_t* s, void** l);
 static int _core_enddef(mb_interpreter_t* s, void** l);
+static int _core_args(mb_interpreter_t* s, void** l);
 #ifdef MB_ENABLE_CLASS
 static int _core_class(mb_interpreter_t* s, void** l);
 static int _core_endclass(mb_interpreter_t* s, void** l);
@@ -1763,6 +1778,7 @@ static const _func_t _core_libs[] = {
 	{ "CALL", _core_call },
 	{ "DEF", _core_def },
 	{ "ENDDEF", _core_enddef },
+	{ "...", _core_args },
 
 #ifdef MB_ENABLE_CLASS
 	{ "CLASS", _core_class },
@@ -1958,6 +1974,35 @@ void* _ls_popback(_ls_node_t* list) {
 		else
 			list->prev = 0;
 		tmp->prev->next = 0;
+		safe_free(tmp);
+	}
+
+	return result;
+}
+
+_ls_node_t* _ls_front(_ls_node_t* node) {
+	_ls_node_t* result = node;
+
+	result = result->next;
+
+	return result;
+}
+
+void* _ls_popfront(_ls_node_t* list) {
+	void* result = 0;
+	_ls_node_t* tmp = 0;
+
+	mb_assert(list);
+
+	tmp = _ls_front(list);
+	if(tmp) {
+		result = tmp->data;
+		list->next = tmp->next;
+		if(tmp->next)
+			tmp->next->prev = list;
+		if(!list->next)
+			list->prev = 0;
+		tmp->prev = tmp->next = 0;
 		safe_free(tmp);
 	}
 
@@ -3248,7 +3293,46 @@ _exit:
 	return result;
 }
 
-int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg, bool_t proc_ref) {
+_ls_node_t* _push_var_args(mb_interpreter_t* s) {
+	/* Push current variable arguments list */
+	_ls_node_t* result = s->var_args;
+	s->var_args = 0;
+
+	return result;
+}
+
+void _pop_var_args(mb_interpreter_t* s, _ls_node_t* last_var_args) {
+	/* Pop current variable arguments list */
+	_ls_node_t* var_args = s->var_args;
+	s->var_args = last_var_args;
+	if(var_args) {
+		_ls_foreach(var_args, _destroy_object_capsule_only);
+		_ls_destroy(var_args);
+	}
+}
+
+int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_pop_routine_arg_func_t pop_arg, _ls_node_t* args, mb_value_t* arg) {
+	/* Pop an argument from the caller or a variable argument list */
+	int result = MB_FUNC_OK;
+	_ls_node_t* ast = *l;
+
+	mb_make_nil(*arg);
+	if(ast && _IS_FUNC(ast->data, _core_args)) {
+		if(args) {
+			_object_t* obj = (_object_t*)_ls_popfront(args);
+			if(obj) {
+				_internal_object_to_public_value(obj, arg);
+				_destroy_object_capsule_only(obj, 0);
+			}
+		}
+	} else {
+		result = pop_arg(s, (void**)l, va, ca, ia, r, arg);
+	}
+
+	return result;
+}
+
+int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg, bool_t proc_ref, _ls_node_t* args) {
 	/* Process arguments of a routine */
 	int result = MB_FUNC_OK;
 	_ls_node_t* parameters = 0;
@@ -3257,6 +3341,7 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 	_var_t* var = 0;
 	_ls_node_t* rnode = 0;
 	unsigned ia = 0;
+	_ls_node_t* var_args = 0;
 
 	parameters = r->func.basic.parameters;
 #ifdef MB_ENABLE_LAMBDA
@@ -3269,16 +3354,17 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 		pars = parameters;
 		pars = pars->next;
 		while(pars && (!has_arg || (has_arg && has_arg(s, (void**)l, va, ca, &ia, r)))) {
-			_object_t* obj = 0;
-			if(pop_arg) {
-				mb_make_nil(arg);
-				mb_check(pop_arg(s, (void**)l, va, ca, &ia, r, &arg));
-			}
-
 			var = (_var_t*)pars->data;
 			pars = pars->next;
+			if(_IS_VAR_ARGS(var))
+				break;
+
+			if(pop_arg) {
+				mb_check(_pop_arg(s, l, va, ca, &ia, r, pop_arg, args, &arg));
+			}
+
 			if(running->meta == _SCOPE_META_REF) {
-				obj = (_object_t*)(_ht_find(running->var_dict, var->name)->data);
+				_object_t* obj = (_object_t*)(_ht_find(running->var_dict, var->name)->data);
 				var = obj->data.variable;
 
 				if(proc_ref)
@@ -3293,8 +3379,38 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 			}
 
 			result = _public_value_to_internal_object(&arg, var->data);
+
 			if(result != MB_FUNC_OK)
 				break;
+
+			if(args && _ls_empty(args))
+				break;
+		}
+		if(_IS_VAR_ARGS(var)) {
+			if(has_arg && !var_args && _IS_VAR_ARGS(var))
+				var_args = s->var_args = _ls_create();
+
+			while(has_arg && has_arg(s, (void**)l, va, ca, &ia, r)) {
+				if(pop_arg) {
+					mb_check(_pop_arg(s, l, va, ca, &ia, r, pop_arg, args, &arg));
+				}
+
+				if(var_args) {
+					_object_t* obj = _create_object();
+					result = _public_value_to_internal_object(&arg, obj);
+					_ls_pushback(var_args, obj);
+				}
+
+				if(args && _ls_empty(args))
+					break;
+			}
+		}
+		if(_IS_VAR_ARGS(var)) {
+			if(args) {
+				_ls_node_t* ast = *l;
+				if(ast) ast = ast->next;
+				*l = ast;
+			}
 		}
 	}
 
@@ -3336,6 +3452,7 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	_running_context_t* running = 0;
 	_routine_t* lastr = 0;
 	mb_value_t inte;
+	_ls_node_t* lastv = 0;
 
 	mb_assert(s && l && r);
 
@@ -3356,12 +3473,14 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	lastr = s->last_routine;
 	s->last_routine = r;
 
+	lastv = _push_var_args(s);
+
 	if(!va) {
 		mb_check(mb_attempt_open_bracket(s, (void**)l));
 	}
 
 	running = _push_weak_scope_by_routine(s, r->func.basic.scope, r);
-	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true);
+	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true, lastv);
 	if(result != MB_FUNC_OK) {
 		if(running->meta == _SCOPE_META_REF)
 			_destroy_scope(s, running);
@@ -3373,7 +3492,7 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	running = _pop_weak_scope(s, running);
 
 	if(!va) {
-		mb_check(mb_attempt_close_bracket(s, (void**)l));
+		_mb_check_mark(mb_attempt_close_bracket(s, (void**)l), result, _error);
 	}
 
 	ast = (_ls_node_t*)*l;
@@ -3414,7 +3533,7 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	_out_of_scope(s, running, 0, true);
 #endif /* MB_ENABLE_CLASS */
 
-	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false);
+	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false, 0);
 	if(result != MB_FUNC_OK)
 		goto _exit;
 
@@ -3430,7 +3549,10 @@ _exit:
 	if(result != MB_FUNC_OK)
 		_pop_scope(s, true);
 
+_error:
 	s->last_routine = lastr;
+
+	_pop_var_args(s, lastv);
 
 _tail:
 	return result;
@@ -3444,18 +3566,21 @@ int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	_running_context_t* running = 0;
 	_routine_t* lastr = 0;
 	mb_value_t inte;
+	_ls_node_t* lastv = 0;
 
 	mb_assert(s && l && r);
 
 	lastr = s->last_routine;
 	s->last_routine = r;
 
+	lastv = _push_var_args(s);
+
 	if(!va) {
 		mb_check(mb_attempt_open_bracket(s, (void**)l));
 	}
 
 	running = _link_lambda_scope_chain(s, &r->func.lambda, true);
-	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true);
+	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true, lastv);
 	if(result != MB_FUNC_OK) {
 		_unlink_lambda_scope_chain(s, &r->func.lambda, true);
 
@@ -3464,7 +3589,7 @@ int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	running = _unlink_lambda_scope_chain(s, &r->func.lambda, true);
 
 	if(!va) {
-		mb_check(mb_attempt_close_bracket(s, (void**)l));
+		_mb_check_mark(mb_attempt_close_bracket(s, (void**)l), result, _error);
 	}
 
 	ast = (_ls_node_t*)*l;
@@ -3501,7 +3626,7 @@ int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 
 	_out_of_scope(s, running, 0, true);
 
-	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false);
+	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false, 0);
 	if(result != MB_FUNC_OK)
 		goto _exit;
 
@@ -3517,7 +3642,10 @@ _exit:
 	if(result != MB_FUNC_OK)
 		_unlink_lambda_scope_chain(s, &r->func.lambda, false);
 
+_error:
 	s->last_routine = lastr;
+
+	_pop_var_args(s, lastv);
 
 	*l = ast;
 
@@ -3530,11 +3658,14 @@ int _eval_native_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	int result = MB_FUNC_OK;
 	_routine_t* lastr = 0;
 	mb_routine_func_t entry = 0;
+	_ls_node_t* lastv = 0;
 
 	mb_assert(s && l && r);
 
 	lastr = s->last_routine;
 	s->last_routine = r;
+
+	lastv = _push_var_args(s);
 
 	entry = r->func.native.entry;
 	if(!entry) {
@@ -3545,6 +3676,8 @@ int _eval_native_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 
 _exit:
 	s->last_routine = lastr;
+
+	_pop_var_args(s, lastv);
 
 	return result;
 }
@@ -10357,6 +10490,8 @@ int mb_run(struct mb_interpreter_t* s) {
 
 	_destroy_parsing_context(&s->parsing_context);
 
+	s->source_file = 0;
+
 	s->handled_error = false;
 
 	if(s->suspent_point) {
@@ -12175,6 +12310,10 @@ int _core_def(mb_interpreter_t* s, void** l) {
 			if(!routine->func.basic.parameters)
 				routine->func.basic.parameters = _ls_create();
 			_ls_pushback(routine->func.basic.parameters, var);
+		} else if(_IS_FUNC(obj, _core_args)) {
+			if(!routine->func.basic.parameters)
+				routine->func.basic.parameters = _ls_create();
+			_ls_pushback(routine->func.basic.parameters, (void*)&_VAR_ARGS);
 		}
 
 		ast = ast->next;
@@ -12210,6 +12349,42 @@ int _core_enddef(mb_interpreter_t* s, void** l) {
 	*l = ast;
 
 _exit:
+	return result;
+}
+
+int _core_args(mb_interpreter_t* s, void** l) {
+	/* ... (variable argument list) statement */
+	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
+	_ls_node_t* var_args = 0;
+	bool_t pushed = false;
+
+	mb_assert(s && l);
+
+	ast = (_ls_node_t*)*l;
+	if(ast) ast = ast->next;
+	*l = ast;
+
+	var_args = s->var_args;
+	if(var_args) {
+		_object_t* obj = (_object_t*)_ls_popfront(var_args);
+		if(obj) {
+			mb_value_t arg;
+			mb_make_nil(arg);
+			_internal_object_to_public_value(obj, &arg);
+			mb_check(mb_push_value(s, l, arg));
+			pushed = true;
+			_destroy_object_capsule_only(obj, 0);
+		}
+	}
+
+	if(!pushed) {
+		mb_value_t arg;
+		mb_make_nil(arg);
+		arg.type = MB_DT_UNKNOWN;
+		mb_check(mb_push_value(s, l, arg));
+	}
+
 	return result;
 }
 
