@@ -3324,6 +3324,8 @@ int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, u
 				_internal_object_to_public_value(obj, arg);
 				_destroy_object_capsule_only(obj, 0);
 			}
+		} else {
+			arg->type = MB_DT_UNKNOWN;
 		}
 	} else {
 		result = pop_arg(s, (void**)l, va, ca, ia, r, arg);
@@ -3487,7 +3489,7 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		else
 			_pop_weak_scope(s, running);
 
-		goto _exit;
+		goto _error;
 	}
 	running = _pop_weak_scope(s, running);
 
@@ -3584,7 +3586,7 @@ int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	if(result != MB_FUNC_OK) {
 		_unlink_lambda_scope_chain(s, &r->func.lambda, true);
 
-		goto _exit;
+		goto _error;
 	}
 	running = _unlink_lambda_scope_chain(s, &r->func.lambda, true);
 
