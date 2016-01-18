@@ -16,7 +16,7 @@ endclass
 
 class dog(animal)
 	def speak(a)
-		print "bark" + a;
+		print "woof" + a;
 	enddef
 endclass
 

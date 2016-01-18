@@ -213,7 +213,7 @@ static void _tidy_mem_pool(void) {
 }
 
 static void _open_mem_pool(void) {
-#define N 23
+#define N 22
 	size_t szs[N];
 	size_t lst[N];
 	int i = 0;
@@ -244,6 +244,8 @@ static void _open_mem_pool(void) {
 	szs[i++] = MB_SIZEOF_DCT;
 	szs[i++] = MB_SIZEOF_RTN;
 	szs[i++] = MB_SIZEOF_CLS;
+
+	mb_assert(i == N);
 
 	memset(lst, 0, sizeof(lst));
 
