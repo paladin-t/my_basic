@@ -123,14 +123,26 @@ extern MBAPI const size_t MB_SIZEOF_HTN;
 extern MBAPI const size_t MB_SIZEOF_HTA;
 extern MBAPI const size_t MB_SIZEOF_OBJ;
 extern MBAPI const size_t MB_SIZEOF_FUN;
-extern MBAPI const size_t MB_SIZEOF_ARR;
 extern MBAPI const size_t MB_SIZEOF_VAR;
+#ifdef MB_ENABLE_USERTYPE_REF
+extern MBAPI const size_t MB_SIZEOF_UTR;
+#else /* MB_ENABLE_USERTYPE_REF */
+static const size_t MB_SIZEOF_UTR = 16;
+#endif /* MB_ENABLE_USERTYPE_REF */
+extern MBAPI const size_t MB_SIZEOF_ARR;
 extern MBAPI const size_t MB_SIZEOF_LBL;
+#ifdef MB_ENABLE_COLLECTION_LIB
+extern MBAPI const size_t MB_SIZEOF_LST;
+extern MBAPI const size_t MB_SIZEOF_DCT;
+#else /* MB_ENABLE_COLLECTION_LIB */
+static const size_t MB_SIZEOF_LST = 16;
+static const size_t MB_SIZEOF_DCT = 16;
+#endif /* MB_ENABLE_COLLECTION_LIB */
 extern MBAPI const size_t MB_SIZEOF_RTN;
 #ifdef MB_ENABLE_CLASS
 extern MBAPI const size_t MB_SIZEOF_CLS;
 #else /* MB_ENABLE_CLASS */
-static const size_t MB_SIZEOF_CLS = 20;
+static const size_t MB_SIZEOF_CLS = 16;
 #endif /* MB_ENABLE_CLASS */
 
 typedef unsigned _pool_chunk_size_t;
@@ -197,7 +209,7 @@ static void _tidy_mem_pool(void) {
 }
 
 static void _open_mem_pool(void) {
-#define N 19
+#define N 23
 	size_t szs[N];
 	size_t lst[N];
 	int i = 0;
@@ -206,25 +218,28 @@ static void _open_mem_pool(void) {
 
 	pool_count = 0;
 
-	szs[0] = MB_SIZEOF_4BYTES;
-	szs[1] = MB_SIZEOF_8BYTES;
-	szs[2] = MB_SIZEOF_32BYTES;
-	szs[3] = MB_SIZEOF_64BYTES;
-	szs[4] = MB_SIZEOF_128BYTES;
-	szs[5] = MB_SIZEOF_256BYTES;
-	szs[6] = MB_SIZEOF_512BYTES;
-	szs[7] = MB_SIZEOF_INT;
-	szs[8] = MB_SIZEOF_PTR;
-	szs[9] = MB_SIZEOF_LSN;
-	szs[10] = MB_SIZEOF_HTN;
-	szs[11] = MB_SIZEOF_HTA;
-	szs[12] = MB_SIZEOF_OBJ;
-	szs[13] = MB_SIZEOF_FUN;
-	szs[14] = MB_SIZEOF_ARR;
-	szs[15] = MB_SIZEOF_VAR;
-	szs[16] = MB_SIZEOF_LBL;
-	szs[17] = MB_SIZEOF_RTN;
-	szs[18] = MB_SIZEOF_CLS;
+	szs[i++] = MB_SIZEOF_4BYTES;
+	szs[i++] = MB_SIZEOF_8BYTES;
+	szs[i++] = MB_SIZEOF_32BYTES;
+	szs[i++] = MB_SIZEOF_64BYTES;
+	szs[i++] = MB_SIZEOF_128BYTES;
+	szs[i++] = MB_SIZEOF_256BYTES;
+	szs[i++] = MB_SIZEOF_512BYTES;
+	szs[i++] = MB_SIZEOF_INT;
+	szs[i++] = MB_SIZEOF_PTR;
+	szs[i++] = MB_SIZEOF_LSN;
+	szs[i++] = MB_SIZEOF_HTN;
+	szs[i++] = MB_SIZEOF_HTA;
+	szs[i++] = MB_SIZEOF_OBJ;
+	szs[i++] = MB_SIZEOF_FUN;
+	szs[i++] = MB_SIZEOF_VAR;
+	szs[i++] = MB_SIZEOF_UTR;
+	szs[i++] = MB_SIZEOF_ARR;
+	szs[i++] = MB_SIZEOF_LBL;
+	szs[i++] = MB_SIZEOF_LST;
+	szs[i++] = MB_SIZEOF_DCT;
+	szs[i++] = MB_SIZEOF_RTN;
+	szs[i++] = MB_SIZEOF_CLS;
 
 	memset(lst, 0, sizeof(lst));
 
@@ -358,6 +373,10 @@ typedef struct _code_line_t {
 
 static _code_line_t* code = 0;
 
+static _code_line_t* _code(void) {
+	return code;
+}
+
 static _code_line_t* _create_code(void) {
 	_code_line_t* result = (_code_line_t*)malloc(sizeof(_code_line_t));
 	result->count = 0;
@@ -381,7 +400,7 @@ static void _destroy_code(void) {
 	free(code);
 }
 
-static void _clear_code(_code_line_t* code) {
+static void _clear_code(void) {
 	int i = 0;
 
 	mb_assert(code);
@@ -392,7 +411,7 @@ static void _clear_code(_code_line_t* code) {
 	code->count = 0;
 }
 
-static void _append_line(_code_line_t* code, char* txt) {
+static void _append_line(char* txt) {
 	int l = 0;
 	char* buf = 0;
 
@@ -410,7 +429,7 @@ static void _append_line(_code_line_t* code, char* txt) {
 	code->lines[code->count++] = buf;
 }
 
-static char* _get_code(_code_line_t* code) {
+static char* _get_code(void) {
 	char* result = 0;
 	int i = 0;
 
@@ -427,7 +446,7 @@ static char* _get_code(_code_line_t* code) {
 	return result;
 }
 
-static void _set_code(_code_line_t* code, char* txt) {
+static void _set_code(char* txt) {
 	char* cursor = 0;
 	char _c = '\0';
 
@@ -436,7 +455,7 @@ static void _set_code(_code_line_t* code, char* txt) {
 	if(!txt)
 		return;
 
-	_clear_code(code);
+	_clear_code();
 	cursor = txt;
 	do {
 		_c = *cursor;
@@ -444,7 +463,7 @@ static void _set_code(_code_line_t* code, char* txt) {
 			cursor[0] = '\0';
 			if(_c == '\r' && *(cursor + 1) == '\n')
 				++cursor;
-			_append_line(code, txt);
+			_append_line(txt);
 			txt = cursor + 1;
 		}
 		++cursor;
@@ -564,6 +583,8 @@ static void _destroy_importing_directories(void) {
 }
 
 static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
+	mb_unrefvar(s);
+
 	bool_t result = false;
 	int i = 0;
 	for(i = 0; i < importing_dirs->count; i++) {
@@ -613,7 +634,7 @@ static void _clear_screen(void) {
 }
 
 static int _new_program(void) {
-	_clear_code(code);
+	_clear_code();
 
 	return mb_reset(&bas, false);
 }
@@ -628,13 +649,13 @@ static void _list_program(const char* sn, const char* cn) {
 	lcn = atoi(cn);
 	if(lsn == 0 && lcn == 0) {
 		long i = 0;
-		for(i = 0; i < code->count; ++i) {
-			_printf("%ld]%s", i + 1, code->lines[i]);
+		for(i = 0; i < _code()->count; ++i) {
+			_printf("%ld]%s", i + 1, _code()->lines[i]);
 		}
 	} else {
 		long i = 0;
 		long e = 0;
-		if(lsn < 1 || lsn > code->count) {
+		if(lsn < 1 || lsn > _code()->count) {
 			_printf("Line number %ld out of bound.\n", lsn);
 
 			return;
@@ -645,12 +666,12 @@ static void _list_program(const char* sn, const char* cn) {
 			return;
 		}
 		--lsn;
-		e = lcn ? lsn + lcn : code->count;
+		e = lcn ? lsn + lcn : _code()->count;
 		for(i = lsn; i < e; ++i) {
-			if(i >= code->count)
+			if(i >= _code()->count)
 				break;
 
-			_printf("%ld]%s\n", i + 1, code->lines[i]);
+			_printf("%ld]%s\n", i + 1, _code()->lines[i]);
 		}
 	}
 }
@@ -663,7 +684,7 @@ static void _edit_program(const char* no) {
 	mb_assert(no);
 
 	lno = atoi(no);
-	if(lno < 1 || lno > code->count) {
+	if(lno < 1 || lno > _code()->count) {
 		_printf("Line number %ld out of bound.\n", lno);
 
 		return;
@@ -673,10 +694,10 @@ static void _edit_program(const char* no) {
 	_printf("%ld]", lno + 1);
 	mb_gets(line, _MAX_LINE_LENGTH);
 	l = (int)strlen(line);
-	code->lines[lno] = (char*)realloc(code->lines[lno], l + 2);
-	strcpy(code->lines[lno], line);
-	code->lines[lno][l] = '\n';
-	code->lines[lno][l + 1] = '\0';
+	_code()->lines[lno] = (char*)realloc(_code()->lines[lno], l + 2);
+	strcpy(_code()->lines[lno], line);
+	_code()->lines[lno][l] = '\n';
+	_code()->lines[lno][l + 1] = '\0';
 }
 
 static void _insert_program(const char* no) {
@@ -688,7 +709,7 @@ static void _insert_program(const char* no) {
 	mb_assert(no);
 
 	lno = atoi(no);
-	if(lno < 1 || lno > code->count) {
+	if(lno < 1 || lno > _code()->count) {
 		_printf("Line number %ld out of bound.\n", lno);
 
 		return;
@@ -697,18 +718,18 @@ static void _insert_program(const char* no) {
 	memset(line, 0, _MAX_LINE_LENGTH);
 	_printf("%ld]", lno + 1);
 	mb_gets(line, _MAX_LINE_LENGTH);
-	if(code->count + 1 == code->size) {
-		code->size += _LINE_INC_STEP;
-		code->lines = (char**)realloc(code->lines, sizeof(char*) * code->size);
+	if(_code()->count + 1 == _code()->size) {
+		_code()->size += _LINE_INC_STEP;
+		_code()->lines = (char**)realloc(_code()->lines, sizeof(char*) * _code()->size);
 	}
-	for(i = code->count; i > lno; i--)
-		code->lines[i] = code->lines[i - 1];
+	for(i = _code()->count; i > lno; i--)
+		_code()->lines[i] = _code()->lines[i - 1];
 	l = (int)strlen(line);
-	code->lines[lno] = (char*)realloc(0, l + 2);
-	strcpy(code->lines[lno], line);
-	code->lines[lno][l] = '\n';
-	code->lines[lno][l + 1] = '\0';
-	code->count++;
+	_code()->lines[lno] = (char*)realloc(0, l + 2);
+	strcpy(_code()->lines[lno], line);
+	_code()->lines[lno][l] = '\n';
+	_code()->lines[lno][l + 1] = '\0';
+	_code()->count++;
 }
 
 static void _alter_program(const char* no) {
@@ -718,28 +739,28 @@ static void _alter_program(const char* no) {
 	mb_assert(no);
 
 	lno = atoi(no);
-	if(lno < 1 || lno > code->count) {
+	if(lno < 1 || lno > _code()->count) {
 		_printf("Line number %ld out of bound.\n", lno);
 
 		return;
 	}
 	--lno;
-	free(code->lines[lno]);
-	for(i = lno; i < code->count - 1; i++)
-		code->lines[i] = code->lines[i + 1];
-	code->count--;
+	free(_code()->lines[lno]);
+	for(i = lno; i < _code()->count - 1; i++)
+		_code()->lines[i] = _code()->lines[i + 1];
+	_code()->count--;
 }
 
 static void _load_program(const char* path) {
 	char* txt = _load_file(path);
 	if(txt) {
 		_new_program();
-		_set_code(code, txt);
+		_set_code(txt);
 		free(txt);
-		if(code->count == 1) {
-			_printf("Load done. %d line loaded.\n", code->count);
+		if(_code()->count == 1) {
+			_printf("Load done. %d line loaded.\n", _code()->count);
 		} else {
-			_printf("Load done. %d lines loaded.\n", code->count);
+			_printf("Load done. %d lines loaded.\n", _code()->count);
 		}
 	} else {
 		_printf("Cannot load file \"%s\".\n", path);
@@ -747,14 +768,14 @@ static void _load_program(const char* path) {
 }
 
 static void _save_program(const char* path) {
-	char* txt = _get_code(code);
+	char* txt = _get_code();
 	if(!_save_file(path, txt)) {
 		_printf("Cannot save file \"%s\".\n", path);
 	} else {
-		if(code->count == 1) {
-			_printf("Save done. %d line saved.\n", code->count);
+		if(_code()->count == 1) {
+			_printf("Save done. %d line saved.\n", _code()->count);
 		} else {
-			_printf("Save done. %d lines saved.\n", code->count);
+			_printf("Save done. %d lines saved.\n", _code()->count);
 		}
 	}
 	free(txt);
@@ -845,13 +866,13 @@ static int _do_line(void) {
 		result = _new_program();
 	} else if(_str_eq(line, "RUN")) {
 		int i = 0;
-		mb_assert(code);
+		mb_assert(_get_code());
 		result = mb_reset(&bas, false);
-		for(i = 0; i < code->count; ++i) {
+		for(i = 0; i < _code()->count; ++i) {
 			if(result)
 				break;
 
-			result = mb_load_string(bas, code->lines[i]);
+			result = mb_load_string(bas, _code()->lines[i]);
 		}
 		if(result == MB_FUNC_OK)
 			result = mb_run(bas);
@@ -888,7 +909,7 @@ static int _do_line(void) {
 		char* path = line + strlen(line) + 1;
 		_list_directory(path);
 	} else {
-		_append_line(code, dup);
+		_append_line(dup);
 	}
 
 	return result;
@@ -997,7 +1018,7 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 	mb_unrefvar(memp);
 #endif /* _USE_MEM_POOL */
 	if(diri)
-		importing_dirs = _set_importing_directories(diri);
+		_set_importing_directories(diri);
 	if(eval)
 		_evaluate_expression(prog);
 	else if(prog)
@@ -1111,7 +1132,7 @@ static void _on_startup(void) {
 	mb_set_memory_manager(_pop_mem, _push_mem);
 #endif /* _USE_MEM_POOL */
 
-	code = _create_code();
+	_create_code();
 
 #ifdef _HAS_TICKS
 	srand((unsigned)_ticks());

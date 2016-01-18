@@ -1,3 +1,6 @@
+Jan. 18 2016
+Polished shell implementation code
+
 Jan. 17 2016
 Added source file information to error handling
 Fixed a memory leak with sub routine which returns a string

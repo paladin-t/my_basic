@@ -549,9 +549,16 @@ MBAPI const size_t MB_SIZEOF_HTN = _MB_MEM_TAG_SIZE + sizeof(_ht_node_t);
 MBAPI const size_t MB_SIZEOF_HTA = _MB_MEM_TAG_SIZE + sizeof(_ht_node_t*) * _HT_ARRAY_SIZE_DEFAULT;
 MBAPI const size_t MB_SIZEOF_OBJ = _MB_MEM_TAG_SIZE + sizeof(_object_t);
 MBAPI const size_t MB_SIZEOF_FUN = _MB_MEM_TAG_SIZE + sizeof(_func_t);
-MBAPI const size_t MB_SIZEOF_ARR = _MB_MEM_TAG_SIZE + sizeof(_array_t);
 MBAPI const size_t MB_SIZEOF_VAR = _MB_MEM_TAG_SIZE + sizeof(_var_t);
+#ifdef MB_ENABLE_USERTYPE_REF
+MBAPI const size_t MB_SIZEOF_UTR = _MB_MEM_TAG_SIZE + sizeof(_usertype_ref_t);
+#endif /* MB_ENABLE_USERTYPE_REF */
+MBAPI const size_t MB_SIZEOF_ARR = _MB_MEM_TAG_SIZE + sizeof(_array_t);
 MBAPI const size_t MB_SIZEOF_LBL = _MB_MEM_TAG_SIZE + sizeof(_label_t);
+#ifdef MB_ENABLE_COLLECTION_LIB
+MBAPI const size_t MB_SIZEOF_LST = _MB_MEM_TAG_SIZE + sizeof(_list_t);
+MBAPI const size_t MB_SIZEOF_DCT = _MB_MEM_TAG_SIZE + sizeof(_dict_t);
+#endif /* MB_ENABLE_COLLECTION_LIB */
 MBAPI const size_t MB_SIZEOF_RTN = _MB_MEM_TAG_SIZE + sizeof(_routine_t);
 #ifdef MB_ENABLE_CLASS
 MBAPI const size_t MB_SIZEOF_CLS = _MB_MEM_TAG_SIZE + sizeof(_class_t);
@@ -564,9 +571,16 @@ MBAPI const size_t MB_SIZEOF_HTN = sizeof(_ht_node_t);
 MBAPI const size_t MB_SIZEOF_HTA = sizeof(_ht_node_t*) * _HT_ARRAY_SIZE_DEFAULT;
 MBAPI const size_t MB_SIZEOF_OBJ = sizeof(_object_t);
 MBAPI const size_t MB_SIZEOF_FUN = sizeof(_func_t);
-MBAPI const size_t MB_SIZEOF_ARR = sizeof(_array_t);
 MBAPI const size_t MB_SIZEOF_VAR = sizeof(_var_t);
+#ifdef MB_ENABLE_USERTYPE_REF
+MBAPI const size_t MB_SIZEOF_UTR = sizeof(_usertype_ref_t);
+#endif /* MB_ENABLE_USERTYPE_REF */
+MBAPI const size_t MB_SIZEOF_ARR = sizeof(_array_t);
 MBAPI const size_t MB_SIZEOF_LBL = sizeof(_label_t);
+#ifdef MB_ENABLE_COLLECTION_LIB
+MBAPI const size_t MB_SIZEOF_LST = sizeof(_list_t);
+MBAPI const size_t MB_SIZEOF_DCT = sizeof(_dict_t);
+#endif /* MB_ENABLE_COLLECTION_LIB */
 MBAPI const size_t MB_SIZEOF_RTN = sizeof(_routine_t);
 #ifdef MB_ENABLE_CLASS
 MBAPI const size_t MB_SIZEOF_CLS = sizeof(_class_t);
