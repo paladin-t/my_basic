@@ -587,10 +587,10 @@ static void _destroy_importing_directories(void) {
 }
 
 static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
-	mb_unrefvar(s);
-
 	bool_t result = false;
 	int i = 0;
+	mb_unrefvar(s);
+
 	for(i = 0; i < importing_dirs->count; i++) {
 		char* t = 0;
 		char* d = importing_dirs->dirs[i];
