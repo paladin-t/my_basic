@@ -97,6 +97,10 @@ static struct mb_interpreter_t* bas = 0;
 ** Common
 */
 
+#ifndef _countof
+#	define _countof(__a) (sizeof(__a) / sizeof(*(__a)))
+#endif /* _countof */
+
 #ifndef _printf
 #	define _printf printf
 #endif /* _printf */
