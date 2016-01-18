@@ -1061,6 +1061,7 @@ static int ticks(struct mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	mb_check(mb_attempt_open_bracket(s, l));
+
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	mb_check(mb_push_int(s, l, _ticks()));
@@ -1069,12 +1070,43 @@ static int ticks(struct mb_interpreter_t* s, void** l) {
 }
 #endif /* _HAS_TICKS */
 
+static int now(struct mb_interpreter_t* s, void** l) {
+	int result = MB_FUNC_OK;
+	time_t ct;
+	struct tm* timeinfo;
+	char buf[80];
+	char* arg = 0;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	if(mb_has_arg(s, l)) {
+		mb_check(mb_pop_string(s, l, &arg));
+	}
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	time(&ct);
+	timeinfo = localtime(&ct);
+	if(arg) {
+		strftime(buf, _countof(buf), arg, timeinfo);
+		mb_check(mb_push_string(s, l, mb_memdup(buf, (unsigned)(strlen(buf) + 1))));
+	} else {
+		arg = asctime(timeinfo);
+		mb_check(mb_push_string(s, l, mb_memdup(arg, (unsigned)(strlen(arg) + 1))));
+	}
+
+	return result;
+}
+
 static int beep(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
 	mb_assert(s && l);
 
 	mb_check(mb_attempt_func_begin(s, l));
+
 	mb_check(mb_attempt_func_end(s, l));
 
 	putchar('\a');
@@ -1149,6 +1181,7 @@ static void _on_startup(void) {
 #ifdef _HAS_TICKS
 	mb_reg_fun(bas, ticks);
 #endif /* _HAS_TICKS */
+	mb_reg_fun(bas, now);
 	mb_reg_fun(bas, beep);
 }
 
