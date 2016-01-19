@@ -456,12 +456,6 @@ typedef struct _lambda_t {
 #endif /* MB_ENABLE_LAMBDA */
 
 typedef struct _routine_t {
-	char* name;
-#ifdef MB_ENABLE_CLASS
-	_class_t* instance;
-#endif /* MB_ENABLE_CLASS */
-	bool_t is_cloned;
-	_invokable_e type;
 	union {
 		struct {
 			struct _running_context_t* scope;
@@ -475,6 +469,12 @@ typedef struct _routine_t {
 			mb_routine_func_t entry;
 		} native;
 	} func;
+	char* name;
+#ifdef MB_ENABLE_CLASS
+	_class_t* instance;
+#endif /* MB_ENABLE_CLASS */
+	bool_t is_cloned;
+	_invokable_e type;
 } _routine_t;
 
 #ifdef MB_ENABLE_SOURCE_TRACE
