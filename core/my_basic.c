@@ -741,7 +741,7 @@ static const char _PRECEDE_TABLE[20][20] = { /* Operator priority table */
 	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '>', '>', '<', '>', '>' }, /* OR */
 	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>' }, /* NOT */
 	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '<', '<', '<', '=', '<' }, /* NEG */
-	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '>', '>', '<', '>', '>' } /* IS */
+	{ '<', '<', '<', '<', '<', '<', '<', '>', '>', '<', '<', '<', '<', '<', '<', '>', '>', '<', '>', '>' }  /* IS */
 };
 
 static _object_t* _exp_assign = 0;
@@ -750,19 +750,19 @@ static _object_t* _exp_assign = 0;
 	do { \
 		if(sizeof(__r) == sizeof(unsigned char)) { \
 			unsigned char __b = __i; \
-			memcpy(&__r, &__b, sizeof(__r)); \
+			memcpy(&(__r), &__b, sizeof(__r)); \
 		} else if(sizeof(__r) == sizeof(unsigned short)) { \
 			unsigned short __b = __i; \
-			memcpy(&__r, &__b, sizeof(__r)); \
+			memcpy(&(__r), &__b, sizeof(__r)); \
 		} else if(sizeof(__r) == sizeof(unsigned)) { \
 			unsigned __b = __i; \
-			memcpy(&__r, &__b, sizeof(__r)); \
+			memcpy(&(__r), &__b, sizeof(__r)); \
 		} else if(sizeof(__r) == sizeof(unsigned long)) { \
 			unsigned long __b = __i; \
-			memcpy(&__r, &__b, sizeof(__r)); \
+			memcpy(&(__r), &__b, sizeof(__r)); \
 		} else if(sizeof(__r) == sizeof(unsigned long long)) { \
 			unsigned long long __b = __i; \
-			memcpy(&__r, &__b, sizeof(__r)); \
+			memcpy(&(__r), &__b, sizeof(__r)); \
 		} else { \
 			mb_assert(0 && "Invalid real number precision."); \
 		} \
@@ -1605,7 +1605,7 @@ static int _close_coll_lib(mb_interpreter_t* s);
 #		define _do_nothing(__s, __l, __exit, __result) \
 			do { \
 				_ls_node_t* ast = 0; static int i = 0; ++i; \
-				printf("Unaccessable function called %d times\n", i); \
+				printf("Unaccessable function called %d times.\n", i); \
 				ast = (_ls_node_t*)(*(__l)); \
 				_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, 0, DON(ast), MB_FUNC_ERR, __exit, __result); \
 			} while(0)
@@ -2108,9 +2108,7 @@ unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
 		tmp = node;
 		node = node->next;
 
-		if(_OP_RESULT_NORMAL == opresult) {
-			/* Do nothing */
-		} else if(_OP_RESULT_DEL_NODE == opresult) {
+		if(_OP_RESULT_DEL_NODE == opresult) {
 			tmp->prev->next = node;
 			if(node)
 				node->prev = tmp->prev;
@@ -2144,6 +2142,8 @@ void _ls_sort(_ls_node_t* list, _ls_compare cmp) {
 
 int _ls_count(_ls_node_t* list) {
 	union { void* p; unsigned u; } tmp;
+
+	mb_assert(list);
 
 	tmp.p = list->data;
 
@@ -2304,6 +2304,7 @@ int _ht_cmp_object(void* d1, void* d2) {
 			else if(o1->data.raw[i] > o2->data.raw[i])
 				return 1;
 		}
+
 		break;
 	}
 
@@ -2572,7 +2573,7 @@ int mb_memcmp(void* l, void* r, size_t s) {
 }
 
 size_t mb_memtest(void* p, size_t s) {
-	/* Detect whether a chunk of memory contains non-zero byte */
+	/* Detect whether a chunk of memory contains any non-zero byte */
 	size_t result = 0;
 	size_t i = 0;
 	for(i = 0; i < s; i++)
@@ -3753,7 +3754,8 @@ bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
 
 	mb_assert(s && obj);
 
-	result = _IS_EOS(obj) ||
+	result =
+		_IS_EOS(obj) ||
 		_IS_SEP(obj, ':') ||
 		_IS_FUNC(obj, _core_elseif) ||
 		_IS_FUNC(obj, _core_else) ||
@@ -3774,7 +3776,7 @@ void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f) {
 }
 
 mb_print_func_t _get_printer(mb_interpreter_t* s) {
-	/* Get a print functor according to an interpreter */
+	/* Get a print functor of an interpreter */
 	mb_assert(s);
 
 	if(s->printer)
@@ -3784,7 +3786,7 @@ mb_print_func_t _get_printer(mb_interpreter_t* s) {
 }
 
 mb_input_func_t _get_inputer(mb_interpreter_t* s) {
-	/* Get an input functor according to an interpreter */
+	/* Get an input functor of an interpreter */
 	mb_assert(s);
 
 	if(s->inputer)
@@ -3842,58 +3844,61 @@ char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
 }
 
 bool_t _is_blank(char c) {
-	/* Determine whether a character is a blank */
-	return (' ' == c) || ('\t' == c) ||
+	/* Determine whether a character is blank */
+	return
+		(' ' == c) || ('\t' == c) ||
 		(-17 == c) || (-69 == c) || (-65 == c) ||
 		(-2 == c) || (-1 == c);
 }
 
 bool_t _is_newline(char c) {
-	/* Determine whether a character is a newline */
+	/* Determine whether a character is newline */
 	return ('\r' == c) || ('\n' == c) || (EOF == c);
 }
 
 bool_t _is_separator(char c) {
-	/* Determine whether a character is a separator */
+	/* Determine whether a character is separator */
 	return (',' == c) || (';' == c) || (':' == c);
 }
 
 bool_t _is_bracket(char c) {
-	/* Determine whether a character is a bracket */
+	/* Determine whether a character is bracket */
 	return ('(' == c) || (')' == c);
 }
 
 bool_t _is_quotation_mark(char c) {
-	/* Determine whether a character is a quotation mark */
+	/* Determine whether a character is quotation mark */
 	return ('"' == c);
 }
 
 bool_t _is_comment(char c) {
-	/* Determine whether a character is a comment mark */
+	/* Determine whether a character is comment mark */
 	return ('\'' == c);
 }
 
 bool_t _is_accessor(char c) {
-	/* Determine whether a character is an accessor char */
+	/* Determine whether a character is accessor char */
 	return c == '.';
 }
 
 bool_t _is_numeric_char(char c) {
-	/* Determine whether a character is a numeric char */
+	/* Determine whether a character is numeric char */
 	return (c >= '0' && c <= '9') || _is_accessor(c);
 }
 
 bool_t _is_identifier_char(char c) {
-	/* Determine whether a character is an identifier char */
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+	/* Determine whether a character is identifier char */
+	return
+		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 		(c == '_') ||
 		_is_numeric_char(c) ||
 		(c == '$');
 }
 
 bool_t _is_operator_char(char c) {
-	/* Determine whether a character is an operator char */
-	return (c == '+') || (c == '-') || (c == '*') || (c == '/') ||
+	/* Determine whether a character is operator char */
+	return
+		(c == '+') || (c == '-') || (c == '*') || (c == '/') ||
 		(c == '^') ||
 		(c == '(') || (c == ')') ||
 		(c == '=') ||
@@ -3901,12 +3906,12 @@ bool_t _is_operator_char(char c) {
 }
 
 bool_t _is_using_char(char c) {
-	/* Determine whether a character is a module using char */
+	/* Determine whether a character is module using char */
 	return c == '@';
 }
 
 bool_t _is_exponent_prefix(char* s, int begin, int end) {
-	/* Determine whether current symbol is an exponent prefix */
+	/* Determine whether current symbol is exponent prefix */
 	int i = 0;
 
 	mb_assert(s);
@@ -3947,7 +3952,7 @@ int _append_char_to_symbol(mb_interpreter_t* s, char c) {
 }
 
 int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col) {
-	/* Current symbol parsing done and cut it */
+	/* Cut current symbol when current one parsing is finished */
 	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
 	char* sym = 0;
@@ -3975,7 +3980,7 @@ int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short
 }
 
 int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int pos, unsigned short row, unsigned short col) {
-	/* Append cut current symbol to AST list */
+	/* Append cut symbol to the AST list */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
@@ -4666,7 +4671,7 @@ void _set_error_pos(mb_interpreter_t* s, int pos, unsigned short row, unsigned s
 }
 
 char* _prev_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row, unsigned short* col) {
-	/* Prev importing another file */
+	/* Do something before importing another file */
 #ifdef MB_ENABLE_SOURCE_TRACE
 	char* result = 0;
 	_parsing_context_t* context = 0;
@@ -4714,7 +4719,7 @@ char* _prev_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row,
 }
 
 char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row, unsigned short* col) {
-	/* Post importing another file */
+	/* Do something after importing another file */
 #ifdef MB_ENABLE_SOURCE_TRACE
 	char* result = 0;
 	_parsing_context_t* context = 0;
@@ -4844,7 +4849,7 @@ char* _extract_string(_object_t* obj) {
 }
 
 bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
-	/* Lock an object */
+	/* Lock a referenced object */
 	mb_assert(lk);
 
 	_ref(ref, obj);
@@ -4857,7 +4862,7 @@ bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 }
 
 bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
-	/* Unlock an object */
+	/* Unlock a referenced object */
 	bool_t result = true;
 
 	mb_assert(lk);
@@ -4874,7 +4879,7 @@ bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 }
 
 bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
-	/* Write operation on a collection */
+	/* Write operation on a referenced object */
 	bool_t result = true;
 	mb_unrefvar(ref);
 	mb_unrefvar(obj);
@@ -4890,14 +4895,14 @@ bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 }
 
 unsigned _ref(_ref_t* ref, void* data) {
-	/* Add a referenct to a stub */
+	/* Increase the reference of a stub by 1 */
 	mb_unrefvar(data);
 
 	return ++(*(ref->count));
 }
 
 unsigned _unref(_ref_t* ref, void* data) {
-	/* Remove a reference to a stub */
+	/* Decrease the reference of a stub by 1 */
 	unsigned result = 0;
 
 	result = --(*(ref->count));
@@ -4916,7 +4921,7 @@ unsigned _unref(_ref_t* ref, void* data) {
 }
 
 void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s) {
-	/* Create a reference stub */
+	/* Create a reference stub, initialize the reference count with zero */
 	if(ref->count)
 		return;
 
@@ -4938,7 +4943,7 @@ void _destroy_ref(_ref_t* ref) {
 
 #ifdef MB_ENABLE_GC
 void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
-	/* Add a referenced object to GC */
+	/* Add a referenced object to GC table for later garbage detection */
 	_ht_node_t* table = 0;
 
 	mb_assert(ref && data);
@@ -5261,7 +5266,7 @@ int _gc_destroy_garbage(void* data, void* extra) {
 }
 
 void _gc_swap_tables(mb_interpreter_t* s) {
-	/* Swap garbage tables */
+	/* Swap active garbage table and recursive table */
 	_ht_node_t* tmp = 0;
 
 	mb_assert(s);
@@ -5410,7 +5415,7 @@ void _init_array(_array_t* arr) {
 }
 
 int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c) {
-	/* Calculate the index, used when interactive with host */
+	/* Calculate the true index of an array */
 	int result = 0;
 	int i = 0;
 	int n = 0;
@@ -5440,7 +5445,7 @@ _exit:
 }
 
 int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned int* index, bool_t* literally) {
-	/* Calculate the index, used when walking through an AST */
+	/* Calculate the true index of an array, used when walking through an AST */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* arr = 0;
@@ -5748,7 +5753,7 @@ bool_t _destroy_list_it(_list_it_t* it) {
 }
 
 _list_it_t* _move_list_it_next(_list_it_t* it) {
-	/* Move an iterator of a list to next node */
+	/* Move an iterator of a list to next step */
 	_list_it_t* result = 0;
 
 	if(!it || !it->list || !it->list->list || !it->curr)
@@ -5795,7 +5800,7 @@ bool_t _destroy_dict_it(_dict_it_t* it) {
 }
 
 _dict_it_t* _move_dict_it_next(_dict_it_t* it) {
-	/* Move an iterator of a dictionary to next node */
+	/* Move an iterator of a dictionary to next step */
 	_dict_it_t* result = 0;
 
 	if(!it || !it->dict || !it->dict->dict || !it->curr_node)
@@ -5950,7 +5955,7 @@ bool_t _remove_at_list(_list_t* coll, int_t idx) {
 }
 
 _ls_node_t* _node_at_list(_list_t* coll, int index) {
-	/* Get a node at a specific index in a list */
+	/* Get a node in a list with a specific index */
 	_ls_node_t* result = 0;
 	_ls_node_t* tmp = 0;
 	int idx = index;
@@ -6328,7 +6333,7 @@ _exit:
 }
 
 bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base) {
-	/* Link a class instance to another's meta list */
+	/* Link a class instance to the meta list of another class instance */
 	mb_assert(s && derived && base);
 
 	if(_ls_find(derived->meta_list, base, (_ls_compare)_ht_cmp_intptr)) {
@@ -6344,7 +6349,7 @@ bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base) 
 }
 
 void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived) {
-	/* Unlink a class instance's all meta class instances */
+	/* Unlink all meta class instances of a class instance */
 	mb_assert(s && derived);
 
 	_LS_FOREACH(derived->meta_list, _do_nothing_on_object, _unlink_meta_instance, derived);
@@ -6683,7 +6688,7 @@ void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 }
 
 void _mark_upvalue(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj, const char* n) {
-	/* Mark upvalue */
+	/* Mark an upvalue of a lambda */
 	_running_context_t* running = 0;
 	_running_context_t* found_in_scope = 0;
 	_ls_node_t* scp = 0;
@@ -6705,7 +6710,7 @@ void _mark_upvalue(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj, const
 }
 
 void _try_mark_upvalue(mb_interpreter_t* s, _routine_t* r, _object_t* obj) {
-	/* Try to mark upvalue */
+	/* Try to mark upvalues of a lambda */
 	_lambda_t* lambda = 0;
 	_ls_node_t* node = 0;
 	_object_t* inner = 0;
@@ -6736,7 +6741,7 @@ void _try_mark_upvalue(mb_interpreter_t* s, _routine_t* r, _object_t* obj) {
 }
 
 _running_context_ref_t* _create_outer_scope(mb_interpreter_t* s) {
-	/* Create an outer scope, this is a referenced type */
+	/* Create an outer scope, which is a referenced type */
 	_running_context_ref_t* result = (_running_context_ref_t*)mb_malloc(sizeof(_running_context_ref_t));
 	memset(result, 0, sizeof(_running_context_ref_t));
 	_create_ref(&result->ref, _unref_outer_scope, _DT_OUTER_SCOPE, s);
@@ -6779,7 +6784,7 @@ int _do_nothing_on_ht_for_lambda(void* data, void* extra) {
 }
 
 int _fill_with_upvalue(void* data, void* extra, void* p) {
-	/* Fill an outer scope with an original value */
+	/* Fill an outer scope with the original value */
 	_object_t* obj = (_object_t*)data;
 	const char* n = (const char*)extra;
 	_upvalue_scope_tuple_t* tuple = (_upvalue_scope_tuple_t*)p;
@@ -6880,7 +6885,7 @@ int _fill_outer_scope(void* data, void* extra, void* t) {
 }
 
 _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak) {
-	/* Link a lambda's local scope and its upvalue scope chain to a given scope */
+	/* Link the local scope of a lambda and all upvalue scopes in chain to a given scope */
 	_running_context_ref_t* root_ref = 0;
 	_running_context_t* root = 0;
 
@@ -6902,7 +6907,7 @@ _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lam
 }
 
 _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak) {
-	/* Unlink a lambda's local scope and its upvalue scope chain from a given scope */
+	/* Unlink the local scope of a lambda and all upvalue scopes in chain from a given scope */
 	_running_context_ref_t* root_ref = 0;
 	_running_context_t* root = 0;
 
@@ -7203,7 +7208,7 @@ _running_context_t* _get_root_scope(_running_context_t* scope) {
 
 #ifdef MB_ENABLE_LAMBDA
 _running_context_ref_t* _get_root_ref_scope(_running_context_ref_t* scope) {
-	/* Get the root scope in a referenced scope chain */
+	/* Get the root referenced scope in a referenced scope chain */
 	_running_context_ref_t* result = 0;
 
 	while(scope) {
@@ -7216,7 +7221,7 @@ _running_context_ref_t* _get_root_ref_scope(_running_context_ref_t* scope) {
 #endif /* MB_ENABLE_LAMBDA */
 
 _running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s) {
-	/* Get a proper scope to add a routine */
+	/* Get a proper scope to define a routine */
 	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
 	unsigned short class_state = _CLASS_STATE_NONE;
@@ -7740,7 +7745,7 @@ int _destroy_memory(void* data, void* extra) {
 }
 
 int _compare_numbers(const _object_t* first, const _object_t* second) {
-	/* Compare two numbers in two _object_t */
+	/* Compare two numbers from two objects */
 	int result = 0;
 
 	mb_assert(first && second);
@@ -7767,7 +7772,7 @@ int _compare_numbers(const _object_t* first, const _object_t* second) {
 }
 
 bool_t _is_internal_object(_object_t* obj) {
-	/* Determine whether an object is internal*/
+	/* Determine whether an object is internal */
 	bool_t result = false;
 
 	mb_assert(obj);
@@ -8086,7 +8091,7 @@ int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t* itn) {
 }
 
 void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s) {
-	/* Try clear the intermediate value when destroying an object */
+	/* Try clear the intermediate value */
 	_object_t* obj = 0;
 	_running_context_t* running = 0;
 	mb_unrefvar(extra);
@@ -8105,13 +8110,13 @@ void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s)
 }
 
 void _destroy_lazy_objects(mb_interpreter_t* s) {
-	/* Destroy lazy objects */
+	/* Destroy lazy releasing objects */
 	_ls_foreach(s->lazy_destroy_objects, _destroy_object);
 	_ls_clear(s->lazy_destroy_objects);
 }
 
 void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
-	/* Mark a string as lazy destroy */
+	/* Mark a string as lazy releasing destroy */
 	_object_t* temp_obj = 0;
 
 	mb_assert(s && ch);
@@ -8153,7 +8158,7 @@ void _swap_public_value(mb_value_t* tgt, mb_value_t* src) {
 }
 
 int _clear_scope_chain(mb_interpreter_t* s) {
-	/* Clear a scope chain */
+	/* Clear the scope chain */
 	int result = 0;
 	_running_context_t* running = 0;
 	_running_context_t* prev = 0;
@@ -8179,7 +8184,7 @@ int _clear_scope_chain(mb_interpreter_t* s) {
 }
 
 int _dispose_scope_chain(mb_interpreter_t* s) {
-	/* Dispose a scope chain */
+	/* Dispose the scope chain */
 	int result = 0;
 	_running_context_t* running = 0;
 	_running_context_t* prev = 0;
@@ -8289,7 +8294,7 @@ _object_t* _eval_var_in_print(mb_interpreter_t* s, _ls_node_t** ast, _object_t* 
 }
 
 void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
-	/* Called each step */
+	/* Callback a stepped debug handler, this function is called each step */
 	_object_t* obj = 0;
 
 	mb_assert(s);
@@ -8309,7 +8314,7 @@ void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
 }
 
 int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
-	/* Execute the ast, core execution function */
+	/* Execute the ast, this is the core execution function */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
@@ -8647,7 +8652,7 @@ int _ls_destroy_module_func(void* data, void* extra) {
 }
 
 int _ht_destroy_module_func_list(void* data, void* extra) {
-	/* Destroy a module function structure */
+	/* Destroy all module function structures */
 	int result = _OP_RESULT_NORMAL;
 	_ls_node_t* lst = 0;
 	char* n = 0;
@@ -8667,7 +8672,7 @@ int _ht_destroy_module_func_list(void* data, void* extra) {
 #endif /* MB_ENABLE_MODULE */
 
 char* _generate_func_name(mb_interpreter_t* s, char* n, bool_t with_mod) {
-	/* Generate a function name to be registered */
+	/* Generate a function name to be registered according to module information */
 	char* name = 0;
 	size_t _sl = 0;
 	mb_unrefvar(with_mod);
@@ -8796,7 +8801,7 @@ int _remove_func(mb_interpreter_t* s, char* n, bool_t local) {
 }
 
 _ls_node_t* _find_func(mb_interpreter_t* s, char* n, bool_t* mod) {
-	/* Find function interface in function dictionary */
+	/* Find function interface in the function dictionaries */
 	_ls_node_t* result = 0;
 	mb_unrefvar(mod);
 
@@ -8833,7 +8838,7 @@ _ls_node_t* _find_func(mb_interpreter_t* s, char* n, bool_t* mod) {
 }
 
 int _open_constant(mb_interpreter_t* s) {
-	/* Open global constant */
+	/* Open global constants */
 	int result = MB_FUNC_OK;
 	_running_context_t* running = 0;
 	unsigned long ul = 0;
@@ -8851,7 +8856,7 @@ int _open_constant(mb_interpreter_t* s) {
 }
 
 int _close_constant(mb_interpreter_t* s) {
-	/* Close global constant */
+	/* Close global constants */
 	int result = MB_FUNC_OK;
 
 	mb_assert(s);
@@ -8860,7 +8865,7 @@ int _close_constant(mb_interpreter_t* s) {
 }
 
 int _open_core_lib(mb_interpreter_t* s) {
-	/* Open the core functional libraries */
+	/* Open the core function library */
 	int result = 0;
 	int i = 0;
 
@@ -8873,7 +8878,7 @@ int _open_core_lib(mb_interpreter_t* s) {
 }
 
 int _close_core_lib(mb_interpreter_t* s) {
-	/* Close the core functional libraries */
+	/* Close the core function library */
 	int result = 0;
 	int i = 0;
 
@@ -8886,7 +8891,7 @@ int _close_core_lib(mb_interpreter_t* s) {
 }
 
 int _open_std_lib(mb_interpreter_t* s) {
-	/* Open the standard functional libraries */
+	/* Open the standard function library */
 	int result = 0;
 	int i = 0;
 
@@ -8899,7 +8904,7 @@ int _open_std_lib(mb_interpreter_t* s) {
 }
 
 int _close_std_lib(mb_interpreter_t* s) {
-	/* Close the standard functional libraries */
+	/* Close the standard function library */
 	int result = 0;
 	int i = 0;
 
@@ -8913,7 +8918,7 @@ int _close_std_lib(mb_interpreter_t* s) {
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 int _open_coll_lib(mb_interpreter_t* s) {
-	/* Open the collection functional libraries */
+	/* Open the collection function library */
 	int result = 0;
 	int i = 0;
 
@@ -8926,7 +8931,7 @@ int _open_coll_lib(mb_interpreter_t* s) {
 }
 
 int _close_coll_lib(mb_interpreter_t* s) {
-	/* Close the collection functional libraries */
+	/* Close the collection function library */
 	int result = 0;
 	int i = 0;
 
@@ -9016,7 +9021,7 @@ int mb_dispose(void) {
 }
 
 int mb_open(struct mb_interpreter_t** s) {
-	/* Initialize a MY-BASIC environment */
+	/* Open a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 	_ht_node_t* local_scope = 0;
 	_ht_node_t* global_scope = 0;
@@ -9217,7 +9222,7 @@ int mb_remove_reserved_func(struct mb_interpreter_t* s, const char* n) {
 }
 
 int mb_begin_module(struct mb_interpreter_t* s, const char* n) {
-	/* Begin a module, all functions registered with a module will put inside it */
+	/* Begin a module, all functions registered within a module will put inside it */
 	int result = MB_FUNC_OK;
 
 	mb_assert(s && n);
@@ -10272,7 +10277,7 @@ _exit:
 }
 
 int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
-	/* Add reference to a value */
+	/* Increase the reference of a value by 1 */
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
@@ -10298,7 +10303,7 @@ _exit:
 }
 
 int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
-	/* Remove reference to a value */
+	/* Decrease the reference of a value by 1 */
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
@@ -10364,7 +10369,7 @@ _exit:
 }
 
 int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routine_func_t f, bool_t force) {
-	/* Set a sub routine with a specific name and functor */
+	/* Set a sub routine with a specific name and native function pointer */
 	int result = MB_FUNC_OK;
 	_running_context_t* running = 0;
 	_object_t* obj = 0;
@@ -10506,7 +10511,7 @@ _exit:
 }
 
 int mb_run(struct mb_interpreter_t* s) {
-	/* Run loaded and parsed script */
+	/* Run the current AST */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 
@@ -10635,7 +10640,7 @@ int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
 }
 
 int mb_debug_get_stack_trace(struct mb_interpreter_t* s, void** l, char** fs, unsigned fc) {
-	/* Get stack frame names of an interpreter instance */
+	/* Get stack frame names of a MY-BASIC environment */
 #ifdef MB_ENABLE_STACK_TRACE
 	int result = MB_FUNC_OK;
 	_ls_node_t* f = 0;
@@ -10668,7 +10673,7 @@ _exit:
 }
 
 int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t h) {
-	/* Set a stepped handler to an interpreter instance */
+	/* Set a stepped handler to a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 
 	mb_assert(s);
@@ -10736,7 +10741,7 @@ _exit:
 }
 
 mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
-	/* Get last error information */
+	/* Get the last error information */
 	mb_error_e result = SE_NO_ERR;
 
 	mb_assert(s);
@@ -10748,7 +10753,7 @@ mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
 }
 
 const char* mb_get_error_desc(mb_error_e err) {
-	/* Get error description text */
+	/* Get the error description text */
 	if(err < _countof(_ERR_DESC))
 		return _ERR_DESC[err];
 
@@ -10756,7 +10761,7 @@ const char* mb_get_error_desc(mb_error_e err) {
 }
 
 int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h) {
-	/* Set an error handler to an interpreter instance */
+	/* Set an error handler to a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 
 	mb_assert(s);
@@ -10767,7 +10772,7 @@ int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h) {
 }
 
 int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p) {
-	/* Set a print functor to an interpreter instance */
+	/* Set a print functor to a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 
 	mb_assert(s);
@@ -10778,7 +10783,7 @@ int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p) {
 }
 
 int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
-	/* Set an input functor to an interpreter instance */
+	/* Set an input functor to a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 
 	mb_assert(s);
@@ -10789,7 +10794,7 @@ int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 }
 
 int mb_get_userdata(struct mb_interpreter_t* s, void** d) {
-	/* Get the userdata of an interpreter instance */
+	/* Get the userdata of a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 
 	mb_assert(s && d);
@@ -10801,7 +10806,7 @@ int mb_get_userdata(struct mb_interpreter_t* s, void** d) {
 }
 
 int mb_set_userdata(struct mb_interpreter_t* s, void* d) {
-	/* Set the userdata of an interpreter instance */
+	/* Set the userdata of a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 
 	mb_assert(s);
@@ -10813,7 +10818,7 @@ int mb_set_userdata(struct mb_interpreter_t* s, void* d) {
 }
 
 int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h) {
-	/* Set an import handler to an interpreter instance */
+	/* Set an import handler to a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 
 	mb_assert(s);
@@ -11039,7 +11044,7 @@ _exit:
 }
 
 int _core_equal(mb_interpreter_t* s, void** l) {
-	/* Operator = */
+	/* Operator = (equal) */
 	int result = MB_FUNC_OK;
 	_tuple3_t* tpr = 0;
 
@@ -13591,7 +13596,7 @@ _exit:
 }
 
 int _std_len(mb_interpreter_t* s, void** l) {
-	/* Get the length of a string or an array */
+	/* Get the length of a string or an array, or element count of a collection or a variable argument list */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
@@ -13613,7 +13618,7 @@ int _std_len(mb_interpreter_t* s, void** l) {
 	if(obj && _IS_FUNC(obj, _core_args)) {
 		ast = ast->next;
 		*l = ast;
-		mb_check(mb_push_int(s, l, (int_t)_ls_count(s->var_args)));
+		mb_check(mb_push_int(s, l, s->var_args ? (int_t)_ls_count(s->var_args) : 0));
 
 		mb_check(mb_attempt_close_bracket(s, l));
 

@@ -1,5 +1,6 @@
 Jan. 19 2016
 Added support to apply the LEN statement to variable arguments as LEN(...)
+Polished code
 
 Jan. 18 2016
 Added variable arguments support
