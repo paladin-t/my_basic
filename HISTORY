@@ -1,3 +1,6 @@
+Jan. 19 2016
+Added support to apply the LEN statement to variable arguments as LEN(...)
+
 Jan. 18 2016
 Added variable arguments support
 Added a NOW statement to the shell

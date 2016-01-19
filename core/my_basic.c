@@ -994,6 +994,7 @@ static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation
 static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
 static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op);
 static void _ls_sort(_ls_node_t* list, _ls_compare cmp);
+static int _ls_count(_ls_node_t* list);
 static bool_t _ls_empty(_ls_node_t* list);
 static void _ls_clear(_ls_node_t* list);
 static void _ls_destroy(_ls_node_t* list);
@@ -1020,6 +1021,7 @@ static int _ls_free_extra(void* data, void* extra);
 					__lst->prev = __tmp->prev; \
 				} \
 				safe_free(__tmp); \
+				(L)->data = (char*)(L)->data - 1; \
 			} \
 		} \
 	} while(0)
@@ -1704,6 +1706,7 @@ static int _std_right(mb_interpreter_t* s, void** l);
 static int _std_str(mb_interpreter_t* s, void** l);
 static int _std_val(mb_interpreter_t* s, void** l);
 static int _std_len(mb_interpreter_t* s, void** l);
+static int _std_get(mb_interpreter_t* s, void** l);
 static int _std_print(mb_interpreter_t* s, void** l);
 static int _std_input(mb_interpreter_t* s, void** l);
 
@@ -1717,7 +1720,6 @@ static int _coll_peek(mb_interpreter_t* s, void** l);
 static int _coll_insert(mb_interpreter_t* s, void** l);
 static int _coll_sort(mb_interpreter_t* s, void** l);
 static int _coll_exist(mb_interpreter_t* s, void** l);
-static int _coll_get(mb_interpreter_t* s, void** l);
 static int _coll_set(mb_interpreter_t* s, void** l);
 static int _coll_remove(mb_interpreter_t* s, void** l);
 static int _coll_clear(mb_interpreter_t* s, void** l);
@@ -1829,6 +1831,7 @@ static const _func_t _std_libs[] = {
 	{ "VAL", _std_val },
 
 	{ "LEN", _std_len },
+	{ "GET", _std_get },
 
 	{ "PRINT", _std_print },
 	{ "INPUT", _std_input }
@@ -1844,7 +1847,6 @@ static const _func_t _coll_libs[] = {
 	{ "INSERT", _coll_insert },
 	{ "SORT", _coll_sort },
 	{ "EXIST", _coll_exist },
-	{ "GET", _coll_get },
 	{ "SET", _coll_set },
 	{ "REMOVE", _coll_remove },
 	{ "CLEAR", _coll_clear },
@@ -1956,6 +1958,7 @@ _ls_node_t* _ls_pushback(_ls_node_t* list, void* data) {
 	tmp->next = result;
 	result->prev = tmp;
 	list->prev = result;
+	list->data = (char*)list->data + 1;
 
 	return result;
 }
@@ -1975,6 +1978,7 @@ void* _ls_popback(_ls_node_t* list) {
 			list->prev = 0;
 		tmp->prev->next = 0;
 		safe_free(tmp);
+		list->data = (char*)list->data - 1;
 	}
 
 	return result;
@@ -2004,6 +2008,7 @@ void* _ls_popfront(_ls_node_t* list) {
 			list->prev = 0;
 		tmp->prev = tmp->next = 0;
 		safe_free(tmp);
+		list->data = (char*)list->data - 1;
 	}
 
 	return result;
@@ -2030,6 +2035,7 @@ _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data) {
 		result->next = tmp;
 		tmp->prev = result;
 	}
+	list->data = (char*)list->data + 1;
 
 	return result;
 }
@@ -2051,6 +2057,7 @@ unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op) {
 		op(node->data, node->extra);
 	safe_free(node);
 	++result;
+	list->data = (char*)list->data - 1;
 
 	return result;
 }
@@ -2076,6 +2083,7 @@ unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_o
 				op(tmp->data, tmp->extra);
 			safe_free(tmp);
 			++result;
+			list->data = (char*)list->data - 1;
 
 			break;
 		}
@@ -2088,24 +2096,26 @@ unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_o
 unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
 	unsigned int idx = 0;
 	int opresult = _OP_RESULT_NORMAL;
+	_ls_node_t* node = 0;
 	_ls_node_t* tmp = 0;
 
 	mb_assert(list && op);
 
-	list = list->next;
-	while(list) {
-		opresult = op(list->data, list->extra);
+	node = list->next;
+	while(node) {
+		opresult = op(node->data, node->extra);
 		++idx;
-		tmp = list;
-		list = list->next;
+		tmp = node;
+		node = node->next;
 
 		if(_OP_RESULT_NORMAL == opresult) {
 			/* Do nothing */
 		} else if(_OP_RESULT_DEL_NODE == opresult) {
-			tmp->prev->next = list;
-			if(list)
-				list->prev = tmp->prev;
+			tmp->prev->next = node;
+			if(node)
+				node->prev = tmp->prev;
 			safe_free(tmp);
+			list->data = (char*)list->data - 1;
 		} else {
 			/* Do nothing */
 		}
@@ -2132,6 +2142,14 @@ void _ls_sort(_ls_node_t* list, _ls_compare cmp) {
 	}
 }
 
+int _ls_count(_ls_node_t* list) {
+	union { void* p; unsigned u; } tmp;
+
+	tmp.p = list->data;
+
+	return tmp.u;
+}
+
 bool_t _ls_empty(_ls_node_t* list) {
 	bool_t result = false;
 
@@ -2146,6 +2164,8 @@ void _ls_clear(_ls_node_t* list) {
 	_ls_node_t* tmp = 0;
 
 	mb_assert(list);
+
+	list->data = 0;
 
 	tmp = list;
 	list = list->next;
@@ -5972,7 +5992,7 @@ bool_t _at_list(_list_t* coll, int_t idx, mb_value_t* oval) {
 
 	mb_assert(coll && oval);
 
-	result = _node_at_list(coll, idx);
+	result = _node_at_list(coll, (int)idx);
 	if(oval && result && result->data)
 		_internal_object_to_public_value((_object_t*)result->data, oval);
 
@@ -13363,7 +13383,7 @@ int _std_left(mb_interpreter_t* s, void** l) {
 	}
 
 #ifdef MB_ENABLE_UNICODE
-	switch(mb_uu_substr(arg, 0, count, &sub)) {
+	switch(mb_uu_substr(arg, 0, (int)count, &sub)) {
 	case 0:
 		_handle_error_on_obj(s, SE_RN_INVALID_STRING, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
 
@@ -13409,7 +13429,7 @@ int _std_mid(mb_interpreter_t* s, void** l) {
 	}
 
 #ifdef MB_ENABLE_UNICODE
-	switch(mb_uu_substr(arg, start, count, &sub)) {
+	switch(mb_uu_substr(arg, start, (int)count, &sub)) {
 	case 0:
 		_handle_error_on_obj(s, SE_RN_INVALID_STRING, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
 
@@ -13453,7 +13473,7 @@ int _std_right(mb_interpreter_t* s, void** l) {
 	}
 
 #ifdef MB_ENABLE_UNICODE
-	switch(mb_uu_substr(arg, mb_uu_strlen(arg) - count, count, &sub)) {
+	switch(mb_uu_substr(arg, (int)(mb_uu_strlen(arg) - count), (int)count, &sub)) {
 	case 0:
 		_handle_error_on_obj(s, SE_RN_INVALID_STRING, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
 
@@ -13574,6 +13594,7 @@ int _std_len(mb_interpreter_t* s, void** l) {
 	/* Get the length of a string or an array */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
+	_object_t* obj = 0;
 	mb_value_t arg;
 	_array_t* arr = 0;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -13585,10 +13606,19 @@ int _std_len(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	ast = (_ls_node_t*)*l;
-
 	mb_check(mb_attempt_open_bracket(s, l));
 
+	ast = (_ls_node_t*)*l;
+	if(ast) obj = (_object_t*)ast->data;
+	if(obj && _IS_FUNC(obj, _core_args)) {
+		ast = ast->next;
+		*l = ast;
+		mb_check(mb_push_int(s, l, (int_t)_ls_count(s->var_args)));
+
+		mb_check(mb_attempt_close_bracket(s, l));
+
+		goto _exit;
+	}
 	mb_check(mb_pop_value(s, l, &arg));
 
 	mb_check(mb_attempt_close_bracket(s, l));
@@ -13628,6 +13658,98 @@ int _std_len(mb_interpreter_t* s, void** l) {
 	}
 
 _exit:
+	return result;
+}
+
+int _std_get(mb_interpreter_t* s, void** l) {
+	/* GET statement */
+	int result = MB_FUNC_OK;
+	mb_value_t coi;
+	mb_value_t arg;
+	_object_t ocoi;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	int_t index = 0;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	char* field = 0;
+	_ls_node_t* fnode = 0;
+	_object_t* fobj = 0;
+#endif /* MB_ENABLE_CLASS */
+	mb_value_t ret;
+
+	mb_assert(s && l);
+
+	mb_make_nil(coi);
+	mb_make_nil(arg);
+	mb_make_nil(ret);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_pop_value(s, l, &coi));
+	_MAKE_NIL(&ocoi);
+	switch(coi.type) {
+#ifdef MB_ENABLE_COLLECTION_LIB
+	case MB_DT_LIST:
+		_public_value_to_internal_object(&coi, &ocoi);
+		mb_check(mb_pop_int(s, l, &index));
+		if(!_at_list(ocoi.data.list, index, &ret)) {
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
+		break;
+	case MB_DT_DICT:
+		_public_value_to_internal_object(&coi, &ocoi);
+		mb_check(mb_pop_value(s, l, &arg));
+		if(!_find_dict(ocoi.data.dict, &arg, &ret)) {
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
+		break;
+	case MB_DT_LIST_IT:
+		_public_value_to_internal_object(&coi, &ocoi);
+		if(ocoi.data.list_it && ocoi.data.list_it->curr && ocoi.data.list_it->curr->data) {
+			_internal_object_to_public_value((_object_t*)ocoi.data.list_it->curr->data, &ret);
+		} else {
+			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
+		break;
+	case MB_DT_DICT_IT:
+		_public_value_to_internal_object(&coi, &ocoi);
+		if(ocoi.data.dict_it && ocoi.data.dict_it->curr_node && ocoi.data.dict_it->curr_node->extra) {
+			_internal_object_to_public_value((_object_t*)ocoi.data.dict_it->curr_node->extra, &ret);
+		} else {
+			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+
+		break;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	case MB_DT_CLASS:
+		_public_value_to_internal_object(&coi, &ocoi);
+		mb_check(mb_pop_string(s, l, &field));
+		field = mb_strupr(field);
+		fnode = _search_identifier_in_class(s, ocoi.data.instance, field, 0, 0);
+		if(fnode && fnode->data) {
+			fobj = (_object_t*)fnode->data;
+			_internal_object_to_public_value(fobj, &ret);
+		}
+
+		break;
+#endif /* MB_ENABLE_CLASS */
+	default:
+		_handle_error_on_obj(s, SE_RN_COLLECTION_OR_ITERATOR_EXPECTED, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	mb_check(mb_push_value(s, l, ret));
+
+_exit:
+	_assign_public_value(&coi, 0);
+
 	return result;
 }
 
@@ -14161,94 +14283,6 @@ int _coll_exist(mb_interpreter_t* s, void** l){
 
 _exit:
 	_assign_public_value(&coll, 0);
-
-	return result;
-}
-
-int _coll_get(mb_interpreter_t* s, void** l) {
-	/* GET statement */
-	int result = MB_FUNC_OK;
-	mb_value_t coi;
-	int_t index = 0;
-	mb_value_t arg;
-	_object_t ocoi;
-#ifdef MB_ENABLE_CLASS
-	char* field = 0;
-	_ls_node_t* fnode = 0;
-	_object_t* fobj = 0;
-#endif /* MB_ENABLE_CLASS */
-	mb_value_t ret;
-
-	mb_assert(s && l);
-
-	mb_make_nil(coi);
-	mb_make_nil(arg);
-	mb_make_nil(ret);
-
-	mb_check(mb_attempt_open_bracket(s, l));
-
-	mb_check(mb_pop_value(s, l, &coi));
-	_MAKE_NIL(&ocoi);
-	switch(coi.type) {
-	case MB_DT_LIST:
-		_public_value_to_internal_object(&coi, &ocoi);
-		mb_check(mb_pop_int(s, l, &index));
-		if(!_at_list(ocoi.data.list, index, &ret)) {
-			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
-		}
-
-		break;
-	case MB_DT_DICT:
-		_public_value_to_internal_object(&coi, &ocoi);
-		mb_check(mb_pop_value(s, l, &arg));
-		if(!_find_dict(ocoi.data.dict, &arg, &ret)) {
-			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
-		}
-
-		break;
-	case MB_DT_LIST_IT:
-		_public_value_to_internal_object(&coi, &ocoi);
-		if(ocoi.data.list_it && ocoi.data.list_it->curr && ocoi.data.list_it->curr->data) {
-			_internal_object_to_public_value((_object_t*)ocoi.data.list_it->curr->data, &ret);
-		} else {
-			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
-		}
-
-		break;
-	case MB_DT_DICT_IT:
-		_public_value_to_internal_object(&coi, &ocoi);
-		if(ocoi.data.dict_it && ocoi.data.dict_it->curr_node && ocoi.data.dict_it->curr_node->extra) {
-			_internal_object_to_public_value((_object_t*)ocoi.data.dict_it->curr_node->extra, &ret);
-		} else {
-			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
-		}
-
-		break;
-#ifdef MB_ENABLE_CLASS
-	case MB_DT_CLASS:
-		_public_value_to_internal_object(&coi, &ocoi);
-		mb_check(mb_pop_string(s, l, &field));
-		field = mb_strupr(field);
-		fnode = _search_identifier_in_class(s, ocoi.data.instance, field, 0, 0);
-		if(fnode && fnode->data) {
-			fobj = (_object_t*)fnode->data;
-			_internal_object_to_public_value(fobj, &ret);
-		}
-
-		break;
-#endif /* MB_ENABLE_CLASS */
-	default:
-		_handle_error_on_obj(s, SE_RN_COLLECTION_OR_ITERATOR_EXPECTED, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
-
-		break;
-	}
-
-	mb_check(mb_attempt_close_bracket(s, l));
-
-	mb_check(mb_push_value(s, l, ret));
-
-_exit:
-	_assign_public_value(&coi, 0);
 
 	return result;
 }
