@@ -3248,7 +3248,7 @@ _routine:
 	}
 
 	c = (_object_t*)(_ls_popback(opnd));
-	if(!c || !(c->type == _DT_TYPE || c->type == _DT_NIL ||
+	if(!c || !(c->type == _DT_NIL || c->type == _DT_UNKNOWN || c->type == _DT_TYPE ||
 		c->type == _DT_INT || c->type == _DT_REAL || c->type == _DT_STRING ||
 #ifdef MB_ENABLE_COLLECTION_LIB
 		c->type == _DT_LIST || c->type == _DT_LIST_IT || c->type == _DT_DICT || c->type == _DT_DICT_IT ||
@@ -7786,10 +7786,10 @@ bool_t _is_internal_object(_object_t* obj) {
 _data_e _public_type_to_internal_type(mb_data_e t) {
 	/* Convert a public mb_data_e type to an internal _data_e */
 	switch(t) {
-	case MB_DT_TYPE:
-		return _DT_TYPE;
 	case MB_DT_NIL:
 		return _DT_NIL;
+	case MB_DT_TYPE:
+		return _DT_TYPE;
 	case MB_DT_INT:
 		return _DT_INT;
 	case MB_DT_REAL:
@@ -7828,10 +7828,10 @@ _data_e _public_type_to_internal_type(mb_data_e t) {
 mb_data_e _internal_type_to_public_type(_data_e t) {
 	/* Convert an internal mb_data_e type to a public _data_e */
 	switch(t) {
-	case _DT_TYPE:
-		return MB_DT_TYPE;
 	case _DT_NIL:
 		return MB_DT_NIL;
+	case _DT_TYPE:
+		return MB_DT_TYPE;
 	case _DT_INT:
 		return MB_DT_INT;
 	case _DT_REAL:
@@ -7876,14 +7876,19 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	_UNREF(itn)
 
 	switch(pbl->type) {
-	case MB_DT_TYPE:
-		itn->type = _DT_TYPE;
-		itn->data.type = pbl->value.type;
-
-		break;
 	case MB_DT_NIL:
 		itn->type = _DT_NIL;
 		itn->data.integer = false;
+
+		break;
+	case MB_DT_UNKNOWN:
+		itn->type = _DT_UNKNOWN;
+		itn->data.integer = false;
+
+		break;
+	case MB_DT_TYPE:
+		itn->type = _DT_TYPE;
+		itn->data.type = pbl->value.type;
 
 		break;
 	case MB_DT_INT:
@@ -7974,13 +7979,18 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 		result = _internal_object_to_public_value(itn->data.variable->data, pbl);
 
 		break;
+	case _DT_NIL:
+		mb_make_nil(*pbl);
+
+		break;
+	case _DT_UNKNOWN:
+		pbl->type = MB_DT_UNKNOWN;
+		pbl->value.integer = false;
+
+		break;
 	case _DT_TYPE:
 		pbl->type = MB_DT_TYPE;
 		pbl->value.type = itn->data.type;
-
-		break;
-	case _DT_NIL:
-		mb_make_nil(*pbl);
 
 		break;
 	case _DT_INT:
@@ -10688,6 +10698,8 @@ const char* mb_get_type_string(mb_data_e t) {
 	switch(t) {
 	case MB_DT_NIL:
 		return "NIL";
+	case MB_DT_UNKNOWN:
+		return "UNKNOWN";
 	case MB_DT_TYPE:
 		return "TYPE";
 	case MB_DT_INT:
@@ -10722,9 +10734,8 @@ const char* mb_get_type_string(mb_data_e t) {
 #endif /* MB_ENABLE_CLASS */
 	case MB_DT_ROUTINE:
 		return "ROUTINE";
-	case MB_DT_UNKNOWN: /* Fall through */
-	default:
-		return "UNKNOWN";
+	default: /* Return a not exist string */
+		return "";
 	}
 }
 
@@ -11441,62 +11452,60 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	result = _calc_expression(s, &ast, &val);
 
 	if(var) {
-		if(val->type != _DT_UNKNOWN) {
 #ifdef MB_ENABLE_COLLECTION_LIB
-			if(is_coll) {
-				switch(var->data->type) {
-				case _DT_LIST:
-					if(!_set_list(var->data->data.list, idx, 0, &val)) {
-						_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
-					}
-
-					break;
-				case _DT_DICT:
-					_set_dict(var->data->data.dict, &key, 0, 0, val);
-
-					break;
-				default: /* Do nothing */
-					break;
+		if(is_coll) {
+			switch(var->data->type) {
+			case _DT_LIST:
+				if(!_set_list(var->data->data.list, idx, 0, &val)) {
+					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
 				}
 
-				goto _exit;
+				break;
+			case _DT_DICT:
+				_set_dict(var->data->data.dict, &key, 0, 0, val);
+
+				break;
+			default: /* Do nothing */
+				break;
 			}
+
+			goto _exit;
+		}
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 _proc_extra_var:
 #endif /* MB_ENABLE_CLASS */
-			_dispose_object(var->data);
-			var->data->type = val->type;
+		_dispose_object(var->data);
+		var->data->type = val->type;
 #ifdef MB_ENABLE_COLLECTION_LIB
-			if(val->type == _DT_LIST_IT || val->type == _DT_DICT_IT)
-				_assign_with_it(var->data, val);
-			else
-				var->data->data = val->data;
-#else /* MB_ENABLE_COLLECTION_LIB */
+		if(val->type == _DT_LIST_IT || val->type == _DT_DICT_IT)
+			_assign_with_it(var->data, val);
+		else
 			var->data->data = val->data;
+#else /* MB_ENABLE_COLLECTION_LIB */
+		var->data->data = val->data;
 #endif /* MB_ENABLE_COLLECTION_LIB */
-			if(val->type == _DT_ROUTINE) {
+		if(val->type == _DT_ROUTINE) {
 #ifdef MB_ENABLE_LAMBDA
-				if(val->data.routine->type == _IT_LAMBDA)
-					var->data->ref = val->ref;
-				else
-					var->data->ref = 1;
-#else /* MB_ENABLE_LAMBDA */
-				var->data->ref = 1;
-#endif /* MB_ENABLE_LAMBDA */
-			} else {
+			if(val->data.routine->type == _IT_LAMBDA)
 				var->data->ref = val->ref;
-			}
-#ifdef MB_ENABLE_CLASS
-			if(evar && evar->pathing) {
-				var = evar;
-				evar = 0;
-				refc++;
-
-				goto _proc_extra_var;
-			}
-#endif /* MB_ENABLE_CLASS */
+			else
+				var->data->ref = 1;
+#else /* MB_ENABLE_LAMBDA */
+			var->data->ref = 1;
+#endif /* MB_ENABLE_LAMBDA */
+		} else {
+			var->data->ref = val->ref;
 		}
+#ifdef MB_ENABLE_CLASS
+		if(evar && evar->pathing) {
+			var = evar;
+			evar = 0;
+			refc++;
+
+			goto _proc_extra_var;
+		}
+#endif /* MB_ENABLE_CLASS */
 	} else if(arr && literally) {
 		if(val->type != _DT_UNKNOWN) {
 #ifdef MB_ENABLE_ARRAY_REF
