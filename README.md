@@ -2,7 +2,7 @@
 
 **Copyright (C) 2011 - 2016 [Wang Renxin](https://cn.linkedin.com/pub/wang-renxin/43/494/20). All rights reserved.**
 
-Why are existing script interpreters so complex? Why is it so difficult to integrate with them? Why not try MY-BASIC today! Script should be simple and enjoyable.
+Why are existing script interpreters so complex? Why is it so difficult to integrate with them and use the API? Why not try MY-BASIC today! Script should be simple and enjoyable.
 
 ## Build status
 
@@ -51,8 +51,8 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * Debug APIs
 * Customizable memory pool
 * High expansibility, easy to use APIs, easy to write customized scripting interfaces
-* Powerful interactive ability to use native functionalities in script, and vice versa
-* More features/modules under development
+* Powerful interactive ability to manipulate script facilities at native side; or to use native functionalities in script, and vice versa
+* More features under development
 
 ## Script at a glance
 
