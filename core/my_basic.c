@@ -2219,9 +2219,13 @@ unsigned int _ht_hash_object(void* ht, void* d) {
 		result = 5 * h + _ht_hash_string(ht, o->data.string);
 
 		break;
+#ifdef MB_ENABLE_CLASS
+	/* TODO : Use customized "HASH" function for case _DT_CLASS */
+#endif /* MB_ENABLE_CLASS */
 	case _DT_USERTYPE_REF:
 		if(o->data.usertype_ref->hash) {
 			h = 5 * h + o->data.usertype_ref->hash(o->data.usertype_ref->ref.s, o->data.usertype_ref->usertype);
+			result = h % self->array_size;
 
 			break;
 		}
@@ -2292,16 +2296,14 @@ int _ht_cmp_object(void* d1, void* d2) {
 	switch(o1->type) {
 	case _DT_STRING:
 		return _ht_cmp_string(o1->data.string, o2->data.string);
+#ifdef MB_ENABLE_CLASS
+	/* TODO : Use customized "COMPARE" function for case _DT_CLASS */
+#endif /* MB_ENABLE_CLASS */
 	case _DT_USERTYPE_REF:
-		if(o1->data.usertype_ref->cmp) {
-			o1->data.usertype_ref->cmp(o1->data.usertype_ref->ref.s, o1->data.usertype_ref->usertype, o2->data.usertype_ref->usertype);
-
-			break;
-		} else if(o2->data.usertype_ref->cmp) {
-			o2->data.usertype_ref->cmp(o1->data.usertype_ref->ref.s, o1->data.usertype_ref->usertype, o2->data.usertype_ref->usertype);
-
-			break;
-		}
+		if(o1->data.usertype_ref->cmp)
+			return o1->data.usertype_ref->cmp(o1->data.usertype_ref->ref.s, o1->data.usertype_ref->usertype, o2->data.usertype_ref->usertype);
+		else if(o2->data.usertype_ref->cmp)
+			return o2->data.usertype_ref->cmp(o1->data.usertype_ref->ref.s, o1->data.usertype_ref->usertype, o2->data.usertype_ref->usertype);
 		/* Fall through */
 	default:
 		for(i = 0; i < sizeof(_raw_t); ++i) {
