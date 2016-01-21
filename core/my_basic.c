@@ -409,6 +409,10 @@ typedef struct _label_t {
 } _label_t;
 
 #ifdef MB_ENABLE_CLASS
+#	define _TO_STRING_FUNC "TOSTRING"
+#endif /* MB_ENABLE_CLASS */
+
+#ifdef MB_ENABLE_CLASS
 typedef struct _class_t {
 	_ref_t ref;
 	char* name;
@@ -1545,7 +1549,7 @@ static int _clear_scope_chain(mb_interpreter_t* s);
 static int _dispose_scope_chain(mb_interpreter_t* s);
 static void _tidy_scope_chain(mb_interpreter_t* s);
 static void _tidy_intermediate_value(_ref_t* ref, void* data);
-static _object_t* _eval_var_in_print(mb_interpreter_t* s, _ls_node_t** ast, _object_t* obj);
+static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _ls_node_t** ast, _object_t* obj);
 
 static void _stepped(mb_interpreter_t* s, _ls_node_t* ast);
 static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l);
@@ -8279,28 +8283,30 @@ void _tidy_intermediate_value(_ref_t* ref, void* data) {
 	}
 }
 
-_object_t* _eval_var_in_print(mb_interpreter_t* s, _ls_node_t** ast, _object_t* obj) {
+_object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _ls_node_t** ast, _object_t* obj) {
 	/* Evaluate a variable, this is a helper function for the PRINT statement */
-	_object_t* val_ptr = 0;
 	_object_t tmp;
 
 	if(obj->type == _DT_ROUTINE) {
 		_execute_statement(s, ast);
 		_MAKE_NIL(&tmp);
 		_public_value_to_internal_object(&s->running_context->intermediate_value, &tmp);
-		val_ptr = obj = &tmp;
-		if(tmp.type == _DT_STRING)
+		if(tmp.type == _DT_STRING) {
 			tmp.data.string = mb_strdup(tmp.data.string, strlen(tmp.data.string) + 1);
+			tmp.ref = false;
+			mb_make_nil(s->running_context->intermediate_value);
+		}
+		**val_ptr = tmp;
 		if(*ast) *ast = (*ast)->prev;
 	} else if(obj->type == _DT_VAR) {
-		val_ptr = obj = obj->data.variable->data;
+		*val_ptr = obj->data.variable->data;
 		if(*ast) *ast = (*ast)->next;
 	} else {
-		val_ptr = obj;
+		*val_ptr = obj;
 		if(*ast) *ast = (*ast)->next;
 	}
 
-	return val_ptr;
+	return *val_ptr;
 }
 
 void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
@@ -13821,7 +13827,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 		case _DT_VAR:
 			if(obj->data.variable->data->type == _DT_ROUTINE) {
 				obj = obj->data.variable->data;
-				val_ptr = _eval_var_in_print(s, &ast, obj);
+				val_ptr = _eval_var_in_print(s, &val_ptr, &ast, obj);
 
 				goto _print;
 			}
@@ -13831,7 +13837,7 @@ int _std_print(mb_interpreter_t* s, void** l) {
 				if(pathed && pathed->data) {
 					if(obj != (_object_t*)pathed->data) {
 						obj = (_object_t*)pathed->data;
-						val_ptr = _eval_var_in_print(s, &ast, obj);
+						val_ptr = _eval_var_in_print(s, &val_ptr, &ast, obj);
 					}
 				}
 
@@ -13870,6 +13876,33 @@ _print:
 					_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
 			} else if(val_ptr->type == _DT_TYPE) {
 				_get_printer(s)(mb_get_type_string(val_ptr->data.type));
+#ifdef MB_ENABLE_CLASS
+			} else if(val_ptr->type == _DT_CLASS) {
+				bool_t got_tostr = false;
+				_ls_node_t* tsn = _search_identifier_in_class(s, val_ptr->data.instance, _TO_STRING_FUNC, 0, 0);
+				if(tsn) {
+					_object_t* tso = (_object_t*)tsn->data;
+					_ls_node_t* tmp = *l;
+					mb_value_t va[1];
+					mb_make_nil(va[0]);
+					if(_eval_routine(s, &tmp, va, 1, tso->data.routine, 0, 0) == MB_FUNC_OK) {
+						val_ptr = &val_obj;
+						_MAKE_NIL(val_ptr);
+						_public_value_to_internal_object(&s->running_context->intermediate_value, val_ptr);
+						if(val_ptr->type == _DT_STRING) {
+							val_ptr->data.string = mb_strdup(val_ptr->data.string, strlen(val_ptr->data.string) + 1);
+							val_ptr->ref = false;
+							mb_make_nil(s->running_context->intermediate_value);
+						}
+						obj = val_ptr;
+						got_tostr = true;
+
+						goto _print;
+					}
+				}
+
+				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
+#endif /* MB_ENABLE_CLASS */
 			} else {
 				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
 			}

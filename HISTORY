@@ -1,4 +1,6 @@
 Jan. 21 2016
+Fixed a wrong memory copy bug with the PRINT statement
+Added TOSTRING meta method to serialize a class instance
 Improved type handling
 
 Jan. 20 2016
