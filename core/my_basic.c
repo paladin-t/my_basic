@@ -10727,6 +10727,8 @@ const char* mb_get_type_string(mb_data_e t) {
 		return "DICT";
 	case MB_DT_DICT_IT:
 		return "DICT_ITERATOR";
+	case MB_DT_COLLECTION:
+		return "COLLECTION";
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 	case MB_DT_CLASS:
@@ -11337,10 +11339,12 @@ int _core_is(mb_interpreter_t* s, void** l) {
 	}
 	if(scd->type == _DT_TYPE) {
 		val->type = _DT_INT;
-		if((fst->type == _DT_INT || fst->type == _DT_REAL) && scd->data.type == MB_DT_NUM)
-			val->data.integer = 1;
-		else
-			val->data.integer = (int_t)(_internal_type_to_public_type(fst->type) == scd->data.type);
+		val->data.integer = (int_t)(
+			!!(
+				_internal_type_to_public_type(fst->type) == scd->data.type ||
+				_internal_type_to_public_type(fst->type) & scd->data.type
+			)
+		);
 	} else {
 #ifdef MB_ENABLE_CLASS
 		if(!_IS_CLASS(fst) || !_IS_CLASS(scd)) {
@@ -12785,7 +12789,6 @@ int _core_type(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
 	int i = 0;
-	unsigned e = 0;
 
 	mb_assert(s && l);
 
@@ -12798,8 +12801,33 @@ int _core_type(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	if(arg.type == MB_DT_STRING) {
-		for(i = 0; i < sizeof(mb_data_e) * 8; i++) {
-			e = 1 << i;
+		mb_data_e types[] = {
+			MB_DT_NIL,
+			MB_DT_UNKNOWN,
+			MB_DT_TYPE,
+			MB_DT_INT,
+			MB_DT_REAL,
+			MB_DT_NUM,
+			MB_DT_STRING,
+			MB_DT_USERTYPE,
+#ifdef MB_ENABLE_USERTYPE_REF
+			MB_DT_USERTYPE_REF,
+#endif /* MB_ENABLE_USERTYPE_REF */
+			MB_DT_ARRAY,
+#ifdef MB_ENABLE_COLLECTION_LIB
+			MB_DT_LIST,
+			MB_DT_LIST_IT,
+			MB_DT_DICT,
+			MB_DT_DICT_IT,
+			MB_DT_COLLECTION,
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+			MB_DT_CLASS,
+#endif /* MB_ENABLE_CLASS */
+			MB_DT_ROUTINE
+		};
+		for(i = 0; i < _countof(types); i++) {
+			unsigned e = types[i];
 			if(!mb_stricmp(mb_get_type_string((mb_data_e)e), arg.value.string)) {
 				arg.value.type = (mb_data_e)e;
 				arg.type = MB_DT_TYPE;
