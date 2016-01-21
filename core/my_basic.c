@@ -409,7 +409,9 @@ typedef struct _label_t {
 } _label_t;
 
 #ifdef MB_ENABLE_CLASS
-#	define _TO_STRING_FUNC "TOSTRING"
+#	define _CLASS_HASH_FUNC "HASH"
+#	define _CLASS_COMPARE_FUNC "COMPARE"
+#	define _CLASS_TO_STRING_FUNC "TOSTRING"
 #endif /* MB_ENABLE_CLASS */
 
 #ifdef MB_ENABLE_CLASS
@@ -13879,7 +13881,7 @@ _print:
 #ifdef MB_ENABLE_CLASS
 			} else if(val_ptr->type == _DT_CLASS) {
 				bool_t got_tostr = false;
-				_ls_node_t* tsn = _search_identifier_in_class(s, val_ptr->data.instance, _TO_STRING_FUNC, 0, 0);
+				_ls_node_t* tsn = _search_identifier_in_class(s, val_ptr->data.instance, _CLASS_TO_STRING_FUNC, 0, 0);
 				if(tsn) {
 					_object_t* tso = (_object_t*)tsn->data;
 					_ls_node_t* tmp = *l;
