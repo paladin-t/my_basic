@@ -1,7 +1,11 @@
+Jan. 22 2016
+Added a HASH meta method to calculate the hash code of a class instance
+Added a COMPARE meta method to compare two class instances
+
 Jan. 21 2016
 Fixed a referenced usertype comparison bug
 Fixed a wrong memory copy bug with the PRINT statement
-Added TOSTRING meta method to serialize a class instance
+Added a TOSTRING meta method to serialize a class instance
 Improved type handling
 
 Jan. 20 2016

@@ -420,6 +420,8 @@ typedef struct _class_t {
 	char* name;
 	_ls_node_t* meta_list;
 	struct _running_context_t* scope;
+	struct _routine_t* hash;
+	struct _routine_t* compare;
 	void* userdata;
 } _class_t;
 #endif /* MB_ENABLE_CLASS */
@@ -1468,6 +1470,7 @@ static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived);
 static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
 static int _clone_clsss_field(void* data, void* extra, void* n);
 static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret);
+static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t** f);
 static bool_t _is_class(_class_t* instance, void* m, void* ret);
 static bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret);
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -2210,6 +2213,9 @@ unsigned int _ht_hash_object(void* ht, void* d) {
 	_object_t* o = (_object_t*)d;
 	size_t i = 0;
 	unsigned int h = 0;
+#ifdef MB_ENABLE_CLASS
+	_object_t val;
+#endif /* MB_ENABLE_CLASS */
 
 	mb_assert(ht);
 
@@ -2220,7 +2226,27 @@ unsigned int _ht_hash_object(void* ht, void* d) {
 
 		break;
 #ifdef MB_ENABLE_CLASS
-	/* TODO : Use customized "HASH" function for case _DT_CLASS */
+	case _DT_CLASS:
+		if(o->data.instance->hash) {
+			mb_interpreter_t* s = o->data.instance->ref.s;
+			_ls_node_t ast;
+			_ls_node_t* tmp = &ast;
+			mb_value_t va[1];
+			mb_make_nil(va[0]);
+			memset(&ast, 0, sizeof(_ls_node_t));
+			if(_eval_routine(s, &tmp, va, 1, o->data.instance->hash, 0, 0) == MB_FUNC_OK) {
+				_MAKE_NIL(&val);
+				_public_value_to_internal_object(&s->running_context->intermediate_value, &val);
+				if(val.type != _DT_INT) {
+					int ignored = MB_FUNC_OK;
+					_handle_error_on_obj(s, SE_RN_INTEGER_EXPECTED, s->source_file, o, MB_FUNC_ERR, _exit, ignored);
+				}
+
+				o = &val;
+			}
+		}
+
+		goto _default;
 #endif /* MB_ENABLE_CLASS */
 	case _DT_USERTYPE_REF:
 		if(o->data.usertype_ref->hash) {
@@ -2231,6 +2257,9 @@ unsigned int _ht_hash_object(void* ht, void* d) {
 		}
 		/* Fall through */
 	default:
+#ifdef MB_ENABLE_CLASS
+_default:
+#endif /* MB_ENABLE_CLASS */
 		for(i = 0; i < sizeof(_raw_t); ++i)
 			h = 5 * h + o->data.raw[i];
 		result = h % self->array_size;
@@ -2238,6 +2267,9 @@ unsigned int _ht_hash_object(void* ht, void* d) {
 		break;
 	}
 
+	goto _exit; /* Avoid an unreferenced label warning */
+
+_exit:
 	return result;
 }
 
@@ -2287,6 +2319,10 @@ int _ht_cmp_object(void* d1, void* d2) {
 	_object_t* o1 = (_object_t*)d1;
 	_object_t* o2 = (_object_t*)d2;
 	size_t i = 0;
+#ifdef MB_ENABLE_CLASS
+	_routine_t* cmp = 0;
+	_object_t val;
+#endif /* MB_ENABLE_CLASS */
 
 	if(o1->type < o2->type)
 		return -1;
@@ -2297,7 +2333,30 @@ int _ht_cmp_object(void* d1, void* d2) {
 	case _DT_STRING:
 		return _ht_cmp_string(o1->data.string, o2->data.string);
 #ifdef MB_ENABLE_CLASS
-	/* TODO : Use customized "COMPARE" function for case _DT_CLASS */
+	case _DT_CLASS:
+		if(o1->data.instance->compare) cmp = o1->data.instance->compare;
+		else if(o2->data.instance->compare) cmp = o2->data.instance->compare;
+		if(cmp) {
+			mb_interpreter_t* s = o1->data.instance->ref.s;
+			_ls_node_t ast;
+			_ls_node_t* tmp = &ast;
+			mb_value_t va[1];
+			mb_make_nil(va[0]);
+			_internal_object_to_public_value(o2, &va[0]);
+			memset(&ast, 0, sizeof(_ls_node_t));
+			if(_eval_routine(s, &tmp, va, 1, cmp, 0, 0) == MB_FUNC_OK) {
+				_MAKE_NIL(&val);
+				_public_value_to_internal_object(&s->running_context->intermediate_value, &val);
+				if(val.type != _DT_INT) {
+					int ignored = MB_FUNC_OK;
+					_handle_error_on_obj(s, SE_RN_INTEGER_EXPECTED, s->source_file, o1, MB_FUNC_ERR, _exit, ignored);
+				}
+
+				return (int)val.data.integer;
+			}
+		}
+
+		goto _default;
 #endif /* MB_ENABLE_CLASS */
 	case _DT_USERTYPE_REF:
 		if(o1->data.usertype_ref->cmp)
@@ -2306,6 +2365,9 @@ int _ht_cmp_object(void* d1, void* d2) {
 			return o2->data.usertype_ref->cmp(o1->data.usertype_ref->ref.s, o1->data.usertype_ref->usertype, o2->data.usertype_ref->usertype);
 		/* Fall through */
 	default:
+#ifdef MB_ENABLE_CLASS
+_default:
+#endif /* MB_ENABLE_CLASS */
 		for(i = 0; i < sizeof(_raw_t); ++i) {
 			if(o1->data.raw[i] < o2->data.raw[i])
 				return -1;
@@ -2316,6 +2378,9 @@ int _ht_cmp_object(void* d1, void* d2) {
 		break;
 	}
 
+	goto _exit; /* Avoid an unreferenced label warning */
+
+_exit:
 	return 0;
 }
 
@@ -6440,6 +6505,22 @@ bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret) {
 	return true;
 }
 
+int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t** f) {
+	/* Search for a meta function with a specific name and assign to a member field */
+	_ls_node_t* node = _search_identifier_in_class(s, instance, n, 0, 0);
+	if(f) *f = 0;
+	if(node) {
+		_object_t* obj = (_object_t*)node->data;
+		if(obj && _IS_ROUTINE(obj)) {
+			if(f) *f = obj->data.routine;
+
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 bool_t _is_class(_class_t* instance, void* m, void* ret) {
 	/* Detect whether a class instance is inherited from another */
 	_class_t* meta = (_class_t*)m;
@@ -8450,8 +8531,10 @@ _retry:
 		goto _exit;
 
 	if(ast) {
-		obj = (_object_t*)ast->data;
-		if(_IS_EOS(obj)) {
+		obj = ast ? (_object_t*)ast->data : 0;
+		if(!obj) {
+			/* Do nothing */
+		} else if(_IS_EOS(obj)) {
 			ast = ast->next;
 		} else if(_IS_SEP(obj, ':')) {
 			skip_to_eoi = false;
@@ -12470,8 +12553,8 @@ int _core_class(mb_interpreter_t* s, void** l) {
 	last_inst = s->last_instance;
 	s->last_instance = instance;
 
+	/* Process meta prototype list */
 	if(_IS_FUNC(obj, _core_open_bracket)) {
-		/* Process meta_list */
 		do {
 			ast = ast->next;
 			obj = (_object_t*)ast->data;
@@ -12498,8 +12581,8 @@ int _core_class(mb_interpreter_t* s, void** l) {
 
 	*l = ast;
 
+	/* Execute class body */
 	running = _push_scope_by_class(s, instance->scope);
-
 	do {
 		result = _execute_statement(s, (_ls_node_t**)l);
 		if(result != MB_FUNC_OK && s->error_handler) {
@@ -12513,9 +12596,13 @@ int _core_class(mb_interpreter_t* s, void** l) {
 		if(!ast) break;
 		obj = (_object_t*)ast->data;
 	} while(ast && !_IS_FUNC(obj, _core_endclass));
-
 	_pop_scope(s, false);
 
+	/* Search for meta functions */
+	_search_class_meta_function(s, instance, _CLASS_HASH_FUNC, &instance->hash);
+	_search_class_meta_function(s, instance, _CLASS_COMPARE_FUNC, &instance->compare);
+
+	/* Finished */
 	if(ast) {
 		_skip_to(s, &ast, _core_endclass, _DT_NIL);
 
