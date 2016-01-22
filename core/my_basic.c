@@ -1558,6 +1558,10 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 
 static void _stepped(mb_interpreter_t* s, _ls_node_t* ast);
 static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l);
+static int _execute_normal_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop);
+#ifdef MB_ENABLE_COLLECTION_LIB
+static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop);
+#endif /* MB_ENABLE_COLLECTION_LIB */
 static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t);
 static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l);
 static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func);
@@ -1657,6 +1661,9 @@ static int _core_elseif(mb_interpreter_t* s, void** l);
 static int _core_else(mb_interpreter_t* s, void** l);
 static int _core_endif(mb_interpreter_t* s, void** l);
 static int _core_for(mb_interpreter_t* s, void** l);
+#ifdef MB_ENABLE_COLLECTION_LIB
+static int _core_in(mb_interpreter_t* s, void** l);
+#endif /* MB_ENABLE_COLLECTION_LIB */
 static int _core_to(mb_interpreter_t* s, void** l);
 static int _core_step(mb_interpreter_t* s, void** l);
 static int _core_next(mb_interpreter_t* s, void** l);
@@ -1773,6 +1780,9 @@ static const _func_t _core_libs[] = {
 	{ "ENDIF", _core_endif },
 
 	{ "FOR", _core_for },
+#ifdef MB_ENABLE_COLLECTION_LIB
+	{ "IN", _core_in },
+#endif /* MB_ENABLE_COLLECTION_LIB */
 	{ "TO", _core_to },
 	{ "STEP", _core_step },
 	{ "NEXT", _core_next },
@@ -6035,6 +6045,7 @@ _ls_node_t* _node_at_list(_list_t* coll, int index) {
 
 	mb_assert(coll);
 
+	/* TODO: Optimize me */
 	if(index >= 0 && index < (int)coll->count) {
 		if(coll->cached_node && !(index < coll->cached_index / 2)) {
 			while(index != coll->cached_index) {
@@ -8578,6 +8589,139 @@ _exit:
 	return result;
 }
 
+int _execute_normal_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop) {
+	/* Execute normal FOR-TO-STEP-NEXT-routine */
+	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
+	_ls_node_t* to_node = 0;
+	_object_t* obj = 0;
+	_object_t to_val;
+	_object_t step_val;
+	_object_t* to_val_ptr = 0;
+	_object_t* step_val_ptr = 0;
+	_tuple3_t ass_tuple3;
+	_tuple3_t* ass_tuple3_ptr = 0;
+	_running_context_t* running = 0;
+
+	mb_assert(s && l && var_loop);
+
+	running = s->running_context;
+	ast = *l;
+
+	to_val_ptr = &to_val;
+	_MAKE_NIL(to_val_ptr);
+	step_val_ptr = &step_val;
+	_MAKE_NIL(step_val_ptr);
+	ass_tuple3_ptr = &ass_tuple3;
+
+	result = _execute_statement(s, &ast);
+	if(result != MB_FUNC_OK)
+		goto _exit;
+	ast = ast->prev;
+
+	obj = (_object_t*)ast->data;
+	if(!_IS_FUNC(obj, _core_to)) {
+		_handle_error_on_obj(s, SE_RN_TO_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+	}
+
+	ast = ast->next;
+	if(!ast) {
+		_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+	}
+	to_node = ast;
+
+_to:
+	ast = to_node;
+
+	result = _calc_expression(s, &ast, &to_val_ptr);
+	if(result != MB_FUNC_OK)
+		goto _exit;
+
+	obj = (_object_t*)ast->data;
+	if(!_IS_FUNC(obj, _core_step)) {
+		step_val = _OBJ_INT_UNIT;
+	} else {
+		ast = ast->next;
+		if(!ast) {
+			_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		}
+
+		result = _calc_expression(s, &ast, &step_val_ptr);
+		if(result != MB_FUNC_OK)
+			goto _exit;
+	}
+
+	if((_compare_numbers(step_val_ptr, &_OBJ_INT_ZERO) == 1 && _compare_numbers(var_loop->data, to_val_ptr) == 1) ||
+		(_compare_numbers(step_val_ptr, &_OBJ_INT_ZERO) == -1 && _compare_numbers(var_loop->data, to_val_ptr) == -1)) {
+		/* End looping */
+		if(_skip_struct(s, &ast, _core_for, _core_next) != MB_FUNC_OK)
+			goto _exit;
+		_skip_to(s, &ast, 0, _DT_EOS);
+
+		goto _exit;
+	} else {
+		/* Keep looping */
+		obj = (_object_t*)ast->data;
+		while(!_IS_FUNC(obj, _core_next)) {
+			result = _execute_statement(s, &ast);
+			if(result == MB_LOOP_CONTINUE) { /* NEXT */
+				if(!running->next_loop_var || running->next_loop_var == var_loop) { /* This loop */
+					running->next_loop_var = 0;
+					result = MB_FUNC_OK;
+
+					break;
+				} else { /* Not this loop */
+					if(_skip_struct(s, &ast, _core_for, _core_next) != MB_FUNC_OK)
+						goto _exit;
+					_skip_to(s, &ast, 0, _DT_EOS);
+
+					goto _exit;
+				}
+			} else if(result == MB_LOOP_BREAK) { /* EXIT */
+				if(_skip_struct(s, &ast, _core_for, _core_next) != MB_FUNC_OK)
+					goto _exit;
+				_skip_to(s, &ast, 0, _DT_EOS);
+				result = MB_FUNC_OK;
+
+				goto _exit;
+			} else if(result != MB_FUNC_OK && result != MB_SUB_RETURN) { /* Normally */
+				goto _exit;
+			}
+
+			if(!ast) {
+				_handle_error_on_obj(s, SE_RN_NEXT_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			}
+			obj = (_object_t*)ast->data;
+		}
+
+		ass_tuple3.e1 = var_loop->data;
+		ass_tuple3.e2 = step_val_ptr;
+		ass_tuple3.e3 = var_loop->data;
+		_instruct_num_op_num(+, &ass_tuple3_ptr);
+
+		goto _to;
+	}
+
+_exit:
+	*l = ast;
+
+	return result;
+}
+
+#ifdef MB_ENABLE_COLLECTION_LIB
+int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop) {
+	/* Execute ranged FOR-IN-NEXT-routine */
+	int result = MB_FUNC_ERR;
+
+	mb_assert(s && l && var_loop);
+
+	/* TODO: Implement me */
+	mb_assert(0 && "Not implemented.");
+
+	return result;
+}
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
 int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t) {
 	/* Skip current execution flow to a specific function */
 	int result = MB_FUNC_OK;
@@ -10620,8 +10764,6 @@ int mb_run(struct mb_interpreter_t* s) {
 
 	_destroy_parsing_context(&s->parsing_context);
 
-	s->source_file = 0;
-
 	s->handled_error = false;
 
 	if(s->suspent_point) {
@@ -10629,6 +10771,7 @@ int mb_run(struct mb_interpreter_t* s) {
 		ast = ast->next;
 		s->suspent_point = 0;
 	} else {
+		s->source_file = 0;
 		mb_assert(!s->no_eat_comma_mark);
 		while(s->running_context->prev)
 			s->running_context = s->running_context->prev;
@@ -11892,28 +12035,13 @@ int _core_for(mb_interpreter_t* s, void** l) {
 	/* FOR statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
-	_ls_node_t* to_node = 0;
 	_object_t* obj = 0;
-	_object_t to_val;
-	_object_t step_val;
-	_object_t* to_val_ptr = 0;
-	_object_t* step_val_ptr = 0;
 	_var_t* var_loop = 0;
-	_tuple3_t ass_tuple3;
-	_tuple3_t* ass_tuple3_ptr = 0;
-	_running_context_t* running = 0;
 
 	mb_assert(s && l);
 
-	running = s->running_context;
 	ast = (_ls_node_t*)*l;
 	ast = ast->next;
-
-	to_val_ptr = &to_val;
-	_MAKE_NIL(to_val_ptr);
-	step_val_ptr = &step_val;
-	_MAKE_NIL(step_val_ptr);
-	ass_tuple3_ptr = &ass_tuple3;
 
 	obj = (_object_t*)ast->data;
 	if(obj->type != _DT_VAR) {
@@ -11921,97 +12049,29 @@ int _core_for(mb_interpreter_t* s, void** l) {
 	}
 	var_loop = obj->data.variable;
 
-	result = _execute_statement(s, &ast);
-	if(result != MB_FUNC_OK)
-		goto _exit;
-	ast = ast->prev;
-
-	obj = (_object_t*)ast->data;
-	if(!_IS_FUNC(obj, _core_to)) {
-		_handle_error_on_obj(s, SE_RN_TO_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
-	}
-
-	ast = ast->next;
-	if(!ast) {
-		_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
-	}
-	to_node = ast;
-
-_to:
-	ast = to_node;
-
-	result = _calc_expression(s, &ast, &to_val_ptr);
-	if(result != MB_FUNC_OK)
-		goto _exit;
-
-	obj = (_object_t*)ast->data;
-	if(!_IS_FUNC(obj, _core_step)) {
-		step_val = _OBJ_INT_UNIT;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	if(ast && ast->next && _IS_FUNC(ast->next->data, _core_in)) {
+		result = _execute_ranged_for_loop(s, &ast, var_loop);
 	} else {
-		ast = ast->next;
-		if(!ast) {
-			_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
-		}
-
-		result = _calc_expression(s, &ast, &step_val_ptr);
-		if(result != MB_FUNC_OK)
-			goto _exit;
+		result = _execute_normal_for_loop(s, &ast, var_loop);
 	}
-
-	if((_compare_numbers(step_val_ptr, &_OBJ_INT_ZERO) == 1 && _compare_numbers(var_loop->data, to_val_ptr) == 1) ||
-		(_compare_numbers(step_val_ptr, &_OBJ_INT_ZERO) == -1 && _compare_numbers(var_loop->data, to_val_ptr) == -1)) {
-		/* End looping */
-		if(_skip_struct(s, &ast, _core_for, _core_next) != MB_FUNC_OK)
-			goto _exit;
-		_skip_to(s, &ast, 0, _DT_EOS);
-
-		goto _exit;
-	} else {
-		/* Keep looping */
-		obj = (_object_t*)ast->data;
-		while(!_IS_FUNC(obj, _core_next)) {
-			result = _execute_statement(s, &ast);
-			if(result == MB_LOOP_CONTINUE) { /* NEXT */
-				if(!running->next_loop_var || running->next_loop_var == var_loop) { /* This loop */
-					running->next_loop_var = 0;
-					result = MB_FUNC_OK;
-
-					break;
-				} else { /* Not this loop */
-					if(_skip_struct(s, &ast, _core_for, _core_next) != MB_FUNC_OK)
-						goto _exit;
-					_skip_to(s, &ast, 0, _DT_EOS);
-
-					goto _exit;
-				}
-			} else if(result == MB_LOOP_BREAK) { /* EXIT */
-				if(_skip_struct(s, &ast, _core_for, _core_next) != MB_FUNC_OK)
-					goto _exit;
-				_skip_to(s, &ast, 0, _DT_EOS);
-				result = MB_FUNC_OK;
-
-				goto _exit;
-			} else if(result != MB_FUNC_OK && result != MB_SUB_RETURN) { /* Normally */
-				goto _exit;
-			}
-
-			if(!ast) {
-				_handle_error_on_obj(s, SE_RN_NEXT_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
-			}
-			obj = (_object_t*)ast->data;
-		}
-
-		ass_tuple3.e1 = var_loop->data;
-		ass_tuple3.e2 = step_val_ptr;
-		ass_tuple3.e3 = var_loop->data;
-		_instruct_num_op_num(+, &ass_tuple3_ptr);
-
-		goto _to;
-	}
+#else /* MB_ENABLE_COLLECTION_LIB */
+	result = _execute_normal_for_loop(s, &ast, var_loop);
+#endif /* MB_ENABLE_COLLECTION_LIB */
 
 _exit:
 	*l = ast;
 
+	return result;
+}
+
+int _core_in(mb_interpreter_t* s, void** l) {
+	/* IN statement */
+	int result = MB_FUNC_OK;
+
+	_do_nothing(s, l, _exit, result);
+
+_exit:
 	return result;
 }
 
