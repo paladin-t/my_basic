@@ -46,7 +46,7 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * Multiple file support by `IMPORT` statement
 * Structured user customizable **sub routine** definition by **`DEF-ENDDEF`** support, including tail recursion optimization
 * Structured `IF-THEN-ELSEIF-ELSE-ENDIF` support
-* Structured `FOR-TO-STEP-NEXT/WHILE-WEND/DO-UNTIL` support
+* Structured `FOR-TO-STEP-NEXT/FOR-IN/WHILE-WEND/DO-UNTIL` support
 * Reserved retro `GOTO/GOSUB-RETURN` support
 * Debug APIs
 * Customizable memory pool
