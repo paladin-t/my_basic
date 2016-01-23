@@ -376,23 +376,27 @@ typedef struct _array_t {
 #ifdef MB_ENABLE_COLLECTION_LIB
 typedef struct _list_t {
 	_ref_t ref;
-	_ls_node_t* list;
 	_lock_t lock;
+	_ls_node_t* list;
 	_ls_node_t* cached_node;
 	int cached_index;
-	unsigned int count;
+	int_t count;
+	int_t* range_begin;
 } _list_t;
 
 typedef struct _list_it_t {
 	_list_t* list;
 	bool_t locking;
-	_ls_node_t* curr;
+	union {
+		_ls_node_t* node;
+		int_t ranging;
+	} curr;
 } _list_it_t;
 
 typedef struct _dict_t {
 	_ref_t ref;
-	_ht_node_t* dict;
 	_lock_t lock;
+	_ht_node_t* dict;
 } _dict_t;
 
 typedef struct _dict_it_t {
@@ -1445,6 +1449,7 @@ static bool_t _find_list(_list_t* coll, mb_value_t* val);
 static void _clear_list(_list_t* coll);
 static void _sort_list(_list_t* coll);
 static void _invalidate_list_cache(_list_t* coll);
+static void _fill_ranged(_list_t* coll);
 static void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object_t* okey, _object_t* oval);
 static bool_t _remove_dict(_dict_t* coll, mb_value_t* key);
 static bool_t _find_dict(_dict_t* coll, mb_value_t* val, mb_value_t* oval);
@@ -5784,6 +5789,7 @@ _list_t* _create_list(mb_interpreter_t* s) {
 
 void _destroy_list(_list_t* c) {
 	/* Destroy a list */
+	if(c->range_begin) { safe_free(c->range_begin); }
 	_ls_foreach(c->list, _destroy_object);
 	_ls_destroy(c->list);
 	_destroy_ref(&c->ref);
@@ -5818,7 +5824,10 @@ _list_it_t* _create_list_it(_list_t* coll, bool_t lock) {
 	memset(result, 0, sizeof(_list_it_t));
 	result->list = coll;
 	result->locking = lock;
-	result->curr = coll->list;
+	if(coll->range_begin)
+		result->curr.ranging = *coll->range_begin - sgn(coll->count);
+	else
+		result->curr.node = coll->list;
 	if(lock)
 		_lock_ref_object(&coll->lock, &coll->ref, coll);
 
@@ -5841,14 +5850,24 @@ _list_it_t* _move_list_it_next(_list_it_t* it) {
 	/* Move an iterator of a list to next step */
 	_list_it_t* result = 0;
 
-	if(!it || !it->list || !it->list->list || !it->curr)
+	if(!it || !it->list || !it->list->list || (!it->curr.node && !it->list->range_begin))
 		goto _exit;
 
-	if(it->list->lock)
-		it->curr = it->curr->next;
+	if(it->list->range_begin) {
+		if(it->list->lock)
+			it->curr.ranging += sgn(it->list->count);
 
-	if(it->curr)
-		result = it;
+		if(it->list->count > 0 && it->curr.ranging < *it->list->range_begin + it->list->count)
+			result = it;
+		else if(it->list->count < 0 && it->curr.ranging > *it->list->range_begin + it->list->count)
+			result = it;
+	} else {
+		if(it->list->lock)
+			it->curr.node = it->curr.node->next;
+
+		if(it->curr.node)
+			result = it;
+	}
 
 _exit:
 	return result;
@@ -5933,6 +5952,8 @@ void _push_list(_list_t* coll, mb_value_t* val, _object_t* oarg) {
 	/* Push a value to a list */
 	mb_assert(coll && (val || oarg));
 
+	_fill_ranged(coll);
+
 	if(val && !oarg)
 		_create_internal_object_from_public_value(val, &oarg);
 	_ls_pushback(coll->list, oarg);
@@ -5947,6 +5968,8 @@ bool_t _pop_list(_list_t* coll, mb_value_t* val, mb_interpreter_t* s) {
 	_object_t* oval = 0;
 
 	mb_assert(coll && val && s);
+
+	_fill_ranged(coll);
 
 	oval = (_object_t*)_ls_popback(coll->list);
 	if(oval) {
@@ -5974,6 +5997,8 @@ bool_t _insert_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval)
 
 	mb_assert(coll && val);
 
+	_fill_ranged(coll);
+
 	_create_internal_object_from_public_value(val, &oarg);
 	if(oval)
 		*oval = oarg;
@@ -5995,6 +6020,8 @@ bool_t _set_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval) {
 	_object_t* oarg = 0;
 
 	mb_assert(coll && (val || (oval && *oval)));
+
+	_fill_ranged(coll);
 
 	result = _node_at_list(coll, (int)idx);
 	if(result) {
@@ -6023,6 +6050,8 @@ bool_t _remove_at_list(_list_t* coll, int_t idx) {
 
 	mb_assert(coll);
 
+	_fill_ranged(coll);
+
 	node = _node_at_list(coll, (int)idx);
 	if(node) {
 		if(node->data) {
@@ -6046,6 +6075,8 @@ _ls_node_t* _node_at_list(_list_t* coll, int index) {
 	int idx = index;
 
 	mb_assert(coll);
+
+	_fill_ranged(coll);
 
 	/* TODO: Optimize me */
 	if(index >= 0 && index < (int)coll->count) {
@@ -6083,6 +6114,8 @@ bool_t _at_list(_list_t* coll, int_t idx, mb_value_t* oval) {
 
 	mb_assert(coll && oval);
 
+	_fill_ranged(coll);
+
 	result = _node_at_list(coll, (int)idx);
 	if(oval && result && result->data)
 		_internal_object_to_public_value((_object_t*)result->data, oval);
@@ -6097,6 +6130,8 @@ bool_t _find_list(_list_t* coll, mb_value_t* val) {
 
 	mb_assert(coll && val);
 
+	_fill_ranged(coll);
+
 	_create_internal_object_from_public_value(val, &oarg);
 	result = !!_ls_find(coll->list, oarg, (_ls_compare)_ht_cmp_object);
 	_destroy_object(oarg, 0);
@@ -6107,6 +6142,8 @@ bool_t _find_list(_list_t* coll, mb_value_t* val) {
 void _clear_list(_list_t* coll) {
 	/* Clear a list */
 	mb_assert(coll);
+
+	if(coll->range_begin) { safe_free(coll->range_begin); }
 
 	_ls_foreach(coll->list, _destroy_object);
 	_ls_clear(coll->list);
@@ -6132,6 +6169,32 @@ void _invalidate_list_cache(_list_t* coll) {
 
 	coll->cached_node = 0;
 	coll->cached_index = 0;
+}
+
+void _fill_ranged(_list_t* coll) {
+	/* Fill a ranged list with numbers */
+	_object_t* obj = 0;
+
+	mb_assert(coll);
+
+	if(coll->range_begin) {
+		mb_value_t arg;
+		int_t begin = *coll->range_begin;
+		int_t end = *coll->range_begin + coll->count;
+		int_t step = sgn(coll->count);
+
+		do {
+			mb_make_int(arg, begin);
+			_create_internal_object_from_public_value(&arg, &obj);
+			_ls_pushback(coll->list, obj);
+
+			begin += step;
+		} while(begin != end);
+		safe_free(coll->range_begin);
+
+		_write_on_ref_object(&coll->lock, &coll->ref, coll);
+		_invalidate_list_cache(coll);
+	}
 }
 
 void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object_t* okey, _object_t* oval) {
@@ -6264,6 +6327,8 @@ int _clone_to_list(void* data, void* extra, _list_t* coll) {
 	mb_unrefvar(extra);
 
 	mb_assert(data && coll);
+
+	_fill_ranged(coll);
 
 	tgt = _create_object();
 	obj = (_object_t*)data;
@@ -8806,10 +8871,14 @@ _to:
 		goto _exit;
 	} else {
 		/* Assign loop variable */
-		if(lit && lit->curr && lit->curr->data)
-			var_loop->data = (_object_t*)lit->curr->data;
-		else if(dit && dit->curr_node && dit->curr_node->extra)
+		if(lit && !lit->list->range_begin && lit->curr.node && lit->curr.node->data) {
+			var_loop->data = (_object_t*)lit->curr.node->data;
+		} else if(lit && lit->list->range_begin) {
+			var_loop->data->type = _DT_INT;
+			var_loop->data->data.integer = lit->curr.ranging;
+		} else if(dit && dit->curr_node && dit->curr_node->extra) {
 			var_loop->data = (_object_t*)dit->curr_node->extra;
+		}
 		/* Keep looping */
 		_common_keep_looping(s, &ast, var_loop);
 
@@ -14013,8 +14082,10 @@ int _std_get(mb_interpreter_t* s, void** l) {
 		break;
 	case MB_DT_LIST_IT:
 		_public_value_to_internal_object(&coi, &ocoi);
-		if(ocoi.data.list_it && ocoi.data.list_it->curr && ocoi.data.list_it->curr->data) {
-			_internal_object_to_public_value((_object_t*)ocoi.data.list_it->curr->data, &ret);
+		if(ocoi.data.list_it && !ocoi.data.list_it->list->range_begin && ocoi.data.list_it->curr.node && ocoi.data.list_it->curr.node->data) {
+			_internal_object_to_public_value((_object_t*)ocoi.data.list_it->curr.node->data, &ret);
+		} else if(ocoi.data.list_it && ocoi.data.list_it->list->range_begin) {
+			mb_make_int(ret, ocoi.data.list_it->curr.ranging);
 		} else {
 			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
 		}
@@ -14301,12 +14372,10 @@ int _coll_list(mb_interpreter_t* s, void** l) {
 			ast = ast->next;
 			_mb_check_mark(mb_pop_int(s, (void**)&ast, &end), result, _error);
 			step = sgn(end - begin);
-			end += step;
-			do {
-				mb_make_int(arg, begin);
-				_push_list(coll, &arg, 0);
-				begin += step;
-			} while(begin != end);
+			coll->range_begin = (int_t*)mb_malloc(sizeof(int_t));
+			*coll->range_begin = begin;
+			coll->count = end - begin + step;
+			if(!coll->count) coll->count = 1;
 			*l = ast;
 		} else {
 			/* Push arguments */

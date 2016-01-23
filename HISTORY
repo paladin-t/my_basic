@@ -1,3 +1,6 @@
+Jan. 23 2016
+Added lazy evaluation for ranged list
+
 Jan. 22 2016
 Added an IN keyword
 Added support to loop on collections by using FOR-IN statement
