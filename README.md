@@ -126,6 +126,7 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
  * [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
  * [Use prototype-based class](https://github.com/paladin-t/my_basic/wiki/Use-prototype-based-class)
  * [Define a class in C](https://github.com/paladin-t/my_basic/wiki/Define-a-class-in-C)
+ * [Meta methods](https://github.com/paladin-t/my_basic/wiki/Meta-methods)
 * Integration
  * [Link with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC)
  * [Write a debugger](https://github.com/paladin-t/my_basic/wiki/Write-a-debugger)
