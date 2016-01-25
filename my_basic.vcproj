@@ -329,6 +329,26 @@
 					/>
 				</FileConfiguration>
 			</File>
+			<File
+				RelativePath=".\sample\sample07.bas"
+				>
+				<FileConfiguration
+					Name="debug|Win32"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="release|Win32"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+					/>
+				</FileConfiguration>
+			</File>
 		</Filter>
 		<Filter
 			Name="res"

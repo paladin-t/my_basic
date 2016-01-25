@@ -1,5 +1,8 @@
 Jan. 25 2016
 Fixed a memory leak when printing a referenced usertype
+Fixed a bug with nested IF statement
+Fixed an indexing bug with list
+Added a new sample script source file
 
 Jan. 23 2016
 Added lazy evaluation for ranged list
@@ -283,8 +286,8 @@ Improved memory pool
 
 Oct. 11 2015
 Added a CLONE statement/function for collections
-Optimized LIST indexing
-Optimized LIST counting
+Optimized list indexing
+Optimized list counting
 
 Oct. 10 2015
 Improved stability for nested IF statement

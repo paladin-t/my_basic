@@ -6108,7 +6108,7 @@ _ls_node_t* _node_at_list(_list_t* coll, int index) {
 					coll->cached_index++;
 				} else if(index < coll->cached_index) {
 					coll->cached_node = coll->cached_node->prev;
-					coll->cached_node--;
+					coll->cached_index--;
 				}
 			}
 			result = coll->cached_node;
@@ -12082,6 +12082,7 @@ int _core_if(mb_interpreter_t* s, void** l) {
 	_object_t* val = 0;
 	_object_t* obj = 0;
 	bool_t multi_line = false;
+	bool_t skip = false;
 	_running_context_t* running = 0;
 
 	mb_assert(s && l);
@@ -12101,6 +12102,8 @@ _elseif:
 
 	obj = (_object_t*)ast->data;
 	if(val->data.integer) {
+		skip = true;
+
 		if(!_IS_FUNC(obj, _core_then)) {
 			_handle_error_on_obj(s, SE_RN_INTEGER_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
@@ -12113,6 +12116,11 @@ _elseif:
 			ast = ast->next;
 			while(ast && _IS_EOS(ast->data))
 				ast = ast->next;
+			if(ast && _IS_FUNC(ast->data, _core_endif)) {
+				ast = ast->prev;
+
+				break;
+			}
 			result = _execute_statement(s, &ast);
 			if(result != MB_FUNC_OK)
 				goto _exit;
@@ -12159,6 +12167,8 @@ _elseif:
 
 		obj = (_object_t*)ast->data;
 		if(obj->type != _DT_EOS) {
+			skip = true;
+
 			if(!_IS_FUNC(obj, _core_else)) {
 				_handle_error_on_obj(s, SE_RN_ELSE_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
@@ -12167,6 +12177,11 @@ _elseif:
 				ast = ast->next;
 				while(_IS_EOS(ast->data))
 					ast = ast->next;
+				if(ast && _IS_FUNC(ast->data, _core_endif)) {
+					ast = ast->prev;
+
+					break;
+				}
 				result = _execute_statement(s, &ast);
 				if(result != MB_FUNC_OK)
 					goto _exit;
@@ -12184,8 +12199,10 @@ _exit:
 	if(result == MB_SUB_RETURN) {
 		ast = ast->prev;
 	} else {
-		if(multi_line)
-			result = _skip_to(s, &ast, _core_endif, _DT_NIL);
+		if(multi_line) {
+			if(skip)
+				result = _skip_struct(s, &ast, _core_if, _core_endif);
+		}
 	}
 
 	*l = ast;
