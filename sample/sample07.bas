@@ -10,23 +10,37 @@ enddef
 
 def forward(cmd, i)
 	l = len(cmd)
-	while i < l and mid(cmd, i, 1) <> "]"
+	k = 0
+	while i < l
+		h = mid(cmd, i, 1)
+		if h = "[" then
+			k = k + 1
+		elseif h = "]" then
+			k = k - 1
+		endif
+		if h = "]" and k = 0 then then
+			return i
+		endif
 		i = i + 1
 	wend
-	if i < l then
-		i = i + 1
-	endif
 
 	return i
 enddef
 
 def backward(cmd, i)
-	while i > 0 and mid(cmd, i, 1) <> "["
+	k = 0
+	while i > 0
+		h = mid(cmd, i, 1)
+		if h = "]" then
+			k = k + 1
+		elseif h = "[" then
+			k = k - 1
+		endif
+		if h = "[" and k = 0 then
+			return i
+		endif
 		i = i - 1
 	wend
-	if i > 0 then
-		i = i - 1
-	endif
 
 	return i
 enddef
