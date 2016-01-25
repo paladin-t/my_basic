@@ -1,6 +1,7 @@
 Jan. 25 2016
 Fixed a memory leak when printing a referenced usertype
 Fixed a bug with nested IF statement
+Fixed a bug with WHILE and DO statements when returning from a sub routine
 Fixed an indexing bug with list
 Added a new sample script source file
 
