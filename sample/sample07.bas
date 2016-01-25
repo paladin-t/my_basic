@@ -91,8 +91,11 @@ def brainfuck(cmd)
 enddef
 
 ' This is a brainfuck interpreter written with MY-BASIC
-' Try this code (without brackets): "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."
 print "BF: "
 input cmd$
+' Use a sample code?
+if cmd$ = "hello" then
+	cmd$ = "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."
+endif
 
 brainfuck(cmd$)
