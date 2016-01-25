@@ -285,7 +285,9 @@ typedef enum _data_e {
 	_DT_REAL,
 	_DT_STRING,
 	_DT_USERTYPE,
+#ifdef MB_ENABLE_USERTYPE_REF
 	_DT_USERTYPE_REF,
+#endif /* MB_ENABLE_USERTYPE_REF */
 	_DT_FUNC,
 	_DT_VAR,
 	_DT_ARRAY,
@@ -1221,18 +1223,24 @@ static bool_t _is_number(void* obj);
 static bool_t _is_string(void* obj);
 static char* _extract_string(_object_t* obj);
 
-#define _REF_USERTYPE_REF(__o) \
-	case _DT_USERTYPE_REF: \
-		_ref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
-		break;
-#define _UNREF_USERTYPE_REF(__o) \
-	case _DT_USERTYPE_REF: \
-		_unref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
-		break;
-#define _ADDGC_USERTYPE_REF(__o, __g) \
-	case _DT_USERTYPE_REF: \
-		_gc_add(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref, (__g)); \
-		break;
+#ifdef MB_ENABLE_USERTYPE_REF
+#	define _REF_USERTYPE_REF(__o) \
+		case _DT_USERTYPE_REF: \
+			_ref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
+			break;
+#	define _UNREF_USERTYPE_REF(__o) \
+		case _DT_USERTYPE_REF: \
+			_unref(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref); \
+			break;
+#	define _ADDGC_USERTYPE_REF(__o, __g) \
+		case _DT_USERTYPE_REF: \
+			_gc_add(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref, (__g)); \
+			break;
+#else /* MB_ENABLE_USERTYPE_REF */
+#	define _REF_USERTYPE_REF(__o) ((void)(__o));
+#	define _UNREF_USERTYPE_REF(__o) ((void)(__o));
+#	define _ADDGC_USERTYPE_REF(__o, __g) ((void)(__o)); ((void)(__g));
+#endif /* MB_ENABLE_USERTYPE_REF */
 #ifdef MB_ENABLE_ARRAY_REF
 #	define _REF_ARRAY(__o) \
 		case _DT_ARRAY: \
@@ -2265,6 +2273,7 @@ unsigned int _ht_hash_object(void* ht, void* d) {
 
 		goto _default;
 #endif /* MB_ENABLE_CLASS */
+#ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
 		if(o->data.usertype_ref->hash) {
 			h = 5 * h + o->data.usertype_ref->hash(o->data.usertype_ref->ref.s, o->data.usertype_ref->usertype);
@@ -2273,6 +2282,7 @@ unsigned int _ht_hash_object(void* ht, void* d) {
 			break;
 		}
 		/* Fall through */
+#endif /* MB_ENABLE_USERTYPE_REF */
 	default:
 #ifdef MB_ENABLE_CLASS
 _default:
@@ -2375,12 +2385,14 @@ int _ht_cmp_object(void* d1, void* d2) {
 
 		goto _default;
 #endif /* MB_ENABLE_CLASS */
+#ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
 		if(o1->data.usertype_ref->cmp)
 			return o1->data.usertype_ref->cmp(o1->data.usertype_ref->ref.s, o1->data.usertype_ref->usertype, o2->data.usertype_ref->usertype);
 		else if(o2->data.usertype_ref->cmp)
 			return o2->data.usertype_ref->cmp(o1->data.usertype_ref->ref.s, o1->data.usertype_ref->usertype, o2->data.usertype_ref->usertype);
 		/* Fall through */
+#endif /* MB_ENABLE_USERTYPE_REF */
 	default:
 #ifdef MB_ENABLE_CLASS
 _default:
@@ -3347,7 +3359,11 @@ _routine:
 		c->type == _DT_CLASS ||
 #endif /* MB_ENABLE_CLASS */
 		c->type == _DT_ROUTINE ||
-		c->type == _DT_VAR || c->type == _DT_USERTYPE || c->type == _DT_USERTYPE_REF || c->type == _DT_ARRAY)
+		c->type == _DT_VAR || c->type == _DT_USERTYPE ||
+#ifdef MB_ENABLE_USERTYPE_REF
+		c->type == _DT_USERTYPE_REF ||
+#endif /* MB_ENABLE_USERTYPE_REF */
+		c->type == _DT_ARRAY)
 	) {
 		_set_current_error(s, SE_RN_INVALID_DATA_TYPE, 0);
 		result = MB_FUNC_ERR;
@@ -3375,7 +3391,10 @@ _routine:
 	if(guard_val != c && _ls_try_remove(garbage, c, _ls_cmp_data, NULL)) {
 		_try_clear_intermediate_value(c, 0, s);
 
-		if(c->type == _DT_USERTYPE_REF ||
+		if(
+#ifdef MB_ENABLE_USERTYPE_REF
+			c->type == _DT_USERTYPE_REF ||
+#endif /* MB_ENABLE_USERTYPE_REF */
 #ifdef MB_ENABLE_COLLECTION_LIB
 			c->type == _DT_LIST || c->type == _DT_DICT || c->type == _DT_LIST_IT || c->type == _DT_DICT_IT ||
 #endif /* MB_ENABLE_COLLECTION_LIB */
@@ -5091,11 +5110,13 @@ int _gc_add_reachable(void* data, void* extra, void* ht) {
 		_gc_add_reachable(var->data, extra, htable);
 
 		break;
+#ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
 		if(!_ht_find(htable, &obj->data.usertype_ref->ref))
 			_ht_set_or_insert(htable, &obj->data.usertype_ref->ref, obj->data.usertype_ref);
 
 		break;
+#endif /* MB_ENABLE_USERTYPE_REF */
 #ifdef MB_ENABLE_ARRAY_REF
 	case _DT_ARRAY:
 		if(!_ht_find(htable, &obj->data.array->ref))
@@ -8428,7 +8449,6 @@ void _tidy_intermediate_value(_ref_t* ref, void* data) {
 	_public_value_to_internal_object(&ref->s->running_context->intermediate_value, &tmp);
 	if(tmp.data.usertype == data) {
 		switch(tmp.type) {
-		case _DT_ARRAY: /* Fall through */
 #ifdef MB_ENABLE_COLLECTION_LIB
 		case _DT_LIST: /* Fall through */
 		case _DT_DICT: /* Fall through */
@@ -8436,7 +8456,10 @@ void _tidy_intermediate_value(_ref_t* ref, void* data) {
 #ifdef MB_ENABLE_CLASS
 		case _DT_CLASS: /* Fall through */
 #endif /* MB_ENABLE_CLASS */
-		case _DT_USERTYPE_REF:
+#ifdef MB_ENABLE_USERTYPE_REF
+		case _DT_USERTYPE_REF: /* Fall through */
+#endif /* MB_ENABLE_USERTYPE_REF */
+		case _DT_ARRAY:
 			mb_make_nil(ref->s->running_context->intermediate_value);
 
 			break;
@@ -10708,7 +10731,10 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
-	if(obj.type != _DT_USERTYPE_REF &&
+	if(
+#ifdef MB_ENABLE_USERTYPE_REF
+		obj.type != _DT_USERTYPE_REF &&
+#endif /* MB_ENABLE_USERTYPE_REF */
 #ifdef MB_ENABLE_COLLECTION_LIB
 		obj.type != _DT_LIST && obj.type != _DT_DICT &&
 #endif /* MB_ENABLE_COLLECTION_LIB */
@@ -10734,7 +10760,10 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
-	if(obj.type != _DT_USERTYPE_REF &&
+	if(
+#ifdef MB_ENABLE_USERTYPE_REF
+		obj.type != _DT_USERTYPE_REF &&
+#endif /* MB_ENABLE_USERTYPE_REF */
 #ifdef MB_ENABLE_COLLECTION_LIB
 		obj.type != _DT_LIST && obj.type != _DT_DICT &&
 #endif /* MB_ENABLE_COLLECTION_LIB */
@@ -14198,12 +14227,14 @@ _print:
 				if(!val_ptr->ref && val_ptr->data.string) {
 					safe_free(val_ptr->data.string);
 				}
+#ifdef MB_ENABLE_USERTYPE_REF
 			} else if(val_ptr->type == _DT_USERTYPE_REF) {
 				if(val_ptr->data.usertype_ref->fmt)
 					val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _get_printer(s));
 				else
 					_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
 				_unref(&val_ptr->data.usertype_ref->ref, val_ptr->data.usertype_ref);
+#endif /* MB_ENABLE_USERTYPE_REF */
 			} else if(val_ptr->type == _DT_TYPE) {
 				_get_printer(s)(mb_get_type_string(val_ptr->data.type));
 #ifdef MB_ENABLE_CLASS
