@@ -1,3 +1,6 @@
+Jan. 25 2016
+Fixed a memory leak when printing a referenced usertype
+
 Jan. 23 2016
 Added lazy evaluation for ranged list
 

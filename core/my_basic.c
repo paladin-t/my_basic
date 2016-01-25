@@ -14203,6 +14203,7 @@ _print:
 					val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _get_printer(s));
 				else
 					_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
+				_unref(&val_ptr->data.usertype_ref->ref, val_ptr->data.usertype_ref);
 			} else if(val_ptr->type == _DT_TYPE) {
 				_get_printer(s)(mb_get_type_string(val_ptr->data.type));
 #ifdef MB_ENABLE_CLASS
