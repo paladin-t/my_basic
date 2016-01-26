@@ -6093,30 +6093,63 @@ _ls_node_t* _node_at_list(_list_t* coll, int index) {
 	/* Get a node in a list with a specific index */
 	_ls_node_t* result = 0;
 	_ls_node_t* tmp = 0;
-	int idx = index;
+	int n = 0;
 
 	mb_assert(coll);
 
 	_fill_ranged(coll);
 
-	/* TODO: Optimize me */
 	if(index >= 0 && index < (int)coll->count) {
-		if(coll->cached_node && !(index < coll->cached_index / 2)) {
-			while(index != coll->cached_index) {
-				if(index > coll->cached_index) {
-					coll->cached_node = coll->cached_node->next;
-					coll->cached_index++;
-				} else if(index < coll->cached_index) {
-					coll->cached_node = coll->cached_node->prev;
-					coll->cached_index--;
+		/* HEAD ... LEFT ... PIVOT ... RIGHT ... TAIL */
+		int head = 0,
+			left = coll->cached_index / 2,
+			right = coll->cached_index + (coll->count - coll->cached_index) / 2,
+			tail = coll->count - 1;
+		if(coll->cached_node) {
+			if(index >= head && index < left) { /* [HEAD, LEFT) */
+				n = index;
+				tmp = coll->list->next;
+				while(tmp && n) {
+					tmp = tmp->next;
+					--n;
 				}
+				if(tmp) {
+					result = tmp;
+					coll->cached_node = tmp;
+					coll->cached_index = index;
+				}
+			} else if(index >= left && index <= right) { /* [LEFT, RIGHT] */
+				while(index != coll->cached_index) {
+					if(index > coll->cached_index) {
+						coll->cached_node = coll->cached_node->next;
+						coll->cached_index++;
+					} else if(index < coll->cached_index) {
+						coll->cached_node = coll->cached_node->prev;
+						coll->cached_index--;
+					}
+				}
+				result = coll->cached_node;
+			} else if(index > right && index <= tail) { /* (RIGHT, TAIL] */
+				n = tail - index;
+				tmp = coll->list->prev;
+				while(tmp && n) {
+					tmp = tmp->prev;
+					--n;
+				}
+				if(tmp) {
+					result = tmp;
+					coll->cached_node = tmp;
+					coll->cached_index = index;
+				}
+			} else {
+				mb_assert(0 && "Impossible.");
 			}
-			result = coll->cached_node;
 		} else {
+			n = index;
 			tmp = coll->list->next;
-			while(tmp && idx) {
+			while(tmp && n) {
 				tmp = tmp->next;
-				--idx;
+				--n;
 			}
 			if(tmp) {
 				result = tmp;
