@@ -11281,6 +11281,25 @@ int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 	return result;
 }
 
+int mb_gc(struct mb_interpreter_t* s, int_t* collected) {
+	/* Trigger GC */
+#ifdef MB_ENABLE_GC
+	int_t diff = _mb_allocated;
+
+	_gc_collect_garbage(s, 1);
+
+	diff = _mb_allocated - diff;
+
+	if(collected)
+		*collected = diff;
+#else /* MB_ENABLE_GC */
+	mb_unrefvar(s);
+	mb_unrefvar(collected);
+#endif /* MB_ENABLE_GC */
+
+	return MB_FUNC_OK;
+}
+
 int mb_get_userdata(struct mb_interpreter_t* s, void** d) {
 	/* Get the userdata of a MY-BASIC environment */
 	int result = MB_FUNC_OK;

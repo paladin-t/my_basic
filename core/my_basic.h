@@ -514,6 +514,7 @@ MBAPI int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h)
 MBAPI int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p);
 MBAPI int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p);
 
+MBAPI int mb_gc(struct mb_interpreter_t* s, int_t* collected);
 MBAPI int mb_get_userdata(struct mb_interpreter_t* s, void** d);
 MBAPI int mb_set_userdata(struct mb_interpreter_t* s, void* d);
 MBAPI int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h);

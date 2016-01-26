@@ -1140,6 +1140,23 @@ static int set_importing_dirs(struct mb_interpreter_t* s, void** l) {
 	return result;
 }
 
+static int gc(struct mb_interpreter_t* s, void** l) {
+	int result = MB_FUNC_OK;
+	int_t collected = 0;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	mb_check(mb_gc(s, &collected));
+
+	mb_check(mb_push_int(s, l, collected));
+
+	return result;
+}
+
 static int beep(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
@@ -1224,6 +1241,7 @@ static void _on_startup(void) {
 #endif /* _HAS_TICKS */
 	mb_reg_fun(bas, now);
 	mb_reg_fun(bas, set_importing_dirs);
+	mb_reg_fun(bas, gc);
 	mb_reg_fun(bas, beep);
 }
 
