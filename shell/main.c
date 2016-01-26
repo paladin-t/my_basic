@@ -188,15 +188,17 @@ static int _cmp_size_t(const void* l, const void* r) {
 	else return 0;
 }
 
-static void _tidy_mem_pool(void) {
+static void _tidy_mem_pool(bool_t force) {
 	int i = 0;
 	char* s = 0;
 
-	if(_POOL_THRESHOLD_COUNT > 0 && in_pool_count < _POOL_THRESHOLD_COUNT)
-		return;
+	if(!force) {
+		if(_POOL_THRESHOLD_COUNT > 0 && in_pool_count < _POOL_THRESHOLD_COUNT)
+			return;
 
-	if(_POOL_THRESHOLD_BYTES > 0 && in_pool_bytes < _POOL_THRESHOLD_BYTES)
-		return;
+		if(_POOL_THRESHOLD_BYTES > 0 && in_pool_bytes < _POOL_THRESHOLD_BYTES)
+			return;
+	}
 
 	if(!pool_count)
 		return;
@@ -360,7 +362,7 @@ static void _push_mem(char* p) {
 				_POOL_NODE_NEXT(p) = pl->stack;
 				pl->stack = p;
 
-				_tidy_mem_pool();
+				_tidy_mem_pool(false);
 
 				return;
 			}
@@ -649,9 +651,15 @@ static void _clear_screen(void) {
 }
 
 static int _new_program(void) {
+	int result = 0;
+
 	_clear_code();
 
-	return mb_reset(&bas, false);
+	result = mb_reset(&bas, false);
+
+	_tidy_mem_pool(true);
+
+	return result;
 }
 
 static void _list_program(const char* sn, const char* cn) {
