@@ -2247,7 +2247,8 @@ unsigned int _ht_hash_object(void* ht, void* d) {
 	h = o->type;
 	switch(o->type) {
 	case _DT_STRING:
-		result = 5 * h + _ht_hash_string(ht, o->data.string);
+		h = 5 * h + _ht_hash_string(ht, o->data.string);
+		result = h % self->array_size;
 
 		break;
 #ifdef MB_ENABLE_CLASS
