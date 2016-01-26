@@ -3468,6 +3468,7 @@ int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, u
 int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg, bool_t proc_ref, _ls_node_t* args) {
 	/* Process arguments of a routine */
 	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
 	_ls_node_t* parameters = 0;
 	mb_value_t arg;
 	_ls_node_t* pars = 0;
@@ -3519,6 +3520,7 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 			if(args && _ls_empty(args))
 				break;
 		}
+
 		if(_IS_VAR_ARGS(var)) {
 			if(has_arg && !var_args && _IS_VAR_ARGS(var))
 				var_args = s->var_args = _ls_create();
@@ -3538,9 +3540,11 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 					break;
 			}
 		}
-		if(_IS_VAR_ARGS(var)) {
-			if(args) {
-				_ls_node_t* ast = *l;
+
+		ast = *l;
+		if(ast) {
+			_object_t* obj = (_object_t*)ast->data;
+			if(obj && _IS_FUNC(obj, _core_args)) {
 				if(ast) ast = ast->next;
 				*l = ast;
 			}

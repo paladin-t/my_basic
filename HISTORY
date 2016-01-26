@@ -3,6 +3,7 @@ Added an mb_gc function
 Added a SET_IMPORTING_DIRS statement to the shell
 Added friendly error promption when memory overflow
 Added source file information to stepped handler
+Fixed a wrong argument processing bug with variable arguments
 Fixed a memory corruption bug with importing directory setting
 Optimized cached list accessing
 

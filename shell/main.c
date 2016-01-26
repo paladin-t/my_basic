@@ -657,6 +657,8 @@ static int _new_program(void) {
 
 	result = mb_reset(&bas, false);
 
+	mb_gc(bas, 0);
+
 	_tidy_mem_pool(true);
 
 	return result;
