@@ -539,6 +539,18 @@ typedef struct _importing_dirs_t {
 
 static _importing_dirs_t* importing_dirs = 0;
 
+static void _destroy_importing_directories(void) {
+	int i = 0;
+
+	if(!importing_dirs) return;
+
+	for(i = 0; i < importing_dirs->count; ++i) {
+		free(importing_dirs->dirs[i]);
+	}
+	free(importing_dirs->dirs);
+	free(importing_dirs);
+}
+
 static _importing_dirs_t* _set_importing_directories(char* dirs) {
 	if(dirs) {
 		char* end = dirs + strlen(dirs);
@@ -560,7 +572,7 @@ static _importing_dirs_t* _set_importing_directories(char* dirs) {
 			}
 			l = (int)strlen(dirs);
 			as = dirs[l - 1] != '/' && dirs[l - 1] != '\\';
-			buf = (char*)malloc(l + as ? 2 : 1);
+			buf = (char*)malloc(l + (as ? 2 : 1));
 			memcpy(buf, dirs, l);
 			if(as) {
 				buf[l] = '/';
@@ -576,24 +588,13 @@ static _importing_dirs_t* _set_importing_directories(char* dirs) {
 			dirs += l + 1;
 		}
 
+		_destroy_importing_directories();
 		importing_dirs = result;
 
 		return result;
 	}
 
 	return 0;
-}
-
-static void _destroy_importing_directories(void) {
-	int i = 0;
-
-	if(!importing_dirs) return;
-
-	for(i = 0; i < importing_dirs->count; ++i) {
-		free(importing_dirs->dirs[i]);
-	}
-	free(importing_dirs->dirs);
-	free(importing_dirs);
 }
 
 static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
@@ -1114,6 +1115,23 @@ static int now(struct mb_interpreter_t* s, void** l) {
 	return result;
 }
 
+static int set_importing_dirs(struct mb_interpreter_t* s, void** l) {
+	int result = MB_FUNC_OK;
+	char* arg = 0;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_pop_string(s, l, &arg));
+	if(arg)
+		_set_importing_directories(arg);
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	return result;
+}
+
 static int beep(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
@@ -1197,6 +1215,7 @@ static void _on_startup(void) {
 	mb_reg_fun(bas, ticks);
 #endif /* _HAS_TICKS */
 	mb_reg_fun(bas, now);
+	mb_reg_fun(bas, set_importing_dirs);
 	mb_reg_fun(bas, beep);
 }
 

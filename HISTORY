@@ -1,6 +1,8 @@
 Jan. 26 2016
+Added a SET_IMPORTING_DIRS statement to the shell
 Added friendly error promption when memory overflow
 Added source file information to stepped handler
+Fixed a memory corruption bug with importing directory setting
 Optimized cached list accessing
 
 Jan. 25 2016
