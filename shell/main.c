@@ -317,7 +317,11 @@ static char* _pop_mem(unsigned s) {
 				} else {
 					/* Create a new node */
 					result = _POOL_NODE_ALLOC(pl->size);
-					_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
+					if((intptr_t)result == sizeof(_pool_tag_t)) {
+						result = 0;
+					} else {
+						_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
+					}
 
 					return result;
 				}
@@ -327,7 +331,11 @@ static char* _pop_mem(unsigned s) {
 
 	/* Allocate directly */
 	result = _POOL_NODE_ALLOC(s);
-	_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
+	if((intptr_t)result == sizeof(_pool_tag_t)) {
+		result = 0;
+	} else {
+		_POOL_NODE_SIZE(result) = (_pool_chunk_size_t)s;
+	}
 
 	return result;
 }

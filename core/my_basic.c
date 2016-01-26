@@ -1078,7 +1078,7 @@ static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht);
 	} while(0)
 
 /** Memory manipulations */
-#define _MB_CHECK_MEM_TAG_SIZE(y, s) do { mb_mem_tag_t _tmp = (mb_mem_tag_t)s; if((y)_tmp != s) { mb_assert(0 && "\"mb_mem_tag_t\" is too small."); printf("The type \"mb_mem_tag_t\" is not precise enough to hold the given data, please redefine it!"); } } while(0)
+#define _MB_CHECK_MEM_TAG_SIZE(y, s) ((mb_mem_tag_t)(s) == (s))
 #define _MB_WRITE_MEM_TAG_SIZE(t, s) (*((mb_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)) = (mb_mem_tag_t)s)
 #define _MB_READ_MEM_TAG_SIZE(t) (*((mb_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)))
 
@@ -2625,7 +2625,8 @@ void* mb_malloc(size_t s) {
 	char* ret = NULL;
 	size_t rs = s;
 #ifdef MB_ENABLE_ALLOC_STAT
-	_MB_CHECK_MEM_TAG_SIZE(size_t, s);
+	if(!_MB_CHECK_MEM_TAG_SIZE(size_t, s))
+		return 0;
 	rs += _MB_MEM_TAG_SIZE;
 #endif /* MB_ENABLE_ALLOC_STAT */
 	if(_mb_allocate_func)
