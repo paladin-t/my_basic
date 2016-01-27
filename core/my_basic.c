@@ -343,14 +343,12 @@ typedef struct _ref_t {
 
 typedef short _lock_t;
 
-#ifdef MB_ENABLE_GC
 typedef struct _gc_t {
 	_ht_node_t* table;
 	_ht_node_t* recursive_table;
 	_ht_node_t* collected_table;
 	int_t collecting;
 } _gc_t;
-#endif /* MB_ENABLE_GC */
 
 typedef struct _usertype_ref_t {
 	_ref_t ref;
@@ -712,9 +710,7 @@ typedef struct mb_interpreter_t {
 	int schedule_suspend_tag;
 	_ls_node_t* temp_values;
 	_ls_node_t* lazy_destroy_objects;
-#ifdef MB_ENABLE_GC
 	_gc_t gc;
-#endif /* MB_ENABLE_GC */
 	int_t no_eat_comma_mark;
 	_ls_node_t* skip_to_eoi;
 	_ls_node_t* in_neg_expr;
@@ -1046,16 +1042,12 @@ static int _ls_free_extra(void* data, void* extra);
 static unsigned int _ht_hash_object(void* ht, void* d);
 static unsigned int _ht_hash_string(void* ht, void* d);
 static unsigned int _ht_hash_intptr(void* ht, void* d);
-#ifdef MB_ENABLE_GC
 static unsigned int _ht_hash_ref(void* ht, void* d);
-#endif /* MB_ENABLE_GC */
 
 static int _ht_cmp_object(void* d1, void* d2);
 static int _ht_cmp_string(void* d1, void* d2);
 static int _ht_cmp_intptr(void* d1, void* d2);
-#ifdef MB_ENABLE_GC
 static int _ht_cmp_ref(void* d1, void* d2);
-#endif /* MB_ENABLE_GC */
 
 static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra);
 static _ls_node_t* _ht_find(_ht_node_t* ht, void* key);
@@ -1398,7 +1390,6 @@ static unsigned _unref(_ref_t* ref, void* data);
 static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s);
 static void _destroy_ref(_ref_t* ref);
 
-#ifdef MB_ENABLE_GC
 static void _gc_add(_ref_t* ref, void* data, _gc_t* gc);
 static void _gc_remove(_ref_t* ref, void* data);
 static int _gc_add_reachable(void* data, void* extra, void* ht);
@@ -1416,7 +1407,6 @@ static int _gc_destroy_garbage(void* data, void* extra);
 static void _gc_swap_tables(mb_interpreter_t* s);
 static void _gc_try_trigger(mb_interpreter_t* s);
 static void _gc_collect_garbage(mb_interpreter_t* s, int depth);
-#endif /* MB_ENABLE_GC */
 
 #ifdef MB_ENABLE_USERTYPE_REF
 static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
@@ -2330,7 +2320,6 @@ unsigned int _ht_hash_intptr(void* ht, void* d) {
 	return result;
 }
 
-#ifdef MB_ENABLE_GC
 unsigned int _ht_hash_ref(void* ht, void* d) {
 	unsigned int result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
@@ -2343,7 +2332,6 @@ unsigned int _ht_hash_ref(void* ht, void* d) {
 
 	return result;
 }
-#endif /* MB_ENABLE_GC */
 
 int _ht_cmp_object(void* d1, void* d2) {
 	_object_t* o1 = (_object_t*)d1;
@@ -2436,7 +2424,6 @@ int _ht_cmp_intptr(void* d1, void* d2) {
 	return result;
 }
 
-#ifdef MB_ENABLE_GC
 int _ht_cmp_ref(void* d1, void* d2) {
 	_ref_t* r1 = *(_ref_t**)d1;
 	_ref_t* r2 = *(_ref_t**)d2;
@@ -2450,7 +2437,6 @@ int _ht_cmp_ref(void* d1, void* d2) {
 
 	return result;
 }
-#endif /* MB_ENABLE_GC */
 
 _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra) {
 	const unsigned int array_size = size ? size : _HT_ARRAY_SIZE_DEFAULT;
@@ -5023,18 +5009,12 @@ unsigned _unref(_ref_t* ref, void* data) {
 	unsigned result = 0;
 
 	result = --(*ref->count) == _NONE_REF;
-#ifdef MB_ENABLE_GC
 	_gc_add(ref, data, 0);
 	if(ref->count && *ref->count == _NONE_REF)
 		_tidy_intermediate_value(ref, data);
 	ref->on_unref(ref, data);
 	if(!ref->count)
 		_gc_remove(ref, data);
-#else /* MB_ENABLE_GC */
-	if(ref->count && *ref->count == _NONE_REF)
-		_tidy_intermediate_value(ref, data);
-	ref->on_unref(ref, data);
-#endif /* MB_ENABLE_GC */
 
 	return result;
 }
@@ -5060,7 +5040,6 @@ void _destroy_ref(_ref_t* ref) {
 	ref->on_unref = 0;
 }
 
-#ifdef MB_ENABLE_GC
 void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 	/* Add a referenced object to GC table for later garbage detection */
 	_ht_node_t* table = 0;
@@ -5439,7 +5418,6 @@ void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	s->gc.collecting--;
 	mb_assert(!s->gc.collecting);
 }
-#endif /* MB_ENABLE_GC */
 
 #ifdef MB_ENABLE_USERTYPE_REF
 _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft) {
@@ -9539,11 +9517,9 @@ int mb_open(struct mb_interpreter_t** s) {
 	(*s)->temp_values = _ls_create();
 	(*s)->lazy_destroy_objects = _ls_create();
 
-#ifdef MB_ENABLE_GC
 	(*s)->gc.table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
 	(*s)->gc.recursive_table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
 	(*s)->gc.collected_table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
-#endif /* MB_ENABLE_GC */
 
 	running = _create_running_context(true);
 	running->meta = _SCOPE_META_ROOT;
@@ -9599,7 +9575,6 @@ int mb_close(struct mb_interpreter_t** s) {
 	_tidy_scope_chain(*s);
 	_dispose_scope_chain(*s);
 
-#ifdef MB_ENABLE_GC
 	_gc_collect_garbage(*s, 1);
 	_ht_destroy((*s)->gc.table);
 	_ht_destroy((*s)->gc.recursive_table);
@@ -9607,7 +9582,6 @@ int mb_close(struct mb_interpreter_t** s) {
 	(*s)->gc.table = 0;
 	(*s)->gc.recursive_table = 0;
 	(*s)->gc.collected_table = 0;
-#endif /* MB_ENABLE_GC */
 
 	_ls_foreach((*s)->temp_values, _destroy_object);
 	_ls_destroy((*s)->temp_values);
@@ -10092,9 +10066,7 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	_public_value_to_internal_object(&running->intermediate_value, &obj);
 	_REF(&obj)
 
-#ifdef MB_ENABLE_GC
 	_gc_try_trigger(s);
-#endif /* MB_ENABLE_GC */
 
 	return result;
 }
@@ -11292,7 +11264,6 @@ int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 
 int mb_gc(struct mb_interpreter_t* s, int_t* collected) {
 	/* Trigger GC */
-#ifdef MB_ENABLE_GC
 	int_t diff = _mb_allocated;
 
 	_gc_collect_garbage(s, 1);
@@ -11301,10 +11272,6 @@ int mb_gc(struct mb_interpreter_t* s, int_t* collected) {
 
 	if(collected)
 		*collected = diff;
-#else /* MB_ENABLE_GC */
-	mb_unrefvar(s);
-	mb_unrefvar(collected);
-#endif /* MB_ENABLE_GC */
 
 	return MB_FUNC_OK;
 }
@@ -11874,11 +11841,7 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	_running_context_t* running = 0;
 	_var_t* var = 0;
 	_var_t* evar = 0;
-#ifdef MB_ENABLE_GC
 	int refc = 1;
-#else /* MB_ENABLE_GC */
-	int refc = 0;
-#endif /* MB_ENABLE_GC */
 	_array_t* arr = 0;
 	_object_t* arr_obj = 0;
 	unsigned int arr_idx = 0;

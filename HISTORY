@@ -1,4 +1,5 @@
 Jan. 27 2016
+Removed the MB_ENABLE_GC macro
 Refactored initial reference count
 Polished code
 
