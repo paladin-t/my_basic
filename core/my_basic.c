@@ -332,7 +332,7 @@ struct _ref_t;
 
 typedef void (* _unref_func_t)(struct _ref_t*, void*);
 
-typedef unsigned int _ref_count_t;
+typedef unsigned _ref_count_t;
 
 typedef struct _ref_t {
 	_ref_count_t* count;
@@ -1385,8 +1385,8 @@ static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 static bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 
-static unsigned _ref(_ref_t* ref, void* data);
-static unsigned _unref(_ref_t* ref, void* data);
+static _ref_count_t _ref(_ref_t* ref, void* data);
+static bool_t _unref(_ref_t* ref, void* data);
 static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s);
 static void _destroy_ref(_ref_t* ref);
 
@@ -4997,18 +4997,24 @@ bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 	return result;
 }
 
-unsigned _ref(_ref_t* ref, void* data) {
+_ref_count_t _ref(_ref_t* ref, void* data) {
 	/* Increase the reference of a stub by 1 */
+	_ref_count_t before = *ref->count;
+
 	mb_unrefvar(data);
 
-	return ++(*ref->count);
+	++(*ref->count);
+	mb_assert(*ref->count > before && "Too many referencing, count overflow, please redefine _ref_count_t.");
+
+	return *ref->count;
 }
 
-unsigned _unref(_ref_t* ref, void* data) {
+bool_t _unref(_ref_t* ref, void* data) {
 	/* Decrease the reference of a stub by 1 */
-	unsigned result = 0;
+	bool_t result = false;
 
 	result = --(*ref->count) == _NONE_REF;
+	mb_assert(*ref->count >= _NONE_REF);
 	_gc_add(ref, data, 0);
 	if(ref->count && *ref->count == _NONE_REF)
 		_tidy_intermediate_value(ref, data);
@@ -5024,7 +5030,7 @@ void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s
 	if(ref->count)
 		return;
 
-	ref->count = (unsigned*)mb_malloc(sizeof(unsigned));
+	ref->count = (_ref_count_t*)mb_malloc(sizeof(_ref_count_t));
 	*ref->count = _NONE_REF;
 	ref->on_unref = dtor;
 	ref->type = t;
