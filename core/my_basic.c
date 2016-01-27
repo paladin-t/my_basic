@@ -328,6 +328,8 @@ typedef struct _var_t {
 
 struct _ref_t;
 
+#define _NONE_REF 1
+
 typedef void (* _unref_func_t)(struct _ref_t*, void*);
 
 typedef unsigned int _ref_count_t;
@@ -5013,22 +5015,24 @@ unsigned _ref(_ref_t* ref, void* data) {
 	/* Increase the reference of a stub by 1 */
 	mb_unrefvar(data);
 
-	return ++(*(ref->count));
+	return ++(*ref->count);
 }
 
 unsigned _unref(_ref_t* ref, void* data) {
 	/* Decrease the reference of a stub by 1 */
 	unsigned result = 0;
 
-	result = --(*(ref->count));
+	result = --(*ref->count) == _NONE_REF;
 #ifdef MB_ENABLE_GC
 	_gc_add(ref, data, 0);
-	if(ref->count && !(*ref->count))
+	if(ref->count && *ref->count == _NONE_REF)
 		_tidy_intermediate_value(ref, data);
 	ref->on_unref(ref, data);
 	if(!ref->count)
 		_gc_remove(ref, data);
 #else /* MB_ENABLE_GC */
+	if(ref->count && *ref->count == _NONE_REF)
+		_tidy_intermediate_value(ref, data);
 	ref->on_unref(ref, data);
 #endif /* MB_ENABLE_GC */
 
@@ -5041,7 +5045,7 @@ void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s
 		return;
 
 	ref->count = (unsigned*)mb_malloc(sizeof(unsigned));
-	*(ref->count) = 0;
+	*ref->count = _NONE_REF;
 	ref->on_unref = dtor;
 	ref->type = t;
 	ref->s = s;
@@ -5077,7 +5081,7 @@ void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 	else
 		table = ref->s->gc.table;
 
-	if(ref->count && *ref->count)
+	if(ref->count && *ref->count > _NONE_REF)
 		_ht_set_or_insert(table, ref, data);
 	else
 		_ht_remove(table, ref, 0);
@@ -5371,7 +5375,7 @@ int _gc_destroy_garbage(void* data, void* extra) {
 		break;
 	}
 	if(ref->count) {
-		cld = (*(ref->count)) == 1;
+		cld = *ref->count == _NONE_REF + 1;
 		_unref(ref, data);
 		if(cld)
 			_ht_set_or_insert(gc->collected_table, ref, data);
@@ -5463,7 +5467,7 @@ void _destroy_usertype_ref(_usertype_ref_t* c) {
 
 void _unref_usertype_ref(_ref_t* ref, void* data) {
 	/* Unreference a referenced usertype */
-	if(!(*(ref->count)))
+	if(*ref->count == _NONE_REF)
 		_destroy_usertype_ref((_usertype_ref_t*)data);
 }
 #endif /* MB_ENABLE_USERTYPE_REF */
@@ -5799,7 +5803,7 @@ bool_t _is_array(void* obj) {
 
 void _unref_array(_ref_t* ref, void* data) {
 	/* Unreference an array */
-	if(!(*(ref->count)))
+	if(*ref->count == _NONE_REF)
 		_destroy_array((_array_t*)data);
 }
 
@@ -5965,13 +5969,13 @@ _exit:
 
 void _unref_list(_ref_t* ref, void* data) {
 	/* Unreference a list */
-	if(!(*(ref->count)))
+	if(*ref->count == _NONE_REF)
 		_destroy_list((_list_t*)data);
 }
 
 void _unref_dict(_ref_t* ref, void* data) {
 	/* Unreference a dictionary */
-	if(!(*(ref->count)))
+	if(*ref->count == _NONE_REF)
 		_destroy_dict((_dict_t*)data);
 }
 
@@ -6477,7 +6481,7 @@ void _unref_class(_ref_t* ref, void* data) {
 	if(ref->s->valid)
 		_out_of_scope(ref->s, ((_class_t*)data)->scope, (_class_t*)data, false);
 
-	if(!(*(ref->count)))
+	if(*ref->count == _NONE_REF)
 		_destroy_class((_class_t*)data);
 }
 
@@ -6872,7 +6876,7 @@ _running_context_t* _init_lambda(mb_interpreter_t* s, _routine_t* routine) {
 
 void _unref_routine(_ref_t* ref, void* data) {
 	/* Unreference a lambda routine */
-	if(!(*(ref->count)))
+	if(*ref->count == _NONE_REF)
 		_destroy_routine(ref->s, (_routine_t*)data);
 }
 
@@ -6979,7 +6983,7 @@ _running_context_ref_t* _create_outer_scope(mb_interpreter_t* s) {
 
 void _unref_outer_scope(_ref_t* ref, void* data) {
 	/* Unreference an outer scope */
-	if(!(*(ref->count)))
+	if(*ref->count == _NONE_REF)
 		_destroy_outer_scope((_running_context_ref_t*)data);
 }
 
@@ -11870,7 +11874,11 @@ int _core_let(mb_interpreter_t* s, void** l) {
 	_running_context_t* running = 0;
 	_var_t* var = 0;
 	_var_t* evar = 0;
+#ifdef MB_ENABLE_GC
 	int refc = 1;
+#else /* MB_ENABLE_GC */
+	int refc = 0;
+#endif /* MB_ENABLE_GC */
 	_array_t* arr = 0;
 	_object_t* arr_obj = 0;
 	unsigned int arr_idx = 0;

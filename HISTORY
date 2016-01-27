@@ -1,3 +1,7 @@
+Jan. 27 2016
+Refactored initial reference count
+Polished code
+
 Jan. 26 2016
 Added an mb_gc function
 Added a SET_IMPORTING_DIRS statement to the shell

@@ -659,7 +659,9 @@ static int _new_program(void) {
 
 	mb_gc(bas, 0);
 
+#if _USE_MEM_POOL
 	_tidy_mem_pool(true);
+#endif /* _USE_MEM_POOL */
 
 	return result;
 }
