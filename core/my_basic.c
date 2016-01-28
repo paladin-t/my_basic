@@ -1627,7 +1627,7 @@ static int _close_coll_lib(mb_interpreter_t* s);
 				_ls_node_t* ast = 0; static int i = 0; ++i; \
 				printf("Unaccessable function called %d times.\n", i); \
 				ast = (_ls_node_t*)(*(__l)); \
-				_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, 0, DON(ast), MB_FUNC_ERR, __exit, __result); \
+				_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, (__s)->source_file, DON(ast), MB_FUNC_ERR, __exit, __result); \
 			} while(0)
 #	endif /* _MSC_VER < 1300 */
 #endif /* _MSC_VER */
@@ -9030,7 +9030,7 @@ int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_fu
 
 	count = 1;
 	do {
-		if(!ast->next) {
+		if(!ast || !ast->next) {
 			_handle_error_on_obj(s, SE_RN_STRUCTURE_NOT_COMPLETED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		obj_prev = (_object_t*)ast->data;
