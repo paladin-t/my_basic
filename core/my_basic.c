@@ -11270,11 +11270,11 @@ int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 
 int mb_gc(struct mb_interpreter_t* s, int_t* collected) {
 	/* Trigger GC */
-	int_t diff = _mb_allocated;
+	int_t diff = (int_t)_mb_allocated;
 
 	_gc_collect_garbage(s, 1);
 
-	diff = _mb_allocated - diff;
+	diff = (int_t)(_mb_allocated - diff);
 
 	if(collected)
 		*collected = diff;
