@@ -149,6 +149,7 @@ extern "C" {
 #	define _GET_CLASS(__o) ((!__o) ? 0 : (_IS_CLASS(__o) ? (__o) : (_IS_VAR(__o) && _IS_CLASS((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
 #endif /* MB_ENABLE_CLASS */
 #define _IS_ROUTINE(__o) ((__o) && ((_object_t*)(__o))->type == _DT_ROUTINE)
+#define _GET_ROUTINE(__o) ((!__o) ? 0 : (_IS_ROUTINE(__o) ? (__o) : (_IS_VAR(__o) && _IS_ROUTINE((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
 
 /* Hash table size */
 #define _HT_ARRAY_SIZE_TINY 1
@@ -433,7 +434,7 @@ typedef struct _class_t {
 #endif /* MB_ENABLE_CLASS */
 
 typedef enum _invokable_e {
-	_IT_SCRIPT,
+	_IT_SCRIPT = 1,
 #ifdef MB_ENABLE_LAMBDA
 	_IT_LAMBDA,
 #endif /* MB_ENABLE_LAMBDA */
@@ -12711,7 +12712,8 @@ _retry:
 		mb_unrefvar(pathed);
 #endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
-		routine = (_routine_t*)obj->data.routine;
+		obj = _GET_ROUTINE(obj);
+		routine = obj->data.routine;
 		result = _eval_routine(s, &ast, 0, 0, routine, _has_routine_lex_arg, _pop_routine_lex_arg);
 		if(ast)
 			ast = ast->prev;

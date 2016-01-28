@@ -1,4 +1,5 @@
 Jan. 28 2016
+Fixed a routine retrieving bug
 Fixed a crash bug when skipping a struct
 
 Jan. 27 2016
