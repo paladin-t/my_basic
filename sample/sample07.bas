@@ -91,7 +91,7 @@ def brainfuck(cmd)
 enddef
 
 ' This is a brainfuck interpreter written with MY-BASIC
-print "BF: "
+print "Input: "
 input cmd$
 ' Use a sample code?
 if cmd$ = "hello" then

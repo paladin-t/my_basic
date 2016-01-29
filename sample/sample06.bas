@@ -4,19 +4,19 @@
 
 class animal
 	def speak(a)
-		print "default" + a;
+		print "Default" + a;
 	enddef
 endclass
 
 class cat(animal)
 	def speak(a)
-		print "meow" + a;
+		print "Meow" + a;
 	enddef
 endclass
 
 class dog(animal)
 	def speak(a)
-		print "woof" + a;
+		print "Woof" + a;
 	enddef
 endclass
 
