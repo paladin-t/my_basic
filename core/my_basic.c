@@ -425,6 +425,7 @@ typedef struct _label_t {
 typedef struct _class_t {
 	_ref_t ref;
 	char* name;
+	struct _class_t* created_from;
 	_ls_node_t* meta_list;
 	struct _running_context_t* scope;
 	struct _routine_t* hash;
@@ -6454,6 +6455,7 @@ void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	instance->name = n;
 	instance->meta_list = _ls_create();
 	instance->scope = _create_running_context(true);
+	instance->created_from = instance;
 }
 
 void _begin_class(mb_interpreter_t* s) {
@@ -6621,7 +6623,7 @@ int _clone_clsss_field(void* data, void* extra, void* n) {
 		break;
 	case _DT_ROUTINE:
 		sub = (_routine_t*)obj->data.routine;
-		if(!_search_identifier_in_scope_chain(instance->ref.s, instance->scope, sub->name, 0, 0, 0)) {
+		if(!_ht_find(instance->scope->var_dict, sub->name)) {
 			_routine_t* routine = _clone_routine(sub, instance);
 			ret = _create_object();
 			ret->type = _DT_ROUTINE;
@@ -7726,6 +7728,7 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 	case _DT_CLASS:
 		tgt->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
 		_init_class(s, tgt->data.instance, mb_strdup(obj->data.instance->name, 0));
+		tgt->data.instance->created_from = obj->data.instance->created_from;
 		_push_scope_by_class(s, tgt->data.instance->scope);
 		_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, _META_LIST_MAX_DEPTH, false, tgt->data.instance, 0);
 		_pop_scope(s, false);
@@ -8666,7 +8669,7 @@ _retry:
 					result = _core_let(s, (void**)&ast);
 				}
 			} else {
-				mb_assert(0 && "Impossible.");
+				result = _core_let(s, (void**)&ast);
 			}
 		} else {
 			/* Do not need to path */
@@ -12785,10 +12788,25 @@ _retry:
 #else /* MB_ENABLE_LAMBDA */
 		{
 #endif /* MB_ENABLE_LAMBDA */
-			if(routine->instance && (!s->last_instance || (s->last_instance && routine->instance && strcmp(s->last_instance->name, routine->instance->name))))
+			bool_t is_a0 = false;
+			bool_t is_a1 = false;
+			if(s->last_instance && routine->instance) {
+				_traverse_class(s->last_instance->created_from, 0, _is_class, _META_LIST_MAX_DEPTH, true, routine->instance->created_from, &is_a0);
+				_traverse_class(routine->instance->created_from, 0, _is_class, _META_LIST_MAX_DEPTH, true, s->last_instance->created_from, &is_a1);
+			}
+			if(routine->instance &&
+				(!s->last_instance ||
+					(s->last_instance &&
+						!is_a0 && !is_a1 &&
+						s->last_instance->created_from != routine->instance &&
+						routine->instance->created_from != s->last_instance
+					)
+				)
+			) {
 				pathed = _search_identifier_in_class(s, routine->instance, routine->name, 0, 0);
-			else
+			} else {
 				pathed = _search_identifier_in_scope_chain(s, 0, routine->name, 0, 0, 0);
+			}
 			if(pathed && pathed->data) {
 				obj = (_object_t*)pathed->data;
 				obj = _GET_ROUTINE(obj);
