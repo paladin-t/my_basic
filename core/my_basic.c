@@ -3580,6 +3580,11 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	_routine_t* lastr = 0;
 	mb_value_t inte;
 	_ls_node_t* lastv = 0;
+	bool_t succ = false;
+#ifdef MB_ENABLE_CLASS
+	bool_t pushed_inst = false;
+	_class_t* last_inst = 0;
+#endif /* MB_ENABLE_CLASS */
 
 	mb_assert(s && l && r);
 
@@ -3625,6 +3630,16 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	ast = (_ls_node_t*)*l;
 	_ls_pushback(s->sub_stack, ast);
 
+#ifdef MB_ENABLE_CLASS
+	if(r->instance && s->last_instance != r->instance) {
+		pushed_inst = true;
+		last_inst = s->last_instance;
+		s->last_instance = r->instance;
+		if(r->instance)
+			_push_scope_by_class(s, r->instance->scope);
+	}
+#endif /* MB_ENABLE_CLASS */
+
 	running = _push_scope_by_routine(s, running);
 
 	*l = r->func.basic.entry;
@@ -3664,17 +3679,27 @@ int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	if(result != MB_FUNC_OK)
 		goto _exit;
 
-	mb_make_nil(inte);
+	succ = true;
 
+	mb_make_nil(inte);
 	_swap_public_value(&inte, &running->intermediate_value);
 
 	_pop_scope(s, true);
 
-	_assign_public_value(&s->running_context->intermediate_value, &inte);
-
 _exit:
-	if(result != MB_FUNC_OK)
+	if(!succ)
 		_pop_scope(s, true);
+
+#ifdef MB_ENABLE_CLASS
+	if(pushed_inst) {
+		if(r->instance)
+			_pop_scope(s, false);
+		s->last_instance = last_inst;
+	}
+#endif /* MB_ENABLE_CLASS */
+
+	if(succ)
+		_assign_public_value(&s->running_context->intermediate_value, &inte);
 
 _error:
 	s->last_routine = lastr;
@@ -7199,7 +7224,11 @@ _ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* instance,
 
 	mb_assert(s && instance && n);
 
-	result = _search_identifier_in_scope_chain(s, instance->scope, n, 0, ht, sp);
+	result = _ht_find(instance->scope->var_dict, (void*)n);
+	if(result) {
+		if(ht) *ht = instance->scope->var_dict;
+		if(sp) *sp = instance->scope;
+	}
 
 	if(!result) {
 		node = instance->meta_list ? instance->meta_list->next : 0;
@@ -8581,7 +8610,15 @@ _retry:
 		break;
 	case _DT_VAR:
 #ifdef MB_ENABLE_CLASS
-		if(obj->data.variable->pathing) {
+		if(obj->data.variable->data->type == _DT_ROUTINE) {
+			if(ast && ast->next && _IS_FUNC(ast->next->data, _core_open_bracket)) {
+				obj = obj->data.variable->data;
+
+				goto _retry;
+			} else {
+				result = _core_let(s, (void**)&ast);
+			}
+		} else if(s->last_instance || obj->data.variable->pathing) {
 			/* Need to path */
 			_ls_node_t* pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing, 0, 0);
 			if(pathed && pathed->data) {
@@ -8596,14 +8633,6 @@ _retry:
 				}
 			} else {
 				mb_assert(0 && "Impossible.");
-			}
-		} else if(obj->data.variable->data->type == _DT_ROUTINE) {
-			if(ast && ast->next && _IS_FUNC(ast->next->data, _core_open_bracket)) {
-				obj = obj->data.variable->data;
-
-				goto _retry;
-			} else {
-				result = _core_let(s, (void**)&ast);
 			}
 		} else {
 			/* Do not need to path */
@@ -12714,6 +12743,20 @@ _retry:
 	case _DT_ROUTINE:
 		obj = _GET_ROUTINE(obj);
 		routine = obj->data.routine;
+#ifdef MB_ENABLE_CLASS
+#ifdef MB_ENABLE_LAMBDA
+		if(routine->type != _IT_LAMBDA) {
+#else /* MB_ENABLE_LAMBDA */
+		{
+#endif /* MB_ENABLE_LAMBDA */
+			pathed = _search_identifier_in_scope_chain(s, 0, routine->name, 0, 0, 0);
+			if(pathed && pathed->data) {
+				obj = (_object_t*)pathed->data;
+				obj = _GET_ROUTINE(obj);
+				routine = obj->data.routine;
+			}
+		}
+#endif /* MB_ENABLE_CLASS */
 		result = _eval_routine(s, &ast, 0, 0, routine, _has_routine_lex_arg, _pop_routine_lex_arg);
 		if(ast)
 			ast = ast->prev;
