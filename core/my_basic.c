@@ -1490,6 +1490,7 @@ static bool_t _end_routine(mb_interpreter_t* s);
 static void _begin_routine_parameter_list(mb_interpreter_t* s);
 static void _end_routine_parameter_list(mb_interpreter_t* s);
 static _object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* running);
+static _routine_t* _clone_routine(_routine_t* sub, void* c);
 #ifdef MB_ENABLE_LAMBDA
 static _running_context_t* _init_lambda(mb_interpreter_t* s, _routine_t* routine);
 static void _unref_routine(_ref_t* ref, void* data);
@@ -6621,13 +6622,7 @@ int _clone_clsss_field(void* data, void* extra, void* n) {
 	case _DT_ROUTINE:
 		sub = (_routine_t*)obj->data.routine;
 		if(!_search_identifier_in_scope_chain(instance->ref.s, instance->scope, sub->name, 0, 0, 0)) {
-			_routine_t* routine = (_routine_t*)mb_malloc(sizeof(_routine_t));
-			memset(routine, 0, sizeof(_routine_t));
-			routine->name = mb_strdup(sub->name, 0);
-			routine->instance = instance;
-			routine->is_cloned = true;
-			routine->type = sub->type;
-			routine->func = sub->func;
+			_routine_t* routine = _clone_routine(sub, instance);
 			ret = _create_object();
 			ret->type = _DT_ROUTINE;
 			ret->data.routine = routine;
@@ -6865,6 +6860,38 @@ _object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* run
 	_ht_set_or_insert(running->var_dict, var->name, obj);
 
 	return obj;
+}
+
+_routine_t* _clone_routine(_routine_t* sub, void* c) {
+	/* Clone a routine */
+	_routine_t* result = 0;
+#ifdef MB_ENABLE_CLASS
+	_class_t* instance = (_class_t*)c;
+#else /* MB_ENABLE_CLASS */
+	mb_unrefvar(c);
+#endif /* MB_ENABLE_CLASS */
+
+	mb_assert(sub);
+
+#ifdef MB_ENABLE_LAMBDA
+	if(sub->type == _IT_LAMBDA)
+		result = sub;
+#endif /* MB_ENABLE_LAMBDA */
+
+	if(!result) {
+		result = (_routine_t*)mb_malloc(sizeof(_routine_t));
+		memset(result, 0, sizeof(_routine_t));
+		if(sub->name)
+			result->name = mb_strdup(sub->name, 0);
+#ifdef MB_ENABLE_CLASS
+		result->instance = instance;
+#endif /* MB_ENABLE_CLASS */
+		result->is_cloned = true;
+		result->type = sub->type;
+		result->func = sub->func;
+	}
+
+	return result;
 }
 
 #ifdef MB_ENABLE_LAMBDA
@@ -7706,7 +7733,14 @@ int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt) {
 		break;
 #endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
-		tgt->data.routine = obj->data.routine;
+		tgt->data.routine = _clone_routine(
+			obj->data.routine,
+#ifdef MB_ENABLE_CLASS
+			obj->data.routine->instance
+#else /* MB_ENABLE_CLASS */
+			0
+#endif /* MB_ENABLE_CLASS */
+		);
 
 		break;
 	case _DT_NIL: /* Fall through */
@@ -12723,6 +12757,8 @@ _retry:
 			mb_check(mb_attempt_close_bracket(s, l));
 
 			mb_check(mb_push_value(s, l, ret));
+
+			ast = (_ls_node_t*)*l;
 		}
 
 		break;
@@ -12749,7 +12785,10 @@ _retry:
 #else /* MB_ENABLE_LAMBDA */
 		{
 #endif /* MB_ENABLE_LAMBDA */
-			pathed = _search_identifier_in_scope_chain(s, 0, routine->name, 0, 0, 0);
+			if(routine->instance && (!s->last_instance || (s->last_instance && routine->instance && strcmp(s->last_instance->name, routine->instance->name))))
+				pathed = _search_identifier_in_class(s, routine->instance, routine->name, 0, 0);
+			else
+				pathed = _search_identifier_in_scope_chain(s, 0, routine->name, 0, 0, 0);
 			if(pathed && pathed->data) {
 				obj = (_object_t*)pathed->data;
 				obj = _GET_ROUTINE(obj);

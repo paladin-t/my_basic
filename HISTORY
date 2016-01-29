@@ -1,4 +1,5 @@
 Jan. 29 2016
+Fixed lookup bugs with sub routine
 Fixed a member accessing bug with class instance
 
 Jan. 28 2016
