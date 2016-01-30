@@ -1,3 +1,7 @@
+Jan. 30 2016
+Added a TRACE command to the shell
+Fixed an infinity bug in the mb_debug_get_stack_trace function
+
 Jan. 29 2016
 Fixed lookup bugs with member sub routine of a class instance
 Fixed a member accessing bug with class instance

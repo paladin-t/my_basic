@@ -1144,6 +1144,30 @@ static int set_importing_dirs(struct mb_interpreter_t* s, void** l) {
 	return result;
 }
 
+static int trace(struct mb_interpreter_t* s, void** l) {
+	int result = MB_FUNC_OK;
+	char* frames[16];
+	char** p = frames;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	mb_check(mb_debug_get_stack_trace(s, l, frames, _countof(frames)));
+
+	while(*p) {
+		_printf("%s", *p);
+		++p;
+		if(*p) {
+			_printf(" <- ");
+		}
+	}
+
+	return result;
+}
+
 static int gc(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	int_t collected = 0;
@@ -1193,6 +1217,7 @@ static void _on_stepped(struct mb_interpreter_t* s, char* f, int p, unsigned sho
 static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f, int p, unsigned short row, unsigned short col, int abort_code) {
 	mb_unrefvar(s);
 	mb_unrefvar(p);
+
 	if(SE_NO_ERR != e) {
 		if(f) {
 			_printf("Error:\n    [LINE] %d, [COL] %d, [FILE] %s,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d.\n", row, col, f, e, m, abort_code);
@@ -1245,6 +1270,7 @@ static void _on_startup(void) {
 #endif /* _HAS_TICKS */
 	mb_reg_fun(bas, now);
 	mb_reg_fun(bas, set_importing_dirs);
+	mb_reg_fun(bas, trace);
 	mb_reg_fun(bas, gc);
 	mb_reg_fun(bas, beep);
 }
