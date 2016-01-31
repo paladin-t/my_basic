@@ -1,3 +1,6 @@
+Jan. 31 2016
+Ignored first frame name with the TRACE command
+
 Jan. 30 2016
 Added a TRACE command to the shell
 Fixed an infinity loop bug in the mb_debug_get_stack_trace function

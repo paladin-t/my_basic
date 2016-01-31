@@ -1151,12 +1151,15 @@ static int trace(struct mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	memset(frames, 0, _countof(frames));
+
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	mb_check(mb_debug_get_stack_trace(s, l, frames, _countof(frames)));
 
+	++p;
 	while(*p) {
 		_printf("%s", *p);
 		++p;
