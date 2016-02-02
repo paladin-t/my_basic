@@ -2681,7 +2681,7 @@ int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht) {
 /** Memory manipulations */
 void* mb_malloc(size_t s) {
 	/* Allocate a chunk of memory with a specific size */
-	char* ret = NULL;
+	char* ret = 0;
 	size_t rs = s;
 #ifdef MB_ENABLE_ALLOC_STAT
 	if(!_MB_CHECK_MEM_TAG_SIZE(size_t, s))
@@ -3449,7 +3449,7 @@ _routine:
 			(*val)->data = c->data;
 		}
 	}
-	if(guard_val != c && _ls_try_remove(garbage, c, _ls_cmp_data, NULL)) {
+	if(guard_val != c && _ls_try_remove(garbage, c, _ls_cmp_data, 0)) {
 		_try_clear_intermediate_value(c, 0, s);
 
 		if(
