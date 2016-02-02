@@ -1007,7 +1007,7 @@ static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data);
 static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op);
 static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
 static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op);
-static void _ls_sort(_ls_node_t* list, _ls_compare cmp);
+static _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp);
 static int _ls_count(_ls_node_t* list);
 static bool_t _ls_empty(_ls_node_t* list);
 static void _ls_clear(_ls_node_t* list);
@@ -2151,22 +2151,26 @@ unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
 	return idx;
 }
 
-void _ls_sort(_ls_node_t* list, _ls_compare cmp) {
+_ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
 	_ls_node_t* ptr = 0;
+	_ls_node_t* lst = 0;
 	void* tmp = 0;
 
 	mb_assert(list && cmp);
 
-	list = list->next;
-	for( ; list; list = list->next) {
-		for(ptr = list; ptr; ptr = ptr->next) {
-			if(cmp(list->data, ptr->data) > 0) {
+	lst = *list;
+	lst = lst->next;
+	for( ; lst; lst = lst->next) {
+		for(ptr = lst; ptr; ptr = ptr->next) {
+			if(cmp(lst->data, ptr->data) > 0) {
 				tmp = ptr->data;
-				ptr->data = list->data;
-				list->data = tmp;
+				ptr->data = lst->data;
+				lst->data = tmp;
 			}
 		}
 	}
+
+	return *list;
 }
 
 int _ls_count(_ls_node_t* list) {
@@ -6233,7 +6237,7 @@ void _sort_list(_list_t* coll) {
 	/* Sort a list */
 	mb_assert(coll);
 
-	_ls_sort(coll->list, (_ls_compare)_ht_cmp_object);
+	_ls_sort(&coll->list, (_ls_compare)_ht_cmp_object);
 
 	_write_on_ref_object(&coll->lock, &coll->ref, coll);
 	_invalidate_list_cache(coll);
