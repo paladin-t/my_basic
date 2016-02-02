@@ -2152,25 +2152,88 @@ unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
 }
 
 _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
-	_ls_node_t* ptr = 0;
+	/* Copyright 2001 Simon Tatham, http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.c */
+	bool_t is_circular = false, is_double = false;
+	_ls_node_t* p, * q, * e, * tail, * oldhead;
+	int insize, nmerges, psize, qsize, i;
 	_ls_node_t* lst = 0;
-	void* tmp = 0;
 
 	mb_assert(list && cmp);
 
 	lst = *list;
-	lst = lst->next;
-	for( ; lst; lst = lst->next) {
-		for(ptr = lst; ptr; ptr = ptr->next) {
-			if(cmp(lst->data, ptr->data) > 0) {
-				tmp = ptr->data;
-				ptr->data = lst->data;
-				lst->data = tmp;
-			}
-		}
-	}
+	if(lst) lst = lst->next;
 
-	return *list;
+	if(!lst)
+		return 0;
+
+	insize = 1;
+
+	while(1) {
+		p = lst;
+		oldhead = lst;
+		lst = 0;
+		tail = 0;
+
+		nmerges = 0;
+
+		while(p) {
+			nmerges++;
+			q = p;
+			psize = 0;
+			for(i = 0; i < insize; i++) {
+				psize++;
+				if(is_circular)
+					q = (q->next == oldhead ? 0 : q->next);
+				else
+					q = q->next;
+				if(!q) break;
+			}
+
+			qsize = insize;
+
+			while(psize > 0 || (qsize > 0 && q)) {
+				if(psize == 0) {
+					e = q; q = q->next; qsize--;
+					if(is_circular && q == oldhead) q = 0;
+				} else if(qsize == 0 || !q) {
+					e = p; p = p->next; psize--;
+					if(is_circular && p == oldhead) p = 0;
+				} else if(cmp(p->data, q->data) <= 0) {
+					e = p; p = p->next; psize--;
+					if(is_circular && p == oldhead) p = 0;
+				} else {
+					e = q; q = q->next; qsize--;
+					if(is_circular && q == oldhead) q = 0;
+				}
+
+				if(tail)
+					tail->next = e;
+				else
+					lst = e;
+				if(is_double)
+					e->prev = tail;
+				tail = e;
+			}
+
+			p = q;
+		}
+		if(is_circular) {
+			tail->next = lst;
+			if(is_double)
+				lst->prev = tail;
+		} else {
+			tail->next = 0;
+		}
+
+		if(nmerges <= 1) {
+			(*list)->next = lst;
+			(*list)->prev = tail;
+
+			return *list;
+		}
+
+		insize *= 2;
+	}
 }
 
 int _ls_count(_ls_node_t* list) {
@@ -2712,7 +2775,8 @@ char* mb_strupr(char* s) {
 /** Unicode handling */
 #ifdef MB_ENABLE_UNICODE
 int mb_uu_ischar(char* ch) {
-	/* Determine whether a buffer is a UTF8 encoded character, and return _TAKEn bytes */
+	/* Copyright 2008-2009 Bjoern Hoehrmann, http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ */
+	/* Determine whether a buffer is a UTF8 encoded character, and return taken bytes */
 #define _TAKE(__ch, __c, __r) do { __c = *__ch++; __r++; } while(0)
 #define _COPY(__ch, __c, __r, __cp) do { _TAKE(__ch, __c, __r); __cp = (__cp << 6) | ((unsigned char)__c & 0x3Fu); } while(0)
 #define _TRANS(__m, __cp, __g) do { __cp &= ((__g[(unsigned char)c] & __m) != 0); } while(0)
