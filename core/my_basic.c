@@ -2158,7 +2158,7 @@ _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
 	int insize, nmerges, psize, qsize, i;
 	_ls_node_t* lst = 0;
 
-	mb_assert(list && cmp);
+	mb_assert(list && *list && cmp);
 
 	lst = *list;
 	if(lst) lst = lst->next;
@@ -2775,7 +2775,7 @@ char* mb_strupr(char* s) {
 /** Unicode handling */
 #ifdef MB_ENABLE_UNICODE
 int mb_uu_ischar(char* ch) {
-	/* Copyright 2008-2009 Bjoern Hoehrmann, http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ */
+	/* Copyright 2008, 2009 Bjoern Hoehrmann, http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ */
 	/* Determine whether a buffer is a UTF8 encoded character, and return taken bytes */
 #define _TAKE(__ch, __c, __r) do { __c = *__ch++; __r++; } while(0)
 #define _COPY(__ch, __c, __r, __cp) do { _TAKE(__ch, __c, __r); __cp = (__cp << 6) | ((unsigned char)__c & 0x3Fu); } while(0)

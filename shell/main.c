@@ -37,6 +37,9 @@
 #elif !defined __BORLANDC__ && !defined __TINYC__
 #	include <unistd.h>
 #endif /* _MSC_VER */
+#ifndef _MSC_VER
+#	include <stdint.h>
+#endif /* _MSC_VER */
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1076,6 +1079,14 @@ static int_t _ticks(void) {
 	ret = (int_t)((double)li.QuadPart / freq);
 
 	return ret;
+}
+#elif defined __APPLE__ || defined __GNUC__
+static int_t _ticks(void) {
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
+	return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 #else /* _MSC_VER */
 #	undef _HAS_TICKS

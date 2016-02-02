@@ -1,5 +1,5 @@
 my_basic : main.o my_basic.o
-	cc -o output/my_basic_bin main.o my_basic.o -lm
+	cc -o output/my_basic_bin main.o my_basic.o -lm -lrt
 
 main.o : shell/main.c core/my_basic.h
 	cc -Os -c shell/main.c -Wno-unused-result
