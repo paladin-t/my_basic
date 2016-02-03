@@ -1,4 +1,5 @@
 Feb. 3 2016
+Added an INDEX_OF statement
 Fixed a wrong dereferencing bug with referenced type hashing and comparison
 Fixed an invalid lambda bug with GC
 Fixed a memory leak with sub routine when assigning it as an upvalue

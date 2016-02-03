@@ -263,6 +263,7 @@ static const char* _ERR_DESC[] = {
 	"Duplicate class",
 	"Wrong meta class",
 	"Invalid lambda",
+	"List expected",
 	"Collection expected",
 	"Iterator expected",
 	"Collection or iterator expected",
@@ -997,7 +998,7 @@ static int _ls_cmp_module_func(void* node, void* info);
 
 static _ls_node_t* _ls_create_node(void* data);
 static _ls_node_t* _ls_create(void);
-static _ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp);
+static _ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp, int* idx);
 static _ls_node_t* _ls_back(_ls_node_t* node);
 static _ls_node_t* _ls_pushback(_ls_node_t* list, void* data);
 static void* _ls_popback(_ls_node_t* list);
@@ -1447,7 +1448,7 @@ static bool_t _set_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** o
 static bool_t _remove_at_list(_list_t* coll, int_t idx);
 static _ls_node_t* _node_at_list(_list_t* coll, int index);
 static bool_t _at_list(_list_t* coll, int_t idx, mb_value_t* oval);
-static bool_t _find_list(_list_t* coll, mb_value_t* val);
+static bool_t _find_list(_list_t* coll, mb_value_t* val, int* idx);
 static void _clear_list(_list_t* coll);
 static void _sort_list(_list_t* coll);
 static void _invalidate_list_cache(_list_t* coll);
@@ -1746,6 +1747,7 @@ static int _coll_peek(mb_interpreter_t* s, void** l);
 static int _coll_insert(mb_interpreter_t* s, void** l);
 static int _coll_sort(mb_interpreter_t* s, void** l);
 static int _coll_exist(mb_interpreter_t* s, void** l);
+static int _coll_index_of(mb_interpreter_t* s, void** l);
 static int _coll_set(mb_interpreter_t* s, void** l);
 static int _coll_remove(mb_interpreter_t* s, void** l);
 static int _coll_clear(mb_interpreter_t* s, void** l);
@@ -1876,6 +1878,7 @@ static const _func_t _coll_libs[] = {
 	{ "INSERT", _coll_insert },
 	{ "SORT", _coll_sort },
 	{ "EXIST", _coll_exist },
+	{ "INDEX_OF", _coll_index_of },
 	{ "SET", _coll_set },
 	{ "REMOVE", _coll_remove },
 	{ "CLEAR", _coll_clear },
@@ -1947,10 +1950,12 @@ _ls_node_t* _ls_create(void) {
 	return result;
 }
 
-_ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp) {
+_ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp, int* idx) {
 	_ls_node_t* result = 0;
 
 	mb_assert(list && data && cmp);
+
+	if(idx) *idx = 0;
 
 	list = list->next;
 	while(list) {
@@ -1960,6 +1965,7 @@ _ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp) {
 			break;
 		}
 		list = list->next;
+		if(idx) ++*idx;
 	}
 
 	return result;
@@ -4008,7 +4014,7 @@ char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
 
 	context = (_parsing_context_t*)s->parsing_context;
 
-	if(_ls_find(context->imported, (void*)f, (_ls_compare)_ht_cmp_string)) {
+	if(_ls_find(context->imported, (void*)f, (_ls_compare)_ht_cmp_string, 0)) {
 		buf = (char*)f;
 	} else {
 		fp = fopen(f, "rb");
@@ -4522,7 +4528,7 @@ _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			if(_is_using_char(*(sym + 1))) {
 #ifdef MB_ENABLE_MODULE
 				char* ns = mb_strdup(sym + 2, strlen(sym + 2) + 1);
-				if(_ls_find(s->using_modules, ns, (_ls_compare)_ht_cmp_string)) {
+				if(_ls_find(s->using_modules, ns, (_ls_compare)_ht_cmp_string, 0)) {
 					safe_free(ns);
 				} else {
 					_ls_pushback(s->using_modules, ns);
@@ -6276,7 +6282,7 @@ bool_t _at_list(_list_t* coll, int_t idx, mb_value_t* oval) {
 	return !!(result && result->data);
 }
 
-bool_t _find_list(_list_t* coll, mb_value_t* val) {
+bool_t _find_list(_list_t* coll, mb_value_t* val, int* idx) {
 	/* Find a value in a list */
 	bool_t result = false;
 	_object_t* oarg = 0;
@@ -6286,7 +6292,7 @@ bool_t _find_list(_list_t* coll, mb_value_t* val) {
 	_fill_ranged(coll);
 
 	_create_internal_object_from_public_value(val, &oarg);
-	result = !!_ls_find(coll->list, oarg, (_ls_compare)_ht_cmp_object);
+	result = !!_ls_find(coll->list, oarg, (_ls_compare)_ht_cmp_object, idx);
 	_destroy_object(oarg, 0);
 
 	return result;
@@ -6641,7 +6647,7 @@ bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base) 
 	/* Link a class instance to the meta list of another class instance */
 	mb_assert(s && derived && base);
 
-	if(_ls_find(derived->meta_list, base, (_ls_compare)_ht_cmp_intptr)) {
+	if(_ls_find(derived->meta_list, base, (_ls_compare)_ht_cmp_intptr, 0)) {
 		_handle_error_now(s, SE_RN_WRONG_META_CLASS, s->source_file, MB_FUNC_ERR);
 
 		return false;
@@ -7049,7 +7055,7 @@ void _mark_upvalue(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj, const
 	if(scp && found_in_scope) {
 		if(!found_in_scope->refered_lambdas)
 			found_in_scope->refered_lambdas = _ls_create();
-		if(!_ls_find(found_in_scope->refered_lambdas, lambda, (_ls_compare)_ht_cmp_intptr))
+		if(!_ls_find(found_in_scope->refered_lambdas, lambda, (_ls_compare)_ht_cmp_intptr, 0))
 			_ls_pushback(found_in_scope->refered_lambdas, lambda);
 	}
 
@@ -9360,7 +9366,7 @@ int _register_func(mb_interpreter_t* s, char* n, mb_func_t f, bool_t local) {
 		}
 		exists = _ht_find(s->module_func_dict, (void*)n);
 		exists = (_ls_node_t*)exists->data;
-		tmp = _ls_find(exists, s, _ls_cmp_module_func);
+		tmp = _ls_find(exists, s, _ls_cmp_module_func, 0);
 		if(!tmp)
 			_ls_pushback(exists, _create_module_func(s, f));
 		else
@@ -9408,7 +9414,7 @@ int _remove_func(mb_interpreter_t* s, char* n, bool_t local) {
 		exists = _ht_find(s->module_func_dict, (void*)n);
 		if(exists) {
 			exists = (_ls_node_t*)exists->data;
-			tmp = _ls_find(exists, s, _ls_cmp_module_func);
+			tmp = _ls_find(exists, s, _ls_cmp_module_func, 0);
 			if(tmp)
 				_ls_remove(exists, tmp, _ls_destroy_module_func);
 		}
@@ -9443,7 +9449,7 @@ _ls_node_t* _find_func(mb_interpreter_t* s, char* n, bool_t* mod) {
 			result = result->next;
 			while(result) {
 				mp = (_module_func_t*)result->data;
-				if(_ls_find(s->using_modules, mp->module, (_ls_compare)_ht_cmp_string))
+				if(_ls_find(s->using_modules, mp->module, (_ls_compare)_ht_cmp_string, 0))
 					break;
 				result = result->next;
 			}
@@ -14944,7 +14950,7 @@ int _coll_exist(mb_interpreter_t* s, void** l){
 	switch(coll.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);
-		ret.value.integer = !!_find_list(ocoll.data.list, &arg);
+		ret.value.integer = !!_find_list(ocoll.data.list, &arg, 0);
 
 		break;
 	case MB_DT_DICT:
@@ -14957,6 +14963,52 @@ int _coll_exist(mb_interpreter_t* s, void** l){
 
 		break;
 	}
+	mb_check(mb_push_value(s, l, ret));
+
+_exit:
+	_assign_public_value(&coll, 0);
+
+	return result;
+}
+
+int _coll_index_of(mb_interpreter_t* s, void** l) {
+	/* INDEX_OF statement */
+	int result = MB_FUNC_OK;
+	int idx = 0;
+	mb_value_t coll;
+	_object_t ocoll;
+	mb_value_t val;
+	mb_value_t ret;
+
+	mb_assert(s && l);
+
+	mb_make_nil(coll);
+	mb_make_nil(val);
+	mb_make_nil(ret);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_make_nil(ret);
+	ret.type = MB_DT_UNKNOWN;
+	mb_check(mb_pop_value(s, l, &coll));
+	mb_check(mb_pop_value(s, l, &val));
+	_MAKE_NIL(&ocoll);
+	switch(coll.type) {
+	case MB_DT_LIST:
+		_public_value_to_internal_object(&coll, &ocoll);
+		if(_find_list(ocoll.data.list, &val, &idx)) {
+			mb_make_int(ret, (int_t)idx);
+		}
+
+		break;
+	default:
+		_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
 	mb_check(mb_push_value(s, l, ret));
 
 _exit:
