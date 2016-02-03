@@ -1,3 +1,6 @@
+Feb. 3 2016
+Fixed a memory leak with sub routine when assigning it as upvalue
+
 Feb. 2 2016
 Optimized list sorting function by using merge sorting
 
