@@ -4412,7 +4412,9 @@ int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** ob
 			tmp.var->data->type = (sym[strlen(sym) - 1] == '$') ? _DT_STRING : _DT_INT;
 			tmp.var->data->data.integer = 0;
 #ifdef MB_ENABLE_CLASS
-			if(!is_field)
+			if(context->class_state != _CLASS_STATE_NONE)
+				tmp.var->pathing = 1;
+			else if(!is_field)
 				tmp.var->pathing = context->current_symbol_contains_accessor;
 #endif /* MB_ENABLE_CLASS */
 			(*obj)->data.variable = tmp.var;
@@ -5169,7 +5171,7 @@ void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 	else
 		table = ref->s->gc.table;
 
-	if(gc && _ht_find(gc->valid_table, ref))
+	if(gc && gc->valid_table && _ht_find(gc->valid_table, ref))
 		_ht_remove(table, ref, 0);
 	else if(ref->count && *ref->count > _NONE_REF)
 		_ht_set_or_insert(table, ref, data);
@@ -5424,22 +5426,14 @@ int _gc_destroy_garbage(void* data, void* extra) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST:
 		lst = (_list_t*)data;
-		if(gc->collecting <= 1 && !_ht_find(gc->recursive_table, ref)) {
-			_LS_FOREACH(lst->list, _do_nothing_on_object, _gc_destroy_garbage_in_list, gc);
-		} else {
-			_ls_foreach(lst->list, _destroy_object_capsule_only);
-		}
+		_LS_FOREACH(lst->list, _do_nothing_on_object, _gc_destroy_garbage_in_list, gc);
 		_ls_clear(lst->list);
 		lst->count = 0;
 
 		break;
 	case _DT_DICT:
 		dct = (_dict_t*)data;
-		if(gc->collecting <= 1 && !_ht_find(gc->recursive_table, ref)) {
-			_HT_FOREACH(dct->dict, _do_nothing_on_object, _gc_destroy_garbage_in_dict, gc);
-		} else {
-			_ht_foreach(dct->dict, _destroy_object_capsule_only_with_extra);
-		}
+		_HT_FOREACH(dct->dict, _do_nothing_on_object, _gc_destroy_garbage_in_dict, gc);
 		_ht_clear(dct->dict);
 
 		break;
@@ -5514,7 +5508,9 @@ void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	if(s->gc.collecting) return;
 	s->gc.collecting++;
 	/* Get reachable information */
-	s->gc.valid_table = valid = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
+	valid = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
+	if(depth != -1)
+		s->gc.valid_table = valid;
 	_gc_get_reachable(s, valid);
 	/* Get unreachable information */
 	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, s->gc.table);
@@ -9740,7 +9736,7 @@ int mb_close(struct mb_interpreter_t** s) {
 	_tidy_scope_chain(*s);
 	_dispose_scope_chain(*s);
 
-	_gc_collect_garbage(*s, 1);
+	_gc_collect_garbage(*s, -1);
 	_ht_destroy((*s)->gc.table);
 	_ht_destroy((*s)->gc.recursive_table);
 	_ht_destroy((*s)->gc.collected_table);
