@@ -2393,7 +2393,7 @@ unsigned int _ht_hash_intptr(void* ht, void* d) {
 unsigned int _ht_hash_ref(void* ht, void* d) {
 	unsigned int result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
-	_ref_t* ref = *(_ref_t**)d;
+	_ref_t* ref = (_ref_t*)d;
 
 	mb_assert(ht);
 
@@ -2495,8 +2495,8 @@ int _ht_cmp_intptr(void* d1, void* d2) {
 }
 
 int _ht_cmp_ref(void* d1, void* d2) {
-	_ref_t* r1 = *(_ref_t**)d1;
-	_ref_t* r2 = *(_ref_t**)d2;
+	_ref_t* r1 = (_ref_t*)d1;
+	_ref_t* r2 = (_ref_t*)d2;
 	intptr_t i = (intptr_t)r1 - (intptr_t)r2;
 	int result = 0;
 
@@ -5254,6 +5254,15 @@ int _gc_add_reachable(void* data, void* extra, void* ht) {
 
 		break;
 #endif /* MB_ENABLE_CLASS */
+#ifdef MB_ENABLE_LAMBDA
+	case _DT_ROUTINE:
+		if(obj->data.routine->type == _IT_LAMBDA) {
+			if(!_ht_find(htable, &obj->data.routine->func.lambda.ref))
+				_ht_set_or_insert(htable, &obj->data.routine->func.lambda.ref, obj->data.routine);
+		}
+
+		break;
+#endif /* MB_ENABLE_LAMBDA */
 	default: /* Do nothing */
 		break;
 	}
@@ -6946,6 +6955,8 @@ _routine_t* _clone_routine(_routine_t* sub, void* c, bool_t toupval) {
 #ifdef MB_ENABLE_LAMBDA
 	if(toupval || sub->type == _IT_LAMBDA)
 		result = sub;
+#else /* MB_ENABLE_LAMBDA */
+	mb_unrefvar(toupval);
 #endif /* MB_ENABLE_LAMBDA */
 
 	if(!result) {

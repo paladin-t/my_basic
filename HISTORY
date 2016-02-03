@@ -1,5 +1,7 @@
 Feb. 3 2016
-Fixed a memory leak with sub routine when assigning it as upvalue
+Fixed a wrong dereferencing bug with referenced type hashing and comparison
+Fixed an invalid lambda bug with GC
+Fixed a memory leak with sub routine when assigning it as an upvalue
 
 Feb. 2 2016
 Optimized list sorting function by using merge sorting
