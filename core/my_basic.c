@@ -349,6 +349,7 @@ typedef struct _gc_t {
 	_ht_node_t* table;
 	_ht_node_t* recursive_table;
 	_ht_node_t* collected_table;
+	_ht_node_t* valid_table;
 	int_t collecting;
 } _gc_t;
 
@@ -5168,7 +5169,9 @@ void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 	else
 		table = ref->s->gc.table;
 
-	if(ref->count && *ref->count > _NONE_REF)
+	if(gc && _ht_find(gc->valid_table, ref))
+		_ht_remove(table, ref, 0);
+	else if(ref->count && *ref->count > _NONE_REF)
 		_ht_set_or_insert(table, ref, data);
 	else
 		_ht_remove(table, ref, 0);
@@ -5511,7 +5514,7 @@ void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	if(s->gc.collecting) return;
 	s->gc.collecting++;
 	/* Get reachable information */
-	valid = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
+	s->gc.valid_table = valid = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
 	_gc_get_reachable(s, valid);
 	/* Get unreachable information */
 	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, s->gc.table);
@@ -5530,6 +5533,7 @@ void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	} while(1);
 	/* Tidy */
 	_ht_clear(s->gc.collected_table);
+	s->gc.valid_table = 0;
 	_ht_clear(valid);
 	_ht_destroy(valid);
 	s->gc.collecting--;
@@ -9679,6 +9683,8 @@ int mb_open(struct mb_interpreter_t** s) {
 	(*s)->gc.table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
 	(*s)->gc.recursive_table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
 	(*s)->gc.collected_table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
+	(*s)->gc.valid_table = 0;
+	(*s)->gc.collecting = 0;
 
 	running = _create_running_context(true);
 	running->meta = _SCOPE_META_ROOT;
