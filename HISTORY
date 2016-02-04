@@ -1,3 +1,7 @@
+Feb. 4 2016
+Avoided warnings with some compilers
+Fixed a member assignment bug when cloning a class instance
+
 Feb. 3 2016
 Added an INDEX_OF statement
 Fixed a wrong parameter variable accessing bug

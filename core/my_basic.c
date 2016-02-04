@@ -1542,7 +1542,6 @@ static int _destroy_object(void* data, void* extra);
 static int _destroy_object_with_extra(void* data, void* extra);
 static int _destroy_object_not_compile_time(void* data, void* extra);
 static int _destroy_object_capsule_only(void* data, void* extra);
-static int _destroy_object_capsule_only_with_extra(void* data, void* extra);
 static int _do_nothing_on_object(void* data, void* extra);
 static int _lose_object(void* data, void* extra);
 static int _remove_source_object(void* data, void* extra);
@@ -1897,25 +1896,25 @@ static const _func_t _coll_libs[] = {
 */
 
 /** List operations */
-int _ls_cmp_data(void* node, void* info) {
+static int _ls_cmp_data(void* node, void* info) {
 	_ls_node_t* n = (_ls_node_t*)node;
 
 	return (n->data == info) ? 0 : 1;
 }
 
-int _ls_cmp_extra(void* node, void* info) {
+static int _ls_cmp_extra(void* node, void* info) {
 	_ls_node_t* n = (_ls_node_t*)node;
 
 	return (n->extra == info) ? 0 : 1;
 }
 
-int _ls_cmp_extra_object(void* node, void* info) {
+static int _ls_cmp_extra_object(void* node, void* info) {
 	_ls_node_t* n = (_ls_node_t*)node;
 
 	return _ht_cmp_object(n->extra, info);
 }
 
-int _ls_cmp_extra_string(void* node, void* info) {
+static int _ls_cmp_extra_string(void* node, void* info) {
 	_ls_node_t* n = (_ls_node_t*)node;
 	char* s1 = (char*)n->extra;
 	char* s2 = (char*)info;
@@ -1924,7 +1923,7 @@ int _ls_cmp_extra_string(void* node, void* info) {
 }
 
 #ifdef MB_ENABLE_MODULE
-int _ls_cmp_module_func(void* node, void* info) {
+static int _ls_cmp_module_func(void* node, void* info) {
 	_module_func_t* m = (_module_func_t*)node;
 	mb_interpreter_t* s = (mb_interpreter_t*)info;
 
@@ -1932,7 +1931,7 @@ int _ls_cmp_module_func(void* node, void* info) {
 }
 #endif /* MB_ENABLE_MODULE */
 
-_ls_node_t* _ls_create_node(void* data) {
+static _ls_node_t* _ls_create_node(void* data) {
 	_ls_node_t* result = 0;
 
 	result = (_ls_node_t*)mb_malloc(sizeof(_ls_node_t));
@@ -1943,7 +1942,7 @@ _ls_node_t* _ls_create_node(void* data) {
 	return result;
 }
 
-_ls_node_t* _ls_create(void) {
+static _ls_node_t* _ls_create(void) {
 	_ls_node_t* result = 0;
 
 	result = _ls_create_node(0);
@@ -1951,7 +1950,7 @@ _ls_node_t* _ls_create(void) {
 	return result;
 }
 
-_ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp, int* idx) {
+static _ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp, int* idx) {
 	_ls_node_t* result = 0;
 
 	mb_assert(list && data && cmp);
@@ -1972,7 +1971,7 @@ _ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp, int* idx) {
 	return result;
 }
 
-_ls_node_t* _ls_back(_ls_node_t* node) {
+static _ls_node_t* _ls_back(_ls_node_t* node) {
 	_ls_node_t* result = node;
 
 	result = result->prev;
@@ -1980,7 +1979,7 @@ _ls_node_t* _ls_back(_ls_node_t* node) {
 	return result;
 }
 
-_ls_node_t* _ls_pushback(_ls_node_t* list, void* data) {
+static _ls_node_t* _ls_pushback(_ls_node_t* list, void* data) {
 	_ls_node_t* result = 0;
 	_ls_node_t* tmp = 0;
 
@@ -1999,7 +1998,7 @@ _ls_node_t* _ls_pushback(_ls_node_t* list, void* data) {
 	return result;
 }
 
-void* _ls_popback(_ls_node_t* list) {
+static void* _ls_popback(_ls_node_t* list) {
 	void* result = 0;
 	_ls_node_t* tmp = 0;
 
@@ -2020,7 +2019,7 @@ void* _ls_popback(_ls_node_t* list) {
 	return result;
 }
 
-_ls_node_t* _ls_front(_ls_node_t* node) {
+static _ls_node_t* _ls_front(_ls_node_t* node) {
 	_ls_node_t* result = node;
 
 	result = result->next;
@@ -2028,7 +2027,7 @@ _ls_node_t* _ls_front(_ls_node_t* node) {
 	return result;
 }
 
-void* _ls_popfront(_ls_node_t* list) {
+static void* _ls_popfront(_ls_node_t* list) {
 	void* result = 0;
 	_ls_node_t* tmp = 0;
 
@@ -2050,7 +2049,7 @@ void* _ls_popfront(_ls_node_t* list) {
 	return result;
 }
 
-_ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data) {
+static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data) {
 	_ls_node_t* result = 0;
 	_ls_node_t* tmp = 0;
 
@@ -2076,7 +2075,7 @@ _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data) {
 	return result;
 }
 
-unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op) {
+static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op) {
 	unsigned int result = 0;
 
 	mb_assert(list && node);
@@ -2098,7 +2097,7 @@ unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op) {
 	return result;
 }
 
-unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op) {
+static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op) {
 	unsigned int result = 0;
 	_ls_node_t* tmp = 0;
 
@@ -2129,7 +2128,7 @@ unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_o
 	return result;
 }
 
-unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
+static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
 	unsigned int idx = 0;
 	int opresult = _OP_RESULT_NORMAL;
 	_ls_node_t* node = 0;
@@ -2158,7 +2157,7 @@ unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
 	return idx;
 }
 
-_ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
+static _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
 	/* Copyright 2001 Simon Tatham, http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.c */
 	bool_t is_circular = false, is_double = false;
 	_ls_node_t* p, * q, * e, * tail, * oldhead;
@@ -2243,7 +2242,7 @@ _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
 	}
 }
 
-int _ls_count(_ls_node_t* list) {
+static int _ls_count(_ls_node_t* list) {
 	union { void* p; unsigned u; } tmp;
 
 	mb_assert(list);
@@ -2253,7 +2252,7 @@ int _ls_count(_ls_node_t* list) {
 	return tmp.u;
 }
 
-bool_t _ls_empty(_ls_node_t* list) {
+static bool_t _ls_empty(_ls_node_t* list) {
 	bool_t result = false;
 
 	mb_assert(list);
@@ -2263,7 +2262,7 @@ bool_t _ls_empty(_ls_node_t* list) {
 	return result;
 }
 
-void _ls_clear(_ls_node_t* list) {
+static void _ls_clear(_ls_node_t* list) {
 	_ls_node_t* tmp = 0;
 
 	mb_assert(list);
@@ -2282,12 +2281,12 @@ void _ls_clear(_ls_node_t* list) {
 	}
 }
 
-void _ls_destroy(_ls_node_t* list) {
+static void _ls_destroy(_ls_node_t* list) {
 	_ls_clear(list);
 	safe_free(list);
 }
 
-int _ls_free_extra(void* data, void* extra) {
+static int _ls_free_extra(void* data, void* extra) {
 	int result = _OP_RESULT_NORMAL;
 	mb_unrefvar(data);
 
@@ -2301,7 +2300,7 @@ int _ls_free_extra(void* data, void* extra) {
 }
 
 /** Dictionary operations */
-unsigned int _ht_hash_object(void* ht, void* d) {
+static unsigned int _ht_hash_object(void* ht, void* d) {
 	unsigned int result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
 	_object_t* o = (_object_t*)d;
@@ -2370,7 +2369,7 @@ _exit:
 	return result;
 }
 
-unsigned int _ht_hash_string(void* ht, void* d) {
+static unsigned int _ht_hash_string(void* ht, void* d) {
 	unsigned int result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
 	char* s = (char*)d;
@@ -2385,7 +2384,7 @@ unsigned int _ht_hash_string(void* ht, void* d) {
 	return result;
 }
 
-unsigned int _ht_hash_intptr(void* ht, void* d) {
+static unsigned int _ht_hash_intptr(void* ht, void* d) {
 	unsigned int result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
 	intptr_t i = *(intptr_t*)d;
@@ -2397,7 +2396,7 @@ unsigned int _ht_hash_intptr(void* ht, void* d) {
 	return result;
 }
 
-unsigned int _ht_hash_ref(void* ht, void* d) {
+static unsigned int _ht_hash_ref(void* ht, void* d) {
 	unsigned int result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
 	_ref_t* ref = (_ref_t*)d;
@@ -2410,7 +2409,7 @@ unsigned int _ht_hash_ref(void* ht, void* d) {
 	return result;
 }
 
-int _ht_cmp_object(void* d1, void* d2) {
+static int _ht_cmp_object(void* d1, void* d2) {
 	_object_t* o1 = (_object_t*)d1;
 	_object_t* o2 = (_object_t*)d2;
 	size_t i = 0;
@@ -2481,14 +2480,14 @@ _exit:
 	return 0;
 }
 
-int _ht_cmp_string(void* d1, void* d2) {
+static int _ht_cmp_string(void* d1, void* d2) {
 	char* s1 = (char*)d1;
 	char* s2 = (char*)d2;
 
 	return strcmp(s1, s2);
 }
 
-int _ht_cmp_intptr(void* d1, void* d2) {
+static int _ht_cmp_intptr(void* d1, void* d2) {
 	intptr_t i1 = *(intptr_t*)d1;
 	intptr_t i2 = *(intptr_t*)d2;
 	int result = 0;
@@ -2501,7 +2500,7 @@ int _ht_cmp_intptr(void* d1, void* d2) {
 	return result;
 }
 
-int _ht_cmp_ref(void* d1, void* d2) {
+static int _ht_cmp_ref(void* d1, void* d2) {
 	_ref_t* r1 = (_ref_t*)d1;
 	_ref_t* r2 = (_ref_t*)d2;
 	intptr_t i = (intptr_t)r1 - (intptr_t)r2;
@@ -2515,7 +2514,7 @@ int _ht_cmp_ref(void* d1, void* d2) {
 	return result;
 }
 
-_ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra) {
+static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra) {
 	const unsigned int array_size = size ? size : _HT_ARRAY_SIZE_DEFAULT;
 	_ht_node_t* result = 0;
 	unsigned int ul = 0;
@@ -2543,7 +2542,7 @@ _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_oper
 	return result;
 }
 
-_ls_node_t* _ht_find(_ht_node_t* ht, void* key) {
+static _ls_node_t* _ht_find(_ht_node_t* ht, void* key) {
 	_ls_node_t* result = 0;
 	_ls_node_t* bucket = 0;
 	unsigned int hash_code = 0;
@@ -2567,7 +2566,7 @@ _ls_node_t* _ht_find(_ht_node_t* ht, void* key) {
 	return result;
 }
 
-unsigned int _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
+static unsigned int _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
 	unsigned int result = 0;
 	_ls_node_t* bucket = 0;
 	unsigned int hash_code = 0;
@@ -2599,7 +2598,7 @@ unsigned int _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
 	return result;
 }
 
-unsigned int _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
+static unsigned int _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
 	unsigned int result = 0;
 	unsigned int hash_code = 0;
 	_ls_node_t* bucket = 0;
@@ -2620,7 +2619,7 @@ unsigned int _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
 	return result;
 }
 
-unsigned int _ht_foreach(_ht_node_t* ht, _ht_operation op) {
+static unsigned int _ht_foreach(_ht_node_t* ht, _ht_operation op) {
 	unsigned int result = 0;
 	_ls_node_t* bucket = 0;
 	unsigned int ul = 0;
@@ -2636,13 +2635,13 @@ unsigned int _ht_foreach(_ht_node_t* ht, _ht_operation op) {
 	return result;
 }
 
-unsigned int _ht_count(_ht_node_t* ht) {
+static unsigned int _ht_count(_ht_node_t* ht) {
 	mb_assert(ht);
 
 	return ht->count;
 }
 
-void _ht_clear(_ht_node_t* ht) {
+static void _ht_clear(_ht_node_t* ht) {
 	unsigned int ul = 0;
 
 	mb_assert(ht);
@@ -2656,7 +2655,7 @@ void _ht_clear(_ht_node_t* ht) {
 	}
 }
 
-void _ht_destroy(_ht_node_t* ht) {
+static void _ht_destroy(_ht_node_t* ht) {
 	unsigned int ul = 0;
 
 	mb_assert(ht);
@@ -2675,7 +2674,7 @@ void _ht_destroy(_ht_node_t* ht) {
 	safe_free(ht);
 }
 
-int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht) {
+static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht) {
 	int result = _OP_RESULT_NORMAL;
 	mb_unrefvar(data);
 
@@ -2686,7 +2685,7 @@ int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht) {
 }
 
 /** Memory manipulations */
-void* mb_malloc(size_t s) {
+static void* mb_malloc(size_t s) {
 	/* Allocate a chunk of memory with a specific size */
 	char* ret = 0;
 	size_t rs = s;
@@ -2709,7 +2708,7 @@ void* mb_malloc(size_t s) {
 	return (void*)ret;
 }
 
-void mb_free(void* p) {
+static void mb_free(void* p) {
 	/* Free a chunk of memory */
 	mb_assert(p);
 
@@ -2727,7 +2726,7 @@ void mb_free(void* p) {
 		free(p);
 }
 
-int mb_memcmp(void* l, void* r, size_t s) {
+static int mb_memcmp(void* l, void* r, size_t s) {
 	/* Compare two chunks of memory */
 	char* lc = (char*)l;
 	char* rc = (char*)r;
@@ -2741,7 +2740,7 @@ int mb_memcmp(void* l, void* r, size_t s) {
 	return 0;
 }
 
-size_t mb_memtest(void* p, size_t s) {
+static size_t mb_memtest(void* p, size_t s) {
 	/* Detect whether a chunk of memory contains any non-zero byte */
 	size_t result = 0;
 	size_t i = 0;
@@ -2751,7 +2750,7 @@ size_t mb_memtest(void* p, size_t s) {
 	return result;
 }
 
-char* mb_strdup(const char* p, size_t s) {
+static char* mb_strdup(const char* p, size_t s) {
 	/* Duplicate a string */
 #ifdef MB_ENABLE_ALLOC_STAT
 	if(!s) {
@@ -2767,7 +2766,7 @@ char* mb_strdup(const char* p, size_t s) {
 #endif /* MB_ENABLE_ALLOC_STAT */
 }
 
-char* mb_strupr(char* s) {
+static char* mb_strupr(char* s) {
 	/* Change a string to upper case */
 	char* t = s;
 
@@ -2781,7 +2780,7 @@ char* mb_strupr(char* s) {
 
 /** Unicode handling */
 #ifdef MB_ENABLE_UNICODE
-int mb_uu_ischar(char* ch) {
+static int mb_uu_ischar(char* ch) {
 	/* Copyright 2008, 2009 Bjoern Hoehrmann, http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ */
 	/* Determine whether a buffer is a UTF8 encoded character, and return taken bytes */
 #define _TAKE(__ch, __c, __r) do { __c = *__ch++; __r++; } while(0)
@@ -2835,7 +2834,7 @@ int mb_uu_ischar(char* ch) {
 #undef _TAIL
 }
 
-int mb_uu_strlen(char* ch) {
+static int mb_uu_strlen(char* ch) {
 	/* Tell how many UTF8 character are there in a string */
 	int result = 0;
 
@@ -2852,7 +2851,7 @@ int mb_uu_strlen(char* ch) {
 	return result;
 }
 
-int mb_uu_substr(char* ch, int begin, int count, char** o) {
+static int mb_uu_substr(char* ch, int begin, int count, char** o) {
 	/* Retrieve a sub string of a UTF8 string */
 	int cnt = 0;
 	char* b = 0;
@@ -2900,7 +2899,7 @@ int mb_uu_substr(char* ch, int begin, int count, char** o) {
 #endif /* MB_ENABLE_UNICODE */
 
 /** Expression processing */
-bool_t _is_operator(mb_func_t op) {
+static bool_t _is_operator(mb_func_t op) {
 	/* Determine whether a function is an operator */
 	bool_t result = false;
 
@@ -2927,7 +2926,7 @@ bool_t _is_operator(mb_func_t op) {
 	return result;
 }
 
-bool_t _is_flow(mb_func_t op) {
+static bool_t _is_flow(mb_func_t op) {
 	/* Determine whether a function is for flow control */
 	bool_t result = false;
 
@@ -2954,12 +2953,12 @@ bool_t _is_flow(mb_func_t op) {
 	return result;
 }
 
-bool_t _is_unary(mb_func_t op) {
+static bool_t _is_unary(mb_func_t op) {
 	/* Determine whether a function is unary */
 	return op == _core_neg || op == _core_not;
 }
 
-char _get_priority(mb_func_t op1, mb_func_t op2) {
+static char _get_priority(mb_func_t op1, mb_func_t op2) {
 	/* Get the priority of two operators */
 	char result = '\0';
 	int idx1 = 0;
@@ -2975,7 +2974,7 @@ char _get_priority(mb_func_t op1, mb_func_t op2) {
 	return result;
 }
 
-int _get_priority_index(mb_func_t op) {
+static int _get_priority_index(mb_func_t op) {
 	/* Get the index of an operator in the priority table */
 	int i = 0;
 
@@ -3014,7 +3013,7 @@ int _get_priority_index(mb_func_t op) {
 	return -1;
 }
 
-_object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opnd1, _object_t* opnd2, int* status) {
+static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opnd1, _object_t* opnd2, int* status) {
 	/* Operate two operands */
 	_object_t* result = 0;
 	_tuple3_t tp;
@@ -3053,7 +3052,7 @@ _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opn
 	return result;
 }
 
-bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj) {
+static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj) {
 	/* Determine whether an object is an expression termination */
 	bool_t result = false;
 
@@ -3073,7 +3072,7 @@ bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj) {
 	return result;
 }
 
-int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
+static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	/* Calculate an expression */
 	int result = 0;
 	_ls_node_t* ast = 0;
@@ -3491,7 +3490,7 @@ _exit:
 	return result;
 }
 
-_ls_node_t* _push_var_args(mb_interpreter_t* s) {
+static _ls_node_t* _push_var_args(mb_interpreter_t* s) {
 	/* Push current variable arguments list */
 	_ls_node_t* result = s->var_args;
 	s->var_args = 0;
@@ -3499,7 +3498,7 @@ _ls_node_t* _push_var_args(mb_interpreter_t* s) {
 	return result;
 }
 
-void _pop_var_args(mb_interpreter_t* s, _ls_node_t* last_var_args) {
+static void _pop_var_args(mb_interpreter_t* s, _ls_node_t* last_var_args) {
 	/* Pop current variable arguments list */
 	_ls_node_t* var_args = s->var_args;
 	s->var_args = last_var_args;
@@ -3509,7 +3508,7 @@ void _pop_var_args(mb_interpreter_t* s, _ls_node_t* last_var_args) {
 	}
 }
 
-int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_pop_routine_arg_func_t pop_arg, _ls_node_t* args, mb_value_t* arg) {
+static int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_pop_routine_arg_func_t pop_arg, _ls_node_t* args, mb_value_t* arg) {
 	/* Pop an argument from the caller or a variable argument list */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = *l;
@@ -3532,7 +3531,7 @@ int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, u
 	return result;
 }
 
-int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg, bool_t proc_ref, _ls_node_t* args) {
+static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg, bool_t proc_ref, _ls_node_t* args) {
 	/* Process arguments of a routine */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -3621,7 +3620,7 @@ int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* running,
 	return result;
 }
 
-int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
+static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
 	/* Evaluate a routine */
 	int result = MB_FUNC_OK;
 
@@ -3649,7 +3648,7 @@ _exit:
 	return result;
 }
 
-int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
+static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
 	/* Evaluate a script routine */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -3788,7 +3787,7 @@ _tail:
 }
 
 #ifdef MB_ENABLE_LAMBDA
-int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
+static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
 	/* Evaluate a lambda routine */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -3882,7 +3881,7 @@ _error:
 }
 #endif /* MB_ENABLE_LAMBDA */
 
-int _eval_native_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
+static int _eval_native_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
 	/* Evaluate a native routine */
 	int result = MB_FUNC_OK;
 	_routine_t* lastr = 0;
@@ -3911,7 +3910,7 @@ _exit:
 	return result;
 }
 
-int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r) {
+static int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r) {
 	/* Detect if there is any more lexical argument */
 	mb_unrefvar(va);
 	mb_unrefvar(ca);
@@ -3921,7 +3920,7 @@ int _has_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned
 	return mb_has_arg(s, l);
 }
 
-int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r, mb_value_t* val) {
+static int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r, mb_value_t* val) {
 	/* Pop a lexical argument */
 	mb_unrefvar(va);
 	mb_unrefvar(ca);
@@ -3931,7 +3930,7 @@ int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned
 	return mb_pop_value(s, l, val);
 }
 
-int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r) {
+static int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r) {
 	/* Detect if there is any more argument in the argument list */
 	mb_unrefvar(s);
 	mb_unrefvar(l);
@@ -3941,7 +3940,7 @@ int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned
 	return *ia < ca;
 }
 
-int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r, mb_value_t* val) {
+static int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r, mb_value_t* val) {
 	/* Pop an argument from the argument list */
 	mb_unrefvar(s);
 	mb_unrefvar(l);
@@ -3954,7 +3953,7 @@ int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned
 	return MB_FUNC_OK;
 }
 
-bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
+static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
 	/* Determine whether an object is a PRINT termination */
 	bool_t result = false;
 
@@ -3971,7 +3970,7 @@ bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
 }
 
 /** Others */
-void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f) {
+static void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f) {
 	/* Set current error information */
 	mb_assert(s && err >= 0 && err < _countof(_ERR_DESC));
 
@@ -3981,7 +3980,7 @@ void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f) {
 	}
 }
 
-mb_print_func_t _get_printer(mb_interpreter_t* s) {
+static mb_print_func_t _get_printer(mb_interpreter_t* s) {
 	/* Get a print functor of an interpreter */
 	mb_assert(s);
 
@@ -3991,7 +3990,7 @@ mb_print_func_t _get_printer(mb_interpreter_t* s) {
 	return printf;
 }
 
-mb_input_func_t _get_inputer(mb_interpreter_t* s) {
+static mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 	/* Get an input functor of an interpreter */
 	mb_assert(s);
 
@@ -4001,7 +4000,7 @@ mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 	return mb_gets;
 }
 
-char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
+static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
 	/* Read all content of a file into a buffer */
 #ifndef ARDUINO
 	FILE* fp = 0;
@@ -4049,7 +4048,7 @@ char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
 #endif /* ARDUINO */
 }
 
-bool_t _is_blank(char c) {
+static bool_t _is_blank(char c) {
 	/* Determine whether a character is blank */
 	return
 		(' ' == c) || ('\t' == c) ||
@@ -4057,42 +4056,42 @@ bool_t _is_blank(char c) {
 		(-2 == c) || (-1 == c);
 }
 
-bool_t _is_newline(char c) {
+static bool_t _is_newline(char c) {
 	/* Determine whether a character is newline */
 	return ('\r' == c) || ('\n' == c) || (EOF == c);
 }
 
-bool_t _is_separator(char c) {
+static bool_t _is_separator(char c) {
 	/* Determine whether a character is separator */
 	return (',' == c) || (';' == c) || (':' == c);
 }
 
-bool_t _is_bracket(char c) {
+static bool_t _is_bracket(char c) {
 	/* Determine whether a character is bracket */
 	return ('(' == c) || (')' == c);
 }
 
-bool_t _is_quotation_mark(char c) {
+static bool_t _is_quotation_mark(char c) {
 	/* Determine whether a character is quotation mark */
 	return ('"' == c);
 }
 
-bool_t _is_comment(char c) {
+static bool_t _is_comment(char c) {
 	/* Determine whether a character is comment mark */
 	return ('\'' == c);
 }
 
-bool_t _is_accessor(char c) {
+static bool_t _is_accessor(char c) {
 	/* Determine whether a character is accessor char */
 	return c == '.';
 }
 
-bool_t _is_numeric_char(char c) {
+static bool_t _is_numeric_char(char c) {
 	/* Determine whether a character is numeric char */
 	return (c >= '0' && c <= '9') || _is_accessor(c);
 }
 
-bool_t _is_identifier_char(char c) {
+static bool_t _is_identifier_char(char c) {
 	/* Determine whether a character is identifier char */
 	return
 		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
@@ -4101,7 +4100,7 @@ bool_t _is_identifier_char(char c) {
 		(c == '$');
 }
 
-bool_t _is_operator_char(char c) {
+static bool_t _is_operator_char(char c) {
 	/* Determine whether a character is operator char */
 	return
 		(c == '+') || (c == '-') || (c == '*') || (c == '/') ||
@@ -4111,12 +4110,12 @@ bool_t _is_operator_char(char c) {
 		(c == '>') || (c == '<');
 }
 
-bool_t _is_using_char(char c) {
+static bool_t _is_using_char(char c) {
 	/* Determine whether a character is module using char */
 	return c == '@';
 }
 
-bool_t _is_exponent_prefix(char* s, int begin, int end) {
+static bool_t _is_exponent_prefix(char* s, int begin, int end) {
 	/* Determine whether current symbol is exponent prefix */
 	int i = 0;
 
@@ -4133,7 +4132,7 @@ bool_t _is_exponent_prefix(char* s, int begin, int end) {
 	return true;
 }
 
-int _append_char_to_symbol(mb_interpreter_t* s, char c) {
+static int _append_char_to_symbol(mb_interpreter_t* s, char c) {
 	/* Parse a character and append it to current parsing symbol */
 	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
@@ -4157,7 +4156,7 @@ int _append_char_to_symbol(mb_interpreter_t* s, char c) {
 	return result;
 }
 
-int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col) {
+static int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col) {
 	/* Cut current symbol when current one parsing is finished */
 	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
@@ -4185,7 +4184,7 @@ int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short
 	return result;
 }
 
-int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int pos, unsigned short row, unsigned short col) {
+static int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int pos, unsigned short row, unsigned short col) {
 	/* Append cut symbol to the AST list */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -4220,7 +4219,7 @@ int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int pos, unsi
 	return result;
 }
 
-int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** obj, _ls_node_t*** asgn, bool_t* delsym) {
+static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** obj, _ls_node_t*** asgn, bool_t* delsym) {
 	/* Create a syntax symbol */
 	int result = MB_FUNC_OK;
 	_data_e type;
@@ -4474,7 +4473,7 @@ _exit:
 	return result;
 }
 
-_data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
+static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	/* Get the type of a syntax symbol */
 	_data_e result = _DT_NIL;
 	union { real_t float_point; int_t integer; _object_t* obj; _raw_t any; } tmp;
@@ -4780,7 +4779,7 @@ _exit:
 	return result;
 }
 
-int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsigned short col) {
+static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsigned short col) {
 	/* Parse a character */
 	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
@@ -4869,7 +4868,7 @@ _exit:
 	return result;
 }
 
-void _set_error_pos(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col) {
+static void _set_error_pos(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col) {
 	/* Set the position of an error */
 	mb_assert(s);
 
@@ -4878,7 +4877,7 @@ void _set_error_pos(mb_interpreter_t* s, int pos, unsigned short row, unsigned s
 	s->last_error_col = col;
 }
 
-char* _prev_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row, unsigned short* col) {
+static char* _prev_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row, unsigned short* col) {
 	/* Do something before importing another file */
 #ifdef MB_ENABLE_SOURCE_TRACE
 	char* result = 0;
@@ -4926,7 +4925,7 @@ char* _prev_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row,
 #endif /* MB_ENABLE_SOURCE_TRACE */
 }
 
-char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row, unsigned short* col) {
+static char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row, unsigned short* col) {
 	/* Do something after importing another file */
 #ifdef MB_ENABLE_SOURCE_TRACE
 	char* result = 0;
@@ -4966,7 +4965,7 @@ char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row,
 #endif /* MB_ENABLE_SOURCE_TRACE */
 }
 
-int_t _get_size_of(_data_e type) {
+static int_t _get_size_of(_data_e type) {
 	/* Get the size of a data type */
 	int_t result = 0;
 
@@ -4988,7 +4987,7 @@ int_t _get_size_of(_data_e type) {
 	return result;
 }
 
-bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected) {
+static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected) {
 	/* Try to get a value (typed as int_t, real_t or char*) */
 	bool_t result = false;
 
@@ -5007,7 +5006,7 @@ bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected) {
 	return result;
 }
 
-bool_t _is_number(void* obj) {
+static bool_t _is_number(void* obj) {
 	/* Determine if an object is a number */
 	bool_t result = false;
 	_object_t* o = 0;
@@ -5023,7 +5022,7 @@ bool_t _is_number(void* obj) {
 	return result;
 }
 
-bool_t _is_string(void* obj) {
+static bool_t _is_string(void* obj) {
 	/* Determine if an object is a string value or a string variable */
 	bool_t result = false;
 	_object_t* o = 0;
@@ -5039,7 +5038,7 @@ bool_t _is_string(void* obj) {
 	return result;
 }
 
-char* _extract_string(_object_t* obj) {
+static char* _extract_string(_object_t* obj) {
 	/* Extract a string from an object */
 	char* result = 0;
 
@@ -5056,7 +5055,7 @@ char* _extract_string(_object_t* obj) {
 	return result;
 }
 
-bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
+static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 	/* Lock a referenced object */
 	mb_assert(lk);
 
@@ -5069,7 +5068,7 @@ bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 	return true;
 }
 
-bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
+static bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 	/* Unlock a referenced object */
 	bool_t result = true;
 
@@ -5086,7 +5085,7 @@ bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 	return result;
 }
 
-bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
+static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 	/* Write operation on a referenced object */
 	bool_t result = true;
 	mb_unrefvar(ref);
@@ -5102,7 +5101,7 @@ bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 	return result;
 }
 
-_ref_count_t _ref(_ref_t* ref, void* data) {
+static _ref_count_t _ref(_ref_t* ref, void* data) {
 	/* Increase the reference of a stub by 1 */
 	_ref_count_t before = *ref->count;
 
@@ -5114,7 +5113,7 @@ _ref_count_t _ref(_ref_t* ref, void* data) {
 	return *ref->count;
 }
 
-bool_t _unref(_ref_t* ref, void* data) {
+static bool_t _unref(_ref_t* ref, void* data) {
 	/* Decrease the reference of a stub by 1 */
 	bool_t result = false;
 
@@ -5130,7 +5129,7 @@ bool_t _unref(_ref_t* ref, void* data) {
 	return result;
 }
 
-void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s) {
+static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s) {
 	/* Create a reference stub, initialize the reference count with zero */
 	if(ref->count)
 		return;
@@ -5142,7 +5141,7 @@ void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s
 	ref->s = s;
 }
 
-void _destroy_ref(_ref_t* ref) {
+static void _destroy_ref(_ref_t* ref) {
 	/* Destroy a reference stub */
 	if(!ref->count)
 		return;
@@ -5151,7 +5150,7 @@ void _destroy_ref(_ref_t* ref) {
 	ref->on_unref = 0;
 }
 
-void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
+static void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 	/* Add a referenced object to GC table for later garbage detection */
 	_ht_node_t* table = 0;
 
@@ -5179,7 +5178,7 @@ void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 		_ht_remove(table, ref, 0);
 }
 
-void _gc_remove(_ref_t* ref, void* data) {
+static void _gc_remove(_ref_t* ref, void* data) {
 	/* Remove a referenced object from GC */
 	_ht_node_t* table = 0;
 
@@ -5194,7 +5193,7 @@ void _gc_remove(_ref_t* ref, void* data) {
 		_ht_remove(table, ref, 0);
 }
 
-int _gc_add_reachable(void* data, void* extra, void* ht) {
+static int _gc_add_reachable(void* data, void* extra, void* ht) {
 	/* Get reachable objects */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -5282,7 +5281,7 @@ _exit:
 	return result;
 }
 
-void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
+static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
 	/* Get all reachable referenced objects */
 	_running_context_t* running = 0;
 	_ht_node_t* global_scope = 0;
@@ -5300,7 +5299,7 @@ void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
 	}
 }
 
-int _gc_destroy_garbage_in_list(void* data, void* extra, void* gc) {
+static int _gc_destroy_garbage_in_list(void* data, void* extra, void* gc) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind, and add it to GC if possible */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -5318,7 +5317,7 @@ int _gc_destroy_garbage_in_list(void* data, void* extra, void* gc) {
 	return result;
 }
 
-int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc) {
+static int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -5340,7 +5339,7 @@ int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc) {
 }
 
 #ifdef MB_ENABLE_CLASS
-int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc) {
+static int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -5366,7 +5365,7 @@ int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc) {
 #endif /* MB_ENABLE_CLASS */
 
 #ifdef MB_ENABLE_LAMBDA
-int _gc_destroy_garbage_in_lambda(void* data, void* extra, void* gc) {
+static int _gc_destroy_garbage_in_lambda(void* data, void* extra, void* gc) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -5390,7 +5389,7 @@ int _gc_destroy_garbage_in_lambda(void* data, void* extra, void* gc) {
 	return result;
 }
 
-void _gc_destroy_garbage_in_outer_scope(_running_context_ref_t* p, _gc_t* gc) {
+static void _gc_destroy_garbage_in_outer_scope(_running_context_ref_t* p, _gc_t* gc) {
 	/* Collect garbage of outer scopes */
 	while(p) {
 		_running_context_ref_t* scope = p;
@@ -5401,7 +5400,7 @@ void _gc_destroy_garbage_in_outer_scope(_running_context_ref_t* p, _gc_t* gc) {
 }
 #endif /* MB_ENABLE_LAMBDA */
 
-int _gc_destroy_garbage(void* data, void* extra) {
+static int _gc_destroy_garbage(void* data, void* extra) {
 	/* Destroy a garbage */
 	int result = _OP_RESULT_NORMAL;
 	_gc_t* gc = 0;
@@ -5479,7 +5478,7 @@ int _gc_destroy_garbage(void* data, void* extra) {
 	return result;
 }
 
-void _gc_swap_tables(mb_interpreter_t* s) {
+static void _gc_swap_tables(mb_interpreter_t* s) {
 	/* Swap active garbage table and recursive table */
 	_ht_node_t* tmp = 0;
 
@@ -5490,7 +5489,7 @@ void _gc_swap_tables(mb_interpreter_t* s) {
 	s->gc.recursive_table = tmp;
 }
 
-void _gc_try_trigger(mb_interpreter_t* s) {
+static void _gc_try_trigger(mb_interpreter_t* s) {
 	/* Try trigger garbage collection */
 	mb_assert(s);
 
@@ -5498,7 +5497,7 @@ void _gc_try_trigger(mb_interpreter_t* s) {
 		_gc_collect_garbage(s, 1);
 }
 
-void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
+static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	/* Collect all garbage */
 	_ht_node_t* valid = 0;
 
@@ -5537,7 +5536,7 @@ void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 }
 
 #ifdef MB_ENABLE_USERTYPE_REF
-_usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft) {
+static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft) {
 	/* Create a referenced usertype */
 	_usertype_ref_t* result = (_usertype_ref_t*)mb_malloc(sizeof(_usertype_ref_t));
 	memset(result, 0, sizeof(_usertype_ref_t));
@@ -5552,7 +5551,7 @@ _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_fu
 	return result;
 }
 
-void _destroy_usertype_ref(_usertype_ref_t* c) {
+static void _destroy_usertype_ref(_usertype_ref_t* c) {
 	/* Destroy a referenced usertype */
 	if(c->dtor)
 		c->dtor(c->ref.s, c->usertype);
@@ -5560,14 +5559,14 @@ void _destroy_usertype_ref(_usertype_ref_t* c) {
 	safe_free(c);
 }
 
-void _unref_usertype_ref(_ref_t* ref, void* data) {
+static void _unref_usertype_ref(_ref_t* ref, void* data) {
 	/* Unreference a referenced usertype */
 	if(*ref->count == _NONE_REF)
 		_destroy_usertype_ref((_usertype_ref_t*)data);
 }
 #endif /* MB_ENABLE_USERTYPE_REF */
 
-_array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s) {
+static _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s) {
 	/* Create an array */
 	_array_t* result = (_array_t*)mb_malloc(sizeof(_array_t));
 	memset(result, 0, sizeof(_array_t));
@@ -5583,7 +5582,7 @@ _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s) {
 	return result;
 }
 
-void _destroy_array(_array_t* arr) {
+static void _destroy_array(_array_t* arr) {
 	/* Destroy an array */
 	mb_assert(arr);
 
@@ -5602,7 +5601,7 @@ void _destroy_array(_array_t* arr) {
 	safe_free(arr);
 }
 
-void _init_array(_array_t* arr) {
+static void _init_array(_array_t* arr) {
 	/* Initialize an array */
 	int elemsize = 0;
 
@@ -5630,7 +5629,7 @@ void _init_array(_array_t* arr) {
 #endif /* MB_SIMPLE_ARRAY */
 }
 
-int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c) {
+static int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c) {
 	/* Calculate the true index of an array */
 	int result = 0;
 	int i = 0;
@@ -5660,7 +5659,7 @@ _exit:
 	return result;
 }
 
-int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned int* index, bool_t* literally) {
+static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned int* index, bool_t* literally) {
 	/* Calculate the true index of an array, used when walking through an AST */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -5747,7 +5746,7 @@ _exit:
 	return result;
 }
 
-bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type) {
+static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type) {
 	/* Get the value of an element in an array */
 	bool_t result = true;
 	int_t elemsize = 0;
@@ -5779,7 +5778,7 @@ bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, m
 	return result;
 }
 
-int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type) {
+static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type) {
 	/* Set the value of an element in an array */
 	int result = MB_FUNC_OK;
 	int_t elemsize = 0;
@@ -5841,7 +5840,7 @@ _exit:
 	return result;
 }
 
-void _clear_array(_array_t* arr) {
+static void _clear_array(_array_t* arr) {
 	/* Clear an array */
 	char* str = 0;
 	int_t elemsize = 0;
@@ -5882,7 +5881,7 @@ void _clear_array(_array_t* arr) {
 	}
 }
 
-bool_t _is_array(void* obj) {
+static bool_t _is_array(void* obj) {
 	/* Determine if an object is an array value or an array variable */
 	bool_t result = false;
 	_object_t* o = 0;
@@ -5896,14 +5895,14 @@ bool_t _is_array(void* obj) {
 	return result;
 }
 
-void _unref_array(_ref_t* ref, void* data) {
+static void _unref_array(_ref_t* ref, void* data) {
 	/* Unreference an array */
 	if(*ref->count == _NONE_REF)
 		_destroy_array((_array_t*)data);
 }
 
 #ifdef MB_ENABLE_COLLECTION_LIB
-_list_t* _create_list(mb_interpreter_t* s) {
+static _list_t* _create_list(mb_interpreter_t* s) {
 	/* Create a list */
 	_list_t* result = (_list_t*)mb_malloc(sizeof(_list_t));
 	memset(result, 0, sizeof(_list_t));
@@ -5913,7 +5912,7 @@ _list_t* _create_list(mb_interpreter_t* s) {
 	return result;
 }
 
-void _destroy_list(_list_t* c) {
+static void _destroy_list(_list_t* c) {
 	/* Destroy a list */
 	if(c->range_begin) { safe_free(c->range_begin); }
 	_ls_foreach(c->list, _destroy_object);
@@ -5922,7 +5921,7 @@ void _destroy_list(_list_t* c) {
 	safe_free(c);
 }
 
-_dict_t* _create_dict(mb_interpreter_t* s) {
+static _dict_t* _create_dict(mb_interpreter_t* s) {
 	/* Create a dictionary */
 	_dict_t* result = (_dict_t*)mb_malloc(sizeof(_dict_t));
 	memset(result, 0, sizeof(_dict_t));
@@ -5932,7 +5931,7 @@ _dict_t* _create_dict(mb_interpreter_t* s) {
 	return result;
 }
 
-void _destroy_dict(_dict_t* c) {
+static void _destroy_dict(_dict_t* c) {
 	/* Destroy a dictionary */
 	_ht_foreach(c->dict, _destroy_object_with_extra);
 	_ht_destroy(c->dict);
@@ -5940,7 +5939,7 @@ void _destroy_dict(_dict_t* c) {
 	safe_free(c);
 }
 
-_list_it_t* _create_list_it(_list_t* coll, bool_t lock) {
+static _list_it_t* _create_list_it(_list_t* coll, bool_t lock) {
 	/* Create an iterator of a list */
 	_list_it_t* result = 0;
 
@@ -5960,7 +5959,7 @@ _list_it_t* _create_list_it(_list_t* coll, bool_t lock) {
 	return result;
 }
 
-bool_t _destroy_list_it(_list_it_t* it) {
+static bool_t _destroy_list_it(_list_it_t* it) {
 	/* Destroy an iterator of a list */
 	bool_t result = true;
 
@@ -5972,7 +5971,7 @@ bool_t _destroy_list_it(_list_it_t* it) {
 	return result;
 }
 
-_list_it_t* _move_list_it_next(_list_it_t* it) {
+static _list_it_t* _move_list_it_next(_list_it_t* it) {
 	/* Move an iterator of a list to next step */
 	_list_it_t* result = 0;
 
@@ -5999,7 +5998,7 @@ _exit:
 	return result;
 }
 
-_dict_it_t* _create_dict_it(_dict_t* coll, bool_t lock) {
+static _dict_it_t* _create_dict_it(_dict_t* coll, bool_t lock) {
 	/* Create an iterator of a dictionary */
 	_dict_it_t* result = 0;
 
@@ -6017,7 +6016,7 @@ _dict_it_t* _create_dict_it(_dict_t* coll, bool_t lock) {
 	return result;
 }
 
-bool_t _destroy_dict_it(_dict_it_t* it) {
+static bool_t _destroy_dict_it(_dict_it_t* it) {
 	/* Destroy an iterator of a dictionary */
 	bool_t result = true;
 
@@ -6029,7 +6028,7 @@ bool_t _destroy_dict_it(_dict_it_t* it) {
 	return result;
 }
 
-_dict_it_t* _move_dict_it_next(_dict_it_t* it) {
+static _dict_it_t* _move_dict_it_next(_dict_it_t* it) {
 	/* Move an iterator of a dictionary to next step */
 	_dict_it_t* result = 0;
 
@@ -6062,19 +6061,19 @@ _exit:
 	return result;
 }
 
-void _unref_list(_ref_t* ref, void* data) {
+static void _unref_list(_ref_t* ref, void* data) {
 	/* Unreference a list */
 	if(*ref->count == _NONE_REF)
 		_destroy_list((_list_t*)data);
 }
 
-void _unref_dict(_ref_t* ref, void* data) {
+static void _unref_dict(_ref_t* ref, void* data) {
 	/* Unreference a dictionary */
 	if(*ref->count == _NONE_REF)
 		_destroy_dict((_dict_t*)data);
 }
 
-void _push_list(_list_t* coll, mb_value_t* val, _object_t* oarg) {
+static void _push_list(_list_t* coll, mb_value_t* val, _object_t* oarg) {
 	/* Push a value to a list */
 	mb_assert(coll && (val || oarg));
 
@@ -6089,7 +6088,7 @@ void _push_list(_list_t* coll, mb_value_t* val, _object_t* oarg) {
 	_invalidate_list_cache(coll);
 }
 
-bool_t _pop_list(_list_t* coll, mb_value_t* val, mb_interpreter_t* s) {
+static bool_t _pop_list(_list_t* coll, mb_value_t* val, mb_interpreter_t* s) {
 	/* Pop a value from a list */
 	_object_t* oval = 0;
 
@@ -6117,7 +6116,7 @@ bool_t _pop_list(_list_t* coll, mb_value_t* val, mb_interpreter_t* s) {
 	}
 }
 
-bool_t _insert_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval) {
+static bool_t _insert_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval) {
 	/* Insert a value into a list */
 	_object_t* oarg = 0;
 
@@ -6140,7 +6139,7 @@ bool_t _insert_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval)
 	return false;
 }
 
-bool_t _set_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval) {
+static bool_t _set_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval) {
 	/* Set an element in a list with a specific index with a given value */
 	_ls_node_t* result = 0;
 	_object_t* oarg = 0;
@@ -6169,7 +6168,7 @@ bool_t _set_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** oval) {
 	return !!(result && result->data);
 }
 
-bool_t _remove_at_list(_list_t* coll, int_t idx) {
+static bool_t _remove_at_list(_list_t* coll, int_t idx) {
 	/* Remove an element in a list with a specific index */
 	bool_t result = false;
 	_ls_node_t* node = 0;
@@ -6194,7 +6193,7 @@ bool_t _remove_at_list(_list_t* coll, int_t idx) {
 	return result;
 }
 
-_ls_node_t* _node_at_list(_list_t* coll, int index) {
+static _ls_node_t* _node_at_list(_list_t* coll, int index) {
 	/* Get a node in a list with a specific index */
 	_ls_node_t* result = 0;
 	_ls_node_t* tmp = 0;
@@ -6267,7 +6266,7 @@ _ls_node_t* _node_at_list(_list_t* coll, int index) {
 	return result;
 }
 
-bool_t _at_list(_list_t* coll, int_t idx, mb_value_t* oval) {
+static bool_t _at_list(_list_t* coll, int_t idx, mb_value_t* oval) {
 	/* Get the value in a list with a specific index */
 	_ls_node_t* result = 0;
 
@@ -6282,7 +6281,7 @@ bool_t _at_list(_list_t* coll, int_t idx, mb_value_t* oval) {
 	return !!(result && result->data);
 }
 
-bool_t _find_list(_list_t* coll, mb_value_t* val, int* idx) {
+static bool_t _find_list(_list_t* coll, mb_value_t* val, int* idx) {
 	/* Find a value in a list */
 	bool_t result = false;
 	_object_t* oarg = 0;
@@ -6298,7 +6297,7 @@ bool_t _find_list(_list_t* coll, mb_value_t* val, int* idx) {
 	return result;
 }
 
-void _clear_list(_list_t* coll) {
+static void _clear_list(_list_t* coll) {
 	/* Clear a list */
 	mb_assert(coll);
 
@@ -6312,7 +6311,7 @@ void _clear_list(_list_t* coll) {
 	_invalidate_list_cache(coll);
 }
 
-void _sort_list(_list_t* coll) {
+static void _sort_list(_list_t* coll) {
 	/* Sort a list */
 	mb_assert(coll);
 
@@ -6322,7 +6321,7 @@ void _sort_list(_list_t* coll) {
 	_invalidate_list_cache(coll);
 }
 
-void _invalidate_list_cache(_list_t* coll) {
+static void _invalidate_list_cache(_list_t* coll) {
 	/* Invalidate cached list index */
 	mb_assert(coll);
 
@@ -6330,7 +6329,7 @@ void _invalidate_list_cache(_list_t* coll) {
 	coll->cached_index = 0;
 }
 
-void _fill_ranged(_list_t* coll) {
+static void _fill_ranged(_list_t* coll) {
 	/* Fill a ranged list with numbers */
 	_object_t* obj = 0;
 
@@ -6356,7 +6355,7 @@ void _fill_ranged(_list_t* coll) {
 	}
 }
 
-void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object_t* okey, _object_t* oval) {
+static void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object_t* okey, _object_t* oval) {
 	/* Set an element to a dictionary with a key-value pair */
 	_ls_node_t* exist = 0;
 	void* data = 0;
@@ -6379,7 +6378,7 @@ void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object_t* okey,
 	_write_on_ref_object(&coll->lock, &coll->ref, coll);
 }
 
-bool_t _remove_dict(_dict_t* coll, mb_value_t* key) {
+static bool_t _remove_dict(_dict_t* coll, mb_value_t* key) {
 	/* Remove an element to a dictionary with a specific key */
 	_ls_node_t* result = 0;
 	_object_t* okey = 0;
@@ -6402,7 +6401,7 @@ bool_t _remove_dict(_dict_t* coll, mb_value_t* key) {
 	return !!(result && result->data);
 }
 
-bool_t _find_dict(_dict_t* coll, mb_value_t* val, mb_value_t* oval) {
+static bool_t _find_dict(_dict_t* coll, mb_value_t* val, mb_value_t* oval) {
 	/* Find a key in a dictionary */
 	_ls_node_t* result = 0;
 	_object_t* oarg = 0;
@@ -6418,7 +6417,7 @@ bool_t _find_dict(_dict_t* coll, mb_value_t* val, mb_value_t* oval) {
 	return !!(result && result->data);
 }
 
-void _clear_dict(_dict_t* coll) {
+static void _clear_dict(_dict_t* coll) {
 	/* Clear a dictionary */
 	mb_assert(coll);
 
@@ -6428,21 +6427,21 @@ void _clear_dict(_dict_t* coll) {
 	_write_on_ref_object(&coll->lock, &coll->ref, coll);
 }
 
-bool_t _invalid_list_it(_list_it_t* it) {
+static bool_t _invalid_list_it(_list_it_t* it) {
 	/* Determin whether a list iterator is invalid */
 	if(!it) return false;
 
 	return it && it->list && it->list->lock <= 0;
 }
 
-bool_t _invalid_dict_it(_dict_it_t* it) {
+static bool_t _invalid_dict_it(_dict_it_t* it) {
 	/* Determin whether a dictionary iterator is invalid */
 	if(!it) return false;
 
 	return it && it->dict && it->dict->lock <= 0;
 }
 
-bool_t _assign_with_it(_object_t* tgt, _object_t* src) {
+static bool_t _assign_with_it(_object_t* tgt, _object_t* src) {
 	/* Assign an iterator to another object */
 	mb_assert(tgt && src);
 
@@ -6479,7 +6478,7 @@ bool_t _assign_with_it(_object_t* tgt, _object_t* src) {
 	return true;
 }
 
-int _clone_to_list(void* data, void* extra, _list_t* coll) {
+static int _clone_to_list(void* data, void* extra, _list_t* coll) {
 	/* Clone an object to a list */
 	_object_t* obj = 0;
 	_object_t* tgt = 0;
@@ -6498,7 +6497,7 @@ int _clone_to_list(void* data, void* extra, _list_t* coll) {
 	return 1;
 }
 
-int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
+static int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 	/* Clone a key-value pair to a dictionary */
 	_object_t* kobj = 0;
 	_object_t* ktgt = 0;
@@ -6524,7 +6523,7 @@ int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 #ifdef MB_ENABLE_CLASS
-void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
+static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	/* Initialize a class */
 	_running_context_t* running = 0;
 
@@ -6541,7 +6540,7 @@ void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	instance->created_from = instance;
 }
 
-void _begin_class(mb_interpreter_t* s) {
+static void _begin_class(mb_interpreter_t* s) {
 	/* Begin parsing a class */
 	_parsing_context_t* context = 0;
 
@@ -6551,7 +6550,7 @@ void _begin_class(mb_interpreter_t* s) {
 	context->class_state = _CLASS_STATE_PROC;
 }
 
-bool_t _end_class(mb_interpreter_t* s) {
+static bool_t _end_class(mb_interpreter_t* s) {
 	/* End parsing a class */
 	_parsing_context_t* context = 0;
 
@@ -6572,7 +6571,7 @@ bool_t _end_class(mb_interpreter_t* s) {
 	return true;
 }
 
-void _unref_class(_ref_t* ref, void* data) {
+static void _unref_class(_ref_t* ref, void* data) {
 	/* Unreference a class instance */
 	if(ref->s->valid)
 		_out_of_scope(ref->s, ((_class_t*)data)->scope, (_class_t*)data, false);
@@ -6581,7 +6580,7 @@ void _unref_class(_ref_t* ref, void* data) {
 		_destroy_class((_class_t*)data);
 }
 
-void _destroy_class(_class_t* c) {
+static void _destroy_class(_class_t* c) {
 	/* Destroy a class instance */
 	if(c->meta_list) {
 		_unlink_meta_class(c->ref.s, c);
@@ -6603,7 +6602,7 @@ void _destroy_class(_class_t* c) {
 	safe_free(c);
 }
 
-bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret) {
+static bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret) {
 	/* Traverse all fields of a class instance, and its meta class instances recursively as well */
 	bool_t result = true;
 	_ls_node_t* node = 0;
@@ -6643,7 +6642,7 @@ _exit:
 	return result;
 }
 
-bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base) {
+static bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base) {
 	/* Link a class instance to the meta list of another class instance */
 	mb_assert(s && derived && base);
 
@@ -6659,7 +6658,7 @@ bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base) 
 	return true;
 }
 
-void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived) {
+static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived) {
 	/* Unlink all meta class instances of a class instance */
 	mb_assert(s && derived);
 
@@ -6667,7 +6666,7 @@ void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived) {
 	_ls_clear(derived->meta_list);
 }
 
-int _unlink_meta_instance(void* data, void* extra, _class_t* derived) {
+static int _unlink_meta_instance(void* data, void* extra, _class_t* derived) {
 	/* Unlink a meta class instance */
 	_class_t* base = 0;
 	mb_unrefvar(extra);
@@ -6680,7 +6679,7 @@ int _unlink_meta_instance(void* data, void* extra, _class_t* derived) {
 	return 0;
 }
 
-int _clone_clsss_field(void* data, void* extra, void* n) {
+static int _clone_clsss_field(void* data, void* extra, void* n) {
 	/* Clone fields of a class instance to another */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -6698,10 +6697,8 @@ int _clone_clsss_field(void* data, void* extra, void* n) {
 	switch(obj->type) {
 	case _DT_VAR:
 		var = (_var_t*)obj->data.variable;
-		if(!_search_identifier_in_scope_chain(instance->ref.s, instance->scope, var->name, 0, 0, 0)) {
-			ret = _duplicate_parameter(var, 0, instance->scope);
-			_clone_object(instance->ref.s, obj, ret->data.variable->data, false);
-		}
+		ret = _duplicate_parameter(var, 0, instance->scope);
+		_clone_object(instance->ref.s, obj, ret->data.variable->data, false);
 
 		break;
 	case _DT_ROUTINE:
@@ -6725,7 +6722,7 @@ _exit:
 	return result;
 }
 
-bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret) {
+static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret) {
 	/* Link meta class to a new instance */
 	_class_t* instance = (_class_t*)n;
 	mb_unrefvar(ret);
@@ -6737,7 +6734,7 @@ bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret) {
 	return true;
 }
 
-int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t** f) {
+static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t** f) {
 	/* Search for a meta function with a specific name and assign to a member field */
 	_ls_node_t* node = _search_identifier_in_class(s, instance, n, 0, 0);
 	if(f) *f = 0;
@@ -6753,7 +6750,7 @@ int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const c
 	return 0;
 }
 
-bool_t _is_class(_class_t* instance, void* m, void* ret) {
+static bool_t _is_class(_class_t* instance, void* m, void* ret) {
 	/* Detect whether a class instance is inherited from another */
 	_class_t* meta = (_class_t*)m;
 	bool_t* r = (bool_t*)ret;
@@ -6765,7 +6762,7 @@ bool_t _is_class(_class_t* instance, void* m, void* ret) {
 	return !(*r);
 }
 
-bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret) {
+static bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret) {
 	/* Add a meta class instance to a GC reachable table */
 	_ht_node_t* htable = (_ht_node_t*)ht;
 	mb_unrefvar(ret);
@@ -6779,7 +6776,7 @@ bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret) {
 }
 
 #ifdef MB_ENABLE_COLLECTION_LIB
-int _reflect_class_field(void* data, void* extra, void* d) {
+static int _reflect_class_field(void* data, void* extra, void* d) {
 	/* Reflect each field of a class instance to a dictionary */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -6823,7 +6820,7 @@ _exit:
 }
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
-_class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb_value_t* arg) {
+static _class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb_value_t* arg) {
 	/* Reflect a class instance from a string */
 	_ls_node_t* cs = 0;
 	_object_t* c = 0;
@@ -6840,7 +6837,7 @@ _class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb_value_
 }
 #endif /* MB_ENABLE_CLASS */
 
-void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f) {
+static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f) {
 	/* Initialize a routine */
 	_running_context_t* running = 0;
 
@@ -6879,7 +6876,7 @@ void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine
 	}
 }
 
-void _begin_routine(mb_interpreter_t* s) {
+static void _begin_routine(mb_interpreter_t* s) {
 	/* Begin parsing a routine */
 	_parsing_context_t* context = 0;
 
@@ -6889,7 +6886,7 @@ void _begin_routine(mb_interpreter_t* s) {
 	context->routine_state++;
 }
 
-bool_t _end_routine(mb_interpreter_t* s) {
+static bool_t _end_routine(mb_interpreter_t* s) {
 	/* End parsing a routine */
 	_parsing_context_t* context = 0;
 
@@ -6906,7 +6903,7 @@ bool_t _end_routine(mb_interpreter_t* s) {
 	return true;
 }
 
-void _begin_routine_parameter_list(mb_interpreter_t* s) {
+static void _begin_routine_parameter_list(mb_interpreter_t* s) {
 	/* Begin parsing the parameter list of a routine */
 	_parsing_context_t* context = 0;
 
@@ -6916,7 +6913,7 @@ void _begin_routine_parameter_list(mb_interpreter_t* s) {
 	context->routine_params_state++;
 }
 
-void _end_routine_parameter_list(mb_interpreter_t* s) {
+static void _end_routine_parameter_list(mb_interpreter_t* s) {
 	/* End parsing the parameter list of a routine */
 	_parsing_context_t* context = 0;
 
@@ -6926,7 +6923,7 @@ void _end_routine_parameter_list(mb_interpreter_t* s) {
 	context->routine_params_state--;
 }
 
-_object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* running) {
+static _object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* running) {
 	/* Duplicate a parameter from a parameter list to variable dictionary */
 	_var_t* ref = 0;
 	_var_t* var = 0;
@@ -6947,7 +6944,7 @@ _object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* run
 	return obj;
 }
 
-_routine_t* _clone_routine(_routine_t* sub, void* c, bool_t toupval) {
+static _routine_t* _clone_routine(_routine_t* sub, void* c, bool_t toupval) {
 	/* Clone a routine */
 	_routine_t* result = 0;
 #ifdef MB_ENABLE_CLASS
@@ -6982,7 +6979,7 @@ _routine_t* _clone_routine(_routine_t* sub, void* c, bool_t toupval) {
 }
 
 #ifdef MB_ENABLE_LAMBDA
-_running_context_t* _init_lambda(mb_interpreter_t* s, _routine_t* routine) {
+static _running_context_t* _init_lambda(mb_interpreter_t* s, _routine_t* routine) {
 	/* Initialize a lambda */
 	_running_context_t* result = 0;
 	_lambda_t* lambda = 0;
@@ -6998,13 +6995,13 @@ _running_context_t* _init_lambda(mb_interpreter_t* s, _routine_t* routine) {
 	return result;
 }
 
-void _unref_routine(_ref_t* ref, void* data) {
+static void _unref_routine(_ref_t* ref, void* data) {
 	/* Unreference a lambda routine */
 	if(*ref->count == _NONE_REF)
 		_destroy_routine(ref->s, (_routine_t*)data);
 }
 
-void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
+static void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 	/* Destroy a lambda routine */
 	if(r->name) {
 		safe_free(r->name);
@@ -7042,7 +7039,7 @@ void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 	safe_free(r);
 }
 
-void _mark_upvalue(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj, const char* n) {
+static void _mark_upvalue(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj, const char* n) {
 	/* Mark an upvalue of a lambda */
 	_running_context_t* running = 0;
 	_running_context_t* found_in_scope = 0;
@@ -7064,7 +7061,7 @@ void _mark_upvalue(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj, const
 	_ht_set_or_insert(lambda->upvalues, obj->data.variable->name, obj);
 }
 
-void _try_mark_upvalue(mb_interpreter_t* s, _routine_t* r, _object_t* obj) {
+static void _try_mark_upvalue(mb_interpreter_t* s, _routine_t* r, _object_t* obj) {
 	/* Try to mark upvalues of a lambda */
 	_lambda_t* lambda = 0;
 	_ls_node_t* node = 0;
@@ -7095,7 +7092,7 @@ void _try_mark_upvalue(mb_interpreter_t* s, _routine_t* r, _object_t* obj) {
 	}
 }
 
-_running_context_ref_t* _create_outer_scope(mb_interpreter_t* s) {
+static _running_context_ref_t* _create_outer_scope(mb_interpreter_t* s) {
 	/* Create an outer scope, which is a referenced type */
 	_running_context_ref_t* result = (_running_context_ref_t*)mb_malloc(sizeof(_running_context_ref_t));
 	memset(result, 0, sizeof(_running_context_ref_t));
@@ -7105,13 +7102,13 @@ _running_context_ref_t* _create_outer_scope(mb_interpreter_t* s) {
 	return result;
 }
 
-void _unref_outer_scope(_ref_t* ref, void* data) {
+static void _unref_outer_scope(_ref_t* ref, void* data) {
 	/* Unreference an outer scope */
 	if(*ref->count == _NONE_REF)
 		_destroy_outer_scope((_running_context_ref_t*)data);
 }
 
-void _destroy_outer_scope(_running_context_ref_t* p) {
+static void _destroy_outer_scope(_running_context_ref_t* p) {
 	/* Destroy an outer scope */
 	mb_assert(p);
 
@@ -7129,7 +7126,7 @@ void _destroy_outer_scope(_running_context_ref_t* p) {
 	}
 }
 
-int _do_nothing_on_ht_for_lambda(void* data, void* extra) {
+static int _do_nothing_on_ht_for_lambda(void* data, void* extra) {
 	/* Do nothing, this is a helper function for lambda */
 	int result = _OP_RESULT_NORMAL;
 	mb_unrefvar(data);
@@ -7138,7 +7135,7 @@ int _do_nothing_on_ht_for_lambda(void* data, void* extra) {
 	return result;
 }
 
-int _fill_with_upvalue(void* data, void* extra, void* p) {
+static int _fill_with_upvalue(void* data, void* extra, void* p) {
 	/* Fill an outer scope with the original value */
 	_object_t* obj = (_object_t*)data;
 	const char* n = (const char*)extra;
@@ -7197,7 +7194,7 @@ int _fill_with_upvalue(void* data, void* extra, void* p) {
 	return 0;
 }
 
-int _remove_filled_upvalue(void* data, void* extra, void* u) {
+static int _remove_filled_upvalue(void* data, void* extra, void* u) {
 	/* Remove filled upvalues */
 	_ht_node_t* ht = (_ht_node_t*)u;
 
@@ -7206,7 +7203,7 @@ int _remove_filled_upvalue(void* data, void* extra, void* u) {
 	return _OP_RESULT_NORMAL;
 }
 
-int _fill_outer_scope(void* data, void* extra, void* t) {
+static int _fill_outer_scope(void* data, void* extra, void* t) {
 	/* Fill an outer scope with the original one */
 	_lambda_t* lambda = (_lambda_t*)data;
 	_upvalue_scope_tuple_t* tuple = (_upvalue_scope_tuple_t*)t;
@@ -7239,7 +7236,7 @@ int _fill_outer_scope(void* data, void* extra, void* t) {
 	return 0;
 }
 
-_running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak) {
+static _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak) {
 	/* Link the local scope of a lambda and all upvalue scopes in chain to a given scope */
 	_running_context_ref_t* root_ref = 0;
 	_running_context_t* root = 0;
@@ -7261,7 +7258,7 @@ _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lam
 	return lambda->scope;
 }
 
-_running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak) {
+static _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak) {
 	/* Unlink the local scope of a lambda and all upvalue scopes in chain from a given scope */
 	_running_context_ref_t* root_ref = 0;
 	_running_context_t* root = 0;
@@ -7284,7 +7281,7 @@ _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* l
 	return lambda->scope;
 }
 
-bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj) {
+static bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj) {
 	/* Check whether an object is a valid lambda body node */
 	mb_unrefvar(s);
 	mb_unrefvar(lambda);
@@ -7301,7 +7298,7 @@ bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda, _objec
 #endif /* MB_ENABLE_LAMBDA */
 
 #ifdef MB_ENABLE_CLASS
-_running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c) {
+static _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c) {
 	/* Create a scope reference to an exist one by a class */
 	_running_context_t* result = 0;
 	mb_unrefvar(c);
@@ -7318,7 +7315,7 @@ _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_cont
 	return result;
 }
 
-_running_context_t* _push_scope_by_class(mb_interpreter_t* s, _running_context_t* p) {
+static _running_context_t* _push_scope_by_class(mb_interpreter_t* s, _running_context_t* p) {
 	/* Push a scope by a class */
 	mb_assert(s);
 
@@ -7330,7 +7327,7 @@ _running_context_t* _push_scope_by_class(mb_interpreter_t* s, _running_context_t
 	return s->running_context;
 }
 
-_ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* instance, const char* n, _ht_node_t** ht, _running_context_t** sp) {
+static _ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* instance, const char* n, _ht_node_t** ht, _running_context_t** sp) {
 	/* Try to search an identifire from a class */
 	_ls_node_t* result = 0;
 	_ls_node_t* node = 0;
@@ -7357,7 +7354,7 @@ _ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* instance,
 	return result;
 }
 
-_ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp) {
+static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp) {
 	/* Try to search an identifier accessor in a scope */
 	_ls_node_t* result = 0;
 	_object_t* obj = 0;
@@ -7410,7 +7407,7 @@ _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t*
 }
 #endif /* MB_ENABLE_CLASS */
 
-_running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r) {
+static _running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r) {
 	/* Create a scope reference to an exist one by a routine */
 	_running_context_t* result = 0;
 
@@ -7430,7 +7427,7 @@ _running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_co
 	return result;
 }
 
-_running_context_t* _push_weak_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r) {
+static _running_context_t* _push_weak_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r) {
 	/* Push a weak scope by a routine */
 	mb_assert(s);
 
@@ -7442,7 +7439,7 @@ _running_context_t* _push_weak_scope_by_routine(mb_interpreter_t* s, _running_co
 	return p;
 }
 
-_running_context_t* _push_scope_by_routine(mb_interpreter_t* s, _running_context_t* p) {
+static _running_context_t* _push_scope_by_routine(mb_interpreter_t* s, _running_context_t* p) {
 	/* Push a scope by a routine */
 	mb_assert(s);
 
@@ -7456,7 +7453,7 @@ _running_context_t* _push_scope_by_routine(mb_interpreter_t* s, _running_context
 	return s->running_context;
 }
 
-void _destroy_scope(mb_interpreter_t* s, _running_context_t* p) {
+static void _destroy_scope(mb_interpreter_t* s, _running_context_t* p) {
 	/* Destroy a scope */
 	mb_unrefvar(s);
 
@@ -7473,7 +7470,7 @@ void _destroy_scope(mb_interpreter_t* s, _running_context_t* p) {
 	safe_free(p);
 }
 
-_running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context_t* p) {
+static _running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context_t* p) {
 	/* Pop a weak scope */
 	mb_assert(s);
 
@@ -7483,7 +7480,7 @@ _running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context_t* p) 
 	return p;
 }
 
-_running_context_t* _pop_scope(mb_interpreter_t* s, bool_t tidy) {
+static _running_context_t* _pop_scope(mb_interpreter_t* s, bool_t tidy) {
 	/* Pop a scope */
 	_running_context_t* running = 0;
 
@@ -7500,7 +7497,7 @@ _running_context_t* _pop_scope(mb_interpreter_t* s, bool_t tidy) {
 	return s->running_context;
 }
 
-void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* instance, bool_t lose) {
+static void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* instance, bool_t lose) {
 	/* Out of current scope */
 #ifdef MB_ENABLE_LAMBDA
 	_upvalue_scope_tuple_t tuple;
@@ -7533,7 +7530,7 @@ void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* insta
 		_ht_foreach(running->var_dict, _lose_object);
 }
 
-_running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p) {
+static _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p) {
 	/* Find a scope in a scope chain */
 	_running_context_t* running = 0;
 
@@ -7553,7 +7550,7 @@ _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p) {
 	return running;
 }
 
-_running_context_t* _get_root_scope(_running_context_t* scope) {
+static _running_context_t* _get_root_scope(_running_context_t* scope) {
 	/* Get the root scope in a scope chain */
 	_running_context_t* result = 0;
 
@@ -7566,7 +7563,7 @@ _running_context_t* _get_root_scope(_running_context_t* scope) {
 }
 
 #ifdef MB_ENABLE_LAMBDA
-_running_context_ref_t* _get_root_ref_scope(_running_context_ref_t* scope) {
+static _running_context_ref_t* _get_root_ref_scope(_running_context_ref_t* scope) {
 	/* Get the root referenced scope in a referenced scope chain */
 	_running_context_ref_t* result = 0;
 
@@ -7579,7 +7576,7 @@ _running_context_ref_t* _get_root_ref_scope(_running_context_ref_t* scope) {
 }
 #endif /* MB_ENABLE_LAMBDA */
 
-_running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s) {
+static _running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s) {
 	/* Get a proper scope to define a routine */
 	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
@@ -7607,7 +7604,7 @@ _running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s) {
 	return running;
 }
 
-_ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, const char* n, int pathing, _ht_node_t** ht, _running_context_t** sp) {
+static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, const char* n, int pathing, _ht_node_t** ht, _running_context_t** sp) {
 	/* Try to search an identifier in a scope chain */
 	_ls_node_t* result = 0;
 	_running_context_t* running = 0;
@@ -7665,7 +7662,7 @@ _exit:
 	return result;
 }
 
-_array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o) {
+static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o) {
 	/* Try to search an array in a scope chain */
 	_object_t* obj = 0;
 	_ls_node_t* scp = 0;
@@ -7686,7 +7683,7 @@ _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object
 	return result;
 }
 
-_var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
+static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
 	/* Try to search a variable in a scope chain */
 	_object_t* obj = 0;
 	_ls_node_t* scp = 0;
@@ -7705,7 +7702,7 @@ _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
 	return result;
 }
 
-_var_t* _create_var(_object_t** oobj, const char* n, size_t ns, bool_t dup_name) {
+static _var_t* _create_var(_object_t** oobj, const char* n, size_t ns, bool_t dup_name) {
 	/* Create a variable object */
 	_object_t* obj = 0;
 	_var_t* var = 0;
@@ -7732,7 +7729,7 @@ _var_t* _create_var(_object_t** oobj, const char* n, size_t ns, bool_t dup_name)
 	return var;
 }
 
-_object_t* _create_object(void) {
+static _object_t* _create_object(void) {
 	/* Create an _object_t struct */
 	_object_t* result = (_object_t*)mb_malloc(sizeof(_object_t));
 	_MAKE_NIL(result);
@@ -7740,7 +7737,7 @@ _object_t* _create_object(void) {
 	return result;
 }
 
-int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bool_t toupval) {
+static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bool_t toupval) {
 	/* Clone the data of an object */
 	int result = 0;
 
@@ -7862,7 +7859,7 @@ _exit:
 	return result;
 }
 
-int _dispose_object(_object_t* obj) {
+static int _dispose_object(_object_t* obj) {
 	/* Dispose the data of an object */
 	int result = 0;
 	_var_t* var = 0;
@@ -7952,7 +7949,7 @@ _exit:
 	return result;
 }
 
-int _destroy_object(void* data, void* extra) {
+static int _destroy_object(void* data, void* extra) {
 	/* Destroy an object and its data */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -7971,7 +7968,7 @@ _exit:
 	return result;
 }
 
-int _destroy_object_with_extra(void* data, void* extra) {
+static int _destroy_object_with_extra(void* data, void* extra) {
 	/* Destroy an object, including its data and extra data */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -7993,7 +7990,7 @@ _exit:
 	return result;
 }
 
-int _destroy_object_not_compile_time(void* data, void* extra) {
+static int _destroy_object_not_compile_time(void* data, void* extra) {
 	/* Destroy an object which is not come from compile time */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -8014,7 +8011,7 @@ _exit:
 	return result;
 }
 
-int _destroy_object_capsule_only(void* data, void* extra) {
+static int _destroy_object_capsule_only(void* data, void* extra) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -8030,25 +8027,7 @@ int _destroy_object_capsule_only(void* data, void* extra) {
 	return result;
 }
 
-int _destroy_object_capsule_only_with_extra(void* data, void* extra) {
-	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well */
-	int result = _OP_RESULT_NORMAL;
-	_object_t* obj = 0;
-
-	mb_assert(data);
-
-	obj = (_object_t*)data;
-	safe_free(obj);
-
-	obj = (_object_t*)extra;
-	safe_free(obj);
-
-	result = _OP_RESULT_DEL_NODE;
-
-	return result;
-}
-
-int _do_nothing_on_object(void* data, void* extra) {
+static int _do_nothing_on_object(void* data, void* extra) {
 	/* Do nothing with an object, this is a helper function */
 	int result = _OP_RESULT_NORMAL;
 	mb_unrefvar(data);
@@ -8057,7 +8036,7 @@ int _do_nothing_on_object(void* data, void* extra) {
 	return result;
 }
 
-int _lose_object(void* data, void* extra) {
+static int _lose_object(void* data, void* extra) {
 	/* Lose an object of of scope */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -8090,7 +8069,7 @@ int _lose_object(void* data, void* extra) {
 	return result;
 }
 
-int _remove_source_object(void* data, void* extra) {
+static int _remove_source_object(void* data, void* extra) {
 	/* Remove an object referenced to source code */
 	int result = _OP_RESULT_DEL_NODE;
 	mb_unrefvar(extra);
@@ -8100,7 +8079,7 @@ int _remove_source_object(void* data, void* extra) {
 	return result;
 }
 
-int _destroy_memory(void* data, void* extra) {
+static int _destroy_memory(void* data, void* extra) {
 	/* Destroy a chunk of memory */
 	int result = _OP_RESULT_NORMAL;
 	mb_unrefvar(extra);
@@ -8112,7 +8091,7 @@ int _destroy_memory(void* data, void* extra) {
 	return result;
 }
 
-int _compare_numbers(const _object_t* first, const _object_t* second) {
+static int _compare_numbers(const _object_t* first, const _object_t* second) {
 	/* Compare two numbers from two objects */
 	int result = 0;
 
@@ -8139,7 +8118,7 @@ int _compare_numbers(const _object_t* first, const _object_t* second) {
 	return result;
 }
 
-bool_t _is_internal_object(_object_t* obj) {
+static bool_t _is_internal_object(_object_t* obj) {
 	/* Determine whether an object is internal */
 	bool_t result = false;
 
@@ -8151,7 +8130,7 @@ bool_t _is_internal_object(_object_t* obj) {
 	return result;
 }
 
-_data_e _public_type_to_internal_type(mb_data_e t) {
+static _data_e _public_type_to_internal_type(mb_data_e t) {
 	/* Convert a public mb_data_e type to an internal _data_e */
 	switch(t) {
 	case MB_DT_NIL:
@@ -8193,7 +8172,7 @@ _data_e _public_type_to_internal_type(mb_data_e t) {
 	}
 }
 
-mb_data_e _internal_type_to_public_type(_data_e t) {
+static mb_data_e _internal_type_to_public_type(_data_e t) {
 	/* Convert an internal mb_data_e type to a public _data_e */
 	switch(t) {
 	case _DT_NIL:
@@ -8235,7 +8214,7 @@ mb_data_e _internal_type_to_public_type(_data_e t) {
 	}
 }
 
-int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
+static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	/* Assign a public mb_value_t to an internal _object_t */
 	int result = MB_FUNC_OK;
 
@@ -8336,7 +8315,7 @@ int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	return result;
 }
 
-int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
+static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 	/* Assign an internal _object_t to a public mb_value_t */
 	int result = MB_FUNC_OK;
 
@@ -8436,7 +8415,7 @@ int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 	return result;
 }
 
-int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn) {
+static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn) {
 	/* Create an internal object from a public value */
 	int result = MB_FUNC_OK;
 
@@ -8452,7 +8431,7 @@ int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn) 
 	return result;
 }
 
-int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t* itn) {
+static int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t* itn) {
 	/* Compare a public value and an internal object */
 	int result = 0;
 	mb_value_t tmp;
@@ -8468,7 +8447,7 @@ int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t* itn) {
 	return result;
 }
 
-void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s) {
+static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s) {
 	/* Try clear the intermediate value */
 	_object_t* obj = 0;
 	_running_context_t* running = 0;
@@ -8487,13 +8466,13 @@ void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s)
 	}
 }
 
-void _destroy_lazy_objects(mb_interpreter_t* s) {
+static void _destroy_lazy_objects(mb_interpreter_t* s) {
 	/* Destroy lazy releasing objects */
 	_ls_foreach(s->lazy_destroy_objects, _destroy_object);
 	_ls_clear(s->lazy_destroy_objects);
 }
 
-void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
+static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
 	/* Mark a string as lazy releasing destroy */
 	_object_t* temp_obj = 0;
 
@@ -8506,7 +8485,7 @@ void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
 	_ls_pushback(s->lazy_destroy_objects, temp_obj);
 }
 
-void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
+static void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
 	/* Assign a value with another */
 	_object_t obj;
 	mb_value_t nil;
@@ -8524,7 +8503,7 @@ void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
 	*src = nil;
 }
 
-void _swap_public_value(mb_value_t* tgt, mb_value_t* src) {
+static void _swap_public_value(mb_value_t* tgt, mb_value_t* src) {
 	/* Swap two public values */
 	mb_value_t tmp;
 
@@ -8535,7 +8514,7 @@ void _swap_public_value(mb_value_t* tgt, mb_value_t* src) {
 	*src = tmp;
 }
 
-int _clear_scope_chain(mb_interpreter_t* s) {
+static int _clear_scope_chain(mb_interpreter_t* s) {
 	/* Clear the scope chain */
 	int result = 0;
 	_running_context_t* running = 0;
@@ -8561,7 +8540,7 @@ int _clear_scope_chain(mb_interpreter_t* s) {
 	return result;
 }
 
-int _dispose_scope_chain(mb_interpreter_t* s) {
+static int _dispose_scope_chain(mb_interpreter_t* s) {
 	/* Dispose the scope chain */
 	int result = 0;
 	_running_context_t* running = 0;
@@ -8595,7 +8574,7 @@ int _dispose_scope_chain(mb_interpreter_t* s) {
 	return result;
 }
 
-void _tidy_scope_chain(mb_interpreter_t* s) {
+static void _tidy_scope_chain(mb_interpreter_t* s) {
 	/* Tidy the scope chain */
 	_parsing_context_t* context = 0;
 
@@ -8616,7 +8595,7 @@ void _tidy_scope_chain(mb_interpreter_t* s) {
 #endif /* MB_ENABLE_CLASS */
 }
 
-void _tidy_intermediate_value(_ref_t* ref, void* data) {
+static void _tidy_intermediate_value(_ref_t* ref, void* data) {
 	/* Tidy the intermediate value */
 	_object_t tmp;
 
@@ -8649,7 +8628,7 @@ void _tidy_intermediate_value(_ref_t* ref, void* data) {
 	}
 }
 
-_object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _ls_node_t** ast, _object_t* obj) {
+static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _ls_node_t** ast, _object_t* obj) {
 	/* Evaluate a variable, this is a helper function for the PRINT statement */
 	_object_t tmp;
 
@@ -8675,7 +8654,7 @@ _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _ls_node
 	return *val_ptr;
 }
 
-void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
+static void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
 	/* Callback a stepped debug handler, this function is called each step */
 	_object_t* obj = 0;
 
@@ -8695,7 +8674,7 @@ void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
 	}
 }
 
-int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
+static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 	/* Execute the ast, this is the core execution function */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -8859,7 +8838,7 @@ _exit:
 	return result;
 }
 
-int _common_end_looping(mb_interpreter_t* s, _ls_node_t** l) {
+static int _common_end_looping(mb_interpreter_t* s, _ls_node_t** l) {
 	/* Common function to end current looping */
 	int result = MB_FUNC_OK;
 
@@ -8871,7 +8850,7 @@ int _common_end_looping(mb_interpreter_t* s, _ls_node_t** l) {
 	return result;
 }
 
-int _common_keep_looping(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop) {
+static int _common_keep_looping(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop) {
 	/* Common function to keep current looping */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -8922,7 +8901,7 @@ _exit:
 	return result;
 }
 
-int _execute_normal_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop) {
+static int _execute_normal_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop) {
 	/* Execute normal FOR-TO-STEP-NEXT-routine */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -9010,7 +8989,7 @@ _exit:
 }
 
 #ifdef MB_ENABLE_COLLECTION_LIB
-int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop) {
+static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop) {
 	/* Execute ranged FOR-IN-NEXT-routine */
 	int result = MB_FUNC_ERR;
 	_ls_node_t* ast = 0;
@@ -9101,7 +9080,7 @@ _exit:
 }
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
-int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t) {
+static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t) {
 	/* Skip current execution flow to a specific function */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -9126,7 +9105,7 @@ _exit:
 	return result;
 }
 
-int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
+static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 	/* Skip current IF execution flow to next chunk */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -9169,7 +9148,7 @@ _exit:
 	return result;
 }
 
-int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func) {
+static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func) {
 	/* Skip current structure */
 	int result = MB_FUNC_OK;
 	int count = 0;
@@ -9201,7 +9180,7 @@ _exit:
 	return result;
 }
 
-_running_context_t* _create_running_context(bool_t create_var_dict) {
+static _running_context_t* _create_running_context(bool_t create_var_dict) {
 	/* Create a running context */
 	_running_context_t* result = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
 	memset(result, 0, sizeof(_running_context_t));
@@ -9212,7 +9191,7 @@ _running_context_t* _create_running_context(bool_t create_var_dict) {
 	return result;
 }
 
-_parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
+static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
 	/* Reset the parsing context of a MY-BASIC environment */
 	_ls_node_t* imp = 0;
 
@@ -9229,7 +9208,7 @@ _parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
 	return context;
 }
 
-void _destroy_parsing_context(_parsing_context_t** context) {
+static void _destroy_parsing_context(_parsing_context_t** context) {
 	/* Destroy the parsing context of a MY-BASIC environment */
 	if(!context || !(*context))
 		return;
@@ -9244,7 +9223,7 @@ void _destroy_parsing_context(_parsing_context_t** context) {
 }
 
 #ifdef MB_ENABLE_MODULE
-_module_func_t* _create_module_func(mb_interpreter_t* s, mb_func_t f) {
+static _module_func_t* _create_module_func(mb_interpreter_t* s, mb_func_t f) {
 	/* Create a module function structure */
 	_module_func_t* result = 0;
 
@@ -9260,7 +9239,7 @@ _module_func_t* _create_module_func(mb_interpreter_t* s, mb_func_t f) {
 	return result;
 }
 
-int _ls_destroy_module_func(void* data, void* extra) {
+static int _ls_destroy_module_func(void* data, void* extra) {
 	/* Destroy a module function structure */
 	int result = _OP_RESULT_NORMAL;
 	_module_func_t* mod = 0;
@@ -9277,7 +9256,7 @@ int _ls_destroy_module_func(void* data, void* extra) {
 	return result;
 }
 
-int _ht_destroy_module_func_list(void* data, void* extra) {
+static int _ht_destroy_module_func_list(void* data, void* extra) {
 	/* Destroy all module function structures */
 	int result = _OP_RESULT_NORMAL;
 	_ls_node_t* lst = 0;
@@ -9297,7 +9276,7 @@ int _ht_destroy_module_func_list(void* data, void* extra) {
 }
 #endif /* MB_ENABLE_MODULE */
 
-char* _generate_func_name(mb_interpreter_t* s, char* n, bool_t with_mod) {
+static char* _generate_func_name(mb_interpreter_t* s, char* n, bool_t with_mod) {
 	/* Generate a function name to be registered according to module information */
 	char* name = 0;
 	size_t _sl = 0;
@@ -9326,7 +9305,7 @@ char* _generate_func_name(mb_interpreter_t* s, char* n, bool_t with_mod) {
 	return name;
 }
 
-int _register_func(mb_interpreter_t* s, char* n, mb_func_t f, bool_t local) {
+static int _register_func(mb_interpreter_t* s, char* n, mb_func_t f, bool_t local) {
 	/* Register a function to a MY-BASIC environment */
 	int result = 0;
 	_ht_node_t* scope = 0;
@@ -9379,7 +9358,7 @@ int _register_func(mb_interpreter_t* s, char* n, mb_func_t f, bool_t local) {
 	return result;
 }
 
-int _remove_func(mb_interpreter_t* s, char* n, bool_t local) {
+static int _remove_func(mb_interpreter_t* s, char* n, bool_t local) {
 	/* Remove a function from a MY-BASIC environment */
 	int result = 0;
 	_ht_node_t* scope = 0;
@@ -9426,7 +9405,7 @@ int _remove_func(mb_interpreter_t* s, char* n, bool_t local) {
 	return result;
 }
 
-_ls_node_t* _find_func(mb_interpreter_t* s, char* n, bool_t* mod) {
+static _ls_node_t* _find_func(mb_interpreter_t* s, char* n, bool_t* mod) {
 	/* Find function interface in the function dictionaries */
 	_ls_node_t* result = 0;
 	mb_unrefvar(mod);
@@ -9463,7 +9442,7 @@ _ls_node_t* _find_func(mb_interpreter_t* s, char* n, bool_t* mod) {
 	return result;
 }
 
-int _open_constant(mb_interpreter_t* s) {
+static int _open_constant(mb_interpreter_t* s) {
 	/* Open global constants */
 	int result = MB_FUNC_OK;
 	_running_context_t* running = 0;
@@ -9481,7 +9460,7 @@ int _open_constant(mb_interpreter_t* s) {
 	return result;
 }
 
-int _close_constant(mb_interpreter_t* s) {
+static int _close_constant(mb_interpreter_t* s) {
 	/* Close global constants */
 	int result = MB_FUNC_OK;
 
@@ -9490,7 +9469,7 @@ int _close_constant(mb_interpreter_t* s) {
 	return result;
 }
 
-int _open_core_lib(mb_interpreter_t* s) {
+static int _open_core_lib(mb_interpreter_t* s) {
 	/* Open the core function library */
 	int result = 0;
 	int i = 0;
@@ -9503,7 +9482,7 @@ int _open_core_lib(mb_interpreter_t* s) {
 	return result;
 }
 
-int _close_core_lib(mb_interpreter_t* s) {
+static int _close_core_lib(mb_interpreter_t* s) {
 	/* Close the core function library */
 	int result = 0;
 	int i = 0;
@@ -9516,7 +9495,7 @@ int _close_core_lib(mb_interpreter_t* s) {
 	return result;
 }
 
-int _open_std_lib(mb_interpreter_t* s) {
+static int _open_std_lib(mb_interpreter_t* s) {
 	/* Open the standard function library */
 	int result = 0;
 	int i = 0;
@@ -9529,7 +9508,7 @@ int _open_std_lib(mb_interpreter_t* s) {
 	return result;
 }
 
-int _close_std_lib(mb_interpreter_t* s) {
+static int _close_std_lib(mb_interpreter_t* s) {
 	/* Close the standard function library */
 	int result = 0;
 	int i = 0;
@@ -9543,7 +9522,7 @@ int _close_std_lib(mb_interpreter_t* s) {
 }
 
 #ifdef MB_ENABLE_COLLECTION_LIB
-int _open_coll_lib(mb_interpreter_t* s) {
+static int _open_coll_lib(mb_interpreter_t* s) {
 	/* Open the collection function library */
 	int result = 0;
 	int i = 0;
@@ -9556,7 +9535,7 @@ int _open_coll_lib(mb_interpreter_t* s) {
 	return result;
 }
 
-int _close_coll_lib(mb_interpreter_t* s) {
+static int _close_coll_lib(mb_interpreter_t* s) {
 	/* Close the collection function library */
 	int result = 0;
 	int i = 0;
@@ -11515,7 +11494,7 @@ int mb_set_memory_manager(mb_memory_allocate_func_t a, mb_memory_free_func_t f) 
 */
 
 /** Core lib */
-int _core_dummy_assign(mb_interpreter_t* s, void** l) {
+static int _core_dummy_assign(mb_interpreter_t* s, void** l) {
 	/* Operator #, dummy assignment */
 	int result = MB_FUNC_OK;
 
@@ -11525,7 +11504,7 @@ _exit:
 	return result;
 }
 
-int _core_add(mb_interpreter_t* s, void** l) {
+static int _core_add(mb_interpreter_t* s, void** l) {
 	/* Operator + */
 	int result = MB_FUNC_OK;
 
@@ -11545,7 +11524,7 @@ _exit:
 	return result;
 }
 
-int _core_min(mb_interpreter_t* s, void** l) {
+static int _core_min(mb_interpreter_t* s, void** l) {
 	/* Operator - */
 	int result = MB_FUNC_OK;
 
@@ -11556,7 +11535,7 @@ int _core_min(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int _core_mul(mb_interpreter_t* s, void** l) {
+static int _core_mul(mb_interpreter_t* s, void** l) {
 	/* Operator * */
 	int result = MB_FUNC_OK;
 
@@ -11567,7 +11546,7 @@ int _core_mul(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int _core_div(mb_interpreter_t* s, void** l) {
+static int _core_div(mb_interpreter_t* s, void** l) {
 	/* Operator / */
 	int result = MB_FUNC_OK;
 
@@ -11580,7 +11559,7 @@ _exit:
 	return result;
 }
 
-int _core_mod(mb_interpreter_t* s, void** l) {
+static int _core_mod(mb_interpreter_t* s, void** l) {
 	/* Operator MOD */
 	int result = MB_FUNC_OK;
 
@@ -11593,7 +11572,7 @@ _exit:
 	return result;
 }
 
-int _core_pow(mb_interpreter_t* s, void** l) {
+static int _core_pow(mb_interpreter_t* s, void** l) {
 	/* Operator ^ */
 	int result = MB_FUNC_OK;
 
@@ -11604,7 +11583,7 @@ int _core_pow(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int _core_open_bracket(mb_interpreter_t* s, void** l) {
+static int _core_open_bracket(mb_interpreter_t* s, void** l) {
 	/* Operator ( */
 	int result = MB_FUNC_OK;
 
@@ -11614,7 +11593,7 @@ _exit:
 	return result;
 }
 
-int _core_close_bracket(mb_interpreter_t* s, void** l) {
+static int _core_close_bracket(mb_interpreter_t* s, void** l) {
 	/* Operator ) */
 	int result = MB_FUNC_OK;
 
@@ -11632,7 +11611,7 @@ _exit:
 	return result;
 }
 
-int _core_neg(mb_interpreter_t* s, void** l) {
+static int _core_neg(mb_interpreter_t* s, void** l) {
 	/* Operator - (negative) */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -11687,7 +11666,7 @@ _exit:
 	return result;
 }
 
-int _core_equal(mb_interpreter_t* s, void** l) {
+static int _core_equal(mb_interpreter_t* s, void** l) {
 	/* Operator = (equal) */
 	int result = MB_FUNC_OK;
 	_tuple3_t* tpr = 0;
@@ -11716,7 +11695,7 @@ _exit:
 	return result;
 }
 
-int _core_less(mb_interpreter_t* s, void** l) {
+static int _core_less(mb_interpreter_t* s, void** l) {
 	/* Operator < */
 	int result = MB_FUNC_OK;
 	_tuple3_t* tpr = 0;
@@ -11749,7 +11728,7 @@ _exit:
 	return result;
 }
 
-int _core_greater(mb_interpreter_t* s, void** l) {
+static int _core_greater(mb_interpreter_t* s, void** l) {
 	/* Operator > */
 	int result = MB_FUNC_OK;
 	_tuple3_t* tpr = 0;
@@ -11782,7 +11761,7 @@ _exit:
 	return result;
 }
 
-int _core_less_equal(mb_interpreter_t* s, void** l) {
+static int _core_less_equal(mb_interpreter_t* s, void** l) {
 	/* Operator <= */
 	int result = MB_FUNC_OK;
 	_tuple3_t* tpr = 0;
@@ -11815,7 +11794,7 @@ _exit:
 	return result;
 }
 
-int _core_greater_equal(mb_interpreter_t* s, void** l) {
+static int _core_greater_equal(mb_interpreter_t* s, void** l) {
 	/* Operator >= */
 	int result = MB_FUNC_OK;
 	_tuple3_t* tpr = 0;
@@ -11848,7 +11827,7 @@ _exit:
 	return result;
 }
 
-int _core_not_equal(mb_interpreter_t* s, void** l) {
+static int _core_not_equal(mb_interpreter_t* s, void** l) {
 	/* Operator <> */
 	int result = MB_FUNC_OK;
 	_tuple3_t* tpr = 0;
@@ -11877,7 +11856,7 @@ _exit:
 	return result;
 }
 
-int _core_and(mb_interpreter_t* s, void** l) {
+static int _core_and(mb_interpreter_t* s, void** l) {
 	/* Operator AND */
 	int result = MB_FUNC_OK;
 
@@ -11888,7 +11867,7 @@ int _core_and(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int _core_or(mb_interpreter_t* s, void** l) {
+static int _core_or(mb_interpreter_t* s, void** l) {
 	/* Operator OR */
 	int result = MB_FUNC_OK;
 
@@ -11899,7 +11878,7 @@ int _core_or(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int _core_not(mb_interpreter_t* s, void** l) {
+static int _core_not(mb_interpreter_t* s, void** l) {
 	/* Operator NOT */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -11949,7 +11928,7 @@ int _core_not(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int _core_is(mb_interpreter_t* s, void** l) {
+static int _core_is(mb_interpreter_t* s, void** l) {
 	/* Operator IS */
 	int result = MB_FUNC_OK;
 	_object_t* fst = 0;
@@ -11994,7 +11973,7 @@ _exit:
 	return result;
 }
 
-int _core_let(mb_interpreter_t* s, void** l) {
+static int _core_let(mb_interpreter_t* s, void** l) {
 	/* LET statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -12192,7 +12171,7 @@ _exit:
 	return result;
 }
 
-int _core_dim(mb_interpreter_t* s, void** l) {
+static int _core_dim(mb_interpreter_t* s, void** l) {
 	/* DIM statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -12265,7 +12244,7 @@ _exit:
 	return result;
 }
 
-int _core_if(mb_interpreter_t* s, void** l) {
+static int _core_if(mb_interpreter_t* s, void** l) {
 	/* IF statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -12403,7 +12382,7 @@ _exit:
 	return result;
 }
 
-int _core_then(mb_interpreter_t* s, void** l) {
+static int _core_then(mb_interpreter_t* s, void** l) {
 	/* THEN statement */
 	int result = MB_FUNC_OK;
 
@@ -12413,7 +12392,7 @@ _exit:
 	return result;
 }
 
-int _core_elseif(mb_interpreter_t* s, void** l) {
+static int _core_elseif(mb_interpreter_t* s, void** l) {
 	/* ELSEIF statement */
 	int result = MB_FUNC_OK;
 
@@ -12423,7 +12402,7 @@ _exit:
 	return result;
 }
 
-int _core_else(mb_interpreter_t* s, void** l) {
+static int _core_else(mb_interpreter_t* s, void** l) {
 	/* ELSE statement */
 	int result = MB_FUNC_OK;
 
@@ -12433,7 +12412,7 @@ _exit:
 	return result;
 }
 
-int _core_endif(mb_interpreter_t* s, void** l) {
+static int _core_endif(mb_interpreter_t* s, void** l) {
 	/* ENDIF statement */
 	int result = MB_FUNC_OK;
 
@@ -12443,7 +12422,7 @@ _exit:
 	return result;
 }
 
-int _core_for(mb_interpreter_t* s, void** l) {
+static int _core_for(mb_interpreter_t* s, void** l) {
 	/* FOR statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -12477,7 +12456,7 @@ _exit:
 	return result;
 }
 
-int _core_in(mb_interpreter_t* s, void** l) {
+static int _core_in(mb_interpreter_t* s, void** l) {
 	/* IN statement */
 	int result = MB_FUNC_OK;
 
@@ -12487,7 +12466,7 @@ _exit:
 	return result;
 }
 
-int _core_to(mb_interpreter_t* s, void** l) {
+static int _core_to(mb_interpreter_t* s, void** l) {
 	/* TO statement */
 	int result = MB_FUNC_OK;
 
@@ -12497,7 +12476,7 @@ _exit:
 	return result;
 }
 
-int _core_step(mb_interpreter_t* s, void** l) {
+static int _core_step(mb_interpreter_t* s, void** l) {
 	/* STEP statement */
 	int result = MB_FUNC_OK;
 
@@ -12507,7 +12486,7 @@ _exit:
 	return result;
 }
 
-int _core_next(mb_interpreter_t* s, void** l) {
+static int _core_next(mb_interpreter_t* s, void** l) {
 	/* NEXT statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -12532,7 +12511,7 @@ int _core_next(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int _core_while(mb_interpreter_t* s, void** l) {
+static int _core_while(mb_interpreter_t* s, void** l) {
 	/* WHILE statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -12601,7 +12580,7 @@ _exit:
 	return result;
 }
 
-int _core_wend(mb_interpreter_t* s, void** l) {
+static int _core_wend(mb_interpreter_t* s, void** l) {
 	/* WEND statement */
 	int result = MB_FUNC_OK;
 
@@ -12611,7 +12590,7 @@ _exit:
 	return result;
 }
 
-int _core_do(mb_interpreter_t* s, void** l) {
+static int _core_do(mb_interpreter_t* s, void** l) {
 	/* DO statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -12688,7 +12667,7 @@ _exit:
 	return result;
 }
 
-int _core_until(mb_interpreter_t* s, void** l) {
+static int _core_until(mb_interpreter_t* s, void** l) {
 	/* UNTIL statement */
 	int result = MB_FUNC_OK;
 
@@ -12698,7 +12677,7 @@ _exit:
 	return result;
 }
 
-int _core_exit(mb_interpreter_t* s, void** l) {
+static int _core_exit(mb_interpreter_t* s, void** l) {
 	/* EXIT statement */
 	int result = MB_FUNC_OK;
 
@@ -12709,7 +12688,7 @@ int _core_exit(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int _core_goto(mb_interpreter_t* s, void** l) {
+static int _core_goto(mb_interpreter_t* s, void** l) {
 	/* GOTO statement */
 	int result = MB_FUNC_OK;
 	_running_context_t* running = 0;
@@ -12752,7 +12731,7 @@ _exit:
 	return result;
 }
 
-int _core_gosub(mb_interpreter_t* s, void** l) {
+static int _core_gosub(mb_interpreter_t* s, void** l) {
 	/* GOSUB statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -12773,7 +12752,7 @@ _exit:
 	return result;
 }
 
-int _core_return(mb_interpreter_t* s, void** l) {
+static int _core_return(mb_interpreter_t* s, void** l) {
 	/* RETURN statement */
 	int result = MB_SUB_RETURN;
 	_ls_node_t* ast = 0;
@@ -12806,7 +12785,7 @@ _exit:
 	return result;
 }
 
-int _core_call(mb_interpreter_t* s, void** l) {
+static int _core_call(mb_interpreter_t* s, void** l) {
 	/* CALL statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -12917,7 +12896,7 @@ _exit:
 	return result;
 }
 
-int _core_def(mb_interpreter_t* s, void** l) {
+static int _core_def(mb_interpreter_t* s, void** l) {
 	/* DEF statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -12982,7 +12961,7 @@ _exit:
 	return result;
 }
 
-int _core_enddef(mb_interpreter_t* s, void** l) {
+static int _core_enddef(mb_interpreter_t* s, void** l) {
 	/* ENDDEF statement */
 	int result = MB_SUB_RETURN;
 	_ls_node_t* ast = 0;
@@ -13002,7 +12981,7 @@ _exit:
 	return result;
 }
 
-int _core_args(mb_interpreter_t* s, void** l) {
+static int _core_args(mb_interpreter_t* s, void** l) {
 	/* ... (variable argument list) statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -13039,7 +13018,7 @@ int _core_args(mb_interpreter_t* s, void** l) {
 }
 
 #ifdef MB_ENABLE_CLASS
-int _core_class(mb_interpreter_t* s, void** l) {
+static int _core_class(mb_interpreter_t* s, void** l) {
 	/* CLASS statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -13138,7 +13117,7 @@ _exit:
 	return result;
 }
 
-int _core_endclass(mb_interpreter_t* s, void** l) {
+static int _core_endclass(mb_interpreter_t* s, void** l) {
 	/* ENDCLASS statement */
 	int result = MB_FUNC_OK;
 
@@ -13148,7 +13127,7 @@ _exit:
 	return result;
 }
 
-int _core_new(mb_interpreter_t* s, void** l) {
+static int _core_new(mb_interpreter_t* s, void** l) {
 	/* NEW statement */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13198,7 +13177,7 @@ _exit:
 	return result;
 }
 
-int _core_var(mb_interpreter_t* s, void** l) {
+static int _core_var(mb_interpreter_t* s, void** l) {
 	/* VAR statement */
 	int result = MB_FUNC_IGNORE;
 	_ls_node_t* ast = 0;
@@ -13217,7 +13196,7 @@ _exit:
 	return result;
 }
 
-int _core_reflect(mb_interpreter_t* s, void** l) {
+static int _core_reflect(mb_interpreter_t* s, void** l) {
 	/* REFLECT statement */
 #ifdef MB_ENABLE_COLLECTION_LIB
 	int result = MB_FUNC_OK;
@@ -13276,7 +13255,7 @@ _exit:
 #endif /* MB_ENABLE_CLASS */
 
 #ifdef MB_ENABLE_LAMBDA
-int _core_lambda(mb_interpreter_t* s, void** l) {
+static int _core_lambda(mb_interpreter_t* s, void** l) {
 	/* LAMBDA statement */
 	int result = MB_FUNC_OK;
 	mb_value_t ret;
@@ -13383,7 +13362,7 @@ _error:
 #endif /* MB_ENABLE_LAMBDA */
 
 #ifdef MB_ENABLE_ALLOC_STAT
-int _core_mem(mb_interpreter_t* s, void** l) {
+static int _core_mem(mb_interpreter_t* s, void** l) {
 	/* MEM statement */
 	int result = MB_FUNC_OK;
 
@@ -13398,7 +13377,7 @@ int _core_mem(mb_interpreter_t* s, void** l) {
 }
 #endif /* MB_ENABLE_ALLOC_STAT */
 
-int _core_type(mb_interpreter_t* s, void** l) {
+static int _core_type(mb_interpreter_t* s, void** l) {
 	/* TYPE statement */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13459,7 +13438,7 @@ _found:
 	return result;
 }
 
-int _core_import(mb_interpreter_t* s, void** l) {
+static int _core_import(mb_interpreter_t* s, void** l) {
 	/* IMPORT statement */
 	int result = MB_FUNC_OK;
 
@@ -13472,7 +13451,7 @@ int _core_import(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int _core_end(mb_interpreter_t* s, void** l) {
+static int _core_end(mb_interpreter_t* s, void** l) {
 	/* END statement */
 	int result = MB_FUNC_OK;
 
@@ -13484,7 +13463,7 @@ int _core_end(mb_interpreter_t* s, void** l) {
 }
 
 /** Standard lib */
-int _std_abs(mb_interpreter_t* s, void** l) {
+static int _std_abs(mb_interpreter_t* s, void** l) {
 	/* Get the absolute value of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13520,7 +13499,7 @@ _exit:
 	return result;
 }
 
-int _std_sgn(mb_interpreter_t* s, void** l) {
+static int _std_sgn(mb_interpreter_t* s, void** l) {
 	/* Get the sign of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13556,7 +13535,7 @@ _exit:
 	return result;
 }
 
-int _std_sqr(mb_interpreter_t* s, void** l) {
+static int _std_sqr(mb_interpreter_t* s, void** l) {
 	/* Get the square root of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13579,7 +13558,7 @@ _exit:
 	return result;
 }
 
-int _std_floor(mb_interpreter_t* s, void** l) {
+static int _std_floor(mb_interpreter_t* s, void** l) {
 	/* Get the greatest integer not greater than a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13615,7 +13594,7 @@ _exit:
 	return result;
 }
 
-int _std_ceil(mb_interpreter_t* s, void** l) {
+static int _std_ceil(mb_interpreter_t* s, void** l) {
 	/* Get the least integer not less than a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13651,7 +13630,7 @@ _exit:
 	return result;
 }
 
-int _std_fix(mb_interpreter_t* s, void** l) {
+static int _std_fix(mb_interpreter_t* s, void** l) {
 	/* Get the integer format of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13687,7 +13666,7 @@ _exit:
 	return result;
 }
 
-int _std_round(mb_interpreter_t* s, void** l) {
+static int _std_round(mb_interpreter_t* s, void** l) {
 	/* Get the rounded integer of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13723,7 +13702,7 @@ _exit:
 	return result;
 }
 
-int _std_srnd(mb_interpreter_t* s, void** l) {
+static int _std_srnd(mb_interpreter_t* s, void** l) {
 	/* Set a random seed */
 	int result = MB_FUNC_OK;
 	int_t seed = 0;
@@ -13741,7 +13720,7 @@ int _std_srnd(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int _std_rnd(mb_interpreter_t* s, void** l) {
+static int _std_rnd(mb_interpreter_t* s, void** l) {
 	/* Get a random value among 0 ~ 1 or among given bounds */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -13784,7 +13763,7 @@ _exit:
 	return result;
 }
 
-int _std_sin(mb_interpreter_t* s, void** l) {
+static int _std_sin(mb_interpreter_t* s, void** l) {
 	/* Get the sin value of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13807,7 +13786,7 @@ _exit:
 	return result;
 }
 
-int _std_cos(mb_interpreter_t* s, void** l) {
+static int _std_cos(mb_interpreter_t* s, void** l) {
 	/* Get the cos value of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13830,7 +13809,7 @@ _exit:
 	return result;
 }
 
-int _std_tan(mb_interpreter_t* s, void** l) {
+static int _std_tan(mb_interpreter_t* s, void** l) {
 	/* Get the tan value of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13853,7 +13832,7 @@ _exit:
 	return result;
 }
 
-int _std_asin(mb_interpreter_t* s, void** l) {
+static int _std_asin(mb_interpreter_t* s, void** l) {
 	/* Get the asin value of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13876,7 +13855,7 @@ _exit:
 	return result;
 }
 
-int _std_acos(mb_interpreter_t* s, void** l) {
+static int _std_acos(mb_interpreter_t* s, void** l) {
 	/* Get the acos value of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13899,7 +13878,7 @@ _exit:
 	return result;
 }
 
-int _std_atan(mb_interpreter_t* s, void** l) {
+static int _std_atan(mb_interpreter_t* s, void** l) {
 	/* Get the atan value of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13922,7 +13901,7 @@ _exit:
 	return result;
 }
 
-int _std_exp(mb_interpreter_t* s, void** l) {
+static int _std_exp(mb_interpreter_t* s, void** l) {
 	/* Get the exp value of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13945,7 +13924,7 @@ _exit:
 	return result;
 }
 
-int _std_log(mb_interpreter_t* s, void** l) {
+static int _std_log(mb_interpreter_t* s, void** l) {
 	/* Get the log value of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -13968,7 +13947,7 @@ _exit:
 	return result;
 }
 
-int _std_asc(mb_interpreter_t* s, void** l) {
+static int _std_asc(mb_interpreter_t* s, void** l) {
 	/* Get the ASCII code of a character */
 	int result = MB_FUNC_OK;
 	char* arg = 0;
@@ -13994,7 +13973,7 @@ _exit:
 	return result;
 }
 
-int _std_chr(mb_interpreter_t* s, void** l) {
+static int _std_chr(mb_interpreter_t* s, void** l) {
 	/* Get the character of an ASCII code */
 	int result = MB_FUNC_OK;
 	int_t arg = 0;
@@ -14016,7 +13995,7 @@ int _std_chr(mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-int _std_left(mb_interpreter_t* s, void** l) {
+static int _std_left(mb_interpreter_t* s, void** l) {
 	/* Get a number of characters from the left of a string */
 	int result = MB_FUNC_OK;
 	char* arg = 0;
@@ -14060,7 +14039,7 @@ _exit:
 	return result;
 }
 
-int _std_mid(mb_interpreter_t* s, void** l) {
+static int _std_mid(mb_interpreter_t* s, void** l) {
 	/* Get a number of characters from a specific position of a string */
 	int result = MB_FUNC_OK;
 	char* arg = 0;
@@ -14106,7 +14085,7 @@ _exit:
 	return result;
 }
 
-int _std_right(mb_interpreter_t* s, void** l) {
+static int _std_right(mb_interpreter_t* s, void** l) {
 	/* Get a number of characters from the right of a string */
 	int result = MB_FUNC_OK;
 	char* arg = 0;
@@ -14150,7 +14129,7 @@ _exit:
 	return result;
 }
 
-int _std_str(mb_interpreter_t* s, void** l) {
+static int _std_str(mb_interpreter_t* s, void** l) {
 	/* Get the string format of a number */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -14183,7 +14162,7 @@ _exit:
 	return result;
 }
 
-int _std_val(mb_interpreter_t* s, void** l) {
+static int _std_val(mb_interpreter_t* s, void** l) {
 	/* Get the number format of a string, or get the value of a dictionary iterator */
 	int result = MB_FUNC_OK;
 	char* conv_suc = 0;
@@ -14246,7 +14225,7 @@ _exit:
 	return result;
 }
 
-int _std_len(mb_interpreter_t* s, void** l) {
+static int _std_len(mb_interpreter_t* s, void** l) {
 	/* Get the length of a string or an array, or element count of a collection or a variable argument list */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -14317,7 +14296,7 @@ _exit:
 	return result;
 }
 
-int _std_get(mb_interpreter_t* s, void** l) {
+static int _std_get(mb_interpreter_t* s, void** l) {
 	/* GET statement */
 	int result = MB_FUNC_OK;
 	mb_value_t coi;
@@ -14411,7 +14390,7 @@ _exit:
 	return result;
 }
 
-int _std_print(mb_interpreter_t* s, void** l) {
+static int _std_print(mb_interpreter_t* s, void** l) {
 	/* PRINT statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -14564,7 +14543,7 @@ _exit:
 	return result;
 }
 
-int _std_input(mb_interpreter_t* s, void** l) {
+static int _std_input(mb_interpreter_t* s, void** l) {
 	/* INPUT statement */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -14629,7 +14608,7 @@ _exit:
 
 /** Collection lib */
 #ifdef MB_ENABLE_COLLECTION_LIB
-int _coll_list(mb_interpreter_t* s, void** l) {
+static int _coll_list(mb_interpreter_t* s, void** l) {
 	/* LIST statement */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -14688,7 +14667,7 @@ _error:
 	return result;
 }
 
-int _coll_dict(mb_interpreter_t* s, void** l) {
+static int _coll_dict(mb_interpreter_t* s, void** l) {
 	/* DICT statement */
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
@@ -14725,7 +14704,7 @@ _error:
 	return result;
 }
 
-int _coll_push(mb_interpreter_t* s, void** l) {
+static int _coll_push(mb_interpreter_t* s, void** l) {
 	/* PUSH statement */
 	int result = MB_FUNC_OK;
 	mb_value_t lst;
@@ -14762,7 +14741,7 @@ _exit:
 	return result;
 }
 
-int _coll_pop(mb_interpreter_t* s, void** l) {
+static int _coll_pop(mb_interpreter_t* s, void** l) {
 	/* POP statement */
 	int result = MB_FUNC_OK;
 	mb_value_t lst;
@@ -14806,7 +14785,7 @@ _exit:
 	return result;
 }
 
-int _coll_peek(mb_interpreter_t* s, void** l) {
+static int _coll_peek(mb_interpreter_t* s, void** l) {
 	/* PEEK statement */
 	int result = MB_FUNC_OK;
 	mb_value_t lst;
@@ -14852,7 +14831,7 @@ _exit:
 	return result;
 }
 
-int _coll_insert(mb_interpreter_t* s, void** l) {
+static int _coll_insert(mb_interpreter_t* s, void** l) {
 	/* INSERT statement */
 	int result = MB_FUNC_OK;
 	mb_value_t lst;
@@ -14894,7 +14873,7 @@ _exit:
 	return result;
 }
 
-int _coll_sort(mb_interpreter_t* s, void** l) {
+static int _coll_sort(mb_interpreter_t* s, void** l) {
 	/* SORT statement */
 	int result = MB_FUNC_OK;
 	mb_value_t lst;
@@ -14926,7 +14905,7 @@ _exit:
 	return result;
 }
 
-int _coll_exist(mb_interpreter_t* s, void** l){
+static int _coll_exist(mb_interpreter_t* s, void** l){
 	/* EXIST statement */
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
@@ -14973,7 +14952,7 @@ _exit:
 	return result;
 }
 
-int _coll_index_of(mb_interpreter_t* s, void** l) {
+static int _coll_index_of(mb_interpreter_t* s, void** l) {
 	/* INDEX_OF statement */
 	int result = MB_FUNC_OK;
 	int idx = 0;
@@ -15019,7 +14998,7 @@ _exit:
 	return result;
 }
 
-int _coll_set(mb_interpreter_t* s, void** l) {
+static int _coll_set(mb_interpreter_t* s, void** l) {
 	/* SET statement */
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
@@ -15081,7 +15060,7 @@ _exit:
 	return result;
 }
 
-int _coll_remove(mb_interpreter_t* s, void** l) {
+static int _coll_remove(mb_interpreter_t* s, void** l) {
 	/* REMOVE statement */
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
@@ -15137,7 +15116,7 @@ _exit:
 	return result;
 }
 
-int _coll_clear(mb_interpreter_t* s, void** l) {
+static int _coll_clear(mb_interpreter_t* s, void** l) {
 	/* CLEAR statement */
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
@@ -15179,7 +15158,7 @@ _exit:
 	return result;
 }
 
-int _coll_clone(mb_interpreter_t* s, void** l) {
+static int _coll_clone(mb_interpreter_t* s, void** l) {
 	/* CLONE statement */
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
@@ -15228,7 +15207,7 @@ _exit:
 	return result;
 }
 
-int _coll_iterator(mb_interpreter_t* s, void** l) {
+static int _coll_iterator(mb_interpreter_t* s, void** l) {
 	/* ITERATOR statement */
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
@@ -15278,7 +15257,7 @@ _exit:
 	return result;
 }
 
-int _coll_move_next(mb_interpreter_t* s, void** l) {
+static int _coll_move_next(mb_interpreter_t* s, void** l) {
 	/* MOVE_NEXT statement */
 	int result = MB_FUNC_OK;
 	mb_value_t it;
