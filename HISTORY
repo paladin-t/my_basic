@@ -1,3 +1,6 @@
+Feb. 10 2016
+Fixed a wrong loop bug with WHILE and DO statements
+
 Feb. 4 2016
 Avoided warnings with some compilers
 Fixed a member assignment bug when cloning a class instance
