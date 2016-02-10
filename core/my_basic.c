@@ -12549,12 +12549,12 @@ _loop_begin:
 				result = MB_FUNC_OK;
 
 				goto _exit;
-			} else if(result == MB_SUB_RETURN) { /* RETURN */
+			} else if(result == MB_SUB_RETURN && s->last_routine) { /* RETURN */
 				if(ast) ast = ast->prev;
 				if(ast) ast = ast->prev;
 
 				goto _exit;
-			} else if(result != MB_FUNC_OK) { /* Normally */
+			} else if(result != MB_FUNC_OK && result != MB_SUB_RETURN) { /* Normally */
 				goto _exit;
 			}
 
@@ -12628,12 +12628,12 @@ _loop_begin:
 			result = MB_FUNC_OK;
 
 			goto _exit;
-		} else if(result == MB_SUB_RETURN) { /* RETURN */
+		} else if(result == MB_SUB_RETURN && s->last_routine) { /* RETURN */
 			if(ast) ast = ast->prev;
 			if(ast) ast = ast->prev;
 
 			goto _exit;
-		} else if(result != MB_FUNC_OK) { /* Normally */
+		} else if(result != MB_FUNC_OK && result != MB_SUB_RETURN) { /* Normally */
 			goto _exit;
 		}
 
