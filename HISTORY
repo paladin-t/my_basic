@@ -1,3 +1,6 @@
+Feb. 11 2016
+Fixed a bug of the EXIT statement with multiple line IF statement
+
 Feb. 10 2016
 Fixed a wrong loop bug with WHILE and DO statements
 
