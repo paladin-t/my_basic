@@ -12369,8 +12369,11 @@ _exit:
 		ast = ast->prev;
 	} else {
 		if(multi_line) {
+			int ret = MB_FUNC_OK;
 			if(skip)
-				result = _skip_struct(s, &ast, _core_if, _core_endif);
+				ret = _skip_struct(s, &ast, _core_if, _core_endif);
+			if(result != MB_FUNC_END && result != MB_LOOP_BREAK && result != MB_LOOP_CONTINUE && result != MB_SUB_RETURN)
+				result = ret;
 		}
 	}
 
