@@ -18,7 +18,7 @@ def forward(cmd, i)
 		elseif h = "]" then
 			k = k - 1
 		endif
-		if h = "]" and k = 0 then then
+		if h = "]" and k = 0 then
 			return i
 		endif
 		i = i + 1
