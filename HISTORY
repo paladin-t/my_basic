@@ -1,3 +1,6 @@
+Feb. 15 2016
+Fixed some compile issues with Xcode
+
 Feb. 11 2016
 Fixed a bug of the EXIT statement with multiple line IF statement
 
@@ -521,7 +524,7 @@ Fixed a crash bug when missing colon in a combined line, thanks to Michael P. We
 Fixed a missing lexical cursor stepping bug in INPUT statement
 
 Mar. 17 2014
-Added an XCode project
+Added an Xcode project
 Added a safe stdin reader function mb_gets
 Fixed a crash bug in INPUT statement
 

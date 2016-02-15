@@ -46,6 +46,9 @@
 #include <string.h>
 #include <stdarg.h>
 #include <time.h>
+#ifdef __APPLE__
+#	include <sys/time.h>
+#endif /* __APPLE__ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -1080,7 +1083,18 @@ static int_t _ticks(void) {
 
 	return ret;
 }
-#elif defined __APPLE__ || defined __GNUC__
+#elif defined __APPLE__
+static int_t _ticks(void) {
+	struct timespec ts;
+	struct timeval now;
+	int rv = gettimeofday(&now, NULL);
+	if(rv) return 0;
+	ts.tv_sec  = now.tv_sec;
+	ts.tv_nsec = now.tv_usec * 1000;
+
+	return (int_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+}
+#elif defined defined __GNUC__
 static int_t _ticks(void) {
 	struct timespec ts;
 

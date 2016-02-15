@@ -1,5 +1,13 @@
+OS := $(shell uname -s)
+IS_APPLE := $(shell echo $(OS)|grep -i darwin)
+
+ifdef IS_APPLE
+my_basic : main.o my_basic.o
+	cc -o output/my_basic_bin main.o my_basic.o -lm
+else
 my_basic : main.o my_basic.o
 	cc -o output/my_basic_bin main.o my_basic.o -lm -lrt
+endif
 
 main.o : shell/main.c core/my_basic.h
 	cc -Os -c shell/main.c -Wno-unused-result
