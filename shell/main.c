@@ -1094,7 +1094,7 @@ static int_t _ticks(void) {
 
 	return (int_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
-#elif defined defined __GNUC__
+#elif defined __GNUC__
 static int_t _ticks(void) {
 	struct timespec ts;
 
