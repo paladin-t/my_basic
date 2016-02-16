@@ -8882,7 +8882,6 @@ static int _common_keep_looping(mb_interpreter_t* s, _ls_node_t** l, _var_t* var
 			if(_skip_struct(s, &ast, _core_for, _core_next) != MB_FUNC_OK)
 				goto _exit;
 			_skip_to(s, &ast, 0, _DT_EOS);
-			result = MB_FUNC_OK;
 
 			goto _exit;
 		} else if(result != MB_FUNC_OK && result != MB_SUB_RETURN) { /* Normally */
@@ -8972,7 +8971,12 @@ _to:
 		goto _exit;
 	} else {
 		/* Keep looping */
-		_common_keep_looping(s, &ast, var_loop);
+		result = _common_keep_looping(s, &ast, var_loop);
+		if(result == MB_LOOP_BREAK) {
+			result = MB_FUNC_OK;
+
+			goto _exit;
+		}
 
 		ass_tuple3.e1 = var_loop->data;
 		ass_tuple3.e2 = step_val_ptr;
@@ -9062,7 +9066,12 @@ _to:
 			var_loop->data = (_object_t*)dit->curr_node->extra;
 		}
 		/* Keep looping */
-		_common_keep_looping(s, &ast, var_loop);
+		result = _common_keep_looping(s, &ast, var_loop);
+		if(result == MB_LOOP_BREAK) {
+			result = MB_FUNC_OK;
+
+			goto _exit;
+		}
 
 		goto _to;
 	}

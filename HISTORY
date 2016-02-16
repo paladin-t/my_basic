@@ -1,3 +1,6 @@
+Feb. 16 2016
+Fixed a bug of the EXIT statement with FOR loop
+
 Feb. 15 2016
 Fixed some compile issues with Xcode
 
