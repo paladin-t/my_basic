@@ -1102,7 +1102,7 @@ static int_t _ticks(void) {
 
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 
-	return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+	return (int_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
 #else /* _MSC_VER */
 #	undef _HAS_TICKS
@@ -1167,6 +1167,24 @@ static int set_importing_dirs(struct mb_interpreter_t* s, void** l) {
 		_set_importing_directories(arg);
 
 	mb_check(mb_attempt_close_bracket(s, l));
+
+	return result;
+}
+
+static int sys(struct mb_interpreter_t* s, void** l) {
+	int result = MB_FUNC_OK;
+	char* arg = 0;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_pop_string(s, l, &arg));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	if(arg)
+		system(arg);
 
 	return result;
 }
@@ -1300,6 +1318,7 @@ static void _on_startup(void) {
 #endif /* _HAS_TICKS */
 	mb_reg_fun(bas, now);
 	mb_reg_fun(bas, set_importing_dirs);
+	mb_reg_fun(bas, sys);
 	mb_reg_fun(bas, trace);
 	mb_reg_fun(bas, gc);
 	mb_reg_fun(bas, beep);

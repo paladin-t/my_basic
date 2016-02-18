@@ -1,5 +1,6 @@
 Feb. 18 2016
 Added a generic iterator type
+Added a SYS statement to the shell
 Fixed a wrong list linkage bug with list sorting
 
 Feb. 16 2016
