@@ -372,6 +372,7 @@ typedef enum mb_data_e {
 	MB_DT_DICT = 1 << 10,
 	MB_DT_DICT_IT = 1 << 11,
 	MB_DT_COLLECTION = MB_DT_LIST | MB_DT_DICT,
+	MB_DT_ITERATOR = MB_DT_LIST_IT | MB_DT_DICT_IT,
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 	MB_DT_CLASS = 1 << 12,

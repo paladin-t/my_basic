@@ -11334,6 +11334,8 @@ const char* mb_get_type_string(mb_data_e t) {
 		return "DICT_ITERATOR";
 	case MB_DT_COLLECTION:
 		return "COLLECTION";
+	case MB_DT_ITERATOR:
+		return "ITERATOR";
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 	case MB_DT_CLASS:
@@ -13425,6 +13427,7 @@ static int _core_type(mb_interpreter_t* s, void** l) {
 			MB_DT_DICT,
 			MB_DT_DICT_IT,
 			MB_DT_COLLECTION,
+			MB_DT_ITERATOR,
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 			MB_DT_CLASS,

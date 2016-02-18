@@ -1087,7 +1087,9 @@ static int_t _ticks(void) {
 static int_t _ticks(void) {
 	struct timespec ts;
 	struct timeval now;
-	int rv = gettimeofday(&now, NULL);
+	int rv = 0;
+
+	rv = gettimeofday(&now, 0);
 	if(rv) return 0;
 	ts.tv_sec  = now.tv_sec;
 	ts.tv_nsec = now.tv_usec * 1000;
