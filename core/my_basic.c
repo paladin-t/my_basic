@@ -2159,7 +2159,7 @@ static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
 
 static _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
 	/* Copyright 2001 Simon Tatham, http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.c */
-	bool_t is_circular = false, is_double = false;
+	bool_t is_circular = false, is_double = true;
 	_ls_node_t* p, * q, * e, * tail, * oldhead;
 	int insize, nmerges, psize, qsize, i;
 	_ls_node_t* lst = 0;
@@ -2234,6 +2234,8 @@ static _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
 		if(nmerges <= 1) {
 			(*list)->next = lst;
 			(*list)->prev = tail;
+
+			lst->prev = *list;
 
 			return *list;
 		}
