@@ -1010,7 +1010,7 @@ static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation
 static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
 static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op);
 static _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp);
-static int _ls_count(_ls_node_t* list);
+static unsigned _ls_count(_ls_node_t* list);
 static bool_t _ls_empty(_ls_node_t* list);
 static void _ls_clear(_ls_node_t* list);
 static void _ls_destroy(_ls_node_t* list);
@@ -2244,7 +2244,7 @@ static _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
 	}
 }
 
-static int _ls_count(_ls_node_t* list) {
+static unsigned _ls_count(_ls_node_t* list) {
 	union { void* p; unsigned u; } tmp;
 
 	mb_assert(list);
@@ -4053,39 +4053,39 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) 
 static bool_t _is_blank(char c) {
 	/* Determine whether a character is blank */
 	return
-		(' ' == c) || ('\t' == c) ||
-		(-17 == c) || (-69 == c) || (-65 == c) ||
-		(-2 == c) || (-1 == c);
+		(c == ' ') || (c == '\t') ||
+		(c == -17) || (c == -69) || (c == -65) ||
+		(c == -2) || (c == -1);
 }
 
 static bool_t _is_newline(char c) {
 	/* Determine whether a character is newline */
-	return ('\r' == c) || ('\n' == c) || (EOF == c);
+	return (c == '\r') || (c == '\n') || (c == EOF);
 }
 
 static bool_t _is_separator(char c) {
 	/* Determine whether a character is separator */
-	return (',' == c) || (';' == c) || (':' == c);
+	return (c == ',') || (c == ';') || (c == ':');
 }
 
 static bool_t _is_bracket(char c) {
 	/* Determine whether a character is bracket */
-	return ('(' == c) || (')' == c);
+	return (c == '(') || (c == ')');
 }
 
 static bool_t _is_quotation_mark(char c) {
 	/* Determine whether a character is quotation mark */
-	return ('"' == c);
+	return (c == '"');
 }
 
 static bool_t _is_comment(char c) {
 	/* Determine whether a character is comment mark */
-	return ('\'' == c);
+	return (c == '\'');
 }
 
 static bool_t _is_accessor(char c) {
 	/* Determine whether a character is accessor char */
-	return c == '.';
+	return (c == '.');
 }
 
 static bool_t _is_numeric_char(char c) {
@@ -4114,7 +4114,7 @@ static bool_t _is_operator_char(char c) {
 
 static bool_t _is_using_char(char c) {
 	/* Determine whether a character is module using char */
-	return c == '@';
+	return (c == '@');
 }
 
 static bool_t _is_exponent_prefix(char* s, int begin, int end) {
@@ -6206,7 +6206,10 @@ static _ls_node_t* _node_at_list(_list_t* coll, int index) {
 	_fill_ranged(coll);
 
 	if(index >= 0 && index < (int)coll->count) {
-		/* HEAD ... LEFT ... PIVOT ... RIGHT ... TAIL */
+		/* Layout: HEAD ... LEFT ... PIVOT ... RIGHT ... TAIL
+			PIVOT is a cached node.
+			LEN(HEAD to LEFT) == LEN(LEFT to PIVOT) && LEN(PIVOT to RIGHT) == LEN(RIGHT to TAIL).
+		 */
 		int head = 0,
 			left = coll->cached_index / 2,
 			right = coll->cached_index + (coll->count - coll->cached_index) / 2,
