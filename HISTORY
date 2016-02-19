@@ -1,3 +1,7 @@
+Feb. 19 2016
+Added source tracing for sub routine invoking
+Fixed a lexical object convertion issue
+
 Feb. 18 2016
 Added a generic iterator type
 Added a SYS statement to the shell
