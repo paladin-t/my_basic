@@ -4811,8 +4811,7 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 	context->current_char = c;
 
 	if(context->parsing_state == _PS_NORMAL) {
-		if(c >= 'a' && c <= 'z')
-			c += 'A' - 'a';
+		c = toupper(c);
 
 		if(_is_blank(c)) { /* \t ' ' */
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
