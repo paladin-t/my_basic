@@ -131,7 +131,7 @@ extern "C" {
 
 #define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
 #define DON2(__a) (((__a) && *(__a)) ? (_object_t*)((*((_ls_node_t**)(__a)))->data) : 0)
-#define TON(__t) (((__t) && *(__t)) ? ((_object_t*)(((_tuple3_t*)(*(__t)))->e1)) : 0)
+#define TON(__t) (((__t) && *(__t)) ? (_object_t*)(((_tuple3_t*)(*(__t)))->e1) : 0)
 
 #define _IS_VAR_ARGS(__v) ((__v) == &_VAR_ARGS)
 

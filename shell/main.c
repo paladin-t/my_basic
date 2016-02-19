@@ -1268,9 +1268,9 @@ static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f
 
 	if(SE_NO_ERR != e) {
 		if(f) {
-			_printf("Error:\n    [LINE] %d, [COL] %d, [FILE] %s,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d.\n", row, col, f, e, m, abort_code);
+			_printf("Error:\n    Line %d, Col %d in File: %s\n    Code: %d; Message: %s; Abort Code: %d.\n", row, col, f, e, m, abort_code);
 		} else {
-			_printf("Error:\n    [LINE] %d, [COL] %d,\n    [CODE] %d, [MESSAGE] %s, [ABORT CODE] %d.\n", row, col, e, m, abort_code);
+			_printf("Error:\n    Line %d, Col %d\n    Code: %d; Message: %s; Abort Code: %d.\n", row, col, e, m, abort_code);
 		}
 	}
 }
