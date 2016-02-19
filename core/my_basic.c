@@ -711,6 +711,7 @@ typedef struct mb_interpreter_t {
 	unsigned char jump_set;
 #ifdef MB_ENABLE_CLASS
 	_class_t* last_instance;
+	bool_t calling;
 #endif /* MB_ENABLE_CLASS */
 	_routine_t* last_routine;
 	_ls_node_t* sub_stack;
@@ -1490,6 +1491,7 @@ static bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret);
 static int _reflect_class_field(void* data, void* extra, void* d);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 static _class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb_value_t* arg);
+static bool_t _is_valid_class_accessor_following_routine(mb_interpreter_t* s, _var_t* var, _ls_node_t* ast, _ls_node_t** out);
 #endif /* MB_ENABLE_CLASS */
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f);
 static void _begin_routine(mb_interpreter_t* s);
@@ -3239,9 +3241,35 @@ _array:
 					_ls_pushback(opnd, c);
 					f++;
 				} else if(c->type == _DT_ROUTINE) {
+#ifdef MB_ENABLE_CLASS
+					bool_t calling = false;
+					_object_t* obj = 0;
+					_ls_node_t* fn = 0;
+#endif /* MB_ENABLE_CLASS */
 _routine:
 					ast = ast->prev;
+#ifdef MB_ENABLE_CLASS
+					calling = s->calling;
+					s->calling = false;
+#endif /* MB_ENABLE_CLASS */
 					result = _eval_routine(s, &ast, 0, 0, c->data.routine, _has_routine_lex_arg, _pop_routine_lex_arg);
+#ifdef MB_ENABLE_CLASS
+					s->calling = calling;
+#endif /* MB_ENABLE_CLASS */
+#ifdef MB_ENABLE_CLASS
+					obj = (_object_t*)ast->data;
+					if(_IS_VAR(obj) && _is_valid_class_accessor_following_routine(s, obj->data.variable, ast, &fn)) {
+						if(fn) {
+							if(ast) ast = ast->next;
+							obj = (_object_t*)fn->data;
+							if(_IS_VAR(obj)) {
+								c = obj;
+
+								goto _var;
+							}
+						}
+					}
+#endif /* MB_ENABLE_CLASS */
 					if(ast)
 						ast = ast->prev;
 					if(result != MB_FUNC_OK) {
@@ -3310,6 +3338,9 @@ _routine:
 									goto _routine;
 							}
 						}
+#ifdef MB_ENABLE_CLASS
+_var:
+#endif /* MB_ENABLE_CLASS */
 						if(ast) {
 							_object_t* _err_or_bracket = (_object_t*)ast->data;
 							do {
@@ -6855,6 +6886,28 @@ static _class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb
 
 	return c->data.instance;
 }
+
+static bool_t _is_valid_class_accessor_following_routine(mb_interpreter_t* s, _var_t* var, _ls_node_t* ast, _ls_node_t** out) {
+	/* Detect whether it's accessing a member of a class instance following a sub routine */
+	bool_t result = false;
+	_running_context_t* running = 0;
+
+	mb_assert(s && var && ast);
+
+	running = s->running_context;
+
+	if(out) *out = 0;
+
+	if(_is_accessor(*var->name) && (ast && ast->prev && _IS_FUNC(ast->prev->data, _core_close_bracket)) && running->intermediate_value.type == MB_DT_CLASS) {
+		_class_t* instance = (_class_t*)running->intermediate_value.value.instance;
+		_ls_node_t* fn = _search_identifier_in_class(s, instance, var->name + 1, 0, 0);
+		result = true;
+		if(fn && out)
+			*out = fn;
+	}
+
+	return result;
+}
 #endif /* MB_ENABLE_CLASS */
 
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f) {
@@ -8830,7 +8883,21 @@ _retry:
 			skip_to_eoi = false;
 			ast = ast->next;
 		} else if(obj && obj->type == _DT_VAR) {
+#ifdef MB_ENABLE_CLASS
+			_ls_node_t* fn = 0;
+			if(_is_valid_class_accessor_following_routine(s, obj->data.variable, ast, &fn)) {
+				if(fn) {
+					if(s->calling)
+						result = _core_let(s, (void**)&ast);
+				} else {
+					_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+				}
+			} else {
+				_handle_error_on_obj(s, SE_RN_COLON_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			}
+#else /* MB_ENABLE_CLASS */
 			_handle_error_on_obj(s, SE_RN_COLON_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+#endif /* MB_ENABLE_CLASS */
 		} else if(_IS_FUNC(obj, _core_enddef) && result != MB_SUB_RETURN) {
 			ast = (_ls_node_t*)_ls_popback(sub_stack);
 #ifdef MB_ENABLE_LAMBDA
@@ -11171,6 +11238,12 @@ int mb_run(struct mb_interpreter_t* s) {
 		s->suspent_point = 0;
 	} else {
 		s->source_file = 0;
+#ifdef MB_ENABLE_CLASS
+		s->last_instance = 0;
+		s->calling = false;
+#endif /* MB_ENABLE_CLASS */
+		s->last_routine = 0;
+
 		mb_assert(!s->no_eat_comma_mark);
 		while(s->running_context->prev)
 			s->running_context = s->running_context->prev;
@@ -12046,6 +12119,15 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	obj = (_object_t*)ast->data;
+#ifdef MB_ENABLE_CLASS
+	if(_IS_VAR(obj)) {
+		_ls_node_t* fn = 0;
+		if(_is_valid_class_accessor_following_routine(s, obj->data.variable, ast, &fn)) {
+			if(fn)
+				obj = (_object_t*)fn->data;
+		}
+	}
+#endif /* MB_ENABLE_CLASS */
 	if(obj->type == _DT_ARRAY) {
 		arr_obj = obj;
 		arr = _search_array_in_scope_chain(s, obj->data.array, &arr_obj);
@@ -12925,7 +13007,13 @@ _retry:
 			}
 		}
 #endif /* MB_ENABLE_CLASS */
+#ifdef MB_ENABLE_CLASS
+		s->calling = true;
+#endif /* MB_ENABLE_CLASS */
 		result = _eval_routine(s, &ast, 0, 0, routine, _has_routine_lex_arg, _pop_routine_lex_arg);
+#ifdef MB_ENABLE_CLASS
+		s->calling = false;
+#endif /* MB_ENABLE_CLASS */
 		if(ast)
 			ast = ast->prev;
 

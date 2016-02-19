@@ -1,5 +1,6 @@
 Feb. 19 2016
 Added source tracing for sub routine invoking
+Added member accessing support following a routine of a class instance
 Fixed a lexical object convertion issue
 
 Feb. 18 2016
