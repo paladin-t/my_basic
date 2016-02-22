@@ -1,6 +1,7 @@
 Feb. 22 2016
 Added array clone support
 Added array accessing support of a class instance
+Added a RAISE statement to the shell
 
 Feb. 19 2016
 Added source tracing for sub routine invoking

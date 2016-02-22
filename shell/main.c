@@ -1216,6 +1216,25 @@ static int trace(struct mb_interpreter_t* s, void** l) {
 	return result;
 }
 
+static int raise(struct mb_interpreter_t* s, void** l) {
+	int result = MB_EXTENDED_ABORT;
+	int_t err = 0;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_pop_int(s, l, &err));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	mb_check(mb_push_int(s, l, err));
+
+	result = mb_raise_error(s, l, SE_EA_EXTENDED_ABORT, MB_EXTENDED_ABORT + err);
+
+	return result;
+}
+
 static int gc(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	int_t collected = 0;
@@ -1268,9 +1287,9 @@ static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f
 
 	if(SE_NO_ERR != e) {
 		if(f) {
-			_printf("Error:\n    Line %d, Col %d in File: %s\n    Code %d, Abort Code %d\n    Message: %s.\n", row, col, f, e, abort_code, m);
+			_printf("Error:\n    Line %d, Col %d in File: %s\n    Code %d, Abort Code %d\n    Message: %s.\n", row, col, f, e, abort_code - MB_EXTENDED_ABORT, m);
 		} else {
-			_printf("Error:\n    Line %d, Col %d\n    Code %d, Abort Code %d\n    Message: %s.\n", row, col, e, abort_code, m);
+			_printf("Error:\n    Line %d, Col %d\n    Code %d, Abort Code %d\n    Message: %s.\n", row, col, e, abort_code - MB_EXTENDED_ABORT, m);
 		}
 	}
 }
@@ -1320,6 +1339,7 @@ static void _on_startup(void) {
 	mb_reg_fun(bas, set_importing_dirs);
 	mb_reg_fun(bas, sys);
 	mb_reg_fun(bas, trace);
+	mb_reg_fun(bas, raise);
 	mb_reg_fun(bas, gc);
 	mb_reg_fun(bas, beep);
 }
