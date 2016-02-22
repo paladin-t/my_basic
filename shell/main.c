@@ -1289,9 +1289,19 @@ static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f
 
 	if(SE_NO_ERR != e) {
 		if(f) {
-			_printf("Error:\n    Line %d, Col %d in File: %s\n    Code %d, Abort Code %d\n    Message: %s.\n", row, col, f, e, abort_code - MB_EXTENDED_ABORT, m);
+			_printf(
+				"Error:\n    Line %d, Col %d in File: %s\n    Code %d, Abort Code %d\n    Message: %s.\n",
+				row, col, f,
+				e, e == SE_EA_EXTENDED_ABORT ? abort_code - MB_EXTENDED_ABORT : abort_code,
+				m
+			);
 		} else {
-			_printf("Error:\n    Line %d, Col %d\n    Code %d, Abort Code %d\n    Message: %s.\n", row, col, e, abort_code - MB_EXTENDED_ABORT, m);
+			_printf(
+				"Error:\n    Line %d, Col %d\n    Code %d, Abort Code %d\n    Message: %s.\n",
+				row, col,
+				e, e == SE_EA_EXTENDED_ABORT ? abort_code - MB_EXTENDED_ABORT : abort_code,
+				m
+			);
 		}
 	}
 }
