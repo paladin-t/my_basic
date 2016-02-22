@@ -3181,6 +3181,13 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 					_data_e arr_type;
 					_object_t* arr_elem = 0;
 
+#ifdef MB_ENABLE_CLASS
+					if(s->last_instance) {
+						_ls_node_t* cs = _search_identifier_in_scope_chain(s, 0, c->data.array->name, 1, 0, 0);
+						if(cs)
+							c = (_object_t*)cs->data;
+					}
+#endif /* MB_ENABLE_CLASS */
 _array:
 					if(ast && !_IS_FUNC(((_object_t*)ast->data), _core_open_bracket)) {
 						_ls_pushback(opnd, c);
@@ -5684,6 +5691,9 @@ static void _init_array(_array_t* arr) {
 static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr) {
 	/* Clone an array */
 	_array_t* result = 0;
+	unsigned int index = 0;
+	mb_value_u val;
+	_data_e type = _DT_NIL;
 
 	mb_assert(s && arr);
 
@@ -5692,7 +5702,10 @@ static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr) {
 	result->dimension_count = arr->dimension_count;
 	memcpy(result->dimensions, arr->dimensions, sizeof(result->dimensions));
 	_init_array(result);
-	/* TODO */
+	for(index = 0; index < arr->count; index++) {
+		_get_array_elem(s, arr, index, &val, &type);
+		_set_array_elem(s, 0, result, index, &val, &type);
+	}
 
 	return result;
 }
@@ -7502,6 +7515,7 @@ static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_con
 				instance = obj->data.instance;
 
 				break;
+			case _DT_ARRAY: /* Fall through */
 			case _DT_ROUTINE: /* Do nothing */
 				break;
 			default:
@@ -8747,7 +8761,8 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 	/* Evaluate a variable, this is a helper function for the PRINT statement */
 	_object_t tmp;
 
-	if(obj->type == _DT_ROUTINE) {
+	switch(obj->type) {
+	case _DT_ROUTINE:
 		_execute_statement(s, ast);
 		_MAKE_NIL(&tmp);
 		_public_value_to_internal_object(&s->running_context->intermediate_value, &tmp);
@@ -8758,12 +8773,18 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 		}
 		**val_ptr = tmp;
 		if(*ast) *ast = (*ast)->prev;
-	} else if(obj->type == _DT_VAR) {
+
+		break;
+	case _DT_VAR:
 		*val_ptr = obj->data.variable->data;
 		if(*ast) *ast = (*ast)->next;
-	} else {
+
+		break;
+	default:
 		*val_ptr = obj;
 		if(*ast) *ast = (*ast)->next;
+
+		break;
 	}
 
 	return *val_ptr;
@@ -14605,12 +14626,12 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 			}
 #endif /* MB_ENABLE_CLASS */
 			/* Fall through */
+		case _DT_ARRAY: /* Fall through */
 		case _DT_TYPE: /* Fall through */
 		case _DT_NIL: /* Fall through */
 		case _DT_INT: /* Fall through */
 		case _DT_REAL: /* Fall through */
 		case _DT_STRING: /* Fall through */
-		case _DT_ARRAY: /* Fall through */
 #ifdef MB_ENABLE_CLASS
 		case _DT_CLASS: /* Fall through */
 #endif /* MB_ENABLE_CLASS */
