@@ -2,11 +2,12 @@ Feb. 22 2016
 Added array clone support
 Added array accessing support of a class instance
 Added a RAISE statement to the shell
+Fixed an iterator disposing issue by referencing a collection weakly
 
 Feb. 19 2016
 Added source tracing for sub routine invoking
 Added member accessing support following a routine of a class instance
-Fixed a lexical object convertion issue
+Fixed a lexical object conversion issue
 
 Feb. 18 2016
 Added a generic iterator type
