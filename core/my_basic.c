@@ -339,6 +339,7 @@ typedef unsigned _ref_count_t;
 
 typedef struct _ref_t {
 	_ref_count_t* count;
+	_ref_count_t* weak_count;
 	_unref_func_t on_unref;
 	_data_e type;
 	struct mb_interpreter_t* s;
@@ -391,6 +392,7 @@ typedef struct _list_t {
 } _list_t;
 
 typedef struct _list_it_t {
+	_ref_t weak_ref;
 	_list_t* list;
 	bool_t locking;
 	union {
@@ -406,6 +408,7 @@ typedef struct _dict_t {
 } _dict_t;
 
 typedef struct _dict_it_t {
+	_ref_t weak_ref;
 	_dict_t* dict;
 	bool_t locking;
 	unsigned int curr_bucket;
@@ -1396,6 +1399,8 @@ static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 
 static _ref_count_t _ref(_ref_t* ref, void* data);
 static bool_t _unref(_ref_t* ref, void* data);
+static _ref_count_t _weak_ref(_ref_t* ref, void* data, _ref_t* weak);
+static bool_t _weak_unref(_ref_t* ref, void* data, _ref_t* weak);
 static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s);
 static void _destroy_ref(_ref_t* ref);
 
@@ -5174,7 +5179,7 @@ static _ref_count_t _ref(_ref_t* ref, void* data) {
 
 static bool_t _unref(_ref_t* ref, void* data) {
 	/* Decrease the reference of a stub by 1 */
-	bool_t result = false;
+	bool_t result = true;
 
 	result = --(*ref->count) == _NONE_REF;
 	mb_assert(*ref->count >= _NONE_REF);
@@ -5188,6 +5193,37 @@ static bool_t _unref(_ref_t* ref, void* data) {
 	return result;
 }
 
+static _ref_count_t _weak_ref(_ref_t* ref, void* data, _ref_t* weak) {
+	/* Increase the weak reference of a stub by 1 */
+	_ref_count_t before = *ref->weak_count;
+
+	mb_unrefvar(data);
+
+	++(*ref->weak_count);
+	mb_assert(*ref->weak_count > before && "Too many referencing, weak_count overflow, please redefine _ref_count_t.");
+	memcpy(weak, ref, sizeof(_ref_t));
+
+	return *ref->weak_count;
+}
+
+static bool_t _weak_unref(_ref_t* ref, void* data, _ref_t* weak) {
+	/* Decrease the weak reference of a stub by 1 */
+	bool_t result = true;
+	mb_unrefvar(ref);
+	mb_unrefvar(data);
+
+	result = --(*weak->weak_count) == _NONE_REF;
+	mb_assert(*weak->weak_count >= _NONE_REF);
+	if(weak->count && *weak->count == _NONE_REF)
+		result = false;
+	if(weak->count && *weak->count == _NONE_REF && weak->weak_count && *weak->weak_count == _NONE_REF) {
+		safe_free(weak->weak_count);
+		safe_free(weak->count);
+	}
+
+	return result;
+}
+
 static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s) {
 	/* Create a reference stub, initialize the reference count with zero */
 	if(ref->count)
@@ -5195,6 +5231,8 @@ static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpret
 
 	ref->count = (_ref_count_t*)mb_malloc(sizeof(_ref_count_t));
 	*ref->count = _NONE_REF;
+	ref->weak_count = (_ref_count_t*)mb_malloc(sizeof(_ref_count_t));
+	*ref->weak_count = _NONE_REF;
 	ref->on_unref = dtor;
 	ref->type = t;
 	ref->s = s;
@@ -5202,10 +5240,13 @@ static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpret
 
 static void _destroy_ref(_ref_t* ref) {
 	/* Destroy a reference stub */
-	if(!ref->count)
+	if(!ref->count || !ref->weak_count)
 		return;
 
-	safe_free(ref->count);
+	if(*ref->weak_count == _NONE_REF) {
+		safe_free(ref->weak_count);
+		safe_free(ref->count);
+	}
 	ref->on_unref = 0;
 }
 
@@ -6036,6 +6077,7 @@ static _list_it_t* _create_list_it(_list_t* coll, bool_t lock) {
 		result->curr.node = coll->list;
 	if(lock)
 		_lock_ref_object(&coll->lock, &coll->ref, coll);
+	_weak_ref(&coll->ref, coll, &result->weak_ref);
 
 	return result;
 }
@@ -6046,7 +6088,8 @@ static bool_t _destroy_list_it(_list_it_t* it) {
 
 	mb_assert(it);
 
-	_unlock_ref_object(&it->list->lock, &it->list->ref, it->list);
+	if(_weak_unref(&it->list->ref, it->list, &it->weak_ref))
+		_unlock_ref_object(&it->list->lock, &it->list->ref, it->list);
 	safe_free(it);
 
 	return result;
@@ -6093,6 +6136,7 @@ static _dict_it_t* _create_dict_it(_dict_t* coll, bool_t lock) {
 	result->curr_node = (_ls_node_t*)(intptr_t)~0;
 	if(lock)
 		_lock_ref_object(&coll->lock, &coll->ref, coll);
+	_weak_ref(&coll->ref, coll, &result->weak_ref);
 
 	return result;
 }
@@ -6103,7 +6147,8 @@ static bool_t _destroy_dict_it(_dict_it_t* it) {
 
 	mb_assert(it);
 
-	_unlock_ref_object(&it->dict->lock, &it->dict->ref, it->dict);
+	if(_weak_unref(&it->dict->ref, it->dict, &it->weak_ref))
+		_unlock_ref_object(&it->dict->lock, &it->dict->ref, it->dict);
 	safe_free(it);
 
 	return result;
