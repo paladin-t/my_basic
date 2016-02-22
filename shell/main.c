@@ -1224,7 +1224,9 @@ static int raise(struct mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
-	mb_check(mb_pop_int(s, l, &err));
+	if(mb_has_arg(s, l)) {
+		mb_check(mb_pop_int(s, l, &err));
+	}
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
