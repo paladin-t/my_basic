@@ -1423,10 +1423,11 @@ static void _destroy_usertype_ref(_usertype_ref_t* c);
 static void _unref_usertype_ref(_ref_t* ref, void* data);
 #endif /* MB_ENABLE_USERTYPE_REF */
 
-static _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s);
+static _array_t* _create_array(mb_interpreter_t* s, const char* n, _data_e t);
 static void _destroy_array(_array_t* arr);
 static void _init_array(_array_t* arr);
-static int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c);
+static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr);
+static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c);
 static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned int* index, bool_t* literally);
 static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
 static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
@@ -2540,6 +2541,7 @@ static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _
 	result->count = 0;
 #if _LAZY_HASH_TABLE
 	mb_unrefvar(ul);
+
 	result->array = 0;
 #else /* _LAZY_HASH_TABLE */
 	result->array = (_ls_node_t**)mb_malloc(sizeof(_ls_node_t*) * result->array_size);
@@ -4254,6 +4256,7 @@ static int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int po
 #else /* MB_ENABLE_SOURCE_TRACE */
 		mb_unrefvar(row);
 		mb_unrefvar(col);
+
 		obj->source_pos = (char)pos;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
@@ -4356,7 +4359,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			(*obj)->ref = true;
 			*delsym = true;
 		} else {
-			tmp.array = _create_array(sym, _DT_UNKNOWN, s);
+			tmp.array = _create_array(s, sym, _DT_UNKNOWN);
 			memcpy(&tmp.array->type, value, sizeof(tmp.array->type));
 			(*obj)->data.array = tmp.array;
 
@@ -5029,6 +5032,7 @@ static int_t _get_size_of(_data_e type) {
 	}
 #else /* MB_SIMPLE_ARRAY */
 	mb_unrefvar(type);
+
 	result = sizeof(_raw_u);
 #endif /* MB_SIMPLE_ARRAY */
 
@@ -5614,7 +5618,7 @@ static void _unref_usertype_ref(_ref_t* ref, void* data) {
 }
 #endif /* MB_ENABLE_USERTYPE_REF */
 
-static _array_t* _create_array(const char* n, _data_e t, mb_interpreter_t* s) {
+static _array_t* _create_array(mb_interpreter_t* s, const char* n, _data_e t) {
 	/* Create an array */
 	_array_t* result = (_array_t*)mb_malloc(sizeof(_array_t));
 	memset(result, 0, sizeof(_array_t));
@@ -5677,7 +5681,23 @@ static void _init_array(_array_t* arr) {
 #endif /* MB_SIMPLE_ARRAY */
 }
 
-static int _get_array_pos(struct mb_interpreter_t* s, _array_t* arr, int* d, int c) {
+static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr) {
+	/* Clone an array */
+	_array_t* result = 0;
+
+	mb_assert(s && arr);
+
+	result = _create_array(s, mb_strdup(arr->name, 0), arr->type);
+	result->count = arr->count;
+	result->dimension_count = arr->dimension_count;
+	memcpy(result->dimensions, arr->dimensions, sizeof(result->dimensions));
+	_init_array(result);
+	/* TODO */
+
+	return result;
+}
+
+static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c) {
 	/* Calculate the true index of an array */
 	int result = 0;
 	int i = 0;
@@ -6734,6 +6754,7 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 	/* Clone fields of a class instance to another */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
+	_array_t* arr = 0;
 	_var_t* var = 0;
 	_routine_t* sub = 0;
 	_class_t* instance = (_class_t*)n;
@@ -6747,13 +6768,25 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 		goto _exit;
 	switch(obj->type) {
 	case _DT_VAR:
-		var = (_var_t*)obj->data.variable;
+		var = obj->data.variable;
 		ret = _duplicate_parameter(var, 0, instance->scope);
 		_clone_object(instance->ref.s, obj, ret->data.variable->data, false);
 
 		break;
+	case _DT_ARRAY:
+		arr = obj->data.array;
+		if(!_ht_find(instance->scope->var_dict, arr->name)) {
+			ret = _create_object();
+			ret->type = _DT_ARRAY;
+			ret->ref = false;
+			_clone_object(instance->ref.s, obj, ret, false);
+
+			_ht_set_or_insert(instance->scope->var_dict, ret->data.array->name, ret);
+		}
+
+		break;
 	case _DT_ROUTINE:
-		sub = (_routine_t*)obj->data.routine;
+		sub = obj->data.routine;
 		if(!_ht_find(instance->scope->var_dict, sub->name)) {
 			_routine_t* routine = _clone_routine(sub, instance, false);
 			ret = _create_object();
@@ -7858,8 +7891,7 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 
 		break;
 	case _DT_ARRAY:
-		tgt->data.array = obj->data.array;
-		mb_assert(0 && "Not implemented.");
+		tgt->data.array = _clone_array(s, obj->data.array);
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -10607,7 +10639,7 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 	type = _DT_REAL;
 #endif /* MB_SIMPLE_ARRAY */
 
-	arr = _create_array(0, type, s);
+	arr = _create_array(s, 0, type);
 	for(j = 0; j < c; j++) {
 		n = d[j];
 		arr->dimensions[arr->dimension_count++] = n;
@@ -10735,6 +10767,7 @@ int mb_init_coll(struct mb_interpreter_t* s, void** l, mb_value_t* coll) {
 	}
 #else /* MB_ENABLE_COLLECTION_LIB */
 	mb_unrefvar(coll);
+
 	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
@@ -10780,6 +10813,7 @@ int mb_get_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 	mb_unrefvar(idx);
 	mb_unrefvar(coll);
 	mb_unrefvar(i);
+
 	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
@@ -10832,6 +10866,7 @@ int mb_set_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 	mb_unrefvar(coll);
 	mb_unrefvar(oval);
 	mb_unrefvar(i);
+
 	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
@@ -10877,6 +10912,7 @@ int mb_remove_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_val
 	mb_unrefvar(coll);
 	mb_unrefvar(idx);
 	mb_unrefvar(i);
+
 	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
@@ -10916,6 +10952,7 @@ int mb_count_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, int* c)
 	}
 #else /* MB_ENABLE_COLLECTION_LIB */
 	mb_unrefvar(coll);
+
 	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
@@ -12079,6 +12116,7 @@ static int _core_is(mb_interpreter_t* s, void** l) {
 		val->data.integer = (int_t)is_a;
 #else /* MB_ENABLE_CLASS */
 		mb_unrefvar(is_a);
+
 		_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_CLASS */
 	}
