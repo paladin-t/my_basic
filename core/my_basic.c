@@ -1400,7 +1400,7 @@ static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 static _ref_count_t _ref(_ref_t* ref, void* data);
 static bool_t _unref(_ref_t* ref, void* data);
 static _ref_count_t _weak_ref(_ref_t* ref, void* data, _ref_t* weak);
-static bool_t _weak_unref(_ref_t* ref, void* data, _ref_t* weak);
+static bool_t _weak_unref(_ref_t* weak);
 static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s);
 static void _destroy_ref(_ref_t* ref);
 
@@ -5200,19 +5200,17 @@ static _ref_count_t _weak_ref(_ref_t* ref, void* data, _ref_t* weak) {
 	mb_unrefvar(data);
 
 	++(*ref->weak_count);
-	mb_assert(*ref->weak_count > before && "Too many referencing, weak_count overflow, please redefine _ref_count_t.");
+	mb_assert(*ref->weak_count > before && "Too many referencing, weak count overflow, please redefine _ref_count_t.");
 	memcpy(weak, ref, sizeof(_ref_t));
 
 	return *ref->weak_count;
 }
 
-static bool_t _weak_unref(_ref_t* ref, void* data, _ref_t* weak) {
+static bool_t _weak_unref(_ref_t* weak) {
 	/* Decrease the weak reference of a stub by 1 */
 	bool_t result = true;
-	mb_unrefvar(ref);
-	mb_unrefvar(data);
 
-	result = --(*weak->weak_count) == _NONE_REF;
+	--(*weak->weak_count);
 	mb_assert(*weak->weak_count >= _NONE_REF);
 	if(weak->count && *weak->count == _NONE_REF)
 		result = false;
@@ -6088,7 +6086,7 @@ static bool_t _destroy_list_it(_list_it_t* it) {
 
 	mb_assert(it);
 
-	if(_weak_unref(&it->list->ref, it->list, &it->weak_ref))
+	if(_weak_unref(&it->weak_ref))
 		_unlock_ref_object(&it->list->lock, &it->list->ref, it->list);
 	safe_free(it);
 
@@ -6147,7 +6145,7 @@ static bool_t _destroy_dict_it(_dict_it_t* it) {
 
 	mb_assert(it);
 
-	if(_weak_unref(&it->dict->ref, it->dict, &it->weak_ref))
+	if(_weak_unref(&it->weak_ref))
 		_unlock_ref_object(&it->dict->lock, &it->dict->ref, it->dict);
 	safe_free(it);
 

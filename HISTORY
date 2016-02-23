@@ -2,7 +2,7 @@ Feb. 22 2016
 Added array clone support
 Added array accessing support of a class instance
 Added a RAISE statement to the shell
-Fixed an iterator disposing issue by referencing a collection weakly
+Fixed an iterator disposing issue caused by referencing a collection weakly
 
 Feb. 19 2016
 Added source tracing for sub routine invoking
