@@ -382,6 +382,14 @@ typedef enum mb_data_e {
 
 typedef unsigned char mb_val_bytes_t[sizeof(void*) > sizeof(unsigned long) ? sizeof(void*) : sizeof(unsigned long)];
 
+typedef enum mb_meta_func_u {
+	MB_MF_IS,
+	MB_MF_ADD,
+	MB_MF_SUB,
+	MB_MF_MUL,
+	MB_MF_DIV
+} mb_meta_func_u;
+
 typedef union mb_value_u {
 	mb_data_e type;
 	int_t integer;
@@ -428,6 +436,7 @@ typedef void* (* mb_clone_func_t)(struct mb_interpreter_t*, void*);
 typedef unsigned int (* mb_hash_func_t)(struct mb_interpreter_t*, void*);
 typedef int (* mb_cmp_func_t)(struct mb_interpreter_t*, void*, void*);
 typedef void (* mb_fmt_func_t)(struct mb_interpreter_t*, void*, mb_print_func_t);
+typedef int (* mb_meta_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, mb_value_t*, mb_value_t*);
 typedef char* (* mb_memory_allocate_func_t)(unsigned);
 typedef void (* mb_memory_free_func_t)(char*);
 
@@ -485,6 +494,7 @@ MBAPI int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* o
 MBAPI int mb_get_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val, void** out);
 MBAPI int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 MBAPI int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
+MBAPI int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_u m, mb_meta_func_t f);
 MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 
 MBAPI int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val);

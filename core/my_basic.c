@@ -355,6 +355,14 @@ typedef struct _gc_t {
 	int_t collecting;
 } _gc_t;
 
+typedef struct _override_func_info_t {
+	mb_meta_func_t is;
+	mb_meta_func_t add;
+	mb_meta_func_t sub;
+	mb_meta_func_t mul;
+	mb_meta_func_t div;
+} _override_func_info_t;
+
 typedef struct _usertype_ref_t {
 	_ref_t ref;
 	void* usertype;
@@ -363,6 +371,7 @@ typedef struct _usertype_ref_t {
 	mb_hash_func_t hash;
 	mb_cmp_func_t cmp;
 	mb_fmt_func_t fmt;
+	_override_func_info_t overrides;
 } _usertype_ref_t;
 
 typedef struct _array_t {
@@ -934,6 +943,33 @@ static _object_t* _exp_assign = 0;
 		_str2 = _extract_string(opnd2); \
 		val->data.integer = strcmp(_str1, _str2) __optr 0; \
 	} while(0)
+#ifdef MB_ENABLE_USERTYPE_REF
+#	define _instruct_obj_meta_obj(__optr, __tuple, __result, __exit) \
+		do { \
+			_tuple3_t* tpptr = (_tuple3_t*)(*__tuple); \
+			_object_t* opnd1 = (_object_t*)(tpptr->e1); \
+			_object_t* opnd2 = (_object_t*)(tpptr->e2); \
+			_object_t* retval = (_object_t*)(tpptr->e3); \
+			if(opnd1->type == _DT_VAR) opnd1 = opnd1->data.variable->data; \
+			if(opnd2->type == _DT_VAR) opnd2 = opnd2->data.variable->data; \
+			if(opnd1->type == _DT_USERTYPE_REF) { \
+				if(opnd1->data.usertype_ref->overrides.__optr) { \
+					mb_value_t vfst, vscd; \
+					mb_value_t ret; \
+					mb_make_nil(vfst); \
+					mb_make_nil(vscd); \
+					mb_make_nil(ret); \
+					_internal_object_to_public_value(opnd1, &vfst); \
+					_internal_object_to_public_value(opnd2, &vscd); \
+					__result = opnd1->data.usertype_ref->overrides.__optr(s, (__tuple), &vfst, &vscd, &ret); \
+					_public_value_to_internal_object(&ret, retval); \
+					goto __exit; \
+				} \
+			} \
+		} while(0)
+#else /* MB_ENABLE_USERTYPE_REF */
+#	define _instruct_obj_meta_obj(__optr, __tuple, __result, __exit) ((void)(__tuple)); ((void)(__result));
+#endif /* MB_ENABLE_USERTYPE_REF */
 #define _proc_div_by_zero(__s, __tuple, __exit, __result, __kind) \
 	do { \
 		_instruct_common(__tuple) \
@@ -11142,6 +11178,53 @@ _exit:
 	return result;
 }
 
+int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_u m, mb_meta_func_t f) {
+	/* Override a meta function of a value */
+	int result = MB_FUNC_OK;
+	_object_t obj;
+
+	mb_assert(s && l);
+
+#ifdef MB_ENABLE_USERTYPE_REF
+	if(val.type == MB_DT_USERTYPE_REF) {
+		_usertype_ref_t* user = 0;
+		_public_value_to_internal_object(&val, &obj);
+		user = obj.data.usertype_ref;
+		switch(m) {
+		case MB_MF_IS:
+			user->overrides.is = f;
+
+			break;
+		case MB_MF_ADD:
+			user->overrides.add = f;
+
+			break;
+		case MB_MF_SUB:
+			user->overrides.sub = f;
+
+			break;
+		case MB_MF_MUL:
+			user->overrides.mul = f;
+
+			break;
+		case MB_MF_DIV:
+			user->overrides.div = f;
+
+			break;
+		}
+	} else {
+		result = MB_FUNC_ERR;
+	}
+#else /* MB_ENABLE_USERTYPE_REF */
+	mb_unrefvar(obj);
+	mb_unrefvar(val);
+	mb_unrefvar(m);
+	mb_unrefvar(f);
+#endif /* MB_ENABLE_USERTYPE_REF */
+
+	return result;
+}
+
 int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val) {
 	/* Dispose a value */
 	int result = MB_FUNC_OK;
@@ -11725,6 +11808,7 @@ static int _core_add(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	_instruct_obj_meta_obj(add, l, result, _exit);
 	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
 		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
 			_instruct_connect_strings(l);
@@ -11745,8 +11829,12 @@ static int _core_min(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	_instruct_obj_meta_obj(sub, l, result, _exit);
 	_instruct_num_op_num(-, l);
 
+	goto _exit; /* Avoid an unreferenced label warning */
+
+_exit:
 	return result;
 }
 
@@ -11756,8 +11844,12 @@ static int _core_mul(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	_instruct_obj_meta_obj(mul, l, result, _exit);
 	_instruct_num_op_num(*, l);
 
+	goto _exit; /* Avoid an unreferenced label warning */
+
+_exit:
 	return result;
 }
 
@@ -11767,6 +11859,7 @@ static int _core_div(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	_instruct_obj_meta_obj(div, l, result, _exit);
 	_proc_div_by_zero(s, l, _exit, result, SE_RN_DIVIDE_BY_ZERO);
 	_instruct_num_op_num(/, l);
 
@@ -12153,6 +12246,8 @@ static int _core_is(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
+	_instruct_obj_meta_obj(is, l, result, _exit);
+
 	fst = (_object_t*)((_tuple3_t*)*l)->e1;
 	scd = (_object_t*)((_tuple3_t*)*l)->e2;
 	val = (_object_t*)((_tuple3_t*)*l)->e3;
@@ -12164,12 +12259,7 @@ static int _core_is(mb_interpreter_t* s, void** l) {
 	}
 	if(scd->type == _DT_TYPE) {
 		val->type = _DT_INT;
-		val->data.integer = (int_t)(
-			!!(
-				_internal_type_to_public_type(fst->type) == scd->data.type ||
-				_internal_type_to_public_type(fst->type) & scd->data.type
-			)
-		);
+		val->data.integer = (int_t)(!!(_internal_type_to_public_type(fst->type) & scd->data.type));
 	} else {
 #ifdef MB_ENABLE_CLASS
 		if(!_IS_CLASS(fst) || !_IS_CLASS(scd)) {
