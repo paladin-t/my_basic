@@ -99,7 +99,7 @@ extern "C" {
 #define _LAZY_HASH_TABLE 1
 
 /* Define as 1 to treat warning as error, 0 just leave it */
-#define _WARING_AS_ERROR 0
+#define _WARNING_AS_ERROR 0
 
 /* Define as 1 to use a comma to PRINT a new line, 0 to use a semicolon */
 #define _COMMA_AS_NEWLINE 0
@@ -1191,7 +1191,7 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 				(__result)); \
 		} \
 	} while(0)
-#if _WARING_AS_ERROR
+#if _WARNING_AS_ERROR
 #	define _handle_error(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
 			_set_current_error((__s), (__err), (__f)); \
@@ -1199,7 +1199,7 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 			__result = (__ret); \
 			goto __exit; \
 		} while(0)
-#else /* _WARING_AS_ERROR */
+#else /* _WARNING_AS_ERROR */
 #	define _handle_error(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
 			_set_current_error((__s), (__err), (__f)); \
@@ -1209,7 +1209,7 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 			} \
 			goto __exit; \
 		} while(0)
-#endif /* _WARING_AS_ERROR */
+#endif /* _WARNING_AS_ERROR */
 #ifdef MB_ENABLE_SOURCE_TRACE
 #	define _HANDLE_ERROR(__s, __err, __f, __obj, __ret, __exit, __result) _handle_error((__s), (__err), (__f), (__obj)->source_pos, (__obj)->source_row, (__obj)->source_col, (__ret), __exit, (__result))
 #else /* MB_ENABLE_SOURCE_TRACE */
