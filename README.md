@@ -127,6 +127,7 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
  * [Use prototype-based class](https://github.com/paladin-t/my_basic/wiki/Use-prototype-based-class)
  * [Define a class in C](https://github.com/paladin-t/my_basic/wiki/Define-a-class-in-C)
  * [Meta methods](https://github.com/paladin-t/my_basic/wiki/Meta-methods)
+ * [Override operators](https://github.com/paladin-t/my_basic/wiki/Override-operators)
 * Standalone shell
  * [Extra functions](https://github.com/paladin-t/my_basic/wiki/Extra-functions)
 * Integration
