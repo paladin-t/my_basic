@@ -1,3 +1,6 @@
+Feb. 24 2016
+Added a TO_ARRAY statement
+
 Feb. 23 2016
 Added an mb_override_value function
 Added meta function overriding support for referenced usertype

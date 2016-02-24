@@ -390,6 +390,14 @@ typedef struct _array_t {
 } _array_t;
 
 #ifdef MB_ENABLE_COLLECTION_LIB
+typedef struct _array_helper_t {
+	struct mb_interpreter_t* s;
+	_array_t* array;
+	int index;
+} _array_helper_t;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
+#ifdef MB_ENABLE_COLLECTION_LIB
 typedef struct _list_t {
 	_ref_t ref;
 	_lock_t lock;
@@ -1510,6 +1518,7 @@ static bool_t _invalid_dict_it(_dict_it_t* it);
 static bool_t _assign_with_it(_object_t* tgt, _object_t* src);
 static int _clone_to_list(void* data, void* extra, _list_t* coll);
 static int _clone_to_dict(void* data, void* extra, _dict_t* coll);
+static int _copy_list_to_array(void* data, void* extra, _array_helper_t* h);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 #ifdef MB_ENABLE_CLASS
@@ -1800,6 +1809,7 @@ static int _coll_set(mb_interpreter_t* s, void** l);
 static int _coll_remove(mb_interpreter_t* s, void** l);
 static int _coll_clear(mb_interpreter_t* s, void** l);
 static int _coll_clone(mb_interpreter_t* s, void** l);
+static int _coll_to_array(mb_interpreter_t* s, void** l);
 static int _coll_iterator(mb_interpreter_t* s, void** l);
 static int _coll_move_next(mb_interpreter_t* s, void** l);
 #endif /* MB_ENABLE_COLLECTION_LIB */
@@ -1931,6 +1941,7 @@ static const _func_t _coll_libs[] = {
 	{ "REMOVE", _coll_remove },
 	{ "CLEAR", _coll_clear },
 	{ "CLONE", _coll_clone },
+	{ "TO_ARRAY", _coll_to_array },
 	{ "ITERATOR", _coll_iterator },
 	{ "MOVE_NEXT", _coll_move_next }
 };
@@ -6680,6 +6691,23 @@ static int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 	_set_dict(coll, 0, 0, ktgt, vtgt);
 	_REF(ktgt)
 	_REF(vtgt)
+
+	return 1;
+}
+
+static int _copy_list_to_array(void* data, void* extra, _array_helper_t* h) {
+	/* Copy an object from a list to an array */
+	_object_t* obj = 0;
+	mb_value_t val;
+	_data_e type = _DT_NIL;
+	mb_unrefvar(extra);
+
+	mb_assert(data && h);
+
+	obj = (_object_t*)data;
+	_internal_object_to_public_value(obj, &val);
+	type = obj->type;
+	_set_array_elem(h->s, 0, h->array, h->index++, &val.value, &type);
 
 	return 1;
 }
@@ -15520,6 +15548,57 @@ static int _coll_clone(mb_interpreter_t* s, void** l) {
 		break;
 	default:
 		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+
+	mb_check(mb_push_value(s, l, ret));
+
+_exit:
+	_assign_public_value(&coll, 0);
+
+	return result;
+}
+
+static int _coll_to_array(mb_interpreter_t* s, void** l) {
+	/* TO_ARRAY statement */
+	int result = MB_FUNC_OK;
+	mb_value_t coll;
+	_object_t ocoll;
+	_array_t* array = 0;
+	_array_helper_t helper;
+	mb_value_t ret;
+
+	mb_assert(s && l);
+
+	mb_make_nil(coll);
+	mb_make_nil(ret);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_pop_value(s, l, &coll));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	_MAKE_NIL(&ocoll);
+	switch(coll.type) {
+	case MB_DT_LIST:
+		_public_value_to_internal_object(&coll, &ocoll);
+		array = _create_array(s, mb_strdup("", 1), _DT_REAL);
+		array->count = ocoll.data.list->count;
+		array->dimension_count = 1;
+		array->dimensions[0] = ocoll.data.list->count;
+		_init_array(array);
+		helper.s = s;
+		helper.array = array;
+		helper.index = 0;
+		_LS_FOREACH(ocoll.data.list->list, _do_nothing_on_object, _copy_list_to_array, &helper);
+		ret.type = MB_DT_ARRAY;
+		ret.value.array = array;
+
+		break;
+	default:
+		_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 
 		break;
 	}
