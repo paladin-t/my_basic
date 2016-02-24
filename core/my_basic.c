@@ -3352,33 +3352,39 @@ _routine:
 					_data_e arr_type;
 					_object_t* arr_elem = 0;
 
-					ast = ast->prev;
-					result = _get_array_index(s, &ast, 0, &arr_idx, 0);
-					if(result != MB_FUNC_OK) {
-						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
-					}
-					ast = ast->next;
-					_get_array_elem(s, c->data.variable->data->data.array, arr_idx, &arr_val, &arr_type);
-					arr_elem = _create_object();
-					_ls_pushback(garbage, arr_elem);
-					arr_elem->type = arr_type;
-					arr_elem->ref = true;
-					if(arr_type == _DT_INT) {
-						arr_elem->data.integer = arr_val.integer;
-					} else if(arr_type == _DT_REAL) {
-						arr_elem->data.float_point = arr_val.float_point;
-					} else if(arr_type == _DT_STRING) {
-						arr_elem->data.string = arr_val.string;
-					} else if(arr_type == _DT_USERTYPE) {
-						arr_elem->data.usertype = arr_val.usertype;
+					if(ast && !_IS_FUNC(((_object_t*)ast->data), _core_open_bracket)) {
+						c = c->data.variable->data;
+						_ls_pushback(opnd, c);
+						f++;
 					} else {
-						mb_assert(0 && "Unsupported.");
+						ast = ast->prev;
+						result = _get_array_index(s, &ast, 0, &arr_idx, 0);
+						if(result != MB_FUNC_OK) {
+							_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+						}
+						ast = ast->next;
+						_get_array_elem(s, c->data.variable->data->data.array, arr_idx, &arr_val, &arr_type);
+						arr_elem = _create_object();
+						_ls_pushback(garbage, arr_elem);
+						arr_elem->type = arr_type;
+						arr_elem->ref = true;
+						if(arr_type == _DT_INT) {
+							arr_elem->data.integer = arr_val.integer;
+						} else if(arr_type == _DT_REAL) {
+							arr_elem->data.float_point = arr_val.float_point;
+						} else if(arr_type == _DT_STRING) {
+							arr_elem->data.string = arr_val.string;
+						} else if(arr_type == _DT_USERTYPE) {
+							arr_elem->data.usertype = arr_val.usertype;
+						} else {
+							mb_assert(0 && "Unsupported.");
+						}
+						if(f) {
+							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+						}
+						_ls_pushback(opnd, arr_elem);
+						f++;
 					}
-					if(f) {
-						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
-					}
-					_ls_pushback(opnd, arr_elem);
-					f++;
 				} else {
 					if(c->type == _DT_VAR) {
 						_ls_node_t* cs = _search_identifier_in_scope_chain(s, 0, c->data.variable->name,
@@ -6705,6 +6711,7 @@ static int _copy_list_to_array(void* data, void* extra, _array_helper_t* h) {
 	mb_assert(data && h);
 
 	obj = (_object_t*)data;
+	mb_make_nil(val);
 	_internal_object_to_public_value(obj, &val);
 	type = obj->type;
 	_set_array_elem(h->s, 0, h->array, h->index++, &val.value, &type);

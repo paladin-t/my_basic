@@ -1,5 +1,6 @@
 Feb. 24 2016
 Added a TO_ARRAY statement
+Added support to apply the LEN statement to an array assigned from another
 
 Feb. 23 2016
 Added an mb_override_value function
