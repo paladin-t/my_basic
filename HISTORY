@@ -1,3 +1,6 @@
+Feb. 25 2016
+Fixed a bug with the END and RETURN statement with FOR loop
+
 Feb. 24 2016
 Added a TO_ARRAY statement
 Added support to apply the LEN statement to an array assigned from another
@@ -23,13 +26,13 @@ Added a SYS statement to the shell
 Fixed a wrong list linkage bug with list sorting
 
 Feb. 16 2016
-Fixed a bug of the EXIT statement with FOR loop
+Fixed a bug with the EXIT statement with FOR loop
 
 Feb. 15 2016
 Fixed some compile issues with Xcode
 
 Feb. 11 2016
-Fixed a bug of the EXIT statement with multiple line IF statement
+Fixed a bug with the EXIT statement with multiple line IF statement
 
 Feb. 10 2016
 Fixed a wrong loop bug with WHILE and DO statements

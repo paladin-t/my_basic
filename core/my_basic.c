@@ -9240,6 +9240,8 @@ _to:
 			result = MB_FUNC_OK;
 
 			goto _exit;
+		} else if(result != MB_FUNC_OK && result != MB_SUB_RETURN) {
+			goto _exit;
 		}
 
 		ass_tuple3.e1 = var_loop->data;
@@ -9334,6 +9336,8 @@ _to:
 		if(result == MB_LOOP_BREAK) {
 			result = MB_FUNC_OK;
 
+			goto _exit;
+		} else if(result != MB_FUNC_OK && result != MB_SUB_RETURN) {
 			goto _exit;
 		}
 
