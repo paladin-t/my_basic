@@ -5807,6 +5807,7 @@ static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c) {
 	int result = 0;
 	int i = 0;
 	int n = 0;
+	int f = 1;
 
 	mb_assert(s && arr && d);
 
@@ -5822,10 +5823,8 @@ static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c) {
 
 			goto _exit;
 		}
-		if(result)
-			result *= n;
-		else
-			result += n;
+		result += n * f;
+		f *= arr->dimensions[i];
 	}
 
 _exit:
@@ -5842,6 +5841,7 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 	_object_t* subscript_ptr = 0;
 	mb_value_u val;
 	int dcount = 0;
+	int f = 1;
 	unsigned int idx = 0;
 
 	mb_assert(s && l && index);
@@ -5898,14 +5898,12 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 		if((int)val.integer >= arr->data.array->dimensions[dcount]) {
 			_handle_error_on_obj(s, SE_RN_ARRAY_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
-		if(idx)
-			idx *= (unsigned int)val.integer;
-		else
-			idx += (unsigned int)val.integer;
+		idx += (unsigned int)val.integer * f;
 		/* Comma? */
 		if(_IS_SEP(ast->data, ','))
 			ast = ast->next;
 
+		f *= arr->data.array->dimensions[dcount];
 		++dcount;
 	}
 	*index = idx;
