@@ -14766,9 +14766,6 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	val_ptr = &val_obj;
-	_MAKE_NIL(val_ptr);
-
 	++s->no_eat_comma_mark;
 	ast = (_ls_node_t*)*l;
 	ast = ast->next;
@@ -14778,6 +14775,8 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 
 	obj = (_object_t*)ast->data;
 	do {
+		val_ptr = &val_obj;
+		_MAKE_NIL(val_ptr);
 		switch(obj->type) {
 		case _DT_VAR:
 			if(obj->data.variable->data->type == _DT_ROUTINE) {
