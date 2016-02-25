@@ -4672,8 +4672,12 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 					_post_import(s, lf, &pos, &row, &col);
 				}
 			} else {
-				if(!s->import_handler || s->import_handler(s, sym + 1) != MB_FUNC_OK) {
-					_handle_error_now(s, SE_PS_FILE_OPEN_FAILED, s->source_file, MB_FUNC_ERR);
+				if(!_ls_find(context->imported, (void*)(sym + 1), (_ls_compare)_ht_cmp_string, 0)) {
+					if(s->import_handler && s->import_handler(s, sym + 1) == MB_FUNC_OK) {
+						_ls_pushback(context->imported, mb_strdup(sym + 1, strlen(sym + 1) + 1));
+					} else {
+						_handle_error_now(s, SE_PS_FILE_OPEN_FAILED, s->source_file, MB_FUNC_ERR);
+					}
 				}
 			}
 

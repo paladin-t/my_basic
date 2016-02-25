@@ -1,4 +1,5 @@
 Feb. 25 2016
+Improved importing directory detection
 Fixed a bug with the END and RETURN statement with FOR loop
 Fixed an array index calculation bug
 
