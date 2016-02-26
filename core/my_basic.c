@@ -6922,7 +6922,7 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 		var = obj->data.variable;
 		if(!_IS_ME(var)) {
 			ret = _duplicate_parameter(var, 0, instance->scope);
-			_clone_object(instance->ref.s, obj, ret->data.variable->data, false, false);
+			_clone_object(instance->ref.s, obj, ret->data.variable->data, false, true);
 		}
 
 		break;
@@ -6932,7 +6932,7 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 			ret = _create_object();
 			ret->type = _DT_ARRAY;
 			ret->ref = false;
-			_clone_object(instance->ref.s, obj, ret, false, false);
+			_clone_object(instance->ref.s, obj, ret, false, true);
 
 			_ht_set_or_insert(instance->scope->var_dict, ret->data.array->name, ret);
 		}
