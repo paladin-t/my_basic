@@ -148,6 +148,9 @@ extern "C" {
 #ifdef MB_ENABLE_CLASS
 #	define _IS_CLASS(__o) ((__o) && ((_object_t*)(__o))->type == _DT_CLASS)
 #	define _GET_CLASS(__o) ((!__o) ? 0 : (_IS_CLASS(__o) ? (__o) : (_IS_VAR(__o) && _IS_CLASS((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
+#	define _IS_ME(__v) (!!(__v)->isme)
+#else /* MB_ENABLE_CLASS */
+#	define _IS_ME(__v) false
 #endif /* MB_ENABLE_CLASS */
 #define _IS_ROUTINE(__o) ((__o) && ((_object_t*)(__o))->type == _DT_ROUTINE)
 #define _GET_ROUTINE(__o) ((!__o) ? 0 : (_IS_ROUTINE(__o) ? (__o) : (_IS_VAR(__o) && _IS_ROUTINE((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
@@ -263,6 +266,7 @@ static const char* _ERR_DESC[] = {
 	"Class expected",
 	"Duplicate class",
 	"Wrong meta class",
+	"Cannot change ME",
 	"Invalid lambda",
 	"List expected",
 	"Collection expected",
@@ -326,6 +330,7 @@ typedef struct _var_t {
 	struct _object_t* data;
 #ifdef MB_ENABLE_CLASS
 	int pathing;
+	bool_t isme;
 #endif /* MB_ENABLE_CLASS */
 } _var_t;
 
@@ -439,6 +444,7 @@ typedef struct _label_t {
 } _label_t;
 
 #ifdef MB_ENABLE_CLASS
+#	define _CLASS_ME "ME"
 #	define _CLASS_HASH_FUNC "HASH"
 #	define _CLASS_COMPARE_FUNC "COMPARE"
 #	define _CLASS_TO_STRING_FUNC "TOSTRING"
@@ -1593,7 +1599,7 @@ static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i);
 
 static _var_t* _create_var(_object_t** oobj, const char* n, size_t ns, bool_t dup_name);
 static _object_t* _create_object(void);
-static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bool_t toupval);
+static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bool_t toupval, bool_t deep);
 static int _dispose_object(_object_t* obj);
 static int _destroy_object(void* data, void* extra);
 static int _destroy_object_with_extra(void* data, void* extra);
@@ -4521,6 +4527,13 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			(*obj)->ref = true;
 			*delsym = true;
 		} else {
+			if(strcmp(sym, _CLASS_ME) == 0) {
+				_handle_error_now(s, SE_RN_CANNOT_CHANGE_ME, s->source_file, MB_FUNC_ERR);
+				(*obj)->ref = true;
+				*delsym = true;
+
+				goto _exit;
+			}
 			tmp.var = (_var_t*)mb_malloc(sizeof(_var_t));
 			memset(tmp.var, 0, sizeof(_var_t));
 			tmp.var->name = sym;
@@ -6672,7 +6685,7 @@ static int _clone_to_list(void* data, void* extra, _list_t* coll) {
 
 	tgt = _create_object();
 	obj = (_object_t*)data;
-	_clone_object(coll->ref.s, obj, tgt, false);
+	_clone_object(coll->ref.s, obj, tgt, false, false);
 	_push_list(coll, 0, tgt);
 	_REF(tgt)
 
@@ -6690,11 +6703,11 @@ static int _clone_to_dict(void* data, void* extra, _dict_t* coll) {
 
 	ktgt = _create_object();
 	kobj = (_object_t*)extra;
-	_clone_object(coll->ref.s, kobj, ktgt, false);
+	_clone_object(coll->ref.s, kobj, ktgt, false, false);
 
 	vtgt = _create_object();
 	vobj = (_object_t*)data;
-	_clone_object(coll->ref.s, vobj, vtgt, false);
+	_clone_object(coll->ref.s, vobj, vtgt, false, false);
 
 	_set_dict(coll, 0, 0, ktgt, vtgt);
 	_REF(ktgt)
@@ -6726,6 +6739,8 @@ static int _copy_list_to_array(void* data, void* extra, _array_helper_t* h) {
 static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	/* Initialize a class */
 	_running_context_t* running = 0;
+	_object_t* meobj = 0;
+	_var_t* me = 0;
 
 	mb_assert(s && instance && n);
 
@@ -6738,6 +6753,13 @@ static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	instance->meta_list = _ls_create();
 	instance->scope = _create_running_context(true);
 	instance->created_from = instance;
+
+	me = _create_var(&meobj, _CLASS_ME, strlen(_CLASS_ME) + 1, true);
+	me->data->type = _DT_CLASS;
+	me->data->data.instance = instance;
+	me->pathing = 1;
+	me->isme = true;
+	_ht_set_or_insert(instance->scope->var_dict, me->name, meobj);
 }
 
 static void _begin_class(mb_interpreter_t* s) {
@@ -6898,8 +6920,10 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 	switch(obj->type) {
 	case _DT_VAR:
 		var = obj->data.variable;
-		ret = _duplicate_parameter(var, 0, instance->scope);
-		_clone_object(instance->ref.s, obj, ret->data.variable->data, false);
+		if(!_IS_ME(var)) {
+			ret = _duplicate_parameter(var, 0, instance->scope);
+			_clone_object(instance->ref.s, obj, ret->data.variable->data, false, false);
+		}
 
 		break;
 	case _DT_ARRAY:
@@ -6908,7 +6932,7 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 			ret = _create_object();
 			ret->type = _DT_ARRAY;
 			ret->ref = false;
-			_clone_object(instance->ref.s, obj, ret, false);
+			_clone_object(instance->ref.s, obj, ret, false, false);
 
 			_ht_set_or_insert(instance->scope->var_dict, ret->data.array->name, ret);
 		}
@@ -7403,7 +7427,7 @@ static int _fill_with_upvalue(void* data, void* extra, void* p) {
 			_object_t* ovar = 0;
 			_var_t* var = _create_var(&ovar, n, 0, true);
 			obj = (_object_t*)nori->data;
-			_clone_object(tuple->s, obj, var->data, true);
+			_clone_object(tuple->s, obj, var->data, true, true);
 			_REF(var->data)
 			if(_IS_ROUTINE(obj) && obj->data.routine->type != _IT_LAMBDA) {
 				ovar->ref = true;
@@ -7983,7 +8007,7 @@ static _object_t* _create_object(void) {
 	return result;
 }
 
-static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bool_t toupval) {
+static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bool_t toupval, bool_t deep) {
 	/* Clone the data of an object */
 	int result = 0;
 
@@ -7996,7 +8020,7 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 	tgt->type = obj->type;
 	switch(obj->type) {
 	case _DT_VAR:
-		_clone_object(s, obj->data.variable->data, tgt, toupval);
+		_clone_object(s, obj->data.variable->data, tgt, toupval, deep);
 
 		break;
 	case _DT_STRING:
@@ -8011,6 +8035,7 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 			obj->data.usertype_ref->dtor, obj->data.usertype_ref->clone,
 			obj->data.usertype_ref->hash, obj->data.usertype_ref->cmp, obj->data.usertype_ref->fmt
 		);
+		memcpy(&tgt->data.usertype_ref->overrides, &obj->data.usertype_ref->overrides, sizeof(_override_func_info_t));
 		_ref(&tgt->data.usertype_ref->ref, tgt->data.usertype_ref);
 
 		break;
@@ -8021,14 +8046,26 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 
 		break;
 	case _DT_ARRAY:
-		tgt->data.array = _clone_array(s, obj->data.array);
+		if(deep) {
+			tgt->data.array = _clone_array(s, obj->data.array);
+		} else {
+			tgt->data.array = obj->data.array;
+#ifdef MB_ENABLE_ARRAY_REF
+			_ref(&obj->data.array->ref, obj->data.array);
+#endif /* MB_ENABLE_ARRAY_REF */
+		}
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST:
-		tgt->data.list = _create_list(obj->data.list->ref.s);
-		_ref(&tgt->data.list->ref, tgt->data.list);
-		_LS_FOREACH(obj->data.list->list, _do_nothing_on_object, _clone_to_list, tgt->data.list);
+		if(deep) {
+			tgt->data.list = _create_list(obj->data.list->ref.s);
+			_ref(&tgt->data.list->ref, tgt->data.list);
+			_LS_FOREACH(obj->data.list->list, _do_nothing_on_object, _clone_to_list, tgt->data.list);
+		} else {
+			tgt->data.list = obj->data.list;
+			_ref(&obj->data.list->ref, obj->data.list);
+		}
 
 		break;
 	case _DT_LIST_IT:
@@ -8036,9 +8073,14 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 
 		break;
 	case _DT_DICT:
-		tgt->data.dict = _create_dict(obj->data.dict->ref.s);
-		_ref(&tgt->data.dict->ref, tgt->data.dict);
-		_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _clone_to_dict, tgt->data.dict);
+		if(deep) {
+			tgt->data.dict = _create_dict(obj->data.dict->ref.s);
+			_ref(&tgt->data.dict->ref, tgt->data.dict);
+			_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _clone_to_dict, tgt->data.dict);
+		} else {
+			tgt->data.dict = obj->data.dict;
+			_ref(&obj->data.dict->ref, obj->data.dict);
+		}
 
 		break;
 	case _DT_DICT_IT:
@@ -8053,12 +8095,17 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 		break;
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
-		tgt->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
-		_init_class(s, tgt->data.instance, mb_strdup(obj->data.instance->name, 0));
-		tgt->data.instance->created_from = obj->data.instance->created_from;
-		_push_scope_by_class(s, tgt->data.instance->scope);
-		_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, _META_LIST_MAX_DEPTH, false, tgt->data.instance, 0);
-		_pop_scope(s, false);
+		if(deep) {
+			tgt->data.instance = (_class_t*)mb_malloc(sizeof(_class_t));
+			_init_class(s, tgt->data.instance, mb_strdup(obj->data.instance->name, 0));
+			tgt->data.instance->created_from = obj->data.instance->created_from;
+			_push_scope_by_class(s, tgt->data.instance->scope);
+			_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, _META_LIST_MAX_DEPTH, false, tgt->data.instance, 0);
+			_pop_scope(s, false);
+		} else {
+			tgt->data.instance = obj->data.instance;
+			_ref(&obj->data.instance->ref, obj->data.instance);
+		}
 
 		break;
 #endif /* MB_ENABLE_CLASS */
@@ -8119,7 +8166,10 @@ static int _dispose_object(_object_t* obj) {
 			var = (_var_t*)obj->data.variable;
 			safe_free(var->name);
 			mb_assert(var->data->type != _DT_VAR);
-			_destroy_object(var->data, 0);
+			if(_IS_ME(var))
+				_destroy_object_capsule_only(var->data, 0);
+			else
+				_destroy_object(var->data, 0);
 			safe_free(var);
 		}
 
@@ -12374,9 +12424,13 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 		if(result != MB_FUNC_OK)
 			goto _exit;
 	} else if(obj->type == _DT_VAR) {
-		evar = obj->data.variable;
-		var = _search_var_in_scope_chain(s, obj->data.variable);
-		if(var == evar) evar = 0;
+		if(_IS_ME(obj->data.variable)) {
+			_handle_error_on_obj(s, SE_RN_CANNOT_CHANGE_ME, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		} else {
+			evar = obj->data.variable;
+			var = _search_var_in_scope_chain(s, obj->data.variable);
+			if(var == evar) evar = 0;
+		}
 	} else {
 		_handle_error_on_obj(s, SE_RN_VAR_OR_ARRAY_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -13521,7 +13575,7 @@ static int _core_new(mb_interpreter_t* s, void** l) {
 		/* Fall through */
 	case MB_DT_CLASS:
 		_public_value_to_internal_object(&arg, &obj);
-		_clone_object(s, &obj, &tgt, false);
+		_clone_object(s, &obj, &tgt, false, true);
 		ret.type = MB_DT_CLASS;
 		ret.value.instance = tgt.data.instance;
 
@@ -15546,14 +15600,14 @@ static int _coll_clone(mb_interpreter_t* s, void** l) {
 	switch(coll.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);
-		_clone_object(s, &ocoll, &otgt, false);
+		_clone_object(s, &ocoll, &otgt, false, true);
 		ret.type = MB_DT_LIST;
 		ret.value.list = otgt.data.list;
 
 		break;
 	case MB_DT_DICT:
 		_public_value_to_internal_object(&coll, &ocoll);
-		_clone_object(s, &ocoll, &otgt, false);
+		_clone_object(s, &ocoll, &otgt, false, true);
 		ret.type = MB_DT_DICT;
 		ret.value.dict = otgt.data.dict;
 

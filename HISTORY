@@ -1,3 +1,8 @@
+Feb. 26 2016
+Added a ME keyword to represent a class instance itself
+Added shallow cloning support
+Fixed an overrided function copying issue
+
 Feb. 25 2016
 Improved importing directory detection
 Fixed a bug with the END and RETURN statement with FOR loop
@@ -13,7 +18,7 @@ Added an mb_override_value function
 Added meta function overriding support for referenced usertype
 
 Feb. 22 2016
-Added array clone support
+Added array cloning support
 Added array accessing support of a class instance
 Added a RAISE statement to the shell
 Fixed an iterator disposing issue caused by referencing a collection weakly
