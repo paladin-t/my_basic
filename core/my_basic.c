@@ -1468,6 +1468,9 @@ static int _gc_destroy_garbage_in_lambda(void* data, void* extra, void* gc);
 static void _gc_destroy_garbage_in_outer_scope(_running_context_ref_t* p, _gc_t* gc);
 #endif /* MB_ENABLE_LAMBDA */
 static int _gc_destroy_garbage(void* data, void* extra);
+#ifdef MB_ENABLE_CLASS
+static int _gc_destroy_garbage_class(void* data, void* extra);
+#endif /* MB_ENABLE_CLASS */
 static void _gc_swap_tables(mb_interpreter_t* s);
 static void _gc_try_trigger(mb_interpreter_t* s);
 static void _gc_collect_garbage(mb_interpreter_t* s, int depth);
@@ -4527,6 +4530,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			(*obj)->ref = true;
 			*delsym = true;
 		} else {
+#ifdef MB_ENABLE_CLASS
 			if(strcmp(sym, _CLASS_ME) == 0) {
 				_handle_error_now(s, SE_RN_CANNOT_CHANGE_ME, s->source_file, MB_FUNC_ERR);
 				(*obj)->ref = true;
@@ -4534,6 +4538,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 
 				goto _exit;
 			}
+#endif /* MB_ENABLE_CLASS */
 			tmp.var = (_var_t*)mb_malloc(sizeof(_var_t));
 			memset(tmp.var, 0, sizeof(_var_t));
 			tmp.var->name = sym;
@@ -5253,7 +5258,7 @@ static bool_t _unref(_ref_t* ref, void* data) {
 
 	result = --(*ref->count) == _NONE_REF;
 	mb_assert(*ref->count >= _NONE_REF);
-	_gc_add(ref, data, 0);
+	_gc_add(ref, data, &ref->s->gc);
 	if(ref->count && *ref->count == _NONE_REF)
 		_tidy_intermediate_value(ref, data);
 	ref->on_unref(ref, data);
@@ -5330,13 +5335,13 @@ static void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 	if(gc && _ht_find(gc->collected_table, ref))
 		return;
 
-	if(!ref->s->gc.table)
+	if(!gc->table)
 		return;
 
-	if(ref->s->gc.collecting)
-		table = ref->s->gc.recursive_table;
+	if(gc->collecting)
+		table = gc->recursive_table;
 	else
-		table = ref->s->gc.table;
+		table = gc->table;
 
 	if(gc && gc->valid_table && _ht_find(gc->valid_table, ref))
 		_ht_remove(table, ref, 0);
@@ -5578,9 +5583,6 @@ static int _gc_destroy_garbage(void* data, void* extra) {
 	_list_t* lst = 0;
 	_dict_t* dct = 0;
 #endif /* MB_ENABLE_COLLECTION_LIB */
-#ifdef MB_ENABLE_CLASS
-	_class_t* instance = 0;
-#endif /* MB_ENABLE_CLASS */
 #ifdef MB_ENABLE_LAMBDA
 	_routine_t* routine = 0;
 #endif /* MB_ENABLE_LAMBDA */
@@ -5605,28 +5607,14 @@ static int _gc_destroy_garbage(void* data, void* extra) {
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
-#ifdef MB_ENABLE_CLASS
-	case _DT_CLASS:
-		instance = (_class_t*)data;
-		_HT_FOREACH(instance->scope->var_dict, _do_nothing_on_object, _gc_destroy_garbage_in_class, gc);
-		_ht_clear(instance->scope->var_dict);
-		_ls_clear(instance->meta_list);
-#ifdef MB_ENABLE_LAMBDA
-		if(instance->scope->refered_lambdas) {
-			_ls_destroy(instance->scope->refered_lambdas);
-			instance->scope->refered_lambdas = 0;
-		}
-#endif /* MB_ENABLE_LAMBDA */
-
-		break;
-#endif /* MB_ENABLE_CLASS */
 #ifdef MB_ENABLE_LAMBDA
 	case _DT_ROUTINE:
 		routine = (_routine_t*)data;
 		if(routine->type == _IT_LAMBDA) {
 			_HT_FOREACH(routine->func.lambda.scope->var_dict, _do_nothing_on_object, _gc_destroy_garbage_in_lambda, gc);
 			_ht_clear(routine->func.lambda.scope->var_dict);
-			_gc_destroy_garbage_in_outer_scope(routine->func.lambda.outer_scope, gc);
+			if(!routine->func.lambda.outer_scope || !_ht_find(gc->collected_table, &routine->func.lambda.outer_scope->ref))
+				_gc_destroy_garbage_in_outer_scope(routine->func.lambda.outer_scope, gc);
 		}
 
 		break;
@@ -5645,6 +5633,49 @@ static int _gc_destroy_garbage(void* data, void* extra) {
 
 	return result;
 }
+
+#ifdef MB_ENABLE_CLASS
+static int _gc_destroy_garbage_class(void* data, void* extra) {
+	/* Destroy a class instance garbage */
+	int result = _OP_RESULT_NORMAL;
+	_gc_t* gc = 0;
+	_ref_t* ref = 0;
+	bool_t cld = false;
+	_class_t* instance = 0;
+
+	mb_assert(data && extra);
+
+	ref = (_ref_t*)extra;
+	gc = &ref->s->gc;
+	switch(ref->type) {
+	case _DT_CLASS:
+		instance = (_class_t*)data;
+		_HT_FOREACH(instance->scope->var_dict, _do_nothing_on_object, _gc_destroy_garbage_in_class, gc);
+		_ht_clear(instance->scope->var_dict);
+		_ls_clear(instance->meta_list);
+#ifdef MB_ENABLE_LAMBDA
+		if(instance->scope->refered_lambdas) {
+			_ls_destroy(instance->scope->refered_lambdas);
+			instance->scope->refered_lambdas = 0;
+		}
+#endif /* MB_ENABLE_LAMBDA */
+
+		break;
+	default: /* Do nothing */
+		break;
+	}
+	if(ref->count) {
+		cld = *ref->count == _NONE_REF + 1;
+		_unref(ref, data);
+		if(cld)
+			_ht_set_or_insert(gc->collected_table, ref, data);
+	}
+
+	result = _OP_RESULT_DEL_NODE;
+
+	return result;
+}
+#endif /* MB_ENABLE_CLASS */
 
 static void _gc_swap_tables(mb_interpreter_t* s) {
 	/* Swap active garbage table and recursive table */
@@ -5683,6 +5714,9 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, s->gc.table);
 	/* Collect garbage */
 	do {
+#ifdef MB_ENABLE_CLASS
+		_ht_foreach(s->gc.table, _gc_destroy_garbage_class);
+#endif /* MB_ENABLE_CLASS */
 		_ht_foreach(s->gc.table, _gc_destroy_garbage);
 		_ht_clear(s->gc.table);
 		if(s->gc.collecting > 1)
@@ -7295,7 +7329,7 @@ static void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 			safe_free(r->func.lambda.scope);
 			if(r->func.lambda.parameters)
 				_ls_destroy(r->func.lambda.parameters);
-			if(r->func.lambda.outer_scope)
+			if(r->func.lambda.outer_scope && !_ht_find(s->gc.collected_table, &r->func.lambda.outer_scope->ref))
 				_unref(&r->func.lambda.outer_scope->ref, r->func.lambda.outer_scope);
 			if(r->func.lambda.upvalues)
 				_ht_destroy(r->func.lambda.upvalues);

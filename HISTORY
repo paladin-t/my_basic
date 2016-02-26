@@ -2,6 +2,7 @@ Feb. 26 2016
 Added a ME keyword to represent a class instance itself
 Added shallow cloning support
 Fixed an overrided function copying issue
+Fixed a multiple disposing bug with outer scopes of lambda
 
 Feb. 25 2016
 Improved importing directory detection
