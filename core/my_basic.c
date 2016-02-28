@@ -36,12 +36,12 @@
 #else /* _MSC_VER */
 #	include <stdint.h>
 #endif /* _MSC_VER */
-#include <limits.h>
 #ifndef ARDUINO
 #	include <memory.h>
 #endif /* ARDUINO */
 #include <assert.h>
 #include <ctype.h>
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -660,13 +660,13 @@ static const _var_t _VAR_ARGS = { "...", 0 };
 #define _CLASS_STATE_PROC 1
 
 typedef enum _parsing_state_e {
-	_PS_NORMAL = 0,
+	_PS_NORMAL,
 	_PS_STRING,
 	_PS_COMMENT
 } _parsing_state_e;
 
 typedef enum _symbol_state_e {
-	_SS_IDENTIFIER = 0,
+	_SS_IDENTIFIER,
 	_SS_OPERATOR
 } _symbol_state_e;
 
@@ -768,7 +768,7 @@ typedef struct mb_interpreter_t {
 
 /* Operations */
 static const char _PRECEDE_TABLE[20][20] = { /* Operator priority table */
-	/* +    -    *    /   MOD   ^    (    )    =    >    <    >=   <=   ==   <>  AND   OR  NOT  NEG  IS */
+	/* +    -    *    /   MOD   ^    (    )    =    >    <    >=   <=   ==   <>  AND   OR  NOT  NEG   IS */
 	{ '>', '>', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* + */
 	{ '>', '>', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* - */
 	{ '>', '>', '>', '>', '>', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* * */
@@ -5824,9 +5824,8 @@ static void _init_array(_array_t* arr) {
 	arr->types = (_data_e*)mb_malloc(sizeof(_data_e) * arr->count);
 	if(arr->types) {
 		unsigned int ul = 0;
-		for(ul = 0; ul < arr->count; ++ul) {
+		for(ul = 0; ul < arr->count; ++ul)
 			arr->types[ul] = _DT_INT;
-		}
 	}
 #endif /* MB_SIMPLE_ARRAY */
 }
@@ -11880,6 +11879,7 @@ int mb_gets(char* buf, int s) {
 
 	if(fgets(buf, s, stdin) == 0) {
 		fprintf(stderr, "Error reading.\n");
+
 		exit(1);
 	}
 	result = (int)strlen(buf);
@@ -12888,11 +12888,10 @@ static int _core_for(mb_interpreter_t* s, void** l) {
 	var_loop = obj->data.variable;
 
 #ifdef MB_ENABLE_COLLECTION_LIB
-	if(ast && ast->next && _IS_FUNC(ast->next->data, _core_in)) {
+	if(ast && ast->next && _IS_FUNC(ast->next->data, _core_in))
 		result = _execute_ranged_for_loop(s, &ast, var_loop);
-	} else {
+	else
 		result = _execute_normal_for_loop(s, &ast, var_loop);
-	}
 #else /* MB_ENABLE_COLLECTION_LIB */
 	result = _execute_normal_for_loop(s, &ast, var_loop);
 #endif /* MB_ENABLE_COLLECTION_LIB */

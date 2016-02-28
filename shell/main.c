@@ -415,9 +415,8 @@ static void _destroy_code(void) {
 
 	mb_assert(code);
 
-	for(i = 0; i < code->count; ++i) {
+	for(i = 0; i < code->count; ++i)
 		free(code->lines[i]);
-	}
 	free(code->lines);
 	free(code);
 }
@@ -427,9 +426,8 @@ static void _clear_code(void) {
 
 	mb_assert(code);
 
-	for(i = 0; i < code->count; ++i) {
+	for(i = 0; i < code->count; ++i)
 		free(code->lines[i]);
-	}
 	code->count = 0;
 }
 
@@ -552,9 +550,8 @@ static void _destroy_importing_directories(void) {
 
 	if(!importing_dirs) return;
 
-	for(i = 0; i < importing_dirs->count; ++i) {
+	for(i = 0; i < importing_dirs->count; ++i)
 		free(importing_dirs->dirs[i]);
-	}
 	free(importing_dirs->dirs);
 	free(importing_dirs);
 }
@@ -1006,9 +1003,8 @@ static void _evaluate_expression(char* p) {
 	} else {
 		_printf("Invalid expression.\n");
 	}
-	if(a) {
+	if(a)
 		free(e);
-	}
 }
 
 static bool_t _process_parameters(int argc, char* argv[]) {
@@ -1370,7 +1366,7 @@ static void _on_exit(void) {
 #endif /* _USE_MEM_POOL */
 
 #if defined _MSC_VER && !defined _WIN64
-	if(0 != _CrtDumpMemoryLeaks()) { _asm { int 3 } }
+	if(!!_CrtDumpMemoryLeaks()) { _asm { int 3 } }
 #elif _USE_MEM_POOL
 	if(alloc_count > 0 || alloc_bytes > 0) { mb_assert(0 && "Memory leak."); }
 #endif /* _MSC_VER && !_WIN64 */
