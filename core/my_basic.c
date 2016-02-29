@@ -11564,6 +11564,7 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l) {
 		++i;
 		++context->parsing_pos;
 	};
+	status = _parse_char(s, MB_EOS, context->parsing_pos, context->parsing_row, context->parsing_col);
 	status = _parse_char(s, EOF, context->parsing_pos, context->parsing_row, context->parsing_col);
 
 _exit:
