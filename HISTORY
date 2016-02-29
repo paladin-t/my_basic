@@ -1,3 +1,7 @@
+Feb. 29 2016
+Added multiple line comment support
+Fixed a crash bug with an invalid expression
+
 Feb. 26 2016
 Added a ME keyword to represent a class instance itself
 Added shallow cloning support

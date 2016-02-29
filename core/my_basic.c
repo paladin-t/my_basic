@@ -659,10 +659,14 @@ static const _var_t _VAR_ARGS = { "...", 0 };
 #define _CLASS_STATE_NONE 0
 #define _CLASS_STATE_PROC 1
 
+static const char _MULTI_LINE_COMMENT_PREFIX[] = "'[";
+static const char _MULTI_LINE_COMMENT_POSTFIX[] = "']";
+
 typedef enum _parsing_state_e {
 	_PS_NORMAL,
 	_PS_STRING,
-	_PS_COMMENT
+	_PS_COMMENT,
+	_PS_MULTI_LINE_COMMENT
 } _parsing_state_e;
 
 typedef enum _symbol_state_e {
@@ -677,6 +681,7 @@ typedef struct _parsing_context_t {
 	int current_symbol_nonius;
 	int current_symbol_contains_accessor;
 	_object_t* last_symbol;
+	int multi_line_comment_count;
 	_parsing_state_e parsing_state;
 	_symbol_state_e symbol_state;
 #ifdef MB_ENABLE_CLASS
@@ -1169,6 +1174,7 @@ static int mb_uu_substr(char* ch, int begin, int count, char** o);
 static bool_t _is_operator(mb_func_t op);
 static bool_t _is_flow(mb_func_t op);
 static bool_t _is_unary(mb_func_t op);
+static bool_t _is_binary(mb_func_t op);
 static char _get_priority(mb_func_t op1, mb_func_t op2);
 static int _get_priority_index(mb_func_t op);
 static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opnd1, _object_t* opnd2, int* status);
@@ -1249,6 +1255,7 @@ static mb_input_func_t _get_inputer(mb_interpreter_t* s);
 static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix);
 
 static bool_t _is_blank(char c);
+static bool_t _is_eof(char c);
 static bool_t _is_newline(char c);
 static bool_t _is_separator(char c);
 static bool_t _is_bracket(char c);
@@ -2970,9 +2977,7 @@ static int mb_uu_substr(char* ch, int begin, int count, char** o) {
 /** Expression processing */
 static bool_t _is_operator(mb_func_t op) {
 	/* Determine whether a function is an operator */
-	bool_t result = false;
-
-	result =
+	return
 		(op == _core_dummy_assign) ||
 		(op == _core_add) ||
 		(op == _core_min) ||
@@ -2991,15 +2996,11 @@ static bool_t _is_operator(mb_func_t op) {
 		(op == _core_and) ||
 		(op == _core_or) ||
 		(op == _core_is);
-
-	return result;
 }
 
 static bool_t _is_flow(mb_func_t op) {
 	/* Determine whether a function is for flow control */
-	bool_t result = false;
-
-	result =
+	return
 		(op == _core_if) ||
 		(op == _core_then) ||
 		(op == _core_elseif) ||
@@ -3018,13 +3019,31 @@ static bool_t _is_flow(mb_func_t op) {
 		(op == _core_gosub) ||
 		(op == _core_return) ||
 		(op == _core_end);
-
-	return result;
 }
 
 static bool_t _is_unary(mb_func_t op) {
 	/* Determine whether a function is unary */
-	return op == _core_neg || op == _core_not;
+	return (op == _core_neg) || (op == _core_not);
+}
+
+static bool_t _is_binary(mb_func_t op) {
+	/* Determine whether a function is binary */
+	return
+		(op == _core_add) ||
+		(op == _core_min) ||
+		(op == _core_mul) ||
+		(op == _core_div) ||
+		(op == _core_mod) ||
+		(op == _core_pow) ||
+		(op == _core_equal) ||
+		(op == _core_less) ||
+		(op == _core_greater) ||
+		(op == _core_less_equal) ||
+		(op == _core_greater_equal) ||
+		(op == _core_not_equal) ||
+		(op == _core_and) ||
+		(op == _core_or) ||
+		(op == _core_is);
 }
 
 static char _get_priority(mb_func_t op1, mb_func_t op2) {
@@ -4179,9 +4198,14 @@ static bool_t _is_blank(char c) {
 		(c == -2) || (c == -1);
 }
 
+static bool_t _is_eof(char c) {
+	/* Determine whether a character is end of file */
+	return (c == EOF);
+}
+
 static bool_t _is_newline(char c) {
 	/* Determine whether a character is newline */
-	return (c == '\r') || (c == '\n') || (c == EOF);
+	return (c == '\r') || (c == '\n') || _is_eof(c);
 }
 
 static bool_t _is_separator(char c) {
@@ -4929,7 +4953,8 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 	last_char = context->current_char;
 	context->current_char = c;
 
-	if(context->parsing_state == _PS_NORMAL) {
+	switch(context->parsing_state) {
+	case _PS_NORMAL:
 		c = toupper(c);
 
 		if(_is_blank(c)) { /* \t ' ' */
@@ -4951,6 +4976,7 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 			_mb_check(result = _append_char_to_symbol(s, MB_EOS), _exit);
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 			context->parsing_state = _PS_COMMENT;
+			context->multi_line_comment_count = 1;
 		} else {
 			if(context->symbol_state == _SS_IDENTIFIER) {
 				if(_is_identifier_char(c)) {
@@ -4982,7 +5008,9 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 				mb_assert(0 && "Impossible.");
 			}
 		}
-	} else if(context->parsing_state == _PS_STRING) {
+
+		break;
+	case _PS_STRING:
 		if(_is_quotation_mark(c)) { /* " */
 			_mb_check(result = _append_char_to_symbol(s, c), _exit);
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
@@ -4990,11 +5018,52 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 		} else {
 			_mb_check(result = _append_char_to_symbol(s, c), _exit);
 		}
-	} else if(context->parsing_state == _PS_COMMENT) {
+
+		break;
+	case _PS_COMMENT:
+		if(_is_eof(c)) { /* EOF */
+			context->parsing_state = _PS_NORMAL;
+
+			break;
+		}
+		if(context->multi_line_comment_count != 0 && c == _MULTI_LINE_COMMENT_PREFIX[context->multi_line_comment_count++]) {
+			if(context->multi_line_comment_count >= _countof(_MULTI_LINE_COMMENT_PREFIX) - 1) {
+				context->parsing_state = _PS_MULTI_LINE_COMMENT;
+				context->multi_line_comment_count = 0;
+
+				break;
+			}
+
+			break;
+		} else {
+			context->multi_line_comment_count = 0;
+		}
 		if(_is_newline(c)) /* \r \n EOF */
 			context->parsing_state = _PS_NORMAL;
-	} else {
+
+		break;
+	case _PS_MULTI_LINE_COMMENT:
+		if(_is_eof(c)) { /* EOF */
+			context->parsing_state = _PS_NORMAL;
+
+			break;
+		}
+		if(_is_comment(c) && context->multi_line_comment_count == 0) {
+			context->multi_line_comment_count = 1;
+		} else if(context->multi_line_comment_count != 0 && c == _MULTI_LINE_COMMENT_POSTFIX[context->multi_line_comment_count++]) {
+			if(context->multi_line_comment_count >= _countof(_MULTI_LINE_COMMENT_POSTFIX) - 1) {
+				context->parsing_state = _PS_NORMAL;
+				context->multi_line_comment_count = 0;
+			}
+		} else {
+			context->multi_line_comment_count = 0;
+		}
+
+		break;
+	default:
 		mb_assert(0 && "Unknown parsing state.");
+
+		break;
 	}
 
 _exit:
@@ -9029,6 +9098,9 @@ static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
 _retry:
 	switch(obj->type) {
 	case _DT_FUNC:
+		if(_is_binary(obj->data.func->pointer)) {
+			_handle_error_on_obj(s, SE_RN_INVALID_EXPRESSION, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		}
 #ifdef MB_ENABLE_STACK_TRACE
 		_ls_pushback(s->stack_frames, obj->data.func->name);
 #endif /* MB_ENABLE_STACK_TRACE */
@@ -11492,7 +11564,7 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l) {
 		++i;
 		++context->parsing_pos;
 	};
-	status = _parse_char(s, MB_EOS, context->parsing_pos, context->parsing_row, context->parsing_col);
+	status = _parse_char(s, EOF, context->parsing_pos, context->parsing_row, context->parsing_col);
 
 _exit:
 	context->parsing_state = _PS_NORMAL;
