@@ -1253,6 +1253,7 @@ static mb_input_func_t _get_inputer(mb_interpreter_t* s);
 
 /** Parsing helpers */
 static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix);
+static void _end_of_file(_parsing_context_t* context);
 
 static bool_t _is_blank(char c);
 static bool_t _is_eof(char c);
@@ -4190,6 +4191,12 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) 
 #endif /* ARDUINO */
 }
 
+static void _end_of_file(_parsing_context_t* context) {
+	/* Finish loading a file */
+	if(context)
+		context->parsing_state = _PS_NORMAL;
+}
+
 static bool_t _is_blank(char c) {
 	/* Determine whether a character is blank */
 	return
@@ -4707,7 +4714,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 					char* lf = (char*)(_ls_back(context->imported)->data);
 					int pos; unsigned short row, col;
 					lf = _prev_import(s, lf, &pos, &row, &col);
-					mb_load_string(s, buf);
+					mb_load_string(s, buf, true);
 					safe_free(buf);
 					_post_import(s, lf, &pos, &row, &col);
 				}
@@ -9638,6 +9645,7 @@ static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
 	if(!imp)
 		imp = _ls_create();
 	context->imported = imp;
+	_end_of_file(context);
 
 	return context;
 }
@@ -11526,7 +11534,7 @@ _exit:
 	return result;
 }
 
-int mb_load_string(struct mb_interpreter_t* s, const char* l) {
+int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 	/* Load and parse a script string */
 	int result = MB_FUNC_OK;
 	char ch = 0;
@@ -11565,10 +11573,10 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l) {
 		++context->parsing_pos;
 	};
 	status = _parse_char(s, MB_EOS, context->parsing_pos, context->parsing_row, context->parsing_col);
-	status = _parse_char(s, EOF, context->parsing_pos, context->parsing_row, context->parsing_col);
 
 _exit:
-	context->parsing_state = _PS_NORMAL;
+	if(reset)
+		_end_of_file(context);
 
 	return result;
 }
@@ -11587,7 +11595,7 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 
 	buf = _load_file(s, f, 0);
 	if(buf) {
-		result = mb_load_string(s, buf);
+		result = mb_load_string(s, buf, true);
 		safe_free(buf);
 
 		if(result)

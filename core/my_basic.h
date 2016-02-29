@@ -502,7 +502,7 @@ MBAPI int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb
 MBAPI int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routine_func_t f, bool_t force);
 MBAPI int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc);
 
-MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l);
+MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset);
 MBAPI int mb_load_file(struct mb_interpreter_t* s, const char* f);
 MBAPI int mb_run(struct mb_interpreter_t* s);
 MBAPI int mb_suspend(struct mb_interpreter_t* s, void** l);

@@ -622,7 +622,7 @@ static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
 		buf[m + n] = '\0';
 		t = _load_file(buf);
 		if(t) {
-			if(mb_load_string(bas, t) == MB_FUNC_OK)
+			if(mb_load_string(bas, t, true) == MB_FUNC_OK)
 				result = true;
 			free(t);
 		}
@@ -902,7 +902,7 @@ static int _do_line(void) {
 			if(result)
 				break;
 
-			result = mb_load_string(bas, _code()->lines[i]);
+			result = mb_load_string(bas, _code()->lines[i], false);
 		}
 		if(result == MB_FUNC_OK)
 			result = mb_run(bas);
@@ -998,7 +998,7 @@ static void _evaluate_expression(char* p) {
 		e[l + k] = '\0';
 		p = e;
 	}
-	if(mb_load_string(bas, p) == MB_FUNC_OK) {
+	if(mb_load_string(bas, p, true) == MB_FUNC_OK) {
 		mb_run(bas);
 	} else {
 		_printf("Invalid expression.\n");
