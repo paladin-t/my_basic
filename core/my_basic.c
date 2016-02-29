@@ -108,7 +108,7 @@ extern "C" {
 
 /* Helper */
 #ifndef sgn
-#	define sgn(__v) ((__v) ? ((__v) > 0 ? 1 : -1) : (0))
+#	define sgn(__v) ((__v) ? ((__v) > 0 ? 1 : -1) : 0)
 #endif /* sgn */
 
 #ifndef _countof
@@ -2217,8 +2217,6 @@ static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
 				node->prev = tmp->prev;
 			safe_free(tmp);
 			list->data = (char*)list->data - 1;
-		} else {
-			/* Do nothing */
 		}
 	}
 
@@ -4993,11 +4991,8 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 			_mb_check(result = _append_char_to_symbol(s, c), _exit);
 		}
 	} else if(context->parsing_state == _PS_COMMENT) {
-		if(_is_newline(c)) { /* \r \n EOF */
+		if(_is_newline(c)) /* \r \n EOF */
 			context->parsing_state = _PS_NORMAL;
-		} else {
-			/* Do nothing */
-		}
 	} else {
 		mb_assert(0 && "Unknown parsing state.");
 	}
@@ -5705,13 +5700,16 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	/* Avoid infinity loop */
 	if(s->gc.collecting) return;
 	s->gc.collecting++;
+
 	/* Get reachable information */
 	valid = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
 	if(depth != -1)
 		s->gc.valid_table = valid;
 	_gc_get_reachable(s, valid);
+
 	/* Get unreachable information */
 	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, s->gc.table);
+
 	/* Collect garbage */
 	do {
 #ifdef MB_ENABLE_CLASS
@@ -5728,6 +5726,7 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 		_gc_swap_tables(s);
 		s->gc.collecting++;
 	} while(1);
+
 	/* Tidy */
 	_ht_clear(s->gc.collected_table);
 	s->gc.valid_table = 0;
@@ -9069,6 +9068,7 @@ _retry:
 					result = _core_let(s, (void**)&ast);
 				}
 			} else {
+				/* Normal node */
 				result = _core_let(s, (void**)&ast);
 			}
 		} else {
@@ -9126,7 +9126,7 @@ _retry:
 		goto _exit;
 
 	if(ast) {
-		obj = ast ? (_object_t*)ast->data : 0;
+		obj = DON(ast);
 		if(!obj) {
 			/* Do nothing */
 		} else if(_IS_EOS(obj)) {

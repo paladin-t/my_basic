@@ -92,7 +92,7 @@ extern "C" {
 
 #define _LINE_INC_STEP 16
 
-#define _NO_END(s) (MB_FUNC_OK == (s) || MB_FUNC_SUSPEND == (s) || MB_FUNC_WARNING == (s) || MB_FUNC_ERR == (s) || MB_FUNC_END == (s))
+#define _NO_END(s) ((s) == MB_FUNC_OK || (s) == MB_FUNC_SUSPEND || (s) == MB_FUNC_WARNING || (s) == MB_FUNC_ERR || (s) == MB_FUNC_END)
 
 static struct mb_interpreter_t* bas = 0;
 
