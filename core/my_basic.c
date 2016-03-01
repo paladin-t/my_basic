@@ -563,6 +563,7 @@ typedef struct _object_t {
 		_import_info_t* import_info;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 		mb_val_bytes_t bytes;
+		void* pointer;
 		_raw_t raw;
 	} data;
 	bool_t ref;
@@ -1440,15 +1441,17 @@ static char* _extract_string(_object_t* obj);
 	default: break; \
 	}
 #define _ADDGC(__o, __g) \
-	switch((__o)->type) { \
-	_ADDGC_USERTYPE_REF(__o, __g) \
-	_ADDGC_ARRAY(__o, __g) \
-	_ADDGC_COLL(__o, __g) \
-	_ADDGC_COLL_IT(__o, __g) \
-	_ADDGC_CLASS(__o, __g) \
-	_ADDGC_ROUTINE(__o, __g) \
-	_ADDGC_STRING(__o) \
-	default: break; \
+	if(!(__o)->data.pointer || !_ht_find((__g)->collected_table, (__o)->data.pointer)) { \
+		switch((__o)->type) { \
+		_ADDGC_USERTYPE_REF(__o, __g) \
+		_ADDGC_ARRAY(__o, __g) \
+		_ADDGC_COLL(__o, __g) \
+		_ADDGC_COLL_IT(__o, __g) \
+		_ADDGC_CLASS(__o, __g) \
+		_ADDGC_ROUTINE(__o, __g) \
+		_ADDGC_STRING(__o) \
+		default: break; \
+		} \
 	}
 
 static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
@@ -1466,18 +1469,18 @@ static void _gc_add(_ref_t* ref, void* data, _gc_t* gc);
 static void _gc_remove(_ref_t* ref, void* data);
 static int _gc_add_reachable(void* data, void* extra, void* ht);
 static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht);
-static int _gc_destroy_garbage_in_list(void* data, void* extra, void* gc);
-static int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc);
+static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc);
+static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc);
 #ifdef MB_ENABLE_CLASS
-static int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc);
+static int _gc_destroy_garbage_in_class(void* data, void* extra, _gc_t* gc);
 #endif /* MB_ENABLE_CLASS */
 #ifdef MB_ENABLE_LAMBDA
-static int _gc_destroy_garbage_in_lambda(void* data, void* extra, void* gc);
+static int _gc_destroy_garbage_in_lambda(void* data, void* extra, _gc_t* gc);
 static void _gc_destroy_garbage_in_outer_scope(_running_context_ref_t* p, _gc_t* gc);
 #endif /* MB_ENABLE_LAMBDA */
-static int _gc_destroy_garbage(void* data, void* extra);
+static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc);
 #ifdef MB_ENABLE_CLASS
-static int _gc_destroy_garbage_class(void* data, void* extra);
+static int _gc_destroy_garbage_class(void* data, void* extra, _gc_t* gc);
 #endif /* MB_ENABLE_CLASS */
 static void _gc_swap_tables(mb_interpreter_t* s);
 static void _gc_try_trigger(mb_interpreter_t* s);
@@ -5543,17 +5546,16 @@ static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
 	}
 }
 
-static int _gc_destroy_garbage_in_list(void* data, void* extra, void* gc) {
+static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind, and add it to GC if possible */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
-	_gc_t* _gc = (_gc_t*)gc;
 	mb_unrefvar(extra);
 
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	_ADDGC(obj, _gc);
+	_ADDGC(obj, gc);
 	safe_free(obj);
 
 	result = _OP_RESULT_DEL_NODE;
@@ -5561,20 +5563,19 @@ static int _gc_destroy_garbage_in_list(void* data, void* extra, void* gc) {
 	return result;
 }
 
-static int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc) {
+static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
-	_gc_t* _gc = (_gc_t*)gc;
 
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	_ADDGC(obj, _gc);
+	_ADDGC(obj, gc);
 	safe_free(obj);
 
 	obj = (_object_t*)extra;
-	_ADDGC(obj, _gc);
+	_ADDGC(obj, gc);
 	safe_free(obj);
 
 	result = _OP_RESULT_DEL_NODE;
@@ -5583,11 +5584,10 @@ static int _gc_destroy_garbage_in_dict(void* data, void* extra, void* gc) {
 }
 
 #ifdef MB_ENABLE_CLASS
-static int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc) {
+static int _gc_destroy_garbage_in_class(void* data, void* extra, _gc_t* gc) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
-	_gc_t* _gc = (_gc_t*)gc;
 	mb_unrefvar(extra);
 
 	mb_assert(data);
@@ -5598,7 +5598,7 @@ static int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc) {
 		safe_free(obj->data.variable->name);
 		safe_free(obj->data.variable);
 	} else {
-		_ADDGC(obj, _gc);
+		_ADDGC(obj, gc);
 	}
 	safe_free(obj);
 
@@ -5609,11 +5609,10 @@ static int _gc_destroy_garbage_in_class(void* data, void* extra, void* gc) {
 #endif /* MB_ENABLE_CLASS */
 
 #ifdef MB_ENABLE_LAMBDA
-static int _gc_destroy_garbage_in_lambda(void* data, void* extra, void* gc) {
+static int _gc_destroy_garbage_in_lambda(void* data, void* extra, _gc_t* gc) {
 	/* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
-	_gc_t* _gc = (_gc_t*)gc;
 	mb_unrefvar(extra);
 
 	mb_assert(data);
@@ -5624,7 +5623,7 @@ static int _gc_destroy_garbage_in_lambda(void* data, void* extra, void* gc) {
 		safe_free(obj->data.variable->name);
 		safe_free(obj->data.variable);
 	} else {
-		_ADDGC(obj, _gc);
+		_ADDGC(obj, gc);
 	}
 	safe_free(obj);
 
@@ -5644,11 +5643,11 @@ static void _gc_destroy_garbage_in_outer_scope(_running_context_ref_t* p, _gc_t*
 }
 #endif /* MB_ENABLE_LAMBDA */
 
-static int _gc_destroy_garbage(void* data, void* extra) {
+static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 	/* Destroy a garbage */
 	int result = _OP_RESULT_NORMAL;
-	_gc_t* gc = 0;
 	_ref_t* ref = 0;
+	bool_t proc = true;
 	bool_t cld = false;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	_list_t* lst = 0;
@@ -5661,7 +5660,8 @@ static int _gc_destroy_garbage(void* data, void* extra) {
 	mb_assert(data && extra);
 
 	ref = (_ref_t*)extra;
-	gc = &ref->s->gc;
+	if(_ht_find(gc->collected_table, ref))
+		goto _exit;
 	switch(ref->type) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST:
@@ -5690,34 +5690,41 @@ static int _gc_destroy_garbage(void* data, void* extra) {
 
 		break;
 #endif /* MB_ENABLE_LAMBDA */
-	default: /* Do nothing */
+	default:
+		proc = false;
+
 		break;
 	}
-	if(ref->count) {
+	if(proc && ref->count) {
 		cld = *ref->count == _NONE_REF + 1;
 		_unref(ref, data);
-		if(cld)
+		if(cld) {
 			_ht_set_or_insert(gc->collected_table, ref, data);
+			_ht_set_or_insert(gc->collected_table, data, ref);
+		}
 	}
 
-	result = _OP_RESULT_DEL_NODE;
+_exit:
+	if(proc)
+		result = _OP_RESULT_DEL_NODE;
 
 	return result;
 }
 
 #ifdef MB_ENABLE_CLASS
-static int _gc_destroy_garbage_class(void* data, void* extra) {
+static int _gc_destroy_garbage_class(void* data, void* extra, _gc_t* gc) {
 	/* Destroy a class instance garbage */
 	int result = _OP_RESULT_NORMAL;
-	_gc_t* gc = 0;
 	_ref_t* ref = 0;
+	bool_t proc = true;
 	bool_t cld = false;
 	_class_t* instance = 0;
 
 	mb_assert(data && extra);
 
 	ref = (_ref_t*)extra;
-	gc = &ref->s->gc;
+	if(_ht_find(gc->collected_table, ref))
+		goto _exit;
 	switch(ref->type) {
 	case _DT_CLASS:
 		instance = (_class_t*)data;
@@ -5732,17 +5739,23 @@ static int _gc_destroy_garbage_class(void* data, void* extra) {
 #endif /* MB_ENABLE_LAMBDA */
 
 		break;
-	default: /* Do nothing */
+	default:
+		proc = false;
+
 		break;
 	}
-	if(ref->count) {
+	if(proc && ref->count) {
 		cld = *ref->count == _NONE_REF + 1;
 		_unref(ref, data);
-		if(cld)
+		if(cld) {
 			_ht_set_or_insert(gc->collected_table, ref, data);
+			_ht_set_or_insert(gc->collected_table, data, ref);
+		}
 	}
 
-	result = _OP_RESULT_DEL_NODE;
+_exit:
+	if(proc)
+		result = _OP_RESULT_DEL_NODE;
 
 	return result;
 }
@@ -5789,9 +5802,9 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	/* Collect garbage */
 	do {
 #ifdef MB_ENABLE_CLASS
-		_ht_foreach(s->gc.table, _gc_destroy_garbage_class);
+		_HT_FOREACH(s->gc.table, _do_nothing_on_object, _gc_destroy_garbage_class, &s->gc);
 #endif /* MB_ENABLE_CLASS */
-		_ht_foreach(s->gc.table, _gc_destroy_garbage);
+		_HT_FOREACH(s->gc.table, _do_nothing_on_object, _gc_destroy_garbage, &s->gc);
 		_ht_clear(s->gc.table);
 		if(s->gc.collecting > 1)
 			s->gc.collecting--;
