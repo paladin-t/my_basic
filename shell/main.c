@@ -30,59 +30,59 @@
 #endif /* _MSC_VER */
 
 #include "../core/my_basic.h"
-#ifdef _MSC_VER
+#ifdef MB_CP_VC
 #	include <crtdbg.h>
 #	include <conio.h>
 #	include <Windows.h>
-#elif !defined __BORLANDC__ && !defined __TINYC__
+#elif !defined MB_CP_BORLANDC && !defined MB_CP_TCC
 #	include <unistd.h>
-#endif /* _MSC_VER */
-#ifndef _MSC_VER
+#endif /* MB_CP_VC */
+#ifndef MB_CP_VC
 #	include <stdint.h>
-#endif /* _MSC_VER */
+#endif /* MB_CP_VC */
+#ifdef MB_CP_CLANG
+#	include <sys/time.h>
+#endif /* MB_CP_CLANG */
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <time.h>
-#ifdef __APPLE__
-#	include <sys/time.h>
-#endif /* __APPLE__ */
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#ifdef _MSC_VER
+#ifdef MB_CP_VC
 #	pragma warning(disable : 4127)
 #	pragma warning(disable : 4706)
 #	pragma warning(disable : 4996)
-#endif /* _MSC_VER */
+#endif /* MB_CP_VC */
 
-#ifdef __BORLANDC__
+#ifdef MB_CP_BORLANDC
 #	pragma warn -8004
 #	pragma warn -8008
 #	pragma warn -8066
-#endif /* __BORLANDC__ */
+#endif /* MB_CP_BORLANDC */
 
-#ifdef __POCC__
+#ifdef MB_CP_PELLESC
 #	define strdup _strdup
 #	define unlink _unlink
-#endif /* __POCC__ */
+#endif /* MB_CP_PELLESC */
 
 /*
 ** {========================================================
 ** Common declarations
 */
 
-#ifdef _MSC_VER
+#ifdef MB_OS_WIN
 #	define _BIN_FILE_NAME "my_basic"
-#elif defined __APPLE__
+#elif defined MB_OS_MAC
 #	define _BIN_FILE_NAME "my_basic_mac"
-#else /* _MSC_VER */
+#else
 #	define _BIN_FILE_NAME "my_basic_bin"
-#endif /* _MSC_VER */
+#endif
 
 /* Define as 1 to use memory pool, 0 to disable */
 #define _USE_MEM_POOL 1
@@ -646,11 +646,11 @@ static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
 */
 
 static void _clear_screen(void) {
-#ifdef _MSC_VER
+#ifdef MB_OS_WIN
 	system("cls");
-#else /* _MSC_VER */
+#else /* MB_OS_WIN */
 	system("clear");
-#endif /* _MSC_VER */
+#endif /* MB_OS_WIN */
 }
 
 static int _new_program(void) {
@@ -821,13 +821,13 @@ static void _kill_program(const char* path) {
 
 static void _list_directory(const char* path) {
 	char line[_MAX_LINE_LENGTH];
-#ifdef _MSC_VER
+#ifdef MB_OS_WIN
 	if(path && *path) sprintf(line, "dir %s", path);
 	else sprintf(line, "dir");
-#else /* _MSC_VER */
+#else /* MB_OS_WIN */
 	if(path && *path) sprintf(line, "ls %s", path);
 	else sprintf(line, "ls");
-#endif /* _MSC_VER */
+#endif /* MB_OS_WIN */
 	system(line);
 }
 
@@ -1065,8 +1065,24 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 ** Scripting interfaces
 */
 
+#ifdef MB_OS_WIN
+#	define _OS "WIN"
+#elif defined MB_OS_IOS || MB_OS_IOS_SIM
+#	define _OS "IOS"
+#elif defined MB_OS_MAC
+#	define _OS "MAC"
+#elif defined MB_OS_UNIX
+#	define _OS "UNIX"
+#elif defined MB_OS_LINUX
+#	define _OS "LINUX"
+#elif defined MB_OS_ANDROID
+#	define _OS "ANDROID"
+#else
+#	define _OS "UNKNOWN"
+#endif /* MB_OS_WIN */
+
 #define _HAS_TICKS
-#if defined _MSC_VER
+#if defined MB_CP_VC
 static int_t _ticks(void) {
 	LARGE_INTEGER li;
 	double freq = 0.0;
@@ -1079,7 +1095,7 @@ static int_t _ticks(void) {
 
 	return ret;
 }
-#elif defined __APPLE__
+#elif defined MB_CP_CLANG
 static int_t _ticks(void) {
 	struct timespec ts;
 	struct timeval now;
@@ -1092,7 +1108,7 @@ static int_t _ticks(void) {
 
 	return (int_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
-#elif defined __GNUC__
+#elif defined MB_CP_GCC
 static int_t _ticks(void) {
 	struct timespec ts;
 
@@ -1100,9 +1116,9 @@ static int_t _ticks(void) {
 
 	return (int_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
-#else /* _MSC_VER */
+#else /* MB_CP_VC */
 #	undef _HAS_TICKS
-#endif /* _MSC_VER */
+#endif /* MB_CP_VC */
 
 #ifdef _HAS_TICKS
 static int ticks(struct mb_interpreter_t* s, void** l) {
@@ -1163,6 +1179,20 @@ static int set_importing_dirs(struct mb_interpreter_t* s, void** l) {
 		_set_importing_directories(arg);
 
 	mb_check(mb_attempt_close_bracket(s, l));
+
+	return result;
+}
+
+static int os(struct mb_interpreter_t* s, void** l) {
+	int result = MB_FUNC_OK;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	mb_check(mb_push_string(s, l, mb_memdup(_OS, (unsigned)(strlen(_OS) + 1))));
 
 	return result;
 }
@@ -1345,6 +1375,7 @@ static void _on_startup(void) {
 #endif /* _HAS_TICKS */
 	mb_reg_fun(bas, now);
 	mb_reg_fun(bas, set_importing_dirs);
+	mb_reg_fun(bas, os);
 	mb_reg_fun(bas, sys);
 	mb_reg_fun(bas, trace);
 	mb_reg_fun(bas, raise);
@@ -1365,11 +1396,11 @@ static void _on_exit(void) {
 	_close_mem_pool();
 #endif /* _USE_MEM_POOL */
 
-#if defined _MSC_VER && !defined _WIN64
+#if defined MB_CP_VC && !defined _WIN64
 	if(!!_CrtDumpMemoryLeaks()) { _asm { int 3 } }
 #elif _USE_MEM_POOL
 	if(alloc_count > 0 || alloc_bytes > 0) { mb_assert(0 && "Memory leak."); }
-#endif /* _MSC_VER && !_WIN64 */
+#endif /* MB_CP_VC && !_WIN64 */
 }
 
 /* ========================================================} */
@@ -1382,9 +1413,9 @@ static void _on_exit(void) {
 int main(int argc, char* argv[]) {
 	int status = 0;
 
-#if defined _MSC_VER && !defined _WIN64
+#if defined MB_CP_VC && !defined _WIN64
 	_CrtSetBreakAlloc(0);
-#endif /* _MSC_VER && !_WIN64 */
+#endif /* MB_CP_VC && !_WIN64 */
 
 	atexit(_on_exit);
 

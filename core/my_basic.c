@@ -30,15 +30,15 @@
 #endif /* _MSC_VER */
 
 #include "my_basic.h"
-#ifdef _MSC_VER
+#ifdef MB_CP_VC
 #	include <conio.h>
 #	include <malloc.h>
-#else /* _MSC_VER */
+#else /* MB_CP_VC */
 #	include <stdint.h>
-#endif /* _MSC_VER */
-#ifndef ARDUINO
+#endif /* MB_CP_VC */
+#ifndef MB_CP_ARDUINO
 #	include <memory.h>
-#endif /* ARDUINO */
+#endif /* MB_CP_ARDUINO */
 #include <assert.h>
 #include <ctype.h>
 #include <limits.h>
@@ -51,26 +51,26 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#ifdef _MSC_VER
+#ifdef MB_CP_VC
 #	pragma warning(push)
 #	pragma warning(disable : 4127)
 #	pragma warning(disable : 4305)
 #	pragma warning(disable : 4309)
 #	pragma warning(disable : 4805)
 #	pragma warning(disable : 4996)
-#endif /* _MSC_VER */
+#endif /* MB_CP_VC */
 
-#ifdef __APPLE__
+#ifdef MB_CP_CLANG
 #	pragma clang diagnostic push
 #	pragma clang diagnostic ignored "-Wunused-function"
 #	pragma clang diagnostic ignored "-Wunused-variable"
-#endif /* __APPLE__ */
+#endif /* MB_CP_CLANG */
 
-#ifdef __BORLANDC__
+#ifdef MB_CP_BORLANDC
 #	pragma warn -8004
 #	pragma warn -8008
 #	pragma warn -8012
-#endif /* __BORLANDC__ */
+#endif /* MB_CP_BORLANDC */
 
 #ifdef MB_COMPACT_MODE
 #	pragma pack(1)
@@ -1684,22 +1684,22 @@ static int _close_coll_lib(mb_interpreter_t* s);
 */
 
 /** Macro */
-#ifdef _MSC_VER
-#	if _MSC_VER < 1300
+#ifdef MB_CP_VC
+#	if MB_CP_VC < 1300
 #		define MB_FUNC 0
-#	else /* _MSC_VER < 1300 */
+#	else /* MB_CP_VC < 1300 */
 #		define MB_FUNC __FUNCTION__
-#	endif /* _MSC_VER < 1300 */
-#elif defined __BORLANDC__
+#	endif /* MB_CP_VC < 1300 */
+#elif defined MB_CP_BORLANDC
 #	define MB_FUNC __FUNC__
-#elif defined __POCC__
+#elif defined MB_CP_PELLESC
 #	define MB_FUNC __func__
-#else /* _MSC_VER */
+#else /* MB_CP_VC */
 #	define MB_FUNC __FUNCTION__
-#endif /* _MSC_VER */
+#endif /* MB_CP_VC */
 
-#ifdef _MSC_VER
-#	if _MSC_VER < 1300
+#ifdef MB_CP_VC
+#	if MB_CP_VC < 1300
 #		define _do_nothing(__s, __l, __exit, __result) \
 			do { \
 				_ls_node_t* ast = 0; static int i = 0; ++i; \
@@ -1707,8 +1707,8 @@ static int _close_coll_lib(mb_interpreter_t* s);
 				ast = (_ls_node_t*)(*(__l)); \
 				_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, (__s)->source_file, DON(ast), MB_FUNC_ERR, __exit, __result); \
 			} while(0)
-#	endif /* _MSC_VER < 1300 */
-#endif /* _MSC_VER */
+#	endif /* MB_CP_VC < 1300 */
+#endif /* MB_CP_VC */
 #ifndef _do_nothing
 #	define _do_nothing(__s, __l, __exit, __result) \
 		do { \
@@ -4145,7 +4145,7 @@ static mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 
 static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
 	/* Read all content of a file into a buffer */
-#ifndef ARDUINO
+#ifndef MB_CP_ARDUINO
 	FILE* fp = 0;
 	char* buf = 0;
 	long curpos = 0;
@@ -4186,9 +4186,9 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) 
 	}
 
 	return buf;
-#else /* ARDUINO */
+#else /* MB_CP_ARDUINO */
 	return 0;
-#endif /* ARDUINO */
+#endif /* MB_CP_ARDUINO */
 }
 
 static void _end_of_file(_parsing_context_t* context) {
@@ -15093,11 +15093,11 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 	obj = (_object_t*)ast->data;
 
 	if(!obj || obj->type == _DT_EOS) {
-#ifdef _MSC_VER
+#ifdef MB_CP_VC
 		getch();
-#else /* _MSC_VER */
+#else /* MB_CP_VC */
 		_get_inputer(s)(line, sizeof(line));
-#endif /* _MSC_VER */
+#endif /* MB_CP_VC */
 
 		goto _exit;
 	}
@@ -15906,19 +15906,19 @@ _exit:
 #	pragma pack()
 #endif /* MB_COMPACT_MODE */
 
-#ifdef __BORLANDC__
+#ifdef MB_CP_BORLANDC
 #	pragma warn .8004
 #	pragma warn .8008
 #	pragma warn .8012
-#endif /* __BORLANDC__ */
+#endif /* MB_CP_BORLANDC */
 
-#ifdef __APPLE__
+#ifdef MB_CP_CLANG
 #	pragma clang diagnostic pop
-#endif /* __APPLE__ */
+#endif /* MB_CP_CLANG */
 
-#ifdef _MSC_VER
+#ifdef MB_CP_VC
 #	pragma warning(pop)
-#endif /* _MSC_VER */
+#endif /* MB_CP_VC */
 
 #ifdef __cplusplus
 }

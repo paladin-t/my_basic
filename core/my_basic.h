@@ -30,6 +30,60 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#if defined _MSC_VER
+#	define MB_CP_VC _MSC_VER
+#elif defined __clang__
+#	define MB_CP_CLANG
+#elif defined __CYGWIN__
+#	define MB_CP_CYGWIN
+#elif defined __MINGW32__
+#	define MB_CP_MINGW32
+#elif defined __BORLANDC__
+#	define MB_CP_BORLANDC
+#elif defined __POCC__
+#	define MB_CP_PELLESC
+#elif defined __TINYC__
+#	define MB_CP_TCC
+#elif defined __GNUC__ || defined __GNUG__
+#	define MB_CP_GCC
+#elif defined __ICC || defined __INTEL_COMPILER
+#	define MB_CP_ICC
+#elif defined __HP_cc || defined __HP_aCC
+#	define MB_CP_HPC
+#elif defined __IBMC__ || defined __IBMCPP__
+#	define MB_CP_IBMC
+#elif defined __PGI
+#	define MB_CP_PGCC
+#elif defined __SUNPRO_C || defined__SUNPRO_CC
+#	define MB_CP_SOLARISC
+#elif defined ARDUINO
+#	define MB_CP_ARDUINO
+#else
+#	define MB_CP_UNKNOWN
+#endif /* Compiler dependent macro */
+
+#if defined _WIN32 || defined _WIN64
+#	define MB_OS_WIN
+#elif defined __APPLE__
+#	include <TargetConditionals.h>
+#	define MB_OS_APPLE
+#	ifdef TARGET_OS_IPHONE
+#		define MB_OS_IOS
+#	elif defined TARGET_IPHONE_SIMULATOR
+#		define MB_OS_IOS_SIM
+#	elif defined TARGET_OS_MAC
+#		define MB_OS_MAC
+#	endif
+#elif defined __unix__
+#	define MB_OS_UNIX
+#elif defined __linux__
+#	define MB_OS_LINUX
+#elif defined __ANDROID__
+#	define MB_OS_ANDROID
+#else
+#	define MB_OS_UNKNOWN
+#endif /* OS dependent macro */
+
 #ifndef MBAPI
 #	define MBAPI
 #endif /* MBAPI */
@@ -156,17 +210,17 @@ extern "C" {
 #endif /* MB_NULL_STRING */
 
 #ifndef mb_stricmp
-#	ifdef _MSC_VER
+#	ifdef MB_CP_VC
 #		define mb_stricmp _strcmpi
-#	else /* _MSC_VER */
-#		ifdef __BORLANDC__
+#	else /* MB_CP_VC */
+#		ifdef MB_CP_BORLANDC
 #			define mb_stricmp stricmp
-#		elif defined __POCC__
+#		elif defined MB_CP_PELLESC
 #			define mb_stricmp _stricmp
 #		else
 #			define mb_stricmp strcasecmp
 #		endif
-#	endif /* _MSC_VER */
+#	endif /* MB_CP_VC */
 #endif /* mb_stricmp */
 
 #ifndef mb_assert

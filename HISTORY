@@ -1,3 +1,7 @@
+Mar. 1 2016
+Added an OS statement
+Refactored platform dependent macros
+
 Feb. 29 2016
 Added multi-line comment support
 Fixed a crash bug with an invalid expression
