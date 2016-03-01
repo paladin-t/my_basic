@@ -1556,7 +1556,7 @@ static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
 static int _clone_clsss_field(void* data, void* extra, void* n);
 static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret);
 static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t** f);
-static bool_t _is_class(_class_t* instance, void* m, void* ret);
+static bool_t _is_a_class(_class_t* instance, void* m, void* ret);
 static bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret);
 #ifdef MB_ENABLE_COLLECTION_LIB
 static int _reflect_class_field(void* data, void* extra, void* d);
@@ -7106,14 +7106,26 @@ static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, 
 	return 0;
 }
 
-static bool_t _is_class(_class_t* instance, void* m, void* ret) {
+static bool_t _is_a_class(_class_t* instance, void* m, void* ret) {
 	/* Detect whether a class instance is inherited from another */
 	_class_t* meta = (_class_t*)m;
 	bool_t* r = (bool_t*)ret;
+	bool_t is_a = false;
 
 	mb_assert(instance && meta && ret);
 
-	*r = instance == meta;
+	do {
+		if(instance == meta) {
+			is_a = true;
+
+			break;
+		}
+		if(instance == instance->created_from)
+			break;
+		instance = instance->created_from;
+	} while(1);
+
+	*r = is_a;
 
 	return !(*r);
 }
@@ -12483,7 +12495,7 @@ static int _core_is(mb_interpreter_t* s, void** l) {
 		if(!_IS_CLASS(fst) || !_IS_CLASS(scd)) {
 			_handle_error_on_obj(s, SE_RN_CLASS_EXPECTED, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
 		}
-		_traverse_class(fst->data.instance, 0, _is_class, _META_LIST_MAX_DEPTH, true, scd->data.instance, &is_a);
+		_traverse_class(fst->data.instance, 0, _is_a_class, _META_LIST_MAX_DEPTH, true, scd->data.instance, &is_a);
 		val->type = _DT_INT;
 		val->data.integer = (int_t)is_a;
 #else /* MB_ENABLE_CLASS */
@@ -13397,8 +13409,8 @@ _retry:
 			bool_t is_a0 = false;
 			bool_t is_a1 = false;
 			if(s->last_instance && routine->instance) {
-				_traverse_class(s->last_instance->created_from, 0, _is_class, _META_LIST_MAX_DEPTH, true, routine->instance->created_from, &is_a0);
-				_traverse_class(routine->instance->created_from, 0, _is_class, _META_LIST_MAX_DEPTH, true, s->last_instance->created_from, &is_a1);
+				_traverse_class(s->last_instance->created_from, 0, _is_a_class, _META_LIST_MAX_DEPTH, true, routine->instance->created_from, &is_a0);
+				_traverse_class(routine->instance->created_from, 0, _is_a_class, _META_LIST_MAX_DEPTH, true, s->last_instance->created_from, &is_a1);
 			}
 			if(routine->instance &&
 				(!s->last_instance ||
