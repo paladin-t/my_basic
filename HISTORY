@@ -1,5 +1,6 @@
 Mar. 1 2016
 Added an OS statement
+Fixed a variable pathing bug in lambda
 Fixed a class type detection bug with the IS statement
 Refactored platform dependent macros
 

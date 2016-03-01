@@ -7569,7 +7569,10 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 				var->data->ref = true;
 			}
 #ifdef MB_ENABLE_CLASS
-			var->pathing = 0;
+			if(obj->type == _DT_VAR)
+				var->pathing = obj->data.variable->pathing;
+			else
+				var->pathing = 0;
 #endif /* MB_ENABLE_CLASS */
 			ul = _ht_set_or_insert(tuple->outer_scope->scope->var_dict, ovar->data.variable->name, ovar);
 			mb_assert(ul);
@@ -13835,7 +13838,11 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 	_mb_check_mark(mb_attempt_open_bracket(s, l), result, _error);
 
 	while(mb_has_arg(s, l)) {
+#ifdef MB_ENABLE_CLASS
+		bool_t pathing = false;
+#endif /* MB_ENABLE_CLASS */
 		void* v = 0;
+
 		_mb_check_mark(mb_get_var(s, l, &v), result, _error);
 
 		if(!routine->func.lambda.parameters)
@@ -13844,12 +13851,15 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 			_handle_error_on_obj(s, SE_RN_INVALID_LAMBDA, s->source_file, DON2(l), MB_FUNC_ERR, _error, result);
 		}
 		var = ((_object_t*)v)->data.variable;
+#ifdef MB_ENABLE_CLASS
+		pathing = var->pathing;
+#endif /* MB_ENABLE_CLASS */
 
 		/* Add lambda parameters */
 		obj = 0;
 		var = _create_var(&obj, var->name, 0, true);
 #ifdef MB_ENABLE_CLASS
-		var->pathing = 0;
+		var->pathing = pathing;
 #endif /* MB_ENABLE_CLASS */
 		ul = _ht_set_or_insert(routine->func.lambda.scope->var_dict, var->name, obj);
 		mb_assert(ul);
