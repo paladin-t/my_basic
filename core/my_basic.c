@@ -5776,46 +5776,49 @@ static void _gc_try_trigger(mb_interpreter_t* s) {
 static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	/* Collect all garbage */
 	_ht_node_t* valid = 0;
+	_gc_t* gc = 0;
 
 	mb_assert(s);
 
+	gc = &s->gc;
+
 	/* Avoid infinity loop */
-	if(s->gc.collecting) return;
-	s->gc.collecting++;
+	if(gc->collecting) return;
+	gc->collecting++;
 
 	/* Get reachable information */
 	valid = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
 	if(depth != -1)
-		s->gc.valid_table = valid;
+		gc->valid_table = valid;
 	_gc_get_reachable(s, valid);
 
 	/* Get unreachable information */
-	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, s->gc.table);
+	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, gc->table);
 
 	/* Collect garbage */
 	do {
 #ifdef MB_ENABLE_CLASS
-		_HT_FOREACH(s->gc.table, _do_nothing_on_object, _gc_destroy_garbage_class, &s->gc);
+		_HT_FOREACH(gc->table, _do_nothing_on_object, _gc_destroy_garbage_class, &s->gc);
 #endif /* MB_ENABLE_CLASS */
-		_HT_FOREACH(s->gc.table, _do_nothing_on_object, _gc_destroy_garbage, &s->gc);
-		_ht_clear(s->gc.table);
-		if(s->gc.collecting > 1)
-			s->gc.collecting--;
+		_HT_FOREACH(gc->table, _do_nothing_on_object, _gc_destroy_garbage, &s->gc);
+		_ht_clear(gc->table);
+		if(gc->collecting > 1)
+			gc->collecting--;
 
-		if(!depth || !_ht_count(s->gc.recursive_table))
+		if(!depth || !_ht_count(gc->recursive_table))
 			break;
 
 		_gc_swap_tables(s);
-		s->gc.collecting++;
+		gc->collecting++;
 	} while(1);
 
 	/* Tidy */
-	_ht_clear(s->gc.collected_table);
-	s->gc.valid_table = 0;
+	_ht_clear(gc->collected_table);
+	gc->valid_table = 0;
 	_ht_clear(valid);
 	_ht_destroy(valid);
-	s->gc.collecting--;
-	mb_assert(!s->gc.collecting);
+	gc->collecting--;
+	mb_assert(!gc->collecting);
 }
 
 #ifdef MB_ENABLE_USERTYPE_REF
@@ -7381,6 +7384,11 @@ static void _unref_routine(_ref_t* ref, void* data) {
 
 static void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 	/* Destroy a lambda routine */
+	_gc_t* gc = 0;
+
+	mb_assert(r);
+
+	if(s) gc = &s->gc;
 	if(r->name) {
 		safe_free(r->name);
 	}
@@ -7409,7 +7417,7 @@ static void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 			safe_free(r->func.lambda.scope);
 			if(r->func.lambda.parameters)
 				_ls_destroy(r->func.lambda.parameters);
-			if(r->func.lambda.outer_scope && !_ht_find(s->gc.collected_table, &r->func.lambda.outer_scope->ref))
+			if(r->func.lambda.outer_scope && !_ht_find(gc->collected_table, &r->func.lambda.outer_scope->ref))
 				_unref(&r->func.lambda.outer_scope->ref, r->func.lambda.outer_scope);
 			if(r->func.lambda.upvalues)
 				_ht_destroy(r->func.lambda.upvalues);
