@@ -1467,7 +1467,7 @@ static void _destroy_ref(_ref_t* ref);
 
 static void _gc_add(_ref_t* ref, void* data, _gc_t* gc);
 static void _gc_remove(_ref_t* ref, void* data);
-static int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht);
+static int _gc_add_reachable(void* data, void* extra, void* h);
 static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht);
 static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc);
 static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc);
@@ -5440,14 +5440,16 @@ static void _gc_remove(_ref_t* ref, void* data) {
 		_ht_remove(table, ref, 0);
 }
 
-static int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht) {
+static int _gc_add_reachable(void* data, void* extra, void* h) {
 	/* Get reachable objects */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
 	_var_t* var = 0;
+	_ht_node_t* ht = 0;
 
-	mb_assert(data && ht);
+	mb_assert(data && h);
 
+	ht = (_ht_node_t*)h;
 	obj = (_object_t*)data;
 	if(_is_internal_object(obj))
 		goto _exit;
