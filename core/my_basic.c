@@ -1467,7 +1467,7 @@ static void _destroy_ref(_ref_t* ref);
 
 static void _gc_add(_ref_t* ref, void* data, _gc_t* gc);
 static void _gc_remove(_ref_t* ref, void* data);
-static int _gc_add_reachable(void* data, void* extra, void* ht);
+static int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht);
 static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht);
 static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc);
 static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc);
@@ -1581,9 +1581,9 @@ static _running_context_ref_t* _create_outer_scope(mb_interpreter_t* s);
 static void _unref_outer_scope(_ref_t* ref, void* data);
 static void _destroy_outer_scope(_running_context_ref_t* p);
 static int _do_nothing_on_ht_for_lambda(void* data, void* extra);
-static int _fill_with_upvalue(void* data, void* extra, void* p);
-static int _remove_filled_upvalue(void* data, void* extra, void* u);
-static int _fill_outer_scope(void* data, void* extra, void* t);
+static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* tuple);
+static int _remove_filled_upvalue(void* data, void* extra, _ht_node_t* ht);
+static int _fill_outer_scope(void* data, void* extra, _upvalue_scope_tuple_t* tuple);
 static _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak);
 static _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak);
 static bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj);
@@ -5440,12 +5440,11 @@ static void _gc_remove(_ref_t* ref, void* data) {
 		_ht_remove(table, ref, 0);
 }
 
-static int _gc_add_reachable(void* data, void* extra, void* ht) {
+static int _gc_add_reachable(void* data, void* extra, _ht_node_t* ht) {
 	/* Get reachable objects */
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
 	_var_t* var = 0;
-	_ht_node_t* htable = (_ht_node_t*)ht;
 
 	mb_assert(data && ht);
 
@@ -5455,58 +5454,58 @@ static int _gc_add_reachable(void* data, void* extra, void* ht) {
 	switch(obj->type) {
 	case _DT_VAR:
 		var = (_var_t*)obj->data.variable;
-		_gc_add_reachable(var->data, extra, htable);
+		_gc_add_reachable(var->data, extra, ht);
 
 		break;
 #ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
-		if(!_ht_find(htable, &obj->data.usertype_ref->ref))
-			_ht_set_or_insert(htable, &obj->data.usertype_ref->ref, obj->data.usertype_ref);
+		if(!_ht_find(ht, &obj->data.usertype_ref->ref))
+			_ht_set_or_insert(ht, &obj->data.usertype_ref->ref, obj->data.usertype_ref);
 
 		break;
 #endif /* MB_ENABLE_USERTYPE_REF */
 #ifdef MB_ENABLE_ARRAY_REF
 	case _DT_ARRAY:
-		if(!_ht_find(htable, &obj->data.array->ref))
-			_ht_set_or_insert(htable, &obj->data.array->ref, obj->data.array);
+		if(!_ht_find(ht, &obj->data.array->ref))
+			_ht_set_or_insert(ht, &obj->data.array->ref, obj->data.array);
 
 		break;
 #endif /* MB_ENABLE_ARRAY_REF */
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST:
-		if(!_ht_find(htable, &obj->data.list->ref)) {
-			_ht_set_or_insert(htable, &obj->data.list->ref, obj->data.list);
-			_LS_FOREACH(obj->data.list->list, _do_nothing_on_object, _gc_add_reachable, htable);
+		if(!_ht_find(ht, &obj->data.list->ref)) {
+			_ht_set_or_insert(ht, &obj->data.list->ref, obj->data.list);
+			_LS_FOREACH(obj->data.list->list, _do_nothing_on_object, _gc_add_reachable, ht);
 		}
 
 		break;
 	case _DT_DICT:
-		if(!_ht_find(htable, &obj->data.dict->ref)) {
-			_ht_set_or_insert(htable, &obj->data.dict->ref, obj->data.dict);
-			_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _gc_add_reachable, htable);
+		if(!_ht_find(ht, &obj->data.dict->ref)) {
+			_ht_set_or_insert(ht, &obj->data.dict->ref, obj->data.dict);
+			_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _gc_add_reachable, ht);
 		}
 
 		break;
 	case _DT_LIST_IT:
-		if(!_ht_find(htable, &obj->data.list_it->list->ref)) {
-			_ht_set_or_insert(htable, &obj->data.list_it->list->ref, obj->data.list_it->list);
-			_LS_FOREACH(obj->data.list_it->list->list, _do_nothing_on_object, _gc_add_reachable, htable);
+		if(!_ht_find(ht, &obj->data.list_it->list->ref)) {
+			_ht_set_or_insert(ht, &obj->data.list_it->list->ref, obj->data.list_it->list);
+			_LS_FOREACH(obj->data.list_it->list->list, _do_nothing_on_object, _gc_add_reachable, ht);
 		}
 
 		break;
 	case _DT_DICT_IT:
-		if(!_ht_find(htable, &obj->data.dict_it->dict->ref)) {
-			_ht_set_or_insert(htable, &obj->data.dict_it->dict->ref, obj->data.dict_it->dict);
-			_HT_FOREACH(obj->data.dict_it->dict->dict, _do_nothing_on_object, _gc_add_reachable, htable);
+		if(!_ht_find(ht, &obj->data.dict_it->dict->ref)) {
+			_ht_set_or_insert(ht, &obj->data.dict_it->dict->ref, obj->data.dict_it->dict);
+			_HT_FOREACH(obj->data.dict_it->dict->dict, _do_nothing_on_object, _gc_add_reachable, ht);
 		}
 
 		break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
-		if(!_ht_find(htable, &obj->data.instance->ref)) {
-			_ht_set_or_insert(htable, &obj->data.instance->ref, obj->data.instance);
-			_traverse_class(obj->data.instance, _gc_add_reachable, _add_class_meta_reachable, _META_LIST_MAX_DEPTH, false, htable, 0);
+		if(!_ht_find(ht, &obj->data.instance->ref)) {
+			_ht_set_or_insert(ht, &obj->data.instance->ref, obj->data.instance);
+			_traverse_class(obj->data.instance, _gc_add_reachable, _add_class_meta_reachable, _META_LIST_MAX_DEPTH, false, ht, 0);
 		}
 
 		break;
@@ -5514,8 +5513,8 @@ static int _gc_add_reachable(void* data, void* extra, void* ht) {
 #ifdef MB_ENABLE_LAMBDA
 	case _DT_ROUTINE:
 		if(obj->data.routine->type == _IT_LAMBDA) {
-			if(!_ht_find(htable, &obj->data.routine->func.lambda.ref))
-				_ht_set_or_insert(htable, &obj->data.routine->func.lambda.ref, obj->data.routine);
+			if(!_ht_find(ht, &obj->data.routine->func.lambda.ref))
+				_ht_set_or_insert(ht, &obj->data.routine->func.lambda.ref, obj->data.routine);
 		}
 
 		break;
@@ -5660,8 +5659,6 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 	mb_assert(data && extra);
 
 	ref = (_ref_t*)extra;
-	if(_ht_find(gc->collected_table, ref))
-		goto _exit;
 	switch(ref->type) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST:
@@ -5704,7 +5701,6 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 		}
 	}
 
-_exit:
 	if(proc)
 		result = _OP_RESULT_DEL_NODE;
 
@@ -5723,8 +5719,6 @@ static int _gc_destroy_garbage_class(void* data, void* extra, _gc_t* gc) {
 	mb_assert(data && extra);
 
 	ref = (_ref_t*)extra;
-	if(_ht_find(gc->collected_table, ref))
-		goto _exit;
 	switch(ref->type) {
 	case _DT_CLASS:
 		instance = (_class_t*)data;
@@ -5753,7 +5747,6 @@ static int _gc_destroy_garbage_class(void* data, void* extra, _gc_t* gc) {
 		}
 	}
 
-_exit:
 	if(proc)
 		result = _OP_RESULT_DEL_NODE;
 
@@ -7525,11 +7518,10 @@ static int _do_nothing_on_ht_for_lambda(void* data, void* extra) {
 	return result;
 }
 
-static int _fill_with_upvalue(void* data, void* extra, void* p) {
+static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* tuple) {
 	/* Fill an outer scope with the original value */
 	_object_t* obj = (_object_t*)data;
 	const char* n = (const char*)extra;
-	_upvalue_scope_tuple_t* tuple = (_upvalue_scope_tuple_t*)p;
 	unsigned int ul = 0;
 	_ls_node_t* ast = 0;
 
@@ -7584,19 +7576,16 @@ static int _fill_with_upvalue(void* data, void* extra, void* p) {
 	return 0;
 }
 
-static int _remove_filled_upvalue(void* data, void* extra, void* u) {
+static int _remove_filled_upvalue(void* data, void* extra, _ht_node_t* ht) {
 	/* Remove filled upvalues */
-	_ht_node_t* ht = (_ht_node_t*)u;
-
 	_ht_remove_exist(data, extra, ht);
 
 	return _OP_RESULT_NORMAL;
 }
 
-static int _fill_outer_scope(void* data, void* extra, void* t) {
+static int _fill_outer_scope(void* data, void* extra, _upvalue_scope_tuple_t* tuple) {
 	/* Fill an outer scope with the original one */
 	_lambda_t* lambda = (_lambda_t*)data;
-	_upvalue_scope_tuple_t* tuple = (_upvalue_scope_tuple_t*)t;
 	mb_unrefvar(extra);
 
 	if(lambda->upvalues) {
