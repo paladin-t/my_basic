@@ -2864,10 +2864,10 @@ static char* mb_strupr(char* s) {
 static int mb_uu_ischar(char* ch) {
 	/* Copyright 2008, 2009 Bjoern Hoehrmann, http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ */
 	/* Determine whether a buffer is a UTF8 encoded character, and return taken bytes */
-#define _TAKE(__ch, __c, __r) do { __c = *__ch++; __r++; } while(0)
-#define _COPY(__ch, __c, __r, __cp) do { _TAKE(__ch, __c, __r); __cp = (__cp << 6) | ((unsigned char)__c & 0x3Fu); } while(0)
-#define _TRANS(__m, __cp, __g) do { __cp &= ((__g[(unsigned char)c] & __m) != 0); } while(0)
-#define _TAIL(__ch, __c, __r, __cp, __g) do { _COPY(__ch, __c, __r, __cp); _TRANS(0x70, __cp, __g); } while(0)
+#	define _TAKE(__ch, __c, __r) do { __c = *__ch++; __r++; } while(0)
+#	define _COPY(__ch, __c, __r, __cp) do { _TAKE(__ch, __c, __r); __cp = (__cp << 6) | ((unsigned char)__c & 0x3Fu); } while(0)
+#	define _TRANS(__m, __cp, __g) do { __cp &= ((__g[(unsigned char)c] & __m) != 0); } while(0)
+#	define _TAIL(__ch, __c, __r, __cp, __g) do { _COPY(__ch, __c, __r, __cp); _TRANS(0x70, __cp, __g); } while(0)
 	static const unsigned char range[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -2909,10 +2909,10 @@ static int mb_uu_ischar(char* ch) {
 	case 11: _COPY(ch, c, result, codepoint); _TRANS(0x60, codepoint, range); _TAIL(ch, c, result, codepoint, range); _TAIL(ch, c, result, codepoint, range); return result;
 	default: return 0;
 	}
-#undef _TAKE
-#undef _COPY
-#undef _TRANS
-#undef _TAIL
+#	undef _TAKE
+#	undef _COPY
+#	undef _TRANS
+#	undef _TAIL
 }
 
 static int mb_uu_strlen(char* ch) {

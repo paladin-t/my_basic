@@ -1,4 +1,5 @@
 Mar. 2 2016
+Added a new YARD sample
 Fixed a crash bug when unreferencing a garbage
 Fixed a multiple disposing bug when an error occurs in an expression
 

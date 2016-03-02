@@ -222,7 +222,7 @@ static void _tidy_mem_pool(bool_t force) {
 }
 
 static void _open_mem_pool(void) {
-#define N 22
+#	define N 22
 	size_t szs[N];
 	size_t lst[N];
 	int i = 0;
@@ -279,7 +279,7 @@ static void _open_mem_pool(void) {
 		pool[i].size = lst[i];
 		pool[i].stack = 0;
 	}
-#undef N
+#	undef N
 }
 
 static void _close_mem_pool(void) {
