@@ -1466,7 +1466,7 @@ static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpret
 static void _destroy_ref(_ref_t* ref);
 
 static void _gc_add(_ref_t* ref, void* data, _gc_t* gc);
-static void _gc_remove(_ref_t* ref, void* data);
+static void _gc_remove(_ref_t* ref, void* data, _gc_t* gc);
 static int _gc_add_reachable(void* data, void* extra, void* h);
 static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht);
 static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc);
@@ -1632,6 +1632,7 @@ static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl);
 static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn);
 static int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t* itn);
 static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s);
+static void _remove_if_exist(void* data, void* extra, _ls_node_t* ls);
 static void _destroy_lazy_objects(mb_interpreter_t* s);
 static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch);
 static void _assign_public_value(mb_value_t* tgt, mb_value_t* src);
@@ -3278,7 +3279,7 @@ _array:
 						ast = ast->prev;
 						result = _get_array_index(s, &ast, c, &arr_idx, 0);
 						if(result != MB_FUNC_OK) {
-							_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+							_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 						}
 						ast = ast->next;
 						_get_array_elem(s, c->data.array, arr_idx, &arr_val, &arr_type);
@@ -3288,7 +3289,7 @@ _array:
 						arr_elem->ref = true;
 						_copy_bytes(arr_elem->data.bytes, arr_val.bytes);
 						if(f) {
-							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 						}
 						_ls_pushback(opnd, arr_elem);
 						f++;
@@ -3310,7 +3311,7 @@ _array:
 						running->calc_depth = calc_depth;
 					}
 					if(result != MB_FUNC_OK) {
-						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 					}
 					c = _create_object();
 					_ls_pushback(garbage, c);
@@ -3318,15 +3319,15 @@ _array:
 					if(c->type == _DT_STRING)
 						c->ref = true;
 					if(result != MB_FUNC_OK)
-						goto _exit;
+						goto _error;
 					if(f) {
-						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 					}
 					if(_is_array(c)) {
 						goto _array;
 					} else {
 						if(ast && _IS_FUNC(ast->data, _core_open_bracket)) {
-							_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+							_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 						}
 					}
 					_ls_pushback(opnd, c);
@@ -3364,15 +3365,15 @@ _routine:
 					if(ast)
 						ast = ast->prev;
 					if(result != MB_FUNC_OK) {
-						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 					}
 					c = _create_object();
 					_ls_pushback(garbage, c);
 					result = _public_value_to_internal_object(&running->intermediate_value, c);
 					if(result != MB_FUNC_OK)
-						goto _exit;
+						goto _error;
 					if(f) {
-						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 					}
 					_ls_pushback(opnd, c);
 					f++;
@@ -3390,7 +3391,7 @@ _routine:
 						ast = ast->prev;
 						result = _get_array_index(s, &ast, 0, &arr_idx, 0);
 						if(result != MB_FUNC_OK) {
-							_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+							_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 						}
 						ast = ast->next;
 						_get_array_elem(s, c->data.variable->data->data.array, arr_idx, &arr_val, &arr_type);
@@ -3410,7 +3411,7 @@ _routine:
 							mb_assert(0 && "Unsupported.");
 						}
 						if(f) {
-							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 						}
 						_ls_pushback(opnd, arr_elem);
 						f++;
@@ -3457,7 +3458,7 @@ _var:
 										case _DT_LIST:
 											mb_check(mb_pop_int(s, (void**)l, &idx));
 											if(!_at_list(ocoll->data.list, idx, &ret)) {
-												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
 											}
 
 											break;
@@ -3465,7 +3466,7 @@ _var:
 											mb_make_nil(key);
 											mb_check(mb_pop_value(s, (void**)l, &key));
 											if(!_find_dict(ocoll->data.dict, &key, &ret)) {
-												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
 											}
 
 											break;
@@ -3486,13 +3487,13 @@ _var:
 								}
 #endif /* MB_ENABLE_COLLECTION_LIB */
 								if(_IS_FUNC(_err_or_bracket, _core_open_bracket)) {
-									_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+									_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 								}
 							} while(0);
 						}
 					}
 					if(f) {
-						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+						_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 					}
 					_ls_pushback(opnd, c);
 					f++;
@@ -3504,7 +3505,7 @@ _var:
 					if(c->type == _DT_FUNC && !_is_operator(c->data.func->pointer) && !_is_flow(c->data.func->pointer)) {
 						_ls_foreach(opnd, _remove_source_object);
 
-						_handle_error_on_obj(s, SE_RN_COLON_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+						_handle_error_on_obj(s, SE_RN_COLON_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 					}
 					ast = ast->next;
 				} else {
@@ -3534,7 +3535,7 @@ _var:
 				r = _operate_operand(s, theta, a, b, &result);
 				if(!r) {
 					_ls_clear(optr);
-					_handle_error_on_obj(s, SE_RN_OPERATION_FAILED, s->source_file, DON(errn), MB_FUNC_ERR, _exit, result);
+					_handle_error_on_obj(s, SE_RN_OPERATION_FAILED, s->source_file, DON(errn), MB_FUNC_ERR, _error, result);
 				}
 				_ls_pushback(opnd, r);
 				_ls_pushback(garbage, r);
@@ -3547,7 +3548,7 @@ _var:
 	}
 
 	if(errn) {
-		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, s->source_file, DON(errn), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, s->source_file, DON(errn), MB_FUNC_ERR, _error, result);
 	}
 
 	c = (_object_t*)(_ls_popback(opnd));
@@ -3569,7 +3570,7 @@ _var:
 		_set_current_error(s, SE_RN_INVALID_DATA_TYPE, 0);
 		result = MB_FUNC_ERR;
 
-		goto _exit;
+		goto _error;
 	}
 	if(c->type == _DT_VAR) {
 		(*val)->type = c->data.variable->data->type;
@@ -3611,6 +3612,10 @@ _var:
 		}
 	}
 
+	while(0) {
+_error:
+		_LS_FOREACH(garbage, _do_nothing_on_object, _remove_if_exist, opnd);
+	}
 _exit:
 	_LS_FOREACH(garbage, _destroy_object, _try_clear_intermediate_value, s);
 	_ls_destroy(garbage);
@@ -5329,15 +5334,17 @@ static _ref_count_t _ref(_ref_t* ref, void* data) {
 static bool_t _unref(_ref_t* ref, void* data) {
 	/* Decrease the reference of a stub by 1 */
 	bool_t result = true;
+	_gc_t* gc = 0;
 
+	gc = &ref->s->gc;
 	result = --(*ref->count) == _NONE_REF;
 	mb_assert(*ref->count >= _NONE_REF);
 	_gc_add(ref, data, &ref->s->gc);
 	if(ref->count && *ref->count == _NONE_REF)
 		_tidy_intermediate_value(ref, data);
 	ref->on_unref(ref, data);
-	if(!ref->count)
-		_gc_remove(ref, data);
+	if(result)
+		_gc_remove(ref, data, gc);
 
 	return result;
 }
@@ -5425,16 +5432,16 @@ static void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 		_ht_remove(table, ref, 0);
 }
 
-static void _gc_remove(_ref_t* ref, void* data) {
+static void _gc_remove(_ref_t* ref, void* data, _gc_t* gc) {
 	/* Remove a referenced object from GC */
 	_ht_node_t* table = 0;
 
-	mb_assert(ref && data);
+	mb_assert(ref && data && gc);
 
-	if(ref->s->gc.collecting)
-		table = ref->s->gc.recursive_table;
+	if(gc->collecting)
+		table = gc->recursive_table;
 	else
-		table = ref->s->gc.table;
+		table = gc->table;
 
 	if(table)
 		_ht_remove(table, ref, 0);
@@ -8894,6 +8901,15 @@ static void _try_clear_intermediate_value(void* data, void* extra, mb_interprete
 	if(!_compare_public_value_and_internal_object(&running->intermediate_value, obj)) {
 		mb_make_nil(running->intermediate_value);
 	}
+}
+
+static void _remove_if_exist(void* data, void* extra, _ls_node_t* ls) {
+	/* Remove from another list if exist */
+	_object_t* obj = 0;
+	mb_unrefvar(extra);
+
+	obj = (_object_t*)data;
+	_ls_try_remove(ls, obj, _ls_cmp_data, 0);
 }
 
 static void _destroy_lazy_objects(mb_interpreter_t* s) {
@@ -12918,7 +12934,8 @@ _elseif:
 
 _exit:
 	if(result == MB_SUB_RETURN) {
-		ast = ast->prev;
+		if(ast)
+			ast = ast->prev;
 	} else {
 		if(multi_line) {
 			int ret = MB_FUNC_OK;

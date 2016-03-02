@@ -86,6 +86,7 @@ extern "C" {
 
 /* Define as 1 to use memory pool, 0 to disable */
 #define _USE_MEM_POOL 1
+#define _RESET_WHEN_PUSH_TO_POOL 1
 
 #define _MAX_LINE_LENGTH 256
 #define _str_eq(__str1, __str2) (mb_stricmp((__str1), (__str2)) == 0)
@@ -357,6 +358,9 @@ static void _push_mem(char* p) {
 	}
 	alloc_bytes -= _POOL_NODE_SIZE(p);
 
+#if _RESET_WHEN_PUSH_TO_POOL
+	memset(p, 0, _POOL_NODE_SIZE(p));
+#endif /* _RESET_WHEN_PUSH_TO_POOL */
 	if(pool_count) {
 		for(i = 0; i < pool_count; i++) {
 			pl = &pool[i];
