@@ -531,7 +531,7 @@ typedef struct _import_info_t {
 } _import_info_t;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
-typedef union _raw_u { char c; int_t i; real_t r; void* p; mb_val_bytes_t b; } _raw_u;
+typedef union _raw_u { mb_data_e e; char c; int_t i; real_t r; void* p; mb_val_bytes_t b; } _raw_u;
 
 typedef unsigned char _raw_t[sizeof(_raw_u)];
 
