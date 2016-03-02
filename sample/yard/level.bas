@@ -182,7 +182,7 @@ class level
 	enddef
 
 	def update(ipt)
-		if ipt = "q" then print "Bye." : end
+		if ipt = "q" then print "Bye."; : end
 
 		if status <> game_status.playing then
 			return false
