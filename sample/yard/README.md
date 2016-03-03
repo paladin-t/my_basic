@@ -4,21 +4,21 @@
 
 Yet Another RPG Dungeon is a text based game. It's aimed to be a comprehensive example and or a tutorial which shows multiple concepts of MY-BASIC.
 
-Usage
+### Usage
 
-**Windows:**
+**Windows**
 
 	my_basic start.bas
 
-**OS X:**
+**OS X**
 
 	my_basic_mac start.bas
 
-**Others:**
+**Others**
 
 	my_basic_bin start.bas
 
-**Note:**
+**Note**
 
 It requires an importing directories information if the working directory of your interpreter is `my_basic/output/`:
 
