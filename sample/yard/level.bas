@@ -178,9 +178,6 @@ class level
 		print "  Q: Quit game";
 	enddef
 
-	def try_update_monster()
-	enddef
-
 	def update(ipt)
 		if ipt = "q" then print "Bye."; : end
 
