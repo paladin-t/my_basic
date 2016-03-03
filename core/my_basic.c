@@ -172,6 +172,7 @@ typedef int (* _common_compare)(void*, void*);
 /* Container operation */
 #define _OP_RESULT_NORMAL 0
 #define _OP_RESULT_DEL_NODE -1
+
 typedef int (* _common_operation)(void*, void*);
 
 /** List */
@@ -320,25 +321,19 @@ typedef enum _data_e {
 	_DT_EOS /* End of statement */
 } _data_e;
 
-typedef struct _func_t {
-	char* name;
-	mb_func_t pointer;
-} _func_t;
+#ifdef MB_ENABLE_COLLECTION_LIB
+#	define _HAS_REF_OBJ_LOCK
+#endif /* MB_ENABLE_COLLECTION_LIB */
 
-typedef struct _var_t {
-	char* name;
-	struct _object_t* data;
-#ifdef MB_ENABLE_CLASS
-	int pathing;
-	bool_t isme;
-#endif /* MB_ENABLE_CLASS */
-} _var_t;
+#ifdef _HAS_REF_OBJ_LOCK
+typedef short _lock_t;
+#endif /* _HAS_REF_OBJ_LOCK */
 
 struct _ref_t;
 
-#define _NONE_REF 1
-
 typedef void (* _unref_func_t)(struct _ref_t*, void*);
+
+#define _NONE_REF 1
 
 typedef unsigned _ref_count_t;
 
@@ -349,8 +344,6 @@ typedef struct _ref_t {
 	_data_e type;
 	struct mb_interpreter_t* s;
 } _ref_t;
-
-typedef short _lock_t;
 
 typedef struct _gc_t {
 	_ht_node_t* table;
@@ -378,6 +371,20 @@ typedef struct _usertype_ref_t {
 	mb_fmt_func_t fmt;
 	_override_func_info_t overrides;
 } _usertype_ref_t;
+
+typedef struct _func_t {
+	char* name;
+	mb_func_t pointer;
+} _func_t;
+
+typedef struct _var_t {
+	char* name;
+	struct _object_t* data;
+#ifdef MB_ENABLE_CLASS
+	int pathing;
+	bool_t isme;
+#endif /* MB_ENABLE_CLASS */
+} _var_t;
 
 typedef struct _array_t {
 #ifdef MB_ENABLE_ARRAY_REF
@@ -429,6 +436,8 @@ typedef struct _dict_t {
 	_ht_node_t* dict;
 } _dict_t;
 
+#define _INVALID_DICT_IT ((_ls_node_t*)(intptr_t)~0)
+
 typedef struct _dict_it_t {
 	_ref_t weak_ref;
 	_dict_t* dict;
@@ -444,13 +453,12 @@ typedef struct _label_t {
 } _label_t;
 
 #ifdef MB_ENABLE_CLASS
-#	define _CLASS_ME "ME"
-#	define _CLASS_HASH_FUNC "HASH"
-#	define _CLASS_COMPARE_FUNC "COMPARE"
-#	define _CLASS_TO_STRING_FUNC "TOSTRING"
-#endif /* MB_ENABLE_CLASS */
+#define _CLASS_ME "ME"
 
-#ifdef MB_ENABLE_CLASS
+#define _CLASS_HASH_FUNC "HASH"
+#define _CLASS_COMPARE_FUNC "COMPARE"
+#define _CLASS_TO_STRING_FUNC "TOSTRING"
+
 typedef struct _class_t {
 	_ref_t ref;
 	char* name;
@@ -599,21 +607,21 @@ MBAPI const size_t MB_SIZEOF_LSN = _MB_MEM_TAG_SIZE + sizeof(_ls_node_t);
 MBAPI const size_t MB_SIZEOF_HTN = _MB_MEM_TAG_SIZE + sizeof(_ht_node_t);
 MBAPI const size_t MB_SIZEOF_HTA = _MB_MEM_TAG_SIZE + sizeof(_ht_node_t*) * _HT_ARRAY_SIZE_DEFAULT;
 MBAPI const size_t MB_SIZEOF_OBJ = _MB_MEM_TAG_SIZE + sizeof(_object_t);
-MBAPI const size_t MB_SIZEOF_FUN = _MB_MEM_TAG_SIZE + sizeof(_func_t);
-MBAPI const size_t MB_SIZEOF_VAR = _MB_MEM_TAG_SIZE + sizeof(_var_t);
 #ifdef MB_ENABLE_USERTYPE_REF
 MBAPI const size_t MB_SIZEOF_UTR = _MB_MEM_TAG_SIZE + sizeof(_usertype_ref_t);
 #endif /* MB_ENABLE_USERTYPE_REF */
+MBAPI const size_t MB_SIZEOF_FUN = _MB_MEM_TAG_SIZE + sizeof(_func_t);
+MBAPI const size_t MB_SIZEOF_VAR = _MB_MEM_TAG_SIZE + sizeof(_var_t);
 MBAPI const size_t MB_SIZEOF_ARR = _MB_MEM_TAG_SIZE + sizeof(_array_t);
-MBAPI const size_t MB_SIZEOF_LBL = _MB_MEM_TAG_SIZE + sizeof(_label_t);
 #ifdef MB_ENABLE_COLLECTION_LIB
 MBAPI const size_t MB_SIZEOF_LST = _MB_MEM_TAG_SIZE + sizeof(_list_t);
 MBAPI const size_t MB_SIZEOF_DCT = _MB_MEM_TAG_SIZE + sizeof(_dict_t);
 #endif /* MB_ENABLE_COLLECTION_LIB */
-MBAPI const size_t MB_SIZEOF_RTN = _MB_MEM_TAG_SIZE + sizeof(_routine_t);
+MBAPI const size_t MB_SIZEOF_LBL = _MB_MEM_TAG_SIZE + sizeof(_label_t);
 #ifdef MB_ENABLE_CLASS
 MBAPI const size_t MB_SIZEOF_CLS = _MB_MEM_TAG_SIZE + sizeof(_class_t);
 #endif /* MB_ENABLE_CLASS */
+MBAPI const size_t MB_SIZEOF_RTN = _MB_MEM_TAG_SIZE + sizeof(_routine_t);
 #else /* MB_ENABLE_ALLOC_STAT */
 MBAPI const size_t MB_SIZEOF_INT = sizeof(int);
 MBAPI const size_t MB_SIZEOF_PTR = sizeof(intptr_t);
@@ -621,21 +629,21 @@ MBAPI const size_t MB_SIZEOF_LSN = sizeof(_ls_node_t);
 MBAPI const size_t MB_SIZEOF_HTN = sizeof(_ht_node_t);
 MBAPI const size_t MB_SIZEOF_HTA = sizeof(_ht_node_t*) * _HT_ARRAY_SIZE_DEFAULT;
 MBAPI const size_t MB_SIZEOF_OBJ = sizeof(_object_t);
-MBAPI const size_t MB_SIZEOF_FUN = sizeof(_func_t);
-MBAPI const size_t MB_SIZEOF_VAR = sizeof(_var_t);
 #ifdef MB_ENABLE_USERTYPE_REF
 MBAPI const size_t MB_SIZEOF_UTR = sizeof(_usertype_ref_t);
 #endif /* MB_ENABLE_USERTYPE_REF */
+MBAPI const size_t MB_SIZEOF_FUN = sizeof(_func_t);
+MBAPI const size_t MB_SIZEOF_VAR = sizeof(_var_t);
 MBAPI const size_t MB_SIZEOF_ARR = sizeof(_array_t);
-MBAPI const size_t MB_SIZEOF_LBL = sizeof(_label_t);
 #ifdef MB_ENABLE_COLLECTION_LIB
 MBAPI const size_t MB_SIZEOF_LST = sizeof(_list_t);
 MBAPI const size_t MB_SIZEOF_DCT = sizeof(_dict_t);
 #endif /* MB_ENABLE_COLLECTION_LIB */
-MBAPI const size_t MB_SIZEOF_RTN = sizeof(_routine_t);
+MBAPI const size_t MB_SIZEOF_LBL = sizeof(_label_t);
 #ifdef MB_ENABLE_CLASS
 MBAPI const size_t MB_SIZEOF_CLS = sizeof(_class_t);
 #endif /* MB_ENABLE_CLASS */
+MBAPI const size_t MB_SIZEOF_RTN = sizeof(_routine_t);
 #endif /* MB_ENABLE_ALLOC_STAT */
 
 #ifdef MB_ENABLE_SOURCE_TRACE
@@ -1256,17 +1264,24 @@ static mb_input_func_t _get_inputer(mb_interpreter_t* s);
 static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix);
 static void _end_of_file(_parsing_context_t* context);
 
-static bool_t _is_blank(char c);
-static bool_t _is_eof(char c);
-static bool_t _is_newline(char c);
-static bool_t _is_separator(char c);
-static bool_t _is_bracket(char c);
-static bool_t _is_quotation_mark(char c);
-static bool_t _is_comment(char c);
-static bool_t _is_accessor(char c);
+#define _ZERO_CHAR '\0'
+#define _NEWLINE_CHAR '\n'
+#define _RETURN_CHAR '\r'
+#define _STRING_POSTFIX '$'
+#define _DUMMY_ASSIGN "#"
+
+static bool_t _is_blank_char(char c);
+static bool_t _is_eof_char(char c);
+static bool_t _is_newline_char(char c);
+static bool_t _is_separator_char(char c);
+static bool_t _is_bracket_char(char c);
+static bool_t _is_quotation_char(char c);
+static bool_t _is_comment_char(char c);
+static bool_t _is_accessor_char(char c);
 static bool_t _is_numeric_char(char c);
 static bool_t _is_identifier_char(char c);
 static bool_t _is_operator_char(char c);
+static bool_t _is_exponential_char(char c);
 static bool_t _is_using_char(char c);
 static bool_t _is_exponent_prefix(char* s, int begin, int end);
 
@@ -1454,9 +1469,11 @@ static char* _extract_string(_object_t* obj);
 		} \
 	}
 
+#ifdef _HAS_REF_OBJ_LOCK
 static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 static bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
+#endif /* _HAS_REF_OBJ_LOCK */
 
 static _ref_count_t _ref(_ref_t* ref, void* data);
 static bool_t _unref(_ref_t* ref, void* data);
@@ -1837,7 +1854,7 @@ static int _coll_move_next(mb_interpreter_t* s, void** l);
 
 /** Lib information */
 static const _func_t _core_libs[] = {
-	{ "#", _core_dummy_assign },
+	{ _DUMMY_ASSIGN, _core_dummy_assign },
 	{ "+", _core_add },
 	{ "-", _core_min },
 	{ "*", _core_mul },
@@ -2973,7 +2990,7 @@ static int mb_uu_substr(char* ch, int begin, int count, char** o) {
 	l = (int)(e - b);
 	*o = (char*)mb_malloc(l + 1);
 	memcpy(*o, b, l);
-	(*o)[l] = '\0';
+	(*o)[l] = _ZERO_CHAR;
 
 	return l;
 }
@@ -3053,7 +3070,7 @@ static bool_t _is_binary(mb_func_t op) {
 
 static char _get_priority(mb_func_t op1, mb_func_t op2) {
 	/* Get the priority of two operators */
-	char result = '\0';
+	char result = _ZERO_CHAR;
 	int idx1 = 0;
 	int idx2 = 0;
 
@@ -3179,7 +3196,7 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 	_object_t* b = 0;
 	_object_t* r = 0;
 	_object_t* theta = 0;
-	char pri = '\0';
+	char pri = _ZERO_CHAR;
 	int* inep = 0;
 	int f = 0;
 
@@ -3221,8 +3238,8 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 	ast = ast->next;
 	_ls_pushback(optr, _exp_assign);
 	while(
-		!(c->type == _DT_FUNC && strcmp(c->data.func->name, "#") == 0) ||
-		!(((_object_t*)(_ls_back(optr)->data))->type == _DT_FUNC && strcmp(((_object_t*)(_ls_back(optr)->data))->data.func->name, "#") == 0)) {
+		!(c->type == _DT_FUNC && strcmp(c->data.func->name, _DUMMY_ASSIGN) == 0) ||
+		!(((_object_t*)(_ls_back(optr)->data))->type == _DT_FUNC && strcmp(((_object_t*)(_ls_back(optr)->data))->data.func->name, _DUMMY_ASSIGN) == 0)) {
 		if(!hack) {
 			if(_IS_FUNC(c, _core_open_bracket)) {
 				++bracket_count;
@@ -4189,7 +4206,7 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) 
 			}
 			fread(buf + i, 1, l, fp);
 			fclose(fp);
-			buf[l] = '\0';
+			buf[l] = _ZERO_CHAR;
 		}
 	}
 
@@ -4205,7 +4222,7 @@ static void _end_of_file(_parsing_context_t* context) {
 		context->parsing_state = _PS_NORMAL;
 }
 
-static bool_t _is_blank(char c) {
+static bool_t _is_blank_char(char c) {
 	/* Determine whether a character is blank */
 	return
 		(c == ' ') || (c == '\t') ||
@@ -4213,44 +4230,44 @@ static bool_t _is_blank(char c) {
 		(c == -2) || (c == -1);
 }
 
-static bool_t _is_eof(char c) {
+static bool_t _is_eof_char(char c) {
 	/* Determine whether a character is end of file */
 	return (c == EOF);
 }
 
-static bool_t _is_newline(char c) {
+static bool_t _is_newline_char(char c) {
 	/* Determine whether a character is newline */
-	return (c == '\r') || (c == '\n') || _is_eof(c);
+	return (c == _RETURN_CHAR) || (c == _NEWLINE_CHAR) || _is_eof_char(c);
 }
 
-static bool_t _is_separator(char c) {
+static bool_t _is_separator_char(char c) {
 	/* Determine whether a character is separator */
 	return (c == ',') || (c == ';') || (c == ':');
 }
 
-static bool_t _is_bracket(char c) {
+static bool_t _is_bracket_char(char c) {
 	/* Determine whether a character is bracket */
 	return (c == '(') || (c == ')');
 }
 
-static bool_t _is_quotation_mark(char c) {
+static bool_t _is_quotation_char(char c) {
 	/* Determine whether a character is quotation mark */
 	return (c == '"');
 }
 
-static bool_t _is_comment(char c) {
+static bool_t _is_comment_char(char c) {
 	/* Determine whether a character is comment mark */
 	return (c == '\'');
 }
 
-static bool_t _is_accessor(char c) {
+static bool_t _is_accessor_char(char c) {
 	/* Determine whether a character is accessor char */
 	return (c == '.');
 }
 
 static bool_t _is_numeric_char(char c) {
 	/* Determine whether a character is numeric char */
-	return (c >= '0' && c <= '9') || _is_accessor(c);
+	return (c >= '0' && c <= '9') || _is_accessor_char(c);
 }
 
 static bool_t _is_identifier_char(char c) {
@@ -4259,7 +4276,7 @@ static bool_t _is_identifier_char(char c) {
 		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 		(c == '_') ||
 		_is_numeric_char(c) ||
-		(c == '$');
+		(c == _STRING_POSTFIX);
 }
 
 static bool_t _is_operator_char(char c) {
@@ -4270,6 +4287,11 @@ static bool_t _is_operator_char(char c) {
 		(c == '(') || (c == ')') ||
 		(c == '=') ||
 		(c == '>') || (c == '<');
+}
+
+static bool_t _is_exponential_char(char c) {
+	/* Determine whether a character is a exponential char */
+	return (c == 'e') || (c == 'E');
 }
 
 static bool_t _is_using_char(char c) {
@@ -4303,7 +4325,7 @@ static int _append_char_to_symbol(mb_interpreter_t* s, char c) {
 
 	context = s->parsing_context;
 
-	if(_is_accessor(c))
+	if(_is_accessor_char(c))
 		context->current_symbol_contains_accessor++;
 
 	if(context->current_symbol_nonius + 1 >= _SINGLE_SYMBOL_MAX_LENGTH) {
@@ -4329,7 +4351,7 @@ static int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigne
 	mb_assert(s);
 
 	context = s->parsing_context;
-	if(context->current_symbol_nonius && context->current_symbol[0] != '\0') {
+	if(context->current_symbol_nonius && context->current_symbol[0] != _ZERO_CHAR) {
 		sym = (char*)mb_malloc(context->current_symbol_nonius + 1);
 		memcpy(sym, context->current_symbol, context->current_symbol_nonius + 1);
 
@@ -4450,7 +4472,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			size_t _sl = strlen(sym);
 			(*obj)->data.string = (char*)mb_malloc(_sl - 2 + 1);
 			memcpy((*obj)->data.string, sym + sizeof(char), _sl - 2);
-			(*obj)->data.string[_sl - 2] = '\0';
+			(*obj)->data.string[_sl - 2] = _ZERO_CHAR;
 			*delsym = true;
 		}
 
@@ -4580,7 +4602,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			memset(tmp.var, 0, sizeof(_var_t));
 			tmp.var->name = sym;
 			tmp.var->data = _create_object();
-			tmp.var->data->type = (sym[strlen(sym) - 1] == '$') ? _DT_STRING : _DT_INT;
+			tmp.var->data->type = (sym[strlen(sym) - 1] == _STRING_POSTFIX) ? _DT_STRING : _DT_INT;
 			tmp.var->data->data.integer = 0;
 #ifdef MB_ENABLE_CLASS
 			if(context->class_state != _CLASS_STATE_NONE)
@@ -4667,7 +4689,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 
 	/* int_t */
 	tmp.integer = (int_t)mb_strtol(sym, &conv_suc, 0);
-	if(*conv_suc == '\0') {
+	if(*conv_suc == _ZERO_CHAR) {
 		memcpy(*value, tmp.any, sizeof(_raw_t));
 
 		result = _DT_INT;
@@ -4676,7 +4698,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 	}
 	/* real_t */
 	tmp.float_point = (real_t)mb_strtod(sym, &conv_suc);
-	if(*conv_suc == '\0') {
+	if(*conv_suc == _ZERO_CHAR) {
 		memcpy(*value, tmp.any, sizeof(_raw_t));
 
 		result = _DT_REAL;
@@ -4684,7 +4706,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 		goto _exit;
 	}
 	/* String */
-	if(sym[0] == '"' && sym[_sl - 1] == '"' && _sl >= 2) {
+	if(_is_quotation_char(sym[0]) && _is_quotation_char(sym[_sl - 1]) && _sl >= 2) {
 		result = _DT_STRING;
 
 		if(context->last_symbol && _IS_FUNC(context->last_symbol, _core_import)) {
@@ -4696,7 +4718,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			memset(context->current_symbol, 0, sizeof(current_symbol));
 			context->current_symbol_nonius = 0;
 			context->last_symbol = 0;
-			sym[_sl - 1] = '\0';
+			sym[_sl - 1] = _ZERO_CHAR;
 			context->parsing_state = _PS_NORMAL;
 			/* Using a module */
 			if(_is_using_char(*(sym + 1))) {
@@ -4738,7 +4760,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 
 _end_import:
 			context->parsing_state = _PS_STRING;
-			sym[_sl - 1] = '\"';
+			sym[_sl - 1] = '"';
 			context->current_symbol_nonius = n;
 			memcpy(context->current_symbol, current_symbol, sizeof(current_symbol));
 			result = _DT_NIL;
@@ -4747,7 +4769,7 @@ _end_import:
 		goto _exit;
 	}
 	/* Nil */
-	if(!strcmp(sym, "NIL")) {
+	if(!strcmp(sym, MB_NIL)) {
 		tmp.integer = ~0;
 		memcpy(*value, tmp.any, sizeof(_raw_t));
 
@@ -4767,7 +4789,7 @@ _end_import:
 	}
 	if(context->last_symbol && _IS_FUNC(context->last_symbol, _core_dim)) {
 #ifdef MB_SIMPLE_ARRAY
-		en = (sym[_sl - 1] == '$' ? _DT_STRING : _DT_REAL);
+		en = (sym[_sl - 1] == _STRING_POSTFIX ? _DT_STRING : _DT_REAL);
 #else /* MB_SIMPLE_ARRAY */
 		en = _DT_REAL;
 #endif /* MB_SIMPLE_ARRAY */
@@ -4823,7 +4845,7 @@ _end_import:
 	}
 #endif /* MB_ENABLE_CLASS */
 	/* _routine_t */
-	if(context->last_symbol && !_is_bracket(sym[0])) {
+	if(context->last_symbol && !_is_bracket_char(sym[0])) {
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
 			if(_IS_FUNC(context->last_symbol, _core_def))
@@ -4914,7 +4936,7 @@ _end_import:
 		goto _exit;
 	}
 	/* Separator */
-	if(_sl == 1 && _is_separator(sym[0])) {
+	if(_sl == 1 && _is_separator_char(sym[0])) {
 		result = _DT_SEP;
 
 		goto _exit;
@@ -4959,7 +4981,7 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 	/* Parse a character */
 	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
-	char last_char = '\0';
+	char last_char = _ZERO_CHAR;
 
 	mb_assert(s && s->parsing_context);
 
@@ -4972,21 +4994,21 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 	case _PS_NORMAL:
 		c = toupper(c);
 
-		if(_is_blank(c)) { /* \t ' ' */
+		if(_is_blank_char(c)) { /* \t space */
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
-		} else if(_is_newline(c)) { /* \r \n EOF */
+		} else if(_is_newline_char(c)) { /* \r \n EOF */
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 			_mb_check(result = _append_char_to_symbol(s, MB_EOS), _exit);
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
-		} else if(_is_separator(c) || _is_bracket(c)) { /* , ; : ( ) */
+		} else if(_is_separator_char(c) || _is_bracket_char(c)) { /* , ; : ( ) */
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 			_mb_check(result = _append_char_to_symbol(s, c), _exit);
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
-		} else if(_is_quotation_mark(c)) { /* " */
+		} else if(_is_quotation_char(c)) { /* " */
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 			_mb_check(result = _append_char_to_symbol(s, c), _exit);
 			context->parsing_state = _PS_STRING;
-		} else if(_is_comment(c)) { /* ' */
+		} else if(_is_comment_char(c)) { /* ' */
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 			_mb_check(result = _append_char_to_symbol(s, MB_EOS), _exit);
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
@@ -4997,7 +5019,7 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 				if(_is_identifier_char(c)) {
 					_mb_check(result = _append_char_to_symbol(s, c), _exit);
 				} else if(_is_operator_char(c)) {
-					if(_is_exponent_prefix(context->current_symbol, 0, context->current_symbol_nonius - 2) && (last_char == 'e' || last_char == 'E') && c == '-') {
+					if(_is_exponent_prefix(context->current_symbol, 0, context->current_symbol_nonius - 2) && _is_exponential_char(last_char) && c == '-') {
 						_mb_check(result = _append_char_to_symbol(s, c), _exit);
 					} else {
 						context->symbol_state = _SS_OPERATOR;
@@ -5026,7 +5048,7 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 
 		break;
 	case _PS_STRING:
-		if(_is_quotation_mark(c)) { /* " */
+		if(_is_quotation_char(c)) { /* " */
 			_mb_check(result = _append_char_to_symbol(s, c), _exit);
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 			context->parsing_state = _PS_NORMAL;
@@ -5036,7 +5058,7 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 
 		break;
 	case _PS_COMMENT:
-		if(_is_eof(c)) { /* EOF */
+		if(_is_eof_char(c)) { /* EOF */
 			context->parsing_state = _PS_NORMAL;
 
 			break;
@@ -5053,17 +5075,17 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 		} else {
 			context->multi_line_comment_count = 0;
 		}
-		if(_is_newline(c)) /* \r \n EOF */
+		if(_is_newline_char(c)) /* \r \n EOF */
 			context->parsing_state = _PS_NORMAL;
 
 		break;
 	case _PS_MULTI_LINE_COMMENT:
-		if(_is_eof(c)) { /* EOF */
+		if(_is_eof_char(c)) { /* EOF */
 			context->parsing_state = _PS_NORMAL;
 
 			break;
 		}
-		if(_is_comment(c) && context->multi_line_comment_count == 0) {
+		if(_is_comment_char(c) && context->multi_line_comment_count == 0) {
 			context->multi_line_comment_count = 1;
 		} else if(context->multi_line_comment_count != 0 && c == _MULTI_LINE_COMMENT_POSTFIX[context->multi_line_comment_count++]) {
 			if(context->multi_line_comment_count >= _countof(_MULTI_LINE_COMMENT_POSTFIX) - 1) {
@@ -5273,6 +5295,7 @@ static char* _extract_string(_object_t* obj) {
 	return result;
 }
 
+#ifdef _HAS_REF_OBJ_LOCK
 static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 	/* Lock a referenced object */
 	mb_assert(lk);
@@ -5318,6 +5341,7 @@ static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 
 	return result;
 }
+#endif /* _HAS_REF_OBJ_LOCK */
 
 static _ref_count_t _ref(_ref_t* ref, void* data) {
 	/* Increase the reference of a stub by 1 */
@@ -6325,7 +6349,7 @@ static _dict_it_t* _create_dict_it(_dict_t* coll, bool_t lock) {
 	result->dict = coll;
 	result->locking = lock;
 	result->curr_bucket = 0;
-	result->curr_node = (_ls_node_t*)(intptr_t)~0;
+	result->curr_node = _INVALID_DICT_IT;
 	if(lock)
 		_lock_ref_object(&coll->lock, &coll->ref, coll);
 	_weak_ref(&coll->ref, coll, &result->weak_ref);
@@ -6356,12 +6380,12 @@ static _dict_it_t* _move_dict_it_next(_dict_it_t* it) {
 	if(!it->dict->lock)
 		goto _exit;
 
-	if(it->curr_node && it->curr_node != (_ls_node_t*)(intptr_t)~0) {
+	if(it->curr_node && it->curr_node != _INVALID_DICT_IT) {
 		it->curr_node = it->curr_node->next;
 		if(!it->curr_node)
 			++it->curr_bucket;
 	}
-	if(!it->curr_node || it->curr_node == (_ls_node_t*)(intptr_t)~0) {
+	if(!it->curr_node || it->curr_node == _INVALID_DICT_IT) {
 		for( ; it->curr_bucket < it->dict->dict->array_size; ++it->curr_bucket) {
 			it->curr_node = it->dict->dict->array[it->curr_bucket];
 			if(it->curr_node && it->curr_node->next) {
@@ -7222,7 +7246,7 @@ static bool_t _is_valid_class_accessor_following_routine(mb_interpreter_t* s, _v
 
 	if(out) *out = 0;
 
-	if(_is_accessor(*var->name) && (ast && ast->prev && _IS_FUNC(ast->prev->data, _core_close_bracket)) && running->intermediate_value.type == MB_DT_CLASS) {
+	if(_is_accessor_char(*var->name) && (ast && ast->prev && _IS_FUNC(ast->prev->data, _core_close_bracket)) && running->intermediate_value.type == MB_DT_CLASS) {
 		_class_t* instance = (_class_t*)running->intermediate_value.value.instance;
 		_ls_node_t* fn = _search_identifier_in_class(s, instance, var->name + 1, 0, 0);
 		result = true;
@@ -7778,8 +7802,8 @@ static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_con
 
 	while((i == 0) || (i > 0 && n[i - 1])) {
 		acc[j] = n[i];
-		if(_is_accessor(acc[j]) || acc[j] == '\0') {
-			acc[j] = '\0';
+		if(_is_accessor_char(acc[j]) || acc[j] == _ZERO_CHAR) {
+			acc[j] = _ZERO_CHAR;
 			if(instance)
 				result = _search_identifier_in_class(s, instance, acc, ht, sp);
 			else
@@ -9937,9 +9961,9 @@ static int _open_constant(mb_interpreter_t* s) {
 
 	running = s->running_context;
 
-	ul = _ht_set_or_insert(running->var_dict, "TRUE", _OBJ_BOOL_TRUE);
+	ul = _ht_set_or_insert(running->var_dict, MB_TRUE, _OBJ_BOOL_TRUE);
 	mb_assert(ul);
-	ul = _ht_set_or_insert(running->var_dict, "FALSE", _OBJ_BOOL_FALSE);
+	ul = _ht_set_or_insert(running->var_dict, MB_FALSE, _OBJ_BOOL_FALSE);
 	mb_assert(ul);
 
 	return result;
@@ -10060,19 +10084,19 @@ int mb_init(void) {
 	_exp_assign->type = _DT_FUNC;
 	_exp_assign->data.func = (_func_t*)mb_malloc(sizeof(_func_t));
 	memset(_exp_assign->data.func, 0, sizeof(_func_t));
-	_exp_assign->data.func->name = (char*)mb_malloc(strlen("#") + 1);
-	memcpy(_exp_assign->data.func->name, "#", strlen("#") + 1);
+	_exp_assign->data.func->name = (char*)mb_malloc(strlen(_DUMMY_ASSIGN) + 1);
+	memcpy(_exp_assign->data.func->name, _DUMMY_ASSIGN, strlen(_DUMMY_ASSIGN) + 1);
 	_exp_assign->data.func->pointer = _core_dummy_assign;
 
 	mb_assert(!_OBJ_BOOL_TRUE);
 	if(!_OBJ_BOOL_TRUE) {
-		_var_t* bvar = _create_var(&_OBJ_BOOL_TRUE, "TRUE", strlen("TRUE") + 1, true);
+		_var_t* bvar = _create_var(&_OBJ_BOOL_TRUE, MB_TRUE, strlen(MB_TRUE) + 1, true);
 		bvar->data->type = _DT_INT;
 		bvar->data->data.integer = 1;
 	}
 	mb_assert(!_OBJ_BOOL_FALSE);
 	if(!_OBJ_BOOL_FALSE) {
-		_var_t* bvar = _create_var(&_OBJ_BOOL_FALSE, "FALSE", strlen("FALSE") + 1, true);
+		_var_t* bvar = _create_var(&_OBJ_BOOL_FALSE, MB_FALSE, strlen(MB_FALSE) + 1, true);
 		bvar->data->type = _DT_INT;
 		bvar->data->data.integer = 0;
 	}
@@ -11585,7 +11609,7 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 	int i = 0;
 	unsigned short _row = 0;
 	unsigned short _col = 0;
-	char wrapped = '\0';
+	char wrapped = _ZERO_CHAR;
 	_parsing_context_t* context = 0;
 
 	mb_assert(s && s->parsing_context);
@@ -11594,12 +11618,12 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 
 	while(l[i]) {
 		ch = l[i];
-		if((ch == '\n' || ch == '\r') && (!wrapped || wrapped == ch)) {
+		if((ch == _NEWLINE_CHAR || ch == _RETURN_CHAR) && (!wrapped || wrapped == ch)) {
 			wrapped = ch;
 			++context->parsing_row;
 			context->parsing_col = 0;
 		} else {
-			wrapped = '\0';
+			wrapped = _ZERO_CHAR;
 			++context->parsing_col;
 		}
 		status = _parse_char(s, ch, context->parsing_pos, _row, _col);
@@ -12007,8 +12031,8 @@ int mb_gets(char* buf, int s) {
 		exit(1);
 	}
 	result = (int)strlen(buf);
-	if(buf[result - 1] == '\n')
-		buf[result - 1] = '\0';
+	if(buf[result - 1] == _NEWLINE_CHAR)
+		buf[result - 1] = _ZERO_CHAR;
 
 	return result;
 }
@@ -14546,7 +14570,7 @@ static int _std_asc(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	if(arg[0] == '\0') {
+	if(arg[0] == _ZERO_CHAR) {
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -14616,7 +14640,7 @@ static int _std_left(mb_interpreter_t* s, void** l) {
 #else /* MB_ENABLE_UNICODE */
 	sub = (char*)mb_malloc(count + 1);
 	memcpy(sub, arg, count);
-	sub[count] = '\0';
+	sub[count] = _ZERO_CHAR;
 #endif /* MB_ENABLE_UNICODE */
 	mb_check(mb_push_string(s, l, sub));
 
@@ -14662,7 +14686,7 @@ static int _std_mid(mb_interpreter_t* s, void** l) {
 #else /* MB_ENABLE_UNICODE */
 	sub = (char*)mb_malloc(count + 1);
 	memcpy(sub, arg + start, count);
-	sub[count] = '\0';
+	sub[count] = _ZERO_CHAR;
 #endif /* MB_ENABLE_UNICODE */
 	mb_check(mb_push_string(s, l, sub));
 
@@ -14706,7 +14730,7 @@ static int _std_right(mb_interpreter_t* s, void** l) {
 #else /* MB_ENABLE_UNICODE */
 	sub = (char*)mb_malloc(count + 1);
 	memcpy(sub, arg + (strlen(arg) - count), count);
-	sub[count] = '\0';
+	sub[count] = _ZERO_CHAR;
 #endif /* MB_ENABLE_UNICODE */
 	mb_check(mb_push_string(s, l, sub));
 
@@ -14771,14 +14795,14 @@ static int _std_val(mb_interpreter_t* s, void** l) {
 	switch(arg.type) {
 	case MB_DT_STRING:
 		ret.value.integer = (int_t)mb_strtol(arg.value.string, &conv_suc, 0);
-		if(*conv_suc == '\0') {
+		if(*conv_suc == _ZERO_CHAR) {
 			ret.type = MB_DT_INT;
 			mb_check(mb_push_value(s, l, ret));
 
 			goto _exit;
 		}
 		ret.value.float_point = (real_t)mb_strtod(arg.value.string, &conv_suc);
-		if(*conv_suc == '\0') {
+		if(*conv_suc == _ZERO_CHAR) {
 			ret.type = MB_DT_REAL;
 			mb_check(mb_push_value(s, l, ret));
 
@@ -15159,10 +15183,10 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		_get_inputer(s)(line, sizeof(line));
 		obj->data.variable->data->type = _DT_INT;
 		obj->data.variable->data->data.integer = (int_t)mb_strtol(line, &conv_suc, 0);
-		if(*conv_suc != '\0') {
+		if(*conv_suc != _ZERO_CHAR) {
 			obj->data.variable->data->type = _DT_REAL;
 			obj->data.variable->data->data.float_point = (real_t)mb_strtod(line, &conv_suc);
-			if(*conv_suc != '\0') {
+			if(*conv_suc != _ZERO_CHAR) {
 				result = MB_FUNC_ERR;
 
 				goto _exit;

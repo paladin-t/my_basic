@@ -203,10 +203,16 @@ extern "C" {
 #	define MB_EOS '\n'
 #endif /* MB_EOS */
 #ifndef MB_NIL
-#	define MB_NIL "nil"
+#	define MB_NIL "NIL"
 #endif /* MB_NIL */
+#ifndef MB_TRUE
+#	define MB_TRUE "TRUE"
+#endif /* MB_TRUE */
+#ifndef MB_FALSE
+#	define MB_FALSE "FALSE"
+#endif /* MB_FALSE */
 #ifndef MB_NULL_STRING
-#	define MB_NULL_STRING "(empty)"
+#	define MB_NULL_STRING "(EMPTY)"
 #endif /* MB_NULL_STRING */
 
 #ifndef mb_stricmp

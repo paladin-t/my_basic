@@ -133,15 +133,14 @@ extern MBAPI const size_t MB_SIZEOF_LSN;
 extern MBAPI const size_t MB_SIZEOF_HTN;
 extern MBAPI const size_t MB_SIZEOF_HTA;
 extern MBAPI const size_t MB_SIZEOF_OBJ;
-extern MBAPI const size_t MB_SIZEOF_FUN;
-extern MBAPI const size_t MB_SIZEOF_VAR;
 #ifdef MB_ENABLE_USERTYPE_REF
 extern MBAPI const size_t MB_SIZEOF_UTR;
 #else /* MB_ENABLE_USERTYPE_REF */
 static const size_t MB_SIZEOF_UTR = 16;
 #endif /* MB_ENABLE_USERTYPE_REF */
+extern MBAPI const size_t MB_SIZEOF_FUN;
+extern MBAPI const size_t MB_SIZEOF_VAR;
 extern MBAPI const size_t MB_SIZEOF_ARR;
-extern MBAPI const size_t MB_SIZEOF_LBL;
 #ifdef MB_ENABLE_COLLECTION_LIB
 extern MBAPI const size_t MB_SIZEOF_LST;
 extern MBAPI const size_t MB_SIZEOF_DCT;
@@ -149,12 +148,13 @@ extern MBAPI const size_t MB_SIZEOF_DCT;
 static const size_t MB_SIZEOF_LST = 16;
 static const size_t MB_SIZEOF_DCT = 16;
 #endif /* MB_ENABLE_COLLECTION_LIB */
-extern MBAPI const size_t MB_SIZEOF_RTN;
+extern MBAPI const size_t MB_SIZEOF_LBL;
 #ifdef MB_ENABLE_CLASS
 extern MBAPI const size_t MB_SIZEOF_CLS;
 #else /* MB_ENABLE_CLASS */
 static const size_t MB_SIZEOF_CLS = 16;
 #endif /* MB_ENABLE_CLASS */
+extern MBAPI const size_t MB_SIZEOF_RTN;
 
 typedef unsigned _pool_chunk_size_t;
 
@@ -244,15 +244,15 @@ static void _open_mem_pool(void) {
 	szs[i++] = MB_SIZEOF_HTN;
 	szs[i++] = MB_SIZEOF_HTA;
 	szs[i++] = MB_SIZEOF_OBJ;
+	szs[i++] = MB_SIZEOF_UTR;
 	szs[i++] = MB_SIZEOF_FUN;
 	szs[i++] = MB_SIZEOF_VAR;
-	szs[i++] = MB_SIZEOF_UTR;
 	szs[i++] = MB_SIZEOF_ARR;
-	szs[i++] = MB_SIZEOF_LBL;
 	szs[i++] = MB_SIZEOF_LST;
 	szs[i++] = MB_SIZEOF_DCT;
-	szs[i++] = MB_SIZEOF_RTN;
+	szs[i++] = MB_SIZEOF_LBL;
 	szs[i++] = MB_SIZEOF_CLS;
+	szs[i++] = MB_SIZEOF_RTN;
 
 	mb_assert(i == N);
 
