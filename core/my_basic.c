@@ -3736,6 +3736,8 @@ static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* r
 					var->data->ref = true;
 			}
 
+			if(!pop_arg && var->data->type == _DT_STRING && !var->data->ref)
+				_mark_lazy_destroy_string(s, var->data->data.string);
 			result = _public_value_to_internal_object(&arg, var->data);
 
 			if(result != MB_FUNC_OK)
@@ -7073,8 +7075,11 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 	case _DT_VAR:
 		var = obj->data.variable;
 		if(!_IS_ME(var)) {
+			if(_ht_find(instance->scope->var_dict, var->name))
+				break;
+
 			ret = _duplicate_parameter(var, 0, instance->scope);
-			_clone_object(instance->ref.s, obj, ret->data.variable->data, false, true);
+			_clone_object(instance->ref.s, obj, ret->data.variable->data, false, var->data->type != _DT_CLASS);
 		}
 
 		break;
@@ -7084,7 +7089,7 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 			ret = _create_object();
 			ret->type = _DT_ARRAY;
 			ret->ref = false;
-			_clone_object(instance->ref.s, obj, ret, false, true);
+			_clone_object(instance->ref.s, obj, ret, false, false);
 
 			_ht_set_or_insert(instance->scope->var_dict, ret->data.array->name, ret);
 		}

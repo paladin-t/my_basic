@@ -1,3 +1,6 @@
+Mar. 4 2016
+Fixed a memory leak with sub routine parameter
+
 Mar. 2 2016
 Added a new YARD sample
 Fixed a crash bug when unreferencing a garbage
