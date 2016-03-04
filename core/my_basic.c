@@ -757,7 +757,7 @@ typedef struct mb_interpreter_t {
 	_ls_node_t* sub_stack;
 	_ls_node_t* suspent_point;
 	int schedule_suspend_tag;
-	_ls_node_t* temp_values;
+	_ls_node_t* edge_destroy_objects;
 	_ls_node_t* lazy_destroy_objects;
 	_gc_t gc;
 	int_t no_eat_comma_mark;
@@ -1650,6 +1650,8 @@ static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t*
 static int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t* itn);
 static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s);
 static void _remove_if_exist(void* data, void* extra, _ls_node_t* ls);
+static void _destroy_edge_objects(mb_interpreter_t* s);
+static void _mark_edge_destroy_string(mb_interpreter_t* s, char* ch);
 static void _destroy_lazy_objects(mb_interpreter_t* s);
 static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch);
 static void _assign_public_value(mb_value_t* tgt, mb_value_t* src);
@@ -8936,14 +8938,33 @@ static void _remove_if_exist(void* data, void* extra, _ls_node_t* ls) {
 	_ls_try_remove(ls, obj, _ls_cmp_data, 0);
 }
 
+static void _destroy_edge_objects(mb_interpreter_t* s) {
+	/* Destroy edge destroying objects */
+	_ls_foreach(s->edge_destroy_objects, _destroy_object);
+	_ls_clear(s->edge_destroy_objects);
+}
+
+static void _mark_edge_destroy_string(mb_interpreter_t* s, char* ch) {
+	/* Mark a string as an edge destroying object */
+	_object_t* temp_obj = 0;
+
+	mb_assert(s && ch);
+
+	temp_obj = _create_object();
+	temp_obj->type = _DT_STRING;
+	temp_obj->ref = false;
+	temp_obj->data.string = ch;
+	_ls_pushback(s->edge_destroy_objects, temp_obj);
+}
+
 static void _destroy_lazy_objects(mb_interpreter_t* s) {
-	/* Destroy lazy releasing objects */
+	/* Destroy lazy destroying objects */
 	_ls_foreach(s->lazy_destroy_objects, _destroy_object);
 	_ls_clear(s->lazy_destroy_objects);
 }
 
 static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
-	/* Mark a string as lazy releasing destroy */
+	/* Mark a string as a lazy destroying object */
 	_object_t* temp_obj = 0;
 
 	mb_assert(s && ch);
@@ -10161,7 +10182,7 @@ int mb_open(struct mb_interpreter_t** s) {
 
 	(*s)->parsing_context = _reset_parsing_context((*s)->parsing_context);
 
-	(*s)->temp_values = _ls_create();
+	(*s)->edge_destroy_objects = _ls_create();
 	(*s)->lazy_destroy_objects = _ls_create();
 
 	(*s)->gc.table = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
@@ -10232,8 +10253,8 @@ int mb_close(struct mb_interpreter_t** s) {
 	(*s)->gc.recursive_table = 0;
 	(*s)->gc.collected_table = 0;
 
-	_ls_foreach((*s)->temp_values, _destroy_object);
-	_ls_destroy((*s)->temp_values);
+	_ls_foreach((*s)->edge_destroy_objects, _destroy_object);
+	_ls_destroy((*s)->edge_destroy_objects);
 	_ls_foreach((*s)->lazy_destroy_objects, _destroy_object);
 	_ls_destroy((*s)->lazy_destroy_objects);
 
@@ -10618,12 +10639,8 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 		goto _exit;
 
 	if(val_ptr->type == _DT_STRING && !val_ptr->ref) {
-		_ls_foreach(s->temp_values, _destroy_object);
-		_ls_clear(s->temp_values);
-
-		val_ptr = _create_object();
-		memcpy(val_ptr, &val_obj, sizeof(_object_t));
-		_ls_pushback(s->temp_values, val_ptr);
+		_destroy_edge_objects(s);
+		_mark_edge_destroy_string(s, val_ptr->data.string);
 	}
 	_REF(val_ptr)
 
@@ -11728,8 +11745,7 @@ int mb_run(struct mb_interpreter_t* s) {
 	} while(ast);
 
 _exit:
-	_ls_foreach(s->temp_values, _destroy_object);
-	_ls_clear(s->temp_values);
+	_destroy_edge_objects(s);
 
 	return result;
 }

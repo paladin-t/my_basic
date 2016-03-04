@@ -178,7 +178,9 @@ class level
 		print "  Q: Quit game";
 	enddef
 
-	def update(ipt)
+	def update(i)
+		ipt = to_lower_case(i)
+
 		if ipt = "q" then print "Bye."; : end
 
 		if status <> game_status.playing then

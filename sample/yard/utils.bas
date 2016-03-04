@@ -11,6 +11,15 @@ def cls()
 	endif
 enddef
 
+def to_lower_case(c)
+	_asc = asc(c)
+	if _asc >= asc("A") and _asc <= asc("Z") then
+		_asc = _asc + asc("a") - asc("A")
+	endif
+
+	return chr(_asc)
+enddef
+
 def bit_and(a, b)
 	c = 0
 	for i = 0 to 31
