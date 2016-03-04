@@ -1,5 +1,6 @@
 Mar. 4 2016
 Fixed a memory leak with sub routine parameter
+Improved inputer
 
 Mar. 2 2016
 Added a new YARD sample
@@ -98,7 +99,6 @@ Fixed a crash bug when skipping a struct
 Jan. 27 2016
 Removed the MB_ENABLE_GC macro
 Refactored initial reference count
-Polished code
 
 Jan. 26 2016
 Added an mb_gc function
@@ -137,12 +137,11 @@ Fixed an unknown type handling bug
 
 Jan. 19 2016
 Added support to apply the LEN statement to variable arguments as LEN(...)
-Polished code
 
 Jan. 18 2016
 Added variable arguments support
 Added a NOW statement to the shell
-Polished shell implementation code
+Improved shell implementation code
 
 Jan. 17 2016
 Added source file information to error handling
@@ -226,7 +225,6 @@ Added support to access a collection by brackets
 Fixed a wrong scope bug caused by cloned class instance
 Fixed a GC issue by adding reference count when cloning a collection or a referenced usertype
 Fixed a mistake in VAR statement
-Polished document
 
 Jan. 1 2016 Version 1.2
 Added a new sample script source file
@@ -236,8 +234,6 @@ Fixed an invalid execution point bug when a program begins with a label
 Dec. 30 2015
 Improved error handling with sub routine and class
 Implemented DIR command
-Polished code
-Polished document
 
 Dec. 29 2015
 Fixed a multiple disposing bug with expression calculation
@@ -245,27 +241,24 @@ Fixed a memory leak with GC caused by meta class
 Improved GC with array and string
 Improved string duplication
 Improved array handling
-Polished array manipulation code
+Improved array manipulation code
 
 Dec. 28 2015
 Fixed a GC bug
 Fixed a wrong routine evaluation bug
 Improved threshold algorithm for the memory pool
-Polished code
 
 Dec. 25 2015
 Added support to put a class instance into a variable
 Improved error handling with sub routine and class
 Fixed an unary calculation issue
 Fixed a memory leak in class definition
-Polished code
 
 Dec. 24 2015
 Improved defining a class in C
 Added a pair of mb_get_class_userdata/mb_set_class_userdata functions
 Added a pair of mb_get_userdata/mb_set_userdata functions
 Refactored memory layout of the _routine_t struct
-Polished document
 
 Dec. 21 2015
 Fixed a class GC bug
@@ -445,7 +438,6 @@ Sep. 21 2015
 Implemented tail recursion optimization in sub routine
 Added array length gain in LEN function
 Fixed a crash bug when returning nothing in a sub routine
-Polished document
 
 Sep. 20 2015
 Added array manipulation ability to script, it's able to assign an array to a variable or use it as a scripting interface argument
@@ -464,13 +456,11 @@ Fixed a repeated disposing bug when using sub routine
 Sep. 16 2015
 Added Nil type handling, including assignment, boolean operation, serialization, etc.
 Added an MB_CONVERT_TO_INT_LEVEL macro, would convert float to integer as much as possible if this macro was enabled
-Polished document
 
 Sep. 11 2015
 Added a duplicate sub routine error handling
 Added optional argument support for INPUT statement
 Fixed a repeated disposing bug of a variable in sub routine
-Polished document
 
 Sep. 8 2015
 Fixed a type parsing of sub routine bug
@@ -484,8 +474,6 @@ Improved sub routine
 Sep. 2 2015
 Added sub routine type insurance
 Prompted more friendly dummy function message
-Polished code
-Polished document
 
 Sep. 1 2015
 Added support for user customized sub routine by DEF/ENDDEF
@@ -519,12 +507,12 @@ Fixed a wrong token position marking issue with interactive mode, thanks to Dani
 
 May. 6 2015
 Removed redundant EOS tokens
-Polished data precision related macros
+Improved data precision related macros
 
 May. 5 2015
 Added string type support for non-simple array
 Fixed a memory leak when storing strings to a non-string array
-Polished data precision related macros
+Improved data precision related macros
 
 Apr. 27 2015
 Added code line inserting/removing to interpreter shell
@@ -536,14 +524,12 @@ Added (nestable) multiple line IF statement support
 
 Apr. 15 2015
 Added mb_pop_usertype, mb_push_usertype to support user defined type
-Polished code
-Polished document
 
 Apr. 13 2015
 Added mixed integer/float array support
 Added warning prompt when passing strings to maths functions
 Fixed a memory leak when storing strings in an array
-Polished the interpreter commands
+Improved the interpreter commands
 
 Apr. 11 2015
 Moved struct mb_interpreter_t from my_basic.h to my_basic.c

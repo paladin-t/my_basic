@@ -12052,8 +12052,10 @@ int mb_gets(char* buf, int s) {
 		exit(1);
 	}
 	result = (int)strlen(buf);
-	if(buf[result - 1] == _NEWLINE_CHAR)
+	if(buf[result - 1] == _NEWLINE_CHAR) {
 		buf[result - 1] = _ZERO_CHAR;
+		result--;
+	}
 
 	return result;
 }
@@ -15215,13 +15217,12 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		}
 		ast = ast->next;
 	} else if(obj->data.variable->data->type == _DT_STRING) {
+		int len = 0;
 		if(obj->data.variable->data->data.string) {
 			safe_free(obj->data.variable->data->data.string);
 		}
-		obj->data.variable->data->data.string = (char*)mb_malloc(sizeof(line));
-		memset(obj->data.variable->data->data.string, 0, sizeof(line));
-		_get_inputer(s)(line, sizeof(line));
-		strcpy(obj->data.variable->data->data.string, line);
+		len = _get_inputer(s)(line, sizeof(line));
+		obj->data.variable->data->data.string = mb_memdup(line, len + 1);
 		ast = ast->next;
 	} else {
 		result = MB_FUNC_ERR;
