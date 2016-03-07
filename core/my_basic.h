@@ -508,7 +508,7 @@ MBAPI int mb_init(void);
 MBAPI int mb_dispose(void);
 MBAPI int mb_open(struct mb_interpreter_t** s);
 MBAPI int mb_close(struct mb_interpreter_t** s);
-MBAPI int mb_reset(struct mb_interpreter_t** s, bool_t clrf);
+MBAPI int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/);
 
 MBAPI int mb_register_func(struct mb_interpreter_t* s, const char* n, mb_func_t f);
 MBAPI int mb_remove_func(struct mb_interpreter_t* s, const char* n);
@@ -562,7 +562,7 @@ MBAPI int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb
 MBAPI int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routine_func_t f, bool_t force);
 MBAPI int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc);
 
-MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset);
+MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset/* = true*/);
 MBAPI int mb_load_file(struct mb_interpreter_t* s, const char* f);
 MBAPI int mb_run(struct mb_interpreter_t* s);
 MBAPI int mb_suspend(struct mb_interpreter_t* s, void** l);

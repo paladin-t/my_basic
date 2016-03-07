@@ -1267,8 +1267,8 @@ static void _end_of_file(_parsing_context_t* context);
 #define _ZERO_CHAR '\0'
 #define _NEWLINE_CHAR '\n'
 #define _RETURN_CHAR '\r'
-#define _STRING_POSTFIX '$'
-#define _DUMMY_ASSIGN "#"
+#define _STRING_POSTFIX_CHAR '$'
+#define _DUMMY_ASSIGN_CHAR "#"
 
 static bool_t _is_blank_char(char c);
 static bool_t _is_eof_char(char c);
@@ -1856,7 +1856,7 @@ static int _coll_move_next(mb_interpreter_t* s, void** l);
 
 /** Lib information */
 static const _func_t _core_libs[] = {
-	{ _DUMMY_ASSIGN, _core_dummy_assign },
+	{ _DUMMY_ASSIGN_CHAR, _core_dummy_assign },
 	{ "+", _core_add },
 	{ "-", _core_min },
 	{ "*", _core_mul },
@@ -2789,6 +2789,7 @@ static void* mb_malloc(size_t s) {
 	/* Allocate a chunk of memory with a specific size */
 	char* ret = 0;
 	size_t rs = s;
+
 #ifdef MB_ENABLE_ALLOC_STAT
 	if(!_MB_CHECK_MEM_TAG_SIZE(size_t, s))
 		return 0;
@@ -2819,7 +2820,6 @@ static void mb_free(void* p) {
 		p = (char*)p - _MB_MEM_TAG_SIZE;
 	} while(0);
 #endif /* MB_ENABLE_ALLOC_STAT */
-
 	if(_mb_free_func)
 		_mb_free_func((char*)p);
 	else
@@ -2844,6 +2844,7 @@ static size_t mb_memtest(void* p, size_t s) {
 	/* Detect whether a chunk of memory contains any non-zero byte */
 	size_t result = 0;
 	size_t i = 0;
+
 	for(i = 0; i < s; i++)
 		result += ((unsigned char*)p)[i];
 
@@ -2887,6 +2888,7 @@ static int mb_uu_ischar(char* ch) {
 #	define _COPY(__ch, __c, __r, __cp) do { _TAKE(__ch, __c, __r); __cp = (__cp << 6) | ((unsigned char)__c & 0x3Fu); } while(0)
 #	define _TRANS(__m, __cp, __g) do { __cp &= ((__g[(unsigned char)c] & __m) != 0); } while(0)
 #	define _TAIL(__ch, __c, __r, __cp, __g) do { _COPY(__ch, __c, __r, __cp); _TRANS(0x70, __cp, __g); } while(0)
+
 	static const unsigned char range[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -2918,7 +2920,7 @@ static int mb_uu_ischar(char* ch) {
 	type = range[(unsigned char)c];
 	codepoint = (0xFF >> type) & (unsigned char)c;
 
-	switch (type) {
+	switch(type) {
 	case 2: _TAIL(ch, c, result, codepoint, range); return result;
 	case 3: _TAIL(ch, c, result, codepoint, range); _TAIL(ch, c, result, codepoint, range); return result;
 	case 4: _COPY(ch, c, result, codepoint); _TRANS(0x50, codepoint, range); _TAIL(ch, c, result, codepoint, range); return result;
@@ -2928,6 +2930,7 @@ static int mb_uu_ischar(char* ch) {
 	case 11: _COPY(ch, c, result, codepoint); _TRANS(0x60, codepoint, range); _TAIL(ch, c, result, codepoint, range); _TAIL(ch, c, result, codepoint, range); return result;
 	default: return 0;
 	}
+
 #	undef _TAKE
 #	undef _COPY
 #	undef _TRANS
@@ -3240,8 +3243,8 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 	ast = ast->next;
 	_ls_pushback(optr, _exp_assign);
 	while(
-		!(c->type == _DT_FUNC && strcmp(c->data.func->name, _DUMMY_ASSIGN) == 0) ||
-		!(((_object_t*)(_ls_back(optr)->data))->type == _DT_FUNC && strcmp(((_object_t*)(_ls_back(optr)->data))->data.func->name, _DUMMY_ASSIGN) == 0)) {
+		!(c->type == _DT_FUNC && strcmp(c->data.func->name, _DUMMY_ASSIGN_CHAR) == 0) ||
+		!(((_object_t*)(_ls_back(optr)->data))->type == _DT_FUNC && strcmp(((_object_t*)(_ls_back(optr)->data))->data.func->name, _DUMMY_ASSIGN_CHAR) == 0)) {
 		if(!hack) {
 			if(_IS_FUNC(c, _core_open_bracket)) {
 				++bracket_count;
@@ -3651,6 +3654,7 @@ _exit:
 static _ls_node_t* _push_var_args(mb_interpreter_t* s) {
 	/* Push current variable arguments list */
 	_ls_node_t* result = s->var_args;
+
 	s->var_args = 0;
 
 	return result;
@@ -3659,6 +3663,7 @@ static _ls_node_t* _push_var_args(mb_interpreter_t* s) {
 static void _pop_var_args(mb_interpreter_t* s, _ls_node_t* last_var_args) {
 	/* Pop current variable arguments list */
 	_ls_node_t* var_args = s->var_args;
+
 	s->var_args = last_var_args;
 	if(var_args) {
 		_ls_foreach(var_args, _destroy_object_capsule_only);
@@ -4031,7 +4036,6 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 		goto _exit;
 
 	mb_make_nil(inte);
-
 	_swap_public_value(&inte, &running->intermediate_value);
 
 	running = _unlink_lambda_scope_chain(s, &r->func.lambda, false);
@@ -4280,7 +4284,7 @@ static bool_t _is_identifier_char(char c) {
 		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 		(c == '_') ||
 		_is_numeric_char(c) ||
-		(c == _STRING_POSTFIX);
+		(c == _STRING_POSTFIX_CHAR);
 }
 
 static bool_t _is_operator_char(char c) {
@@ -4606,7 +4610,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			memset(tmp.var, 0, sizeof(_var_t));
 			tmp.var->name = sym;
 			tmp.var->data = _create_object();
-			tmp.var->data->type = (sym[strlen(sym) - 1] == _STRING_POSTFIX) ? _DT_STRING : _DT_INT;
+			tmp.var->data->type = (sym[strlen(sym) - 1] == _STRING_POSTFIX_CHAR) ? _DT_STRING : _DT_INT;
 			tmp.var->data->data.integer = 0;
 #ifdef MB_ENABLE_CLASS
 			if(context->class_state != _CLASS_STATE_NONE)
@@ -4793,7 +4797,7 @@ _end_import:
 	}
 	if(context->last_symbol && _IS_FUNC(context->last_symbol, _core_dim)) {
 #ifdef MB_SIMPLE_ARRAY
-		en = (sym[_sl - 1] == _STRING_POSTFIX ? _DT_STRING : _DT_REAL);
+		en = (sym[_sl - 1] == _STRING_POSTFIX_CHAR ? _DT_STRING : _DT_REAL);
 #else /* MB_SIMPLE_ARRAY */
 		en = _DT_REAL;
 #endif /* MB_SIMPLE_ARRAY */
@@ -5861,7 +5865,11 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 #ifdef MB_ENABLE_USERTYPE_REF
 static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft) {
 	/* Create a referenced usertype */
-	_usertype_ref_t* result = (_usertype_ref_t*)mb_malloc(sizeof(_usertype_ref_t));
+	_usertype_ref_t* result = 0;
+
+	mb_assert(s);
+
+	result = (_usertype_ref_t*)mb_malloc(sizeof(_usertype_ref_t));
 	memset(result, 0, sizeof(_usertype_ref_t));
 	result->usertype = val;
 	result->dtor = un;
@@ -5876,6 +5884,8 @@ static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_
 
 static void _destroy_usertype_ref(_usertype_ref_t* c) {
 	/* Destroy a referenced usertype */
+	mb_assert(c);
+
 	if(c->dtor)
 		c->dtor(c->ref.s, c->usertype);
 	_destroy_ref(&c->ref);
@@ -5884,6 +5894,8 @@ static void _destroy_usertype_ref(_usertype_ref_t* c) {
 
 static void _unref_usertype_ref(_ref_t* ref, void* data) {
 	/* Unreference a referenced usertype */
+	mb_assert(ref);
+
 	if(*ref->count == _NONE_REF)
 		_destroy_usertype_ref((_usertype_ref_t*)data);
 }
@@ -5891,7 +5903,11 @@ static void _unref_usertype_ref(_ref_t* ref, void* data) {
 
 static _array_t* _create_array(mb_interpreter_t* s, const char* n, _data_e t) {
 	/* Create an array */
-	_array_t* result = (_array_t*)mb_malloc(sizeof(_array_t));
+	_array_t* result = 0;
+
+	mb_assert(s);
+
+	result = (_array_t*)mb_malloc(sizeof(_array_t));
 	memset(result, 0, sizeof(_array_t));
 	result->type = t;
 	result->name = (char*)n;
@@ -6239,6 +6255,8 @@ static bool_t _is_array(void* obj) {
 
 static void _unref_array(_ref_t* ref, void* data) {
 	/* Unreference an array */
+	mb_assert(ref);
+
 	if(*ref->count == _NONE_REF)
 		_destroy_array((_array_t*)data);
 }
@@ -6246,7 +6264,11 @@ static void _unref_array(_ref_t* ref, void* data) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 static _list_t* _create_list(mb_interpreter_t* s) {
 	/* Create a list */
-	_list_t* result = (_list_t*)mb_malloc(sizeof(_list_t));
+	_list_t* result = 0;
+
+	mb_assert(s);
+
+	result = (_list_t*)mb_malloc(sizeof(_list_t));
 	memset(result, 0, sizeof(_list_t));
 	result->list = _ls_create();
 	_create_ref(&result->ref, _unref_list, _DT_LIST, s);
@@ -6256,6 +6278,8 @@ static _list_t* _create_list(mb_interpreter_t* s) {
 
 static void _destroy_list(_list_t* c) {
 	/* Destroy a list */
+	mb_assert(c);
+
 	if(c->range_begin) { safe_free(c->range_begin); }
 	_ls_foreach(c->list, _destroy_object);
 	_ls_destroy(c->list);
@@ -6265,7 +6289,11 @@ static void _destroy_list(_list_t* c) {
 
 static _dict_t* _create_dict(mb_interpreter_t* s) {
 	/* Create a dictionary */
-	_dict_t* result = (_dict_t*)mb_malloc(sizeof(_dict_t));
+	_dict_t* result = 0;
+
+	mb_assert(s);
+
+	result = (_dict_t*)mb_malloc(sizeof(_dict_t));
 	memset(result, 0, sizeof(_dict_t));
 	result->dict = _ht_create(0, _ht_cmp_object, _ht_hash_object, _destroy_object_with_extra);
 	_create_ref(&result->ref, _unref_dict, _DT_DICT, s);
@@ -6275,6 +6303,8 @@ static _dict_t* _create_dict(mb_interpreter_t* s) {
 
 static void _destroy_dict(_dict_t* c) {
 	/* Destroy a dictionary */
+	mb_assert(c);
+
 	_ht_foreach(c->dict, _destroy_object_with_extra);
 	_ht_destroy(c->dict);
 	_destroy_ref(&c->ref);
@@ -6409,12 +6439,16 @@ _exit:
 
 static void _unref_list(_ref_t* ref, void* data) {
 	/* Unreference a list */
+	mb_assert(ref);
+
 	if(*ref->count == _NONE_REF)
 		_destroy_list((_list_t*)data);
 }
 
 static void _unref_dict(_ref_t* ref, void* data) {
 	/* Unreference a dictionary */
+	mb_assert(ref);
+
 	if(*ref->count == _NONE_REF)
 		_destroy_dict((_dict_t*)data);
 }
@@ -6949,6 +6983,8 @@ static bool_t _end_class(mb_interpreter_t* s) {
 
 static void _unref_class(_ref_t* ref, void* data) {
 	/* Unreference a class instance */
+	mb_assert(ref);
+
 	if(ref->s->valid)
 		_out_of_scope(ref->s, ((_class_t*)data)->scope, (_class_t*)data, false);
 
@@ -6958,6 +6994,8 @@ static void _unref_class(_ref_t* ref, void* data) {
 
 static void _destroy_class(_class_t* c) {
 	/* Destroy a class instance */
+	mb_assert(c);
+
 	if(c->meta_list) {
 		_unlink_meta_class(c->ref.s, c);
 		_ls_destroy(c->meta_list);
@@ -7130,7 +7168,11 @@ static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret) {
 
 static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t** f) {
 	/* Search for a meta function with a specific name and assign to a member field */
-	_ls_node_t* node = _search_identifier_in_class(s, instance, n, 0, 0);
+	_ls_node_t* node = 0;
+
+	mb_assert(s);
+
+	node = _search_identifier_in_class(s, instance, n, 0, 0);
 	if(f) *f = 0;
 	if(node) {
 		_object_t* obj = (_object_t*)node->data;
@@ -7430,6 +7472,8 @@ static _running_context_t* _init_lambda(mb_interpreter_t* s, _routine_t* routine
 
 static void _unref_routine(_ref_t* ref, void* data) {
 	/* Unreference a lambda routine */
+	mb_assert(ref);
+
 	if(*ref->count == _NONE_REF)
 		_destroy_routine(ref->s, (_routine_t*)data);
 }
@@ -7537,7 +7581,11 @@ static void _try_mark_upvalue(mb_interpreter_t* s, _routine_t* r, _object_t* obj
 
 static _running_context_ref_t* _create_outer_scope(mb_interpreter_t* s) {
 	/* Create an outer scope, which is a referenced type */
-	_running_context_ref_t* result = (_running_context_ref_t*)mb_malloc(sizeof(_running_context_ref_t));
+	_running_context_ref_t* result = 0;
+
+	mb_assert(s);
+
+	result = (_running_context_ref_t*)mb_malloc(sizeof(_running_context_ref_t));
 	memset(result, 0, sizeof(_running_context_ref_t));
 	_create_ref(&result->ref, _unref_outer_scope, _DT_OUTER_SCOPE, s);
 	result->scope = _create_running_context(true);
@@ -7547,6 +7595,8 @@ static _running_context_ref_t* _create_outer_scope(mb_interpreter_t* s) {
 
 static void _unref_outer_scope(_ref_t* ref, void* data) {
 	/* Unreference an outer scope */
+	mb_assert(ref);
+
 	if(*ref->count == _NONE_REF)
 		_destroy_outer_scope((_running_context_ref_t*)data);
 }
@@ -7584,8 +7634,9 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 	const char* n = (const char*)extra;
 	unsigned int ul = 0;
 	_ls_node_t* ast = 0;
+	_ls_node_t* nput = 0;
 
-	_ls_node_t* nput = _ht_find(tuple->outer_scope->scope->var_dict, (void*)n);
+	nput = _ht_find(tuple->outer_scope->scope->var_dict, (void*)n);
 	if(!nput) {
 		_ls_node_t* nori = 0;
 #ifdef MB_ENABLE_CLASS
@@ -8174,7 +8225,9 @@ static _var_t* _create_var(_object_t** oobj, const char* n, size_t ns, bool_t du
 
 static _object_t* _create_object(void) {
 	/* Create an _object_t struct */
-	_object_t* result = (_object_t*)mb_malloc(sizeof(_object_t));
+	_object_t* result = 0;
+
+	result = (_object_t*)mb_malloc(sizeof(_object_t));
 	_MAKE_NIL(result);
 
 	return result;
@@ -8945,6 +8998,8 @@ static void _remove_if_exist(void* data, void* extra, _ls_node_t* ls) {
 
 static void _destroy_edge_objects(mb_interpreter_t* s) {
 	/* Destroy edge destroying objects */
+	mb_assert(s);
+
 	_ls_foreach(s->edge_destroy_objects, _destroy_object);
 	_ls_clear(s->edge_destroy_objects);
 }
@@ -8964,6 +9019,8 @@ static void _mark_edge_destroy_string(mb_interpreter_t* s, char* ch) {
 
 static void _destroy_lazy_objects(mb_interpreter_t* s) {
 	/* Destroy lazy destroying objects */
+	mb_assert(s);
+
 	_ls_foreach(s->lazy_destroy_objects, _destroy_object);
 	_ls_clear(s->lazy_destroy_objects);
 }
@@ -9127,6 +9184,8 @@ static void _tidy_intermediate_value(_ref_t* ref, void* data) {
 static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _ls_node_t** ast, _object_t* obj) {
 	/* Evaluate a variable, this is a helper function for the PRINT statement */
 	_object_t tmp;
+
+	mb_assert(s);
 
 	switch(obj->type) {
 	case _DT_ROUTINE:
@@ -9716,7 +9775,9 @@ _exit:
 
 static _running_context_t* _create_running_context(bool_t create_var_dict) {
 	/* Create a running context */
-	_running_context_t* result = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
+	_running_context_t* result = 0;
+
+	result = (_running_context_t*)mb_malloc(sizeof(_running_context_t));
 	memset(result, 0, sizeof(_running_context_t));
 	result->calc_depth = _INFINITY_CALC_DEPTH;
 	if(create_var_dict)
@@ -10110,8 +10171,8 @@ int mb_init(void) {
 	_exp_assign->type = _DT_FUNC;
 	_exp_assign->data.func = (_func_t*)mb_malloc(sizeof(_func_t));
 	memset(_exp_assign->data.func, 0, sizeof(_func_t));
-	_exp_assign->data.func->name = (char*)mb_malloc(strlen(_DUMMY_ASSIGN) + 1);
-	memcpy(_exp_assign->data.func->name, _DUMMY_ASSIGN, strlen(_DUMMY_ASSIGN) + 1);
+	_exp_assign->data.func->name = (char*)mb_malloc(strlen(_DUMMY_ASSIGN_CHAR) + 1);
+	memcpy(_exp_assign->data.func->name, _DUMMY_ASSIGN_CHAR, strlen(_DUMMY_ASSIGN_CHAR) + 1);
 	_exp_assign->data.func->pointer = _core_dummy_assign;
 
 	mb_assert(!_OBJ_BOOL_TRUE);
@@ -10166,6 +10227,8 @@ int mb_open(struct mb_interpreter_t** s) {
 	_ht_node_t* local_scope = 0;
 	_ht_node_t* global_scope = 0;
 	_running_context_t* running = 0;
+
+	mb_assert(s);
 
 	*s = (mb_interpreter_t*)mb_malloc(sizeof(mb_interpreter_t));
 	memset(*s, 0, sizeof(mb_interpreter_t));
@@ -10290,7 +10353,7 @@ int mb_close(struct mb_interpreter_t** s) {
 	return result;
 }
 
-int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
+int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	/* Reset a MY-BASIC environment */
 	int result = MB_FUNC_OK;
 	_ht_node_t* global_scope = 0;
@@ -10346,16 +10409,22 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/) {
 
 int mb_register_func(struct mb_interpreter_t* s, const char* n, mb_func_t f) {
 	/* Register an API function to a MY-BASIC environment */
+	mb_assert(s && n && f);
+
 	return _register_func(s, (char*)n, f, false);
 }
 
 int mb_remove_func(struct mb_interpreter_t* s, const char* n) {
 	/* Remove an API function from a MY-BASIC environment */
+	mb_assert(s && n);
+
 	return _remove_func(s, (char*)n, false);
 }
 
 int mb_remove_reserved_func(struct mb_interpreter_t* s, const char* n) {
 	/* Remove a reserved API from a MY-BASIC environment */
+	mb_assert(s && n);
+
 	return _remove_func(s, (char*)n, true);
 }
 
@@ -10671,8 +10740,7 @@ int mb_push_int(struct mb_interpreter_t* s, void** l, int_t val) {
 
 	mb_assert(s && l);
 
-	arg.type = MB_DT_INT;
-	arg.value.integer = val;
+	mb_make_int(arg, val);
 	mb_check(mb_push_value(s, l, arg));
 
 	return result;
@@ -10685,8 +10753,7 @@ int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val) {
 
 	mb_assert(s && l);
 
-	arg.type = MB_DT_REAL;
-	arg.value.float_point = val;
+	mb_make_real(arg, val);
 	mb_convert_to_int_if_posible(arg);
 	mb_check(mb_push_value(s, l, arg));
 
@@ -10700,8 +10767,7 @@ int mb_push_string(struct mb_interpreter_t* s, void** l, char* val) {
 
 	mb_assert(s && l);
 
-	arg.type = MB_DT_STRING;
-	arg.value.string = val;
+	mb_make_string(arg, val);
 	mb_check(mb_push_value(s, l, arg));
 	_mark_lazy_destroy_string(s, val);
 
@@ -10715,8 +10781,7 @@ int mb_push_usertype(struct mb_interpreter_t* s, void** l, void* val) {
 
 	mb_assert(s && l);
 
-	arg.type = MB_DT_USERTYPE;
-	arg.value.usertype = val;
+	mb_make_usertype(arg, val);
 	mb_check(mb_push_value(s, l, arg));
 
 	return result;
@@ -11479,6 +11544,7 @@ int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_m
 	mb_assert(s && l);
 
 #ifdef MB_ENABLE_USERTYPE_REF
+	_MAKE_NIL(&obj);
 	if(val.type == MB_DT_USERTYPE_REF) {
 		_usertype_ref_t* user = 0;
 		_public_value_to_internal_object(&val, &obj);
@@ -11705,6 +11771,8 @@ int mb_run(struct mb_interpreter_t* s) {
 	/* Run the current AST */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
+
+	mb_assert(s);
 
 	_destroy_parsing_context(&s->parsing_context);
 
@@ -11995,12 +12063,13 @@ int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 
 int mb_gc(struct mb_interpreter_t* s, int_t* collected) {
 	/* Trigger GC */
-	int_t diff = (int_t)_mb_allocated;
+	int_t diff = 0;
 
+	mb_assert(s);
+
+	diff = (int_t)_mb_allocated;
 	_gc_collect_garbage(s, 1);
-
 	diff = (int_t)(_mb_allocated - diff);
-
 	if(collected)
 		*collected = diff;
 
@@ -13771,6 +13840,7 @@ static int _core_new(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_func_end(s, l));
 
 	_MAKE_NIL(&obj);
+	_MAKE_NIL(&tgt);
 	switch(arg.type) {
 	case MB_DT_STRING:
 		arg.value.string = mb_strupr(arg.value.string);
@@ -14379,7 +14449,7 @@ static int _std_rnd(mb_interpreter_t* s, void** l) {
 			_handle_error_on_obj(s, SE_RN_ILLEGAL_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
-		rnd = (real_t)rand() / RAND_MAX * (hg - lw + (real_t)0.99999f) + lw; /* [low, high] */
+		rnd = (real_t)rand() / RAND_MAX * (hg - lw + (real_t)0.99999f) + lw; /* [LOW, HIGH] */
 
 		mb_check(mb_push_int(s, l, (int_t)rnd));
 	} else {
@@ -14779,11 +14849,16 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 
 	chr = (char*)mb_malloc(32);
 	memset(chr, 0, 32);
-	if(arg.type == MB_DT_INT) {
+	switch(arg.type) {
+	case MB_DT_INT:
 		sprintf(chr, MB_INT_FMT, arg.value.integer);
-	} else if(arg.type == MB_DT_REAL) {
+
+		break;
+	case MB_DT_REAL:
 		sprintf(chr, MB_REAL_FMT, arg.value.float_point);
-	} else {
+
+		break;
+	default:
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -15808,6 +15883,7 @@ static int _coll_clone(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	_MAKE_NIL(&ocoll);
+	_MAKE_NIL(&otgt);
 	switch(coll.type) {
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);

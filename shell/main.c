@@ -67,7 +67,6 @@ extern "C" {
 #endif /* MB_CP_BORLANDC */
 
 #ifdef MB_CP_PELLESC
-#	define strdup _strdup
 #	define unlink _unlink
 #endif /* MB_CP_PELLESC */
 
