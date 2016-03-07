@@ -403,7 +403,9 @@ static _code_line_t* _code(void) {
 }
 
 static _code_line_t* _create_code(void) {
-	_code_line_t* result = (_code_line_t*)malloc(sizeof(_code_line_t));
+	_code_line_t* result = 0;
+
+	result = (_code_line_t*)malloc(sizeof(_code_line_t));
 	result->count = 0;
 	result->size = _LINE_INC_STEP;
 	result->lines = (char**)malloc(sizeof(char*) * result->size);
@@ -560,49 +562,51 @@ static void _destroy_importing_directories(void) {
 }
 
 static _importing_dirs_t* _set_importing_directories(char* dirs) {
-	if(dirs) {
-		char* end = dirs + strlen(dirs);
-		_importing_dirs_t* result = (_importing_dirs_t*)malloc(sizeof(_importing_dirs_t));
-		result->count = 0;
-		result->size = _LINE_INC_STEP;
-		result->dirs = (char**)malloc(sizeof(char*) * result->size);
+	_importing_dirs_t* result = 0;
+	char* end = 0;
 
-		while(dirs && dirs < end && *dirs) {
-			int l = 0;
-			char* buf = 0;
-			bool_t as = false;
-			strtok(dirs, ";");
-			if(!(*dirs)) continue;
-			if(*dirs == ';') { dirs++; continue; }
-			if(result->count + 1 == result->size) {
-				result->size += _LINE_INC_STEP;
-				result->dirs = (char**)realloc(result->dirs, sizeof(char*) * result->size);
-			}
-			l = (int)strlen(dirs);
-			as = dirs[l - 1] != '/' && dirs[l - 1] != '\\';
-			buf = (char*)malloc(l + (as ? 2 : 1));
-			memcpy(buf, dirs, l);
-			if(as) {
-				buf[l] = '/';
-				buf[l + 1] = '\0';
-			} else {
-				buf[l] = '\0';
-			}
-			result->dirs[result->count++] = buf;
-			while(*buf) {
-				if(*buf == '\\') *buf = '/';
-				buf++;
-			}
-			dirs += l + 1;
-		}
-
-		_destroy_importing_directories();
-		importing_dirs = result;
-
+	if(!dirs)
 		return result;
+
+	end = dirs + strlen(dirs);
+	result = (_importing_dirs_t*)malloc(sizeof(_importing_dirs_t));
+	result->count = 0;
+	result->size = _LINE_INC_STEP;
+	result->dirs = (char**)malloc(sizeof(char*) * result->size);
+
+	while(dirs && dirs < end && *dirs) {
+		int l = 0;
+		char* buf = 0;
+		bool_t as = false;
+		strtok(dirs, ";");
+		if(!(*dirs)) continue;
+		if(*dirs == ';') { dirs++; continue; }
+		if(result->count + 1 == result->size) {
+			result->size += _LINE_INC_STEP;
+			result->dirs = (char**)realloc(result->dirs, sizeof(char*) * result->size);
+		}
+		l = (int)strlen(dirs);
+		as = dirs[l - 1] != '/' && dirs[l - 1] != '\\';
+		buf = (char*)malloc(l + (as ? 2 : 1));
+		memcpy(buf, dirs, l);
+		if(as) {
+			buf[l] = '/';
+			buf[l + 1] = '\0';
+		} else {
+			buf[l] = '\0';
+		}
+		result->dirs[result->count++] = buf;
+		while(*buf) {
+			if(*buf == '\\') *buf = '/';
+			buf++;
+		}
+		dirs += l + 1;
 	}
 
-	return 0;
+	_destroy_importing_directories();
+	importing_dirs = result;
+
+	return result;
 }
 
 static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
@@ -785,7 +789,11 @@ static void _alter_program(const char* no) {
 }
 
 static void _load_program(const char* path) {
-	char* txt = _load_file(path);
+	char* txt = 0;
+
+	mb_assert(path);
+
+	txt = _load_file(path);
 	if(txt) {
 		_new_program();
 		_set_code(txt);
@@ -801,7 +809,11 @@ static void _load_program(const char* path) {
 }
 
 static void _save_program(const char* path) {
-	char* txt = _get_code();
+	char* txt = 0;
+
+	mb_assert(path);
+
+	txt = _get_code();
 	if(!_save_file(path, txt)) {
 		_printf("Cannot save file \"%s\".\n", path);
 	} else {
@@ -824,6 +836,7 @@ static void _kill_program(const char* path) {
 
 static void _list_directory(const char* path) {
 	char line[_MAX_LINE_LENGTH];
+
 #ifdef MB_OS_WIN
 	if(path && *path) sprintf(line, "dir %s", path);
 	else sprintf(line, "dir");
