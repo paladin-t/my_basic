@@ -103,9 +103,9 @@ static struct mb_interpreter_t* bas = 0;
 ** Common
 */
 
-#ifndef _countof
-#	define _countof(__a) (sizeof(__a) / sizeof(*(__a)))
-#endif /* _countof */
+#ifndef countof
+#	define countof(__a) (sizeof(__a) / sizeof(*(__a)))
+#endif /* countof */
 
 #ifndef _printf
 #	define _printf printf
@@ -1172,7 +1172,7 @@ static int now(struct mb_interpreter_t* s, void** l) {
 	time(&ct);
 	timeinfo = localtime(&ct);
 	if(arg) {
-		strftime(buf, _countof(buf), arg, timeinfo);
+		strftime(buf, countof(buf), arg, timeinfo);
 		mb_check(mb_push_string(s, l, mb_memdup(buf, (unsigned)(strlen(buf) + 1))));
 	} else {
 		arg = asctime(timeinfo);
@@ -1238,13 +1238,13 @@ static int trace(struct mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	memset(frames, 0, _countof(frames));
+	memset(frames, 0, countof(frames));
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	mb_check(mb_debug_get_stack_trace(s, l, frames, _countof(frames)));
+	mb_check(mb_debug_get_stack_trace(s, l, frames, countof(frames)));
 
 	++p;
 	while(*p) {

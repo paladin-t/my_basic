@@ -111,9 +111,9 @@ extern "C" {
 #	define sgn(__v) ((__v) ? ((__v) > 0 ? 1 : -1) : 0)
 #endif /* sgn */
 
-#ifndef _countof
-#	define _countof(__a) (sizeof(__a) / sizeof(*(__a)))
-#endif /* _countof */
+#ifndef countof
+#	define countof(__a) (sizeof(__a) / sizeof(*(__a)))
+#endif /* countof */
 
 #ifndef islower
 #	define islower(__c) ((__c) >= 'a' && (__c) <= 'z')
@@ -281,7 +281,7 @@ static const char* _ERR_DESC[] = {
 	"Extended abort"
 };
 
-mb_static_assert(_countof(_ERR_DESC) == SE_COUNT);
+mb_static_assert(countof(_ERR_DESC) == SE_COUNT);
 
 /* Data type */
 typedef enum _data_e {
@@ -3083,7 +3083,7 @@ static char _get_priority(mb_func_t op1, mb_func_t op2) {
 
 	idx1 = _get_priority_index(op1);
 	idx2 = _get_priority_index(op2);
-	mb_assert(idx1 < _countof(_PRECEDE_TABLE) && idx2 < _countof(_PRECEDE_TABLE[0]));
+	mb_assert(idx1 < countof(_PRECEDE_TABLE) && idx2 < countof(_PRECEDE_TABLE[0]));
 	result = _PRECEDE_TABLE[idx1][idx2];
 
 	return result;
@@ -3118,7 +3118,7 @@ static int _get_priority_index(mb_func_t op) {
 
 	mb_assert(op);
 
-	for(i = 0; i < _countof(funcs); i++) {
+	for(i = 0; i < countof(funcs); i++) {
 		if(op == funcs[i])
 			return i;
 	}
@@ -4148,7 +4148,7 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
 /** Others */
 static void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f) {
 	/* Set current error information */
-	mb_assert(s && err >= 0 && err < _countof(_ERR_DESC));
+	mb_assert(s && err >= 0 && err < countof(_ERR_DESC));
 
 	if(s->last_error == SE_NO_ERR) {
 		s->last_error = err;
@@ -5072,7 +5072,7 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 			break;
 		}
 		if(context->multi_line_comment_count != 0 && c == _MULTI_LINE_COMMENT_PREFIX[context->multi_line_comment_count++]) {
-			if(context->multi_line_comment_count >= _countof(_MULTI_LINE_COMMENT_PREFIX) - 1) {
+			if(context->multi_line_comment_count >= countof(_MULTI_LINE_COMMENT_PREFIX) - 1) {
 				context->parsing_state = _PS_MULTI_LINE_COMMENT;
 				context->multi_line_comment_count = 0;
 
@@ -5096,7 +5096,7 @@ static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row,
 		if(_is_comment_char(c) && context->multi_line_comment_count == 0) {
 			context->multi_line_comment_count = 1;
 		} else if(context->multi_line_comment_count != 0 && c == _MULTI_LINE_COMMENT_POSTFIX[context->multi_line_comment_count++]) {
-			if(context->multi_line_comment_count >= _countof(_MULTI_LINE_COMMENT_POSTFIX) - 1) {
+			if(context->multi_line_comment_count >= countof(_MULTI_LINE_COMMENT_POSTFIX) - 1) {
 				context->parsing_state = _PS_NORMAL;
 				context->multi_line_comment_count = 0;
 			}
@@ -10072,7 +10072,7 @@ static int _open_core_lib(mb_interpreter_t* s) {
 
 	mb_assert(s);
 
-	for(i = 0; i < _countof(_core_libs); ++i)
+	for(i = 0; i < countof(_core_libs); ++i)
 		result += _register_func(s, _core_libs[i].name, _core_libs[i].pointer, true);
 
 	return result;
@@ -10085,7 +10085,7 @@ static int _close_core_lib(mb_interpreter_t* s) {
 
 	mb_assert(s);
 
-	for(i = 0; i < _countof(_core_libs); ++i)
+	for(i = 0; i < countof(_core_libs); ++i)
 		result += _remove_func(s, _core_libs[i].name, true);
 
 	return result;
@@ -10098,7 +10098,7 @@ static int _open_std_lib(mb_interpreter_t* s) {
 
 	mb_assert(s);
 
-	for(i = 0; i < _countof(_std_libs); ++i)
+	for(i = 0; i < countof(_std_libs); ++i)
 		result += _register_func(s, _std_libs[i].name, _std_libs[i].pointer, true);
 
 	return result;
@@ -10111,7 +10111,7 @@ static int _close_std_lib(mb_interpreter_t* s) {
 
 	mb_assert(s);
 
-	for(i = 0; i < _countof(_std_libs); ++i)
+	for(i = 0; i < countof(_std_libs); ++i)
 		result += _remove_func(s, _std_libs[i].name, true);
 
 	return result;
@@ -10125,7 +10125,7 @@ static int _open_coll_lib(mb_interpreter_t* s) {
 
 	mb_assert(s);
 
-	for(i = 0; i < _countof(_coll_libs); ++i)
+	for(i = 0; i < countof(_coll_libs); ++i)
 		result += _register_func(s, _coll_libs[i].name, _coll_libs[i].pointer, true);
 
 	return result;
@@ -10138,7 +10138,7 @@ static int _close_coll_lib(mb_interpreter_t* s) {
 
 	mb_assert(s);
 
-	for(i = 0; i < _countof(_coll_libs); ++i)
+	for(i = 0; i < countof(_coll_libs); ++i)
 		result += _remove_func(s, _coll_libs[i].name, true);
 
 	return result;
@@ -12022,7 +12022,7 @@ mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
 
 const char* mb_get_error_desc(mb_error_e err) {
 	/* Get the error description text */
-	if(err < _countof(_ERR_DESC))
+	if(err < countof(_ERR_DESC))
 		return _ERR_DESC[err];
 
 	return 0;
@@ -14121,7 +14121,7 @@ static int _core_type(mb_interpreter_t* s, void** l) {
 #endif /* MB_ENABLE_CLASS */
 			MB_DT_ROUTINE
 		};
-		for(i = 0; i < _countof(types); i++) {
+		for(i = 0; i < countof(types); i++) {
 			unsigned e = types[i];
 			if(!mb_stricmp(mb_get_type_string((mb_data_e)e), arg.value.string)) {
 				arg.value.type = (mb_data_e)e;
