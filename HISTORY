@@ -1,3 +1,6 @@
+Mar. 8 2016
+Fixed a memory overflow bug with the ASC statement
+
 Mar. 4 2016
 Fixed a memory leak with sub routine parameter
 Improved inputer

@@ -14654,6 +14654,7 @@ static int _std_asc(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	char* arg = 0;
 	int_t val = 0;
+	size_t sz = 0;
 
 	mb_assert(s && l);
 
@@ -14668,7 +14669,9 @@ static int _std_asc(mb_interpreter_t* s, void** l) {
 
 		goto _exit;
 	}
-	memcpy(&val, arg, strlen(arg));
+	sz = strlen(arg);
+	if(sizeof(int_t) < sz) sz = sizeof(int_t);
+	memcpy(&val, arg, sz);
 	mb_check(mb_push_int(s, l, val));
 
 _exit:
