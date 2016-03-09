@@ -353,13 +353,13 @@ typedef struct _gc_t {
 	int_t collecting;
 } _gc_t;
 
-typedef struct _override_func_info_t {
-	mb_meta_func_t is;
-	mb_meta_func_t add;
-	mb_meta_func_t sub;
-	mb_meta_func_t mul;
-	mb_meta_func_t div;
-} _override_func_info_t;
+typedef struct _override_operator_info_t {
+	mb_meta_operator_t is;
+	mb_meta_operator_t add;
+	mb_meta_operator_t sub;
+	mb_meta_operator_t mul;
+	mb_meta_operator_t div;
+} _override_operator_info_t;
 
 typedef struct _usertype_ref_t {
 	_ref_t ref;
@@ -369,7 +369,7 @@ typedef struct _usertype_ref_t {
 	mb_hash_func_t hash;
 	mb_cmp_func_t cmp;
 	mb_fmt_func_t fmt;
-	_override_func_info_t overrides;
+	_override_operator_info_t* operators;
 } _usertype_ref_t;
 
 typedef struct _func_t {
@@ -981,15 +981,21 @@ static _object_t* _exp_assign = 0;
 			if(opnd1->type == _DT_VAR) opnd1 = opnd1->data.variable->data; \
 			if(opnd2->type == _DT_VAR) opnd2 = opnd2->data.variable->data; \
 			if(opnd1->type == _DT_USERTYPE_REF) { \
-				if(opnd1->data.usertype_ref->overrides.__optr) { \
-					mb_value_t vfst, vscd; \
-					mb_value_t ret; \
-					mb_make_nil(vfst); \
-					mb_make_nil(vscd); \
-					mb_make_nil(ret); \
+				mb_value_t vfst, vscd; \
+				mb_value_t ret; \
+				mb_make_nil(vfst); \
+				mb_make_nil(vscd); \
+				mb_make_nil(ret); \
+				if(opnd1->data.usertype_ref->operators && opnd1->data.usertype_ref->operators->__optr) { \
 					_internal_object_to_public_value(opnd1, &vfst); \
 					_internal_object_to_public_value(opnd2, &vscd); \
-					__result = opnd1->data.usertype_ref->overrides.__optr(s, (__tuple), &vfst, &vscd, &ret); \
+					__result = opnd1->data.usertype_ref->operators->__optr(s, (__tuple), &vfst, &vscd, &ret); \
+					_public_value_to_internal_object(&ret, retval); \
+					goto __exit; \
+				} else if(opnd2->data.usertype_ref->operators && opnd2->data.usertype_ref->operators->__optr) { \
+					_internal_object_to_public_value(opnd1, &vfst); \
+					_internal_object_to_public_value(opnd2, &vscd); \
+					__result = opnd2->data.usertype_ref->operators->__optr(s, (__tuple), &vfst, &vscd, &ret); \
 					_public_value_to_internal_object(&ret, retval); \
 					goto __exit; \
 				} \
@@ -5728,6 +5734,14 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 
 		break;
 #endif /* MB_ENABLE_LAMBDA */
+#ifdef MB_ENABLE_LAMBDA
+	case _DT_OUTER_SCOPE: /* Fall through */
+#endif /* MB_ENABLE_LAMBDA */
+#ifdef MB_ENABLE_USERTYPE_REF
+	case _DT_USERTYPE_REF: /* Fall through */
+#endif /* MB_ENABLE_USERTYPE_REF */
+	case _DT_ARRAY: /* Do nothing */
+		break;
 	default:
 		proc = false;
 
@@ -5888,6 +5902,9 @@ static void _destroy_usertype_ref(_usertype_ref_t* c) {
 
 	if(c->dtor)
 		c->dtor(c->ref.s, c->usertype);
+	if(c->operators) {
+		safe_free(c->operators);
+	}
 	_destroy_ref(&c->ref);
 	safe_free(c);
 }
@@ -8261,7 +8278,9 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 			obj->data.usertype_ref->dtor, obj->data.usertype_ref->clone,
 			obj->data.usertype_ref->hash, obj->data.usertype_ref->cmp, obj->data.usertype_ref->fmt
 		);
-		memcpy(&tgt->data.usertype_ref->overrides, &obj->data.usertype_ref->overrides, sizeof(_override_func_info_t));
+		if(obj->data.usertype_ref->operators)
+			tgt->data.usertype_ref->operators = (_override_operator_info_t*)mb_malloc(sizeof(_override_operator_info_t));
+		memcpy(tgt->data.usertype_ref->operators, obj->data.usertype_ref->operators, sizeof(_override_operator_info_t));
 		_ref(&tgt->data.usertype_ref->ref, tgt->data.usertype_ref);
 
 		break;
@@ -11536,7 +11555,7 @@ _exit:
 	return result;
 }
 
-int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_u m, mb_meta_func_t f) {
+int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_u m, mb_meta_operator_t f) {
 	/* Override a meta function of a value */
 	int result = MB_FUNC_OK;
 	_object_t obj;
@@ -11549,25 +11568,29 @@ int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_m
 		_usertype_ref_t* user = 0;
 		_public_value_to_internal_object(&val, &obj);
 		user = obj.data.usertype_ref;
+		if(!user->operators) {
+			user->operators = (_override_operator_info_t*)mb_malloc(sizeof(_override_operator_info_t));
+			memset(user->operators, 0, sizeof(_override_operator_info_t));
+		}
 		switch(m) {
 		case MB_MF_IS:
-			user->overrides.is = f;
+			user->operators->is = f;
 
 			break;
 		case MB_MF_ADD:
-			user->overrides.add = f;
+			user->operators->add = f;
 
 			break;
 		case MB_MF_SUB:
-			user->overrides.sub = f;
+			user->operators->sub = f;
 
 			break;
 		case MB_MF_MUL:
-			user->overrides.mul = f;
+			user->operators->mul = f;
 
 			break;
 		case MB_MF_DIV:
-			user->overrides.div = f;
+			user->operators->div = f;
 
 			break;
 		}

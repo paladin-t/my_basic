@@ -1,3 +1,8 @@
+Mar. 9 2016
+Improved overridden function invoking
+Fixed a memory leak
+Moved overriding information from stack to heap
+
 Mar. 8 2016
 Fixed a memory overflow bug with the ASC statement
 
@@ -23,7 +28,7 @@ Fixed a crash bug with an invalid expression
 Feb. 26 2016
 Added a ME keyword to represent a class instance itself
 Added shallow cloning support
-Fixed an overrided function copying issue
+Fixed an overridden function copying issue
 Fixed a multiple disposing bug with outer scopes of lambda
 
 Feb. 25 2016
