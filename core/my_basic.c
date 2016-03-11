@@ -1194,6 +1194,7 @@ static char _get_priority(mb_func_t op1, mb_func_t op2);
 static int _get_priority_index(mb_func_t op);
 static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opnd1, _object_t* opnd2, int* status);
 static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj);
+static bool_t _is_unexpected_calc_type(mb_interpreter_t* s, _object_t* obj);
 static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val);
 static _ls_node_t* _push_var_args(mb_interpreter_t* s);
 static void _pop_var_args(mb_interpreter_t* s, _ls_node_t* last_var_args);
@@ -3193,6 +3194,25 @@ static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj) {
 	return result;
 }
 
+static bool_t _is_unexpected_calc_type(mb_interpreter_t* s, _object_t* obj) {
+	/* Determine whether an object is an unexpected calculation result */
+	mb_assert(s && obj);
+
+	return !obj || (
+		(obj->type == _DT_FUNC) ||
+		(obj->type == _DT_LABEL) ||
+#ifdef MB_ENABLE_LAMBDA
+		(obj->type == _DT_OUTER_SCOPE) ||
+#endif /* MB_ENABLE_LAMBDA */
+		(obj->type == _DT_SEP) ||
+#ifdef MB_ENABLE_SOURCE_TRACE
+		(obj->type == _DT_PREV_IMPORT) ||
+		(obj->type == _DT_POST_IMPORT) ||
+#endif /* MB_ENABLE_SOURCE_TRACE */
+		(obj->type == _DT_EOS)
+	);
+}
+
 static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	/* Calculate an expression */
 	int result = 0;
@@ -3563,7 +3583,7 @@ _var:
 				r = _operate_operand(s, theta, a, b, &result);
 				if(!r) {
 					_ls_clear(optr);
-					_handle_error_on_obj(s, SE_RN_OPERATION_FAILED, s->source_file, DON(errn), MB_FUNC_ERR, _error, result);
+					_handle_error_on_obj(s, SE_RN_OPERATION_FAILED, s->source_file, errn ? DON(errn) : DON(ast), MB_FUNC_ERR, _error, result);
 				}
 				_ls_pushback(opnd, r);
 				_ls_pushback(garbage, r);
@@ -3580,24 +3600,8 @@ _var:
 	}
 
 	c = (_object_t*)(_ls_popback(opnd));
-	if(!c || !(c->type == _DT_NIL || c->type == _DT_UNKNOWN || c->type == _DT_TYPE ||
-		c->type == _DT_INT || c->type == _DT_REAL || c->type == _DT_STRING ||
-#ifdef MB_ENABLE_COLLECTION_LIB
-		c->type == _DT_LIST || c->type == _DT_LIST_IT || c->type == _DT_DICT || c->type == _DT_DICT_IT ||
-#endif /* MB_ENABLE_COLLECTION_LIB */
-#ifdef MB_ENABLE_CLASS
-		c->type == _DT_CLASS ||
-#endif /* MB_ENABLE_CLASS */
-		c->type == _DT_ROUTINE ||
-		c->type == _DT_VAR || c->type == _DT_USERTYPE ||
-#ifdef MB_ENABLE_USERTYPE_REF
-		c->type == _DT_USERTYPE_REF ||
-#endif /* MB_ENABLE_USERTYPE_REF */
-		c->type == _DT_ARRAY)
-	) {
+	if(_is_unexpected_calc_type(s, c)) {
 		_handle_error_on_obj(s, SE_RN_INVALID_DATA_TYPE, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
-
-		goto _error;
 	}
 	if(c->type == _DT_VAR) {
 		(*val)->type = c->data.variable->data->type;
