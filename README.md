@@ -140,6 +140,7 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
  * [Link with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC)
  * [Write a debugger](https://github.com/paladin-t/my_basic/wiki/Write-a-debugger)
  * [Callback](https://github.com/paladin-t/my_basic/wiki/Callback)
+ * [Interop with C#](https://github.com/paladin-t/my_basic/wiki/Interop-with-C%23)
 * Customization
  * [Customize macros](https://github.com/paladin-t/my_basic/wiki/Customize-macros)
  * [Customize a memory allocator](https://github.com/paladin-t/my_basic/wiki/Customize-a-memory-allocator)
