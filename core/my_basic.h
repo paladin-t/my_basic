@@ -286,21 +286,20 @@ extern "C" {
 #ifndef MB_CODES
 #	define MB_CODES
 #	define MB_FUNC_OK 0
-#	define MB_FUNC_IGNORE 101
-#	define MB_FUNC_BYE 1001
-#	define MB_FUNC_WARNING 1002
-#	define MB_FUNC_ERR 1003
-#	define MB_FUNC_END 1004
-#	define MB_FUNC_SUSPEND 1005
-#	define MB_PARSING_ERR 3001
-#	define MB_LOOP_BREAK 5001
-#	define MB_LOOP_CONTINUE 5002
-#	define MB_SUB_RETURN 5101
-#	define MB_NEED_COMPLEX_ARRAY 6001
-#	define MB_RANK_OUT_OF_BOUNDS 6002
-#	define MB_INDEX_OUT_OF_BOUNDS 6003
-#	define MB_DEBUG_ID_NOT_FOUND 7001
-#	define MB_EXTENDED_ABORT 9001
+#	define MB_FUNC_IGNORE 1
+#	define MB_FUNC_WARNING 2
+#	define MB_FUNC_ERR 3
+#	define MB_FUNC_BYE 4
+#	define MB_FUNC_SUSPEND 5
+#	define MB_FUNC_END 6
+#	define MB_LOOP_BREAK 101
+#	define MB_LOOP_CONTINUE 102
+#	define MB_SUB_RETURN 103
+#	define MB_NEED_COMPLEX_ARRAY 201
+#	define MB_RANK_OUT_OF_BOUNDS 202
+#	define MB_INDEX_OUT_OF_BOUNDS 203
+#	define MB_DEBUG_ID_NOT_FOUND 211
+#	define MB_EXTENDED_ABORT 1001
 #endif /* MB_CODES */
 
 #ifndef mb_check
@@ -551,7 +550,7 @@ MBAPI int mb_get_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_
 MBAPI int mb_set_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_t idx, mb_value_t val);
 MBAPI int mb_remove_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_t idx);
 MBAPI int mb_count_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, int* c);
-MBAPI int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
+MBAPI int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs/* = NULL*/, mb_cmp_func_t cp/* = NULL*/, mb_fmt_func_t ft/* = NULL*/);
 MBAPI int mb_get_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val, void** out);
 MBAPI int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 MBAPI int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
@@ -583,7 +582,7 @@ MBAPI int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h)
 MBAPI int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p);
 MBAPI int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p);
 
-MBAPI int mb_gc(struct mb_interpreter_t* s, int_t* collected);
+MBAPI int mb_gc(struct mb_interpreter_t* s, int_t* collected/* = NULL*/);
 MBAPI int mb_get_userdata(struct mb_interpreter_t* s, void** d);
 MBAPI int mb_set_userdata(struct mb_interpreter_t* s, void* d);
 MBAPI int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h);
