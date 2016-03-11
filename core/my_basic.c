@@ -3595,8 +3595,7 @@ _var:
 #endif /* MB_ENABLE_USERTYPE_REF */
 		c->type == _DT_ARRAY)
 	) {
-		_set_current_error(s, SE_RN_INVALID_DATA_TYPE, 0);
-		result = MB_FUNC_ERR;
+		_handle_error_on_obj(s, SE_RN_INVALID_DATA_TYPE, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 
 		goto _error;
 	}
