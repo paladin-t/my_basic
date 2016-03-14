@@ -90,7 +90,7 @@ extern "C" {
 #define _MAX_LINE_LENGTH 256
 #define _str_eq(__str1, __str2) (mb_stricmp((__str1), (__str2)) == 0)
 
-#define _LINE_INC_STEP 16
+#define _REALLOC_INC_STEP 16
 
 #define _NO_END(s) ((s) == MB_FUNC_OK || (s) == MB_FUNC_SUSPEND || (s) == MB_FUNC_WARNING || (s) == MB_FUNC_ERR || (s) == MB_FUNC_END)
 
@@ -407,7 +407,7 @@ static _code_line_t* _create_code(void) {
 
 	result = (_code_line_t*)malloc(sizeof(_code_line_t));
 	result->count = 0;
-	result->size = _LINE_INC_STEP;
+	result->size = _REALLOC_INC_STEP;
 	result->lines = (char**)malloc(sizeof(char*) * result->size);
 
 	code = result;
@@ -443,7 +443,7 @@ static void _append_line(char* txt) {
 	mb_assert(code && txt);
 
 	if(code->count + 1 == code->size) {
-		code->size += _LINE_INC_STEP;
+		code->size += _REALLOC_INC_STEP;
 		code->lines = (char**)realloc(code->lines, sizeof(char*) * code->size);
 	}
 	l = (int)strlen(txt);
@@ -571,7 +571,7 @@ static _importing_dirs_t* _set_importing_directories(char* dirs) {
 	end = dirs + strlen(dirs);
 	result = (_importing_dirs_t*)malloc(sizeof(_importing_dirs_t));
 	result->count = 0;
-	result->size = _LINE_INC_STEP;
+	result->size = _REALLOC_INC_STEP;
 	result->dirs = (char**)malloc(sizeof(char*) * result->size);
 
 	while(dirs && dirs < end && *dirs) {
@@ -582,7 +582,7 @@ static _importing_dirs_t* _set_importing_directories(char* dirs) {
 		if(!(*dirs)) continue;
 		if(*dirs == ';') { dirs++; continue; }
 		if(result->count + 1 == result->size) {
-			result->size += _LINE_INC_STEP;
+			result->size += _REALLOC_INC_STEP;
 			result->dirs = (char**)realloc(result->dirs, sizeof(char*) * result->size);
 		}
 		l = (int)strlen(dirs);
@@ -612,7 +612,8 @@ static _importing_dirs_t* _set_importing_directories(char* dirs) {
 static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
 	bool_t result = false;
 	int i = 0;
-	mb_unrefvar(s);
+
+	mb_assert(s);
 
 	for(i = 0; i < importing_dirs->count; i++) {
 		char* t = 0;
@@ -629,7 +630,7 @@ static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
 		buf[m + n] = '\0';
 		t = _load_file(buf);
 		if(t) {
-			if(mb_load_string(bas, t, true) == MB_FUNC_OK)
+			if(mb_load_string(s, t, true) == MB_FUNC_OK)
 				result = true;
 			free(t);
 		}
@@ -756,7 +757,7 @@ static void _insert_program(const char* no) {
 	_printf("%ld]", lno + 1);
 	mb_gets(line, _MAX_LINE_LENGTH);
 	if(_code()->count + 1 == _code()->size) {
-		_code()->size += _LINE_INC_STEP;
+		_code()->size += _REALLOC_INC_STEP;
 		_code()->lines = (char**)realloc(_code()->lines, sizeof(char*) * _code()->size);
 	}
 	for(i = _code()->count; i > lno; i--)
