@@ -3196,7 +3196,7 @@ static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj) {
 
 static bool_t _is_unexpected_calc_type(mb_interpreter_t* s, _object_t* obj) {
 	/* Determine whether an object is an unexpected calculation result */
-	mb_assert(s && obj);
+	mb_assert(s);
 
 	return !obj || (
 		(obj->type == _DT_FUNC) ||
