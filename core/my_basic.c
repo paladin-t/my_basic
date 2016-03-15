@@ -120,7 +120,7 @@ extern "C" {
 #endif /* islower */
 
 #ifndef toupper
-#	define toupper(__c) ((islower(__c)) ? ((__c) - 'a' + 'A') : (__c))
+#	define toupper(__c) (islower(__c) ? ((__c) - 'a' + 'A') : (__c))
 #endif /* toupper */
 
 #define _copy_bytes(__l, __r) do { memcpy((__l), (__r), sizeof(mb_val_bytes_t)); } while(0)
@@ -1147,15 +1147,16 @@ static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht);
 		if((H)->array) { \
 			for(__ul = 0; __ul < (H)->array_size; ++__ul) { \
 				__bucket = (H)->array[__ul]; \
-				if(__bucket) \
+				if(__bucket) { \
 					_LS_FOREACH(__bucket, O, P, E); \
+				} \
 			} \
 		} \
 	} while(0)
 
 /** Memory manipulations */
 #define _MB_CHECK_MEM_TAG_SIZE(y, s) ((mb_mem_tag_t)(s) == (s))
-#define _MB_WRITE_MEM_TAG_SIZE(t, s) (*((mb_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)) = (mb_mem_tag_t)s)
+#define _MB_WRITE_MEM_TAG_SIZE(t, s) (*((mb_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)) = (mb_mem_tag_t)(s))
 #define _MB_READ_MEM_TAG_SIZE(t) (*((mb_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)))
 
 #ifdef MB_ENABLE_ALLOC_STAT
@@ -1195,6 +1196,7 @@ static int _get_priority_index(mb_func_t op);
 static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object_t* opnd1, _object_t* opnd2, int* status);
 static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj);
 static bool_t _is_unexpected_calc_type(mb_interpreter_t* s, _object_t* obj);
+static bool_t _is_referenced_calc_type(mb_interpreter_t* s, _object_t* obj);
 static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val);
 static _ls_node_t* _push_var_args(mb_interpreter_t* s);
 static void _pop_var_args(mb_interpreter_t* s, _ls_node_t* last_var_args);
@@ -1735,7 +1737,7 @@ static int _close_coll_lib(mb_interpreter_t* s);
 				_ls_node_t* ast = 0; static int i = 0; ++i; \
 				printf("Unaccessable function called %d times.\n", i); \
 				ast = (_ls_node_t*)(*(__l)); \
-				_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, (__s)->source_file, DON(ast), MB_FUNC_ERR, __exit, __result); \
+				_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, (__s)->source_file, DON(ast), MB_FUNC_ERR, __exit, (__result)); \
 			} while(0)
 #	endif /* MB_CP_VC < 1300 */
 #endif /* MB_CP_VC */
@@ -1743,7 +1745,7 @@ static int _close_coll_lib(mb_interpreter_t* s);
 #	define _do_nothing(__s, __l, __exit, __result) \
 		do { \
 			_ls_node_t* ast = (_ls_node_t*)(*(__l)); \
-			_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, (char*)MB_FUNC, DON(ast), MB_FUNC_ERR, __exit, __result); \
+			_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, (char*)MB_FUNC, DON(ast), MB_FUNC_ERR, __exit, (__result)); \
 		} while(0);
 #endif /* _do_nothing */
 
@@ -3213,6 +3215,24 @@ static bool_t _is_unexpected_calc_type(mb_interpreter_t* s, _object_t* obj) {
 	);
 }
 
+static bool_t _is_referenced_calc_type(mb_interpreter_t* s, _object_t* obj) {
+	/* Determine whether an object is a referenced calculation result */
+	mb_assert(s && obj);
+
+	return
+#ifdef MB_ENABLE_USERTYPE_REF
+		(obj->type == _DT_USERTYPE_REF) ||
+#endif /* MB_ENABLE_USERTYPE_REF */
+#ifdef MB_ENABLE_COLLECTION_LIB
+		(obj->type == _DT_LIST) || (obj->type == _DT_DICT) || (obj->type == _DT_LIST_IT) || (obj->type == _DT_DICT_IT) ||
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+		(obj->type == _DT_CLASS) ||
+#endif /* MB_ENABLE_CLASS */
+		(obj->type == _DT_ARRAY) ||
+		(obj->type == _DT_ROUTINE);
+}
+
 static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val) {
 	/* Calculate an expression */
 	int result = 0;
@@ -3624,23 +3644,10 @@ _var:
 	if(guard_val != c && _ls_try_remove(garbage, c, _ls_cmp_data, 0)) {
 		_try_clear_intermediate_value(c, 0, s);
 
-		if(
-#ifdef MB_ENABLE_USERTYPE_REF
-			c->type == _DT_USERTYPE_REF ||
-#endif /* MB_ENABLE_USERTYPE_REF */
-#ifdef MB_ENABLE_COLLECTION_LIB
-			c->type == _DT_LIST || c->type == _DT_DICT || c->type == _DT_LIST_IT || c->type == _DT_DICT_IT ||
-#endif /* MB_ENABLE_COLLECTION_LIB */
-#ifdef MB_ENABLE_CLASS
-			c->type == _DT_CLASS ||
-#endif /* MB_ENABLE_CLASS */
-			c->type == _DT_ARRAY ||
-			c->type == _DT_ROUTINE
-		) {
+		if(_is_referenced_calc_type(s, c))
 			_destroy_object_capsule_only(c, 0);
-		} else {
+		else
 			_destroy_object(c, 0);
-		}
 	}
 
 	while(0) {
@@ -4973,9 +4980,8 @@ _end_import:
 	if(context->current_char == ':') {
 		if(!context->last_symbol || _IS_EOS(context->last_symbol)) {
 			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
-			if(glbsyminscope) {
+			if(glbsyminscope)
 				memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
-			}
 
 			result = _DT_LABEL;
 
