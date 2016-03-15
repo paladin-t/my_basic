@@ -11111,6 +11111,16 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 	mb_assert(s && l && d && a);
 
 	*a = 0;
+	if(c >= MB_MAX_DIMENSION_COUNT) {
+		_handle_error_on_obj(s, SE_RN_DIMENSION_TOO_MUCH, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+	}
+	for(j = 0; j < c; j++) {
+		n = d[j];
+		if(n <= 0) {
+			_handle_error_on_obj(s, SE_RN_ILLEGAL_BOUND, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+		}
+	}
+
 #ifdef MB_SIMPLE_ARRAY
 	if(t == MB_DT_REAL) {
 		type = _DT_REAL;
@@ -11130,9 +11140,9 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 		n = d[j];
 		arr->dimensions[arr->dimension_count++] = n;
 		if(arr->count)
-			arr->count *= n;
+			arr->count *= (unsigned int)n;
 		else
-			arr->count += n;
+			arr->count += (unsigned int)n;
 	}
 	_init_array(arr);
 	if(!arr->raw) {
@@ -11141,8 +11151,6 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 		arr->count = 0;
 	}
 	*a = arr;
-
-	goto _exit; /* Avoid an unreferenced label warning */
 
 _exit:
 	return result;
