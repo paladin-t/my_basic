@@ -1673,7 +1673,7 @@ static void _tidy_intermediate_value(_ref_t* ref, void* data);
 static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _ls_node_t** ast, _object_t* obj);
 
 static void _stepped(mb_interpreter_t* s, _ls_node_t* ast);
-static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l);
+static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l, bool_t force_next);
 static int _common_end_looping(mb_interpreter_t* s, _ls_node_t** l);
 static int _common_keep_looping(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop);
 static int _execute_normal_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop);
@@ -3918,7 +3918,7 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 	}
 
 	do {
-		result = _execute_statement(s, l);
+		result = _execute_statement(s, l, true);
 		ast = (_ls_node_t*)*l;
 		if(result == MB_SUB_RETURN) {
 			result = MB_FUNC_OK;
@@ -4025,7 +4025,7 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 	}
 
 	do {
-		result = _execute_statement(s, l);
+		result = _execute_statement(s, l, true);
 		ast = (_ls_node_t*)*l;
 		if(result == MB_SUB_RETURN) {
 			result = MB_FUNC_OK;
@@ -9029,11 +9029,12 @@ static void _destroy_var_arg(void* data, void* extra, _gc_t* gc) {
 	/* Destroy an object in variable argument list */
 	_object_t* obj = 0;
 	mb_unrefvar(extra);
+	mb_unrefvar(gc);
 
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	_ADDGC(obj, gc);
+	_UNREF(obj);
 	safe_free(obj);
 }
 
@@ -9230,7 +9231,7 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 
 	switch(obj->type) {
 	case _DT_ROUTINE:
-		_execute_statement(s, ast);
+		_execute_statement(s, ast, true);
 		_MAKE_NIL(&tmp);
 		_public_value_to_internal_object(&s->running_context->intermediate_value, &tmp);
 		if(tmp.type == _DT_STRING) {
@@ -9277,7 +9278,7 @@ static void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
 	}
 }
 
-static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l) {
+static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l, bool_t force_next) {
 	/* Execute the ast, this is the core execution function */
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
@@ -9402,7 +9403,8 @@ _retry:
 		if(!obj) {
 			/* Do nothing */
 		} else if(_IS_EOS(obj)) {
-			ast = ast->next;
+			if(force_next || result != MB_SUB_RETURN)
+				ast = ast->next;
 		} else if(_IS_SEP(obj, ':')) {
 			skip_to_eoi = false;
 			ast = ast->next;
@@ -9485,7 +9487,7 @@ static int _common_keep_looping(mb_interpreter_t* s, _ls_node_t** l, _var_t* var
 
 	obj = (_object_t*)ast->data;
 	while(!_IS_FUNC(obj, _core_next)) {
-		result = _execute_statement(s, &ast);
+		result = _execute_statement(s, &ast, false);
 		if(result == MB_LOOP_CONTINUE) { /* NEXT */
 			if(!running->next_loop_var || running->next_loop_var == var_loop) { /* This loop */
 				running->next_loop_var = 0;
@@ -9547,7 +9549,7 @@ static int _execute_normal_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 	ass_tuple3_ptr = &ass_tuple3;
 
 	/* Get begin value */
-	result = _execute_statement(s, &ast);
+	result = _execute_statement(s, &ast, true);
 	if(result != MB_FUNC_OK)
 		goto _exit;
 	ast = ast->prev;
@@ -11860,7 +11862,7 @@ int mb_run(struct mb_interpreter_t* s) {
 	}
 
 	do {
-		result = _execute_statement(s, &ast);
+		result = _execute_statement(s, &ast, true);
 		if(result != MB_FUNC_OK && result != MB_SUB_RETURN) {
 			if(result != MB_FUNC_SUSPEND && s->error_handler) {
 				if(result >= MB_EXTENDED_ABORT)
@@ -13029,7 +13031,7 @@ _elseif:
 
 				break;
 			}
-			result = _execute_statement(s, &ast);
+			result = _execute_statement(s, &ast, true);
 			if(result != MB_FUNC_OK)
 				goto _exit;
 			if(ast)
@@ -13090,7 +13092,7 @@ _elseif:
 
 					break;
 				}
-				result = _execute_statement(s, &ast);
+				result = _execute_statement(s, &ast, true);
 				if(result != MB_FUNC_OK)
 					goto _exit;
 				if(ast)
@@ -13283,7 +13285,7 @@ _loop_begin:
 		/* Keep looping */
 		obj = (_object_t*)ast->data;
 		while(!_IS_FUNC(obj, _core_wend)) {
-			result = _execute_statement(s, &ast);
+			result = _execute_statement(s, &ast, true);
 			if(result == MB_LOOP_BREAK) { /* EXIT */
 				if(_skip_struct(s, &ast, _core_while, _core_wend) != MB_FUNC_OK)
 					goto _exit;
@@ -13362,7 +13364,7 @@ _loop_begin:
 
 	obj = (_object_t*)ast->data;
 	while(!_IS_FUNC(obj, _core_until)) {
-		result = _execute_statement(s, &ast);
+		result = _execute_statement(s, &ast, true);
 		if(result == MB_LOOP_BREAK) { /* EXIT */
 			if(_skip_struct(s, &ast, _core_do, _core_until) != MB_FUNC_OK)
 				goto _exit;
@@ -13828,7 +13830,7 @@ static int _core_class(mb_interpreter_t* s, void** l) {
 	/* Execute class body */
 	running = _push_scope_by_class(s, instance->scope);
 	do {
-		result = _execute_statement(s, (_ls_node_t**)l);
+		result = _execute_statement(s, (_ls_node_t**)l, true);
 		if(result != MB_FUNC_OK && s->error_handler) {
 			if(result >= MB_EXTENDED_ABORT)
 				s->last_error = SE_EA_EXTENDED_ABORT;

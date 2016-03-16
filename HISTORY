@@ -1,4 +1,5 @@
 Mar. 16 2016
+Fixed an execution issue after a lambda
 Fixed a cannot RETURN bug from a FOR loop in a sub routine
 Fixed a memory leak with referenced data in a variable argument list
 
