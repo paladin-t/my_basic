@@ -1659,6 +1659,7 @@ static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t*
 static int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t* itn);
 static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s);
 static void _remove_if_exist(void* data, void* extra, _ls_node_t* ls);
+static void _destroy_var_arg(void* data, void* extra, _gc_t* gc);
 static void _destroy_edge_objects(mb_interpreter_t* s);
 static void _mark_edge_destroy_string(mb_interpreter_t* s, char* ch);
 static void _destroy_lazy_objects(mb_interpreter_t* s);
@@ -3668,7 +3669,7 @@ _exit:
 }
 
 static _ls_node_t* _push_var_args(mb_interpreter_t* s) {
-	/* Push current variable arguments list */
+	/* Push current variable argument list */
 	_ls_node_t* result = s->var_args;
 
 	s->var_args = 0;
@@ -3677,12 +3678,12 @@ static _ls_node_t* _push_var_args(mb_interpreter_t* s) {
 }
 
 static void _pop_var_args(mb_interpreter_t* s, _ls_node_t* last_var_args) {
-	/* Pop current variable arguments list */
+	/* Pop current variable argument list */
 	_ls_node_t* var_args = s->var_args;
 
 	s->var_args = last_var_args;
 	if(var_args) {
-		_ls_foreach(var_args, _destroy_object_capsule_only);
+		_LS_FOREACH(var_args, _do_nothing_on_object, _destroy_var_arg, &s->gc);
 		_ls_destroy(var_args);
 	}
 }
@@ -9024,6 +9025,18 @@ static void _remove_if_exist(void* data, void* extra, _ls_node_t* ls) {
 	_ls_try_remove(ls, obj, _ls_cmp_data, 0);
 }
 
+static void _destroy_var_arg(void* data, void* extra, _gc_t* gc) {
+	/* Destroy an object in variable argument list */
+	_object_t* obj = 0;
+	mb_unrefvar(extra);
+
+	mb_assert(data);
+
+	obj = (_object_t*)data;
+	_ADDGC(obj, gc);
+	safe_free(obj);
+}
+
 static void _destroy_edge_objects(mb_interpreter_t* s) {
 	/* Destroy edge destroying objects */
 	mb_assert(s);
@@ -9492,7 +9505,9 @@ static int _common_keep_looping(mb_interpreter_t* s, _ls_node_t** l, _var_t* var
 			_skip_to(s, &ast, 0, _DT_EOS);
 
 			goto _exit;
-		} else if(result != MB_FUNC_OK && result != MB_SUB_RETURN) { /* Normally */
+		} else if(result == MB_SUB_RETURN) { /* RETURN */
+			goto _exit;
+		} else if(result != MB_FUNC_OK) { /* Normally */
 			goto _exit;
 		}
 
@@ -9584,7 +9599,7 @@ _to:
 			result = MB_FUNC_OK;
 
 			goto _exit;
-		} else if(result != MB_FUNC_OK && result != MB_SUB_RETURN) {
+		} else if(result != MB_FUNC_OK || result == MB_SUB_RETURN) {
 			goto _exit;
 		}
 
@@ -9681,7 +9696,7 @@ _to:
 			result = MB_FUNC_OK;
 
 			goto _exit;
-		} else if(result != MB_FUNC_OK && result != MB_SUB_RETURN) {
+		} else if(result != MB_FUNC_OK || result == MB_SUB_RETURN) {
 			goto _exit;
 		}
 
