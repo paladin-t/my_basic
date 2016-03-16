@@ -52,7 +52,7 @@
 		BEGIN
 			BLOCK "080404b0"
 			BEGIN
-				VALUE "Comments", "MY-BASIC"
+				VALUE "Comments", "For more information, see https://github.com/paladin-t/my_basic/."
 				VALUE "CompanyName", "Wang Renxin"
 				VALUE "FileDescription", "MY-BASIC Interpreter for Windows"
 				VALUE "FileVersion", "1, 2, 0, 0"
