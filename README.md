@@ -27,7 +27,7 @@ Why are existing script interpreters so complex? Why is it so difficult to integ
 
 ## Introduction
 
-MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with less than twenty thousand lines of source code. It supports structured grammar, and implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm, furthermore it offers a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). Most advanced features are easily cuttable by modifying macros. It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. It's able to easily combine MY-BASIC with an existing project in C, C++, Objective-C, C#, etc. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
+MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with less than twenty thousand lines of source code. MY-BASIC is a dynamic typed programming language. It supports structured grammar, and implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm, furthermore it offers a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. Anyone even C programming newbies could learn how to add new scripting interfaces in five minutes. It's able to easily combine MY-BASIC with an existing project in C, C++, Java, Objective-C, Swift, C# and many other languages. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
 
 ## Compatibility
 
@@ -49,7 +49,7 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * Referenced usertype support
 * Collection implementation and manipulation functions for **`LIST`** and **`DICT`**
 * Automatic releasing of referenced objects (list, dictionary, referenced usertype, prototype, lambda, etc.) benefited from **Reference Counting** and **Garbage Collection**
-* Multiple file support by `IMPORT` statement
+* Multiple source file support by `IMPORT` statement
 * Structured user customizable **sub routine** definition by **`DEF-ENDDEF`** support, including tail recursion optimization
 * Structured `IF-THEN-ELSEIF-ELSE-ENDIF` support
 * Structured `FOR-TO-STEP-NEXT/FOR-IN/WHILE-WEND/DO-UNTIL` support
@@ -79,7 +79,11 @@ Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especiall
 
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
+It's necessary to know some principle of MY-BASIC before doing deep customization; nothing is better than a workflow diagram to get a first impression.
+
 ![](https://github.com/paladin-t/my_basic/blob/master/interpreter%20workflow%20diagram.png)
+
+More detail are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki) pages.
 
 ## Installation
 
@@ -89,18 +93,18 @@ This repository contains precompiled binaries for [Windows](output/my_basic.exe)
 
 * Open the Visual Studio solution `my_basic.sln` on Windows to build an executable
 * Open the Xcode solution `my_basic_mac.xcodeproj` on OS X to build an OS X executable
-* If you are not using VS or Xcode, then use the `makefile` with a "make" toolchain to build an interpreter binary according to your specific platform
+* If you were using a *nix OS, then use the `makefile` with a "make" toolchain to build an interpreter binary according to your specific platform
 
 To compile an interpreter binary for your own platform manually, please follow the steps:
 
 1. Retrieve at least `core` and `shell` folders for a minimum build
 2. Setup your compile toolchain configuration
-3. Use your compiler to compile `core/my_basic.c` and `shell/main.c`, including `core/my_basic.h` is required by both of the source files, then link up your own executable
+3. Use your compiler to compile `core/my_basic.c` and `shell/main.c`, they both require including `core/my_basic.h`; then link up your own executable
 
 The standalone interpreter supports three running modes:
 
-* Execute the binary directly without arguments to enter MY-BASIC's interactive mode
-* Pass a file path to the binary to load and run that script file
+* Execute the binary without arguments to enter MY-BASIC's interactive mode
+* Pass a file path to the binary to load and run that script file directly
 * Pass an argument `-e` followed by an expression to evaluate and print it, eg. `-e "2 * (3 + 4)"`
 
 Type "HELP" and hint Enter under interactive mode to view full detail usage of the interpreter.
