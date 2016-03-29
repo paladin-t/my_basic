@@ -60,6 +60,8 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * Powerful interactive ability to manipulate script facilities at native side; or to use native functionalities in script, and vice versa
 * More features under development
 
+You may wondering if it's possible to introduce another feature to MY-BASIC, well, you may would like to take a look at [this page](https://github.com/paladin-t/my_basic/wiki/Is-it-possible-to-introduce-another-feature%3F).
+
 ## Script at a glance
 
 Come along with a traditional "hello world" script in MY-BASIC:
