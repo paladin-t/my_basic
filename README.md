@@ -158,6 +158,7 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
  * [Miscellaneous module](https://github.com/paladin-t/my_basic/wiki/Miscellaneous-module)
  * [Stack module](https://github.com/paladin-t/my_basic/wiki/Stack-module)
 * [FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
+ * [Is it possible to introduce another feature?](https://github.com/paladin-t/my_basic/wiki/Is-it-possible-to-introduce-another-feature%3F)
 
 ## References
 
