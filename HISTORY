@@ -1,3 +1,6 @@
+Mar. 29 2016
+Added a help option to the shell
+
 Mar. 16 2016
 Fixed an execution issue after a lambda
 Fixed a cannot RETURN bug from a FOR loop in a sub routine

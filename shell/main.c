@@ -862,6 +862,7 @@ static void _show_help(void) {
 	_printf("  %s -e \"expr\" - Evaluate an expression directly\n", _BIN_FILE_NAME);
 	_printf("\n");
 	_printf("Options:\n");
+	_printf("  -h         - Show help information\n");
 #if _USE_MEM_POOL
 	_printf("  -p n       - Set memory pool threashold size, n is size in bytes\n");
 #endif /* _USE_MEM_POOL */
@@ -1028,6 +1029,7 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 	int i = 1;
 	char* prog = 0;
 	bool_t eval = false;
+	bool_t help = false;
 	char* memp = 0;
 	char* diri = 0;
 
@@ -1037,6 +1039,8 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 				eval = true;
 				_CHECK_ARG(argc, i, "-e: Expression expected.\n");
 				prog = argv[++i];
+			} else if(!memcmp(argv[i] + 1, "h", 1)) {
+				help = true;
 #if _USE_MEM_POOL
 			} else if(!memcmp(argv[i] + 1, "p", 1)) {
 				_CHECK_ARG(argc, i, "-p: Memory pool threashold size expected.\n");
@@ -1069,6 +1073,8 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 		_evaluate_expression(prog);
 	else if(prog)
 		_run_file(prog);
+	else if(help)
+		_show_help();
 	else
 		return false;
 
