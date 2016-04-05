@@ -15276,6 +15276,8 @@ _print:
 							val_ptr->data.string = mb_strdup(val_ptr->data.string, strlen(val_ptr->data.string) + 1);
 							val_ptr->ref = false;
 							mb_make_nil(s->running_context->intermediate_value);
+						} else {
+							_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, s->source_file, DON(ast), MB_FUNC_WARNING, _exit, result);
 						}
 						obj = val_ptr;
 						got_tostr = true;

@@ -1,3 +1,6 @@
+Apr. 5 2016
+Added a warning when a "tostring" meta method didn't return a string
+
 Mar. 29 2016
 Added a help option to the shell
 
