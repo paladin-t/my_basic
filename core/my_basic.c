@@ -12635,6 +12635,7 @@ static int _core_or(mb_interpreter_t* s, void** l) {
 /* Operator NOT */
 static int _core_not(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
 	mb_value_t arg;
 	_running_context_t* running = 0;
 	int calc_depth = 0;
@@ -12642,9 +12643,14 @@ static int _core_not(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	running = s->running_context;
+	ast = *l;
+	if(ast) ast = ast->next;
 
 	calc_depth = running->calc_depth;
-	running->calc_depth = 1;
+	if(ast && _IS_FUNC((_object_t*)ast->data, _core_open_bracket))
+		running->calc_depth = _INFINITY_CALC_DEPTH;
+	else
+		running->calc_depth = 1;
 
 	mb_make_nil(arg);
 

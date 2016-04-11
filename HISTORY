@@ -1,3 +1,6 @@
+Apr. 11 2016
+Fixed a calculation issue with the NOT statement
+
 Apr. 5 2016
 Added a warning when a "tostring" meta method didn't return a string
 
