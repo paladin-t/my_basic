@@ -12647,18 +12647,23 @@ static int _core_not(mb_interpreter_t* s, void** l) {
 	if(ast) ast = ast->next;
 
 	calc_depth = running->calc_depth;
-	if(ast && _IS_FUNC((_object_t*)ast->data, _core_open_bracket))
-		running->calc_depth = _INFINITY_CALC_DEPTH;
-	else
-		running->calc_depth = 1;
 
 	mb_make_nil(arg);
+	if(ast && _IS_FUNC((_object_t*)ast->data, _core_open_bracket)) {
+		mb_check(mb_attempt_open_bracket(s, l));
 
-	mb_check(mb_attempt_func_begin(s, l));
+		mb_check(mb_pop_value(s, l, &arg));
 
-	mb_check(mb_pop_value(s, l, &arg));
+		mb_check(mb_attempt_close_bracket(s, l));
+	} else {
+		running->calc_depth = 1;
 
-	mb_check(mb_attempt_func_end(s, l));
+		mb_check(mb_attempt_func_begin(s, l));
+
+		mb_check(mb_pop_value(s, l, &arg));
+
+		mb_check(mb_attempt_func_end(s, l));
+	}
 
 	switch(arg.type) {
 	case MB_DT_NIL:
