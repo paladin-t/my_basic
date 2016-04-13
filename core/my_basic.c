@@ -12368,6 +12368,7 @@ _exit:
 /* Operator - (negative) */
 static int _core_neg(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
+	_ls_node_t* ast = 0;
 	mb_value_t arg;
 	_running_context_t* running = 0;
 	int* inep = 0;
@@ -12376,6 +12377,8 @@ static int _core_neg(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	running = s->running_context;
+	ast = *l;
+	if(ast) ast = ast->next;
 
 	if(!_ls_empty(s->in_neg_expr))
 		inep = (int*)_ls_back(s->in_neg_expr)->data;
@@ -12384,15 +12387,23 @@ static int _core_neg(mb_interpreter_t* s, void** l) {
 		(*inep)++;
 
 	calc_depth = running->calc_depth;
-	running->calc_depth = 1;
 
 	mb_make_nil(arg);
+	if(ast && _IS_FUNC((_object_t*)ast->data, _core_open_bracket)) {
+		mb_check(mb_attempt_open_bracket(s, l));
 
-	mb_check(mb_attempt_func_begin(s, l));
+		mb_check(mb_pop_value(s, l, &arg));
 
-	mb_check(mb_pop_value(s, l, &arg));
+		mb_check(mb_attempt_close_bracket(s, l));
+	} else {
+		running->calc_depth = 1;
 
-	mb_check(mb_attempt_func_end(s, l));
+		mb_check(mb_attempt_func_begin(s, l));
+
+		mb_check(mb_pop_value(s, l, &arg));
+
+		mb_check(mb_attempt_func_end(s, l));
+	}
 
 	if(inep)
 		(*inep)--;
