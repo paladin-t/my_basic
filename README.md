@@ -31,7 +31,7 @@ MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter writt
 
 ## Compatibility
 
-It fits well with Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Console, Raspberry Pi, Intel Edison, Arduino and even MCU; totally portable to Windows, OS X, Unix, Linux, iOS, Android, RTOS, etc.
+It fits well with Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Console, Raspberry Pi, Intel Edison, Arduino and even MCU; totally portable to Windows, MacOS, Unix, Linux, iOS, Android, RTOS, etc.
 
 ## Main features
 
@@ -91,10 +91,10 @@ More detail are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
 ### Use standalone interpreter binary
 
-This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [OS X](output/my_basic_mac), it's efficient to download it and have a first impressive playground. Or you could make a build as follow:
+This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [MacOS](output/my_basic_mac), it's efficient to download it and have a first impressive playground. Or you could make a build as follow:
 
 * Open the Visual Studio solution `my_basic.sln` on Windows to build an executable
-* Open the Xcode solution `my_basic_mac.xcodeproj` on OS X to build an OS X executable
+* Open the Xcode solution `my_basic_mac.xcodeproj` on MacOS to build an MacOS executable
 * If you were using a *nix OS, then use the `makefile` with a "make" toolchain to build an interpreter binary according to your specific platform
 
 To compile an interpreter binary for your own platform manually, please follow the steps:

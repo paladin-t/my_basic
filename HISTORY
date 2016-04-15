@@ -1,3 +1,6 @@
+Apr. 15 2016
+Added some error raising when met incomplete routine or class
+
 Apr. 13 2016
 Fixed a negative calculation issue with brackets
 

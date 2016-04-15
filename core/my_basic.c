@@ -265,9 +265,11 @@ static const char* _ERR_DESC[] = {
 	"Don't suspend in a routine",
 	"Don't mix instructional and structured sub routines",
 	"Invalid routine",
+	"Incomplete routine",
 	"Routine expected",
 	"Duplicate routine",
 	"Invalid class",
+	"Incomplete class",
 	"Class expected",
 	"Duplicate class",
 	"Wrong meta class",
@@ -11853,6 +11855,23 @@ int mb_run(struct mb_interpreter_t* s) {
 	_ls_node_t* ast = 0;
 
 	mb_assert(s);
+
+	if(s->parsing_context) {
+		if(s->parsing_context->routine_state) {
+			result = MB_FUNC_ERR;
+			_handle_error_now(s, SE_RN_INCOMPLETE_ROUTINE, s->source_file, MB_FUNC_ERR);
+
+			goto _exit;
+		}
+#ifdef MB_ENABLE_CLASS
+		if(s->parsing_context->class_state != _CLASS_STATE_NONE) {
+			result = MB_FUNC_ERR;
+			_handle_error_now(s, SE_RN_INCOMPLETE_CLASS, s->source_file, MB_FUNC_ERR);
+
+			goto _exit;
+		}
+#endif /* MB_ENABLE_CLASS */
+	}
 
 	_destroy_parsing_context(&s->parsing_context);
 
