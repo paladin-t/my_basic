@@ -6404,6 +6404,12 @@ static _list_it_t* _move_list_it_next(_list_it_t* it) {
 	if(!it || !it->list || !it->list->list || (!it->curr.node && !it->list->range_begin))
 		goto _exit;
 
+	if(it->list->lock < 0) {
+		result = it;
+
+		goto _exit;
+	}
+
 	if(it->list->range_begin) {
 		if(it->list->lock)
 			it->curr.ranging += sgn(it->list->count);
