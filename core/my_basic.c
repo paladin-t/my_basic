@@ -6401,14 +6401,17 @@ static bool_t _destroy_list_it(_list_it_t* it) {
 static _list_it_t* _move_list_it_next(_list_it_t* it) {
 	_list_it_t* result = 0;
 
-	if(!it || !it->list || !it->list->list || (!it->curr.node && !it->list->range_begin))
+	if(!it || !it->list || !it->list->list)
 		goto _exit;
 
-	if(it->list->lock < 0) {
+	if(it->list->lock < 0) { /* Collection has been changed after got this iterator. */
 		result = it;
 
 		goto _exit;
 	}
+
+	if(!it->curr.node && !it->list->range_begin)
+		goto _exit;
 
 	if(it->list->range_begin) {
 		if(it->list->lock)
