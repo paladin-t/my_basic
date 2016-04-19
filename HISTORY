@@ -1,3 +1,6 @@
+Apr. 19 2016
+Fixed an error raising issue with incomplete IF structure
+
 Apr. 18 2016
 Fixed an invalid iterator issue with ranged list
 

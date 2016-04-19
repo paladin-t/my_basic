@@ -9501,8 +9501,9 @@ static int _common_end_looping(mb_interpreter_t* s, _ls_node_t** l) {
 
 	mb_assert(s && l);
 
-	if(_skip_struct(s, l, _core_for, _core_next) == MB_FUNC_OK)
-		_skip_to(s, l, 0, _DT_EOS);
+	result = _skip_struct(s, l, _core_for, _core_next);
+	if(result == MB_FUNC_OK)
+		result = _skip_to(s, l, 0, _DT_EOS);
 
 	return result;
 }
@@ -9625,7 +9626,7 @@ _to:
 	if((_compare_numbers(step_val_ptr, &_OBJ_INT_ZERO) == 1 && _compare_numbers(var_loop->data, to_val_ptr) == 1) ||
 		(_compare_numbers(step_val_ptr, &_OBJ_INT_ZERO) == -1 && _compare_numbers(var_loop->data, to_val_ptr) == -1)) {
 		/* End looping */
-		_common_end_looping(s, &ast);
+		result = _common_end_looping(s, &ast);
 
 		goto _exit;
 	} else {
@@ -9713,7 +9714,7 @@ _to:
 	}
 	if(!lit && !dit) {
 		/* End looping */
-		_common_end_looping(s, &ast);
+		result = _common_end_looping(s, &ast);
 
 		goto _exit;
 	} else {
