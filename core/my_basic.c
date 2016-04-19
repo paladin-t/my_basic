@@ -6404,7 +6404,7 @@ static _list_it_t* _move_list_it_next(_list_it_t* it) {
 	if(!it || !it->list || !it->list->list)
 		goto _exit;
 
-	if(it->list->lock < 0) { /* Collection has been changed after got this iterator. */
+	if(it->list->lock < 0) { /* The iterator goes invalid if collection has been changed after obtaining iterator */
 		result = it;
 
 		goto _exit;
@@ -6646,8 +6646,8 @@ static _ls_node_t* _node_at_list(_list_t* coll, int index) {
 
 	if(index >= 0 && index < (int)coll->count) {
 		/* Layout: HEAD ... LEFT ... PIVOT ... RIGHT ... TAIL
-			PIVOT is a cached node.
-			LEN(HEAD to LEFT) == LEN(LEFT to PIVOT) && LEN(PIVOT to RIGHT) == LEN(RIGHT to TAIL).
+			LEN(HEAD to LEFT) == LEN(LEFT to PIVOT) && LEN(PIVOT to RIGHT) == LEN(RIGHT to TAIL)
+			PIVOT is a cached node
 		 */
 		int head = 0,
 			left = coll->cached_index / 2,
