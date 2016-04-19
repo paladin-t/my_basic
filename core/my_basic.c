@@ -239,7 +239,7 @@ static const char* _ERR_DESC[] = {
 	"Close bracket expected",
 	"Array subscript expected",
 	"Nested too deep",
-	"Structure not completed",
+	"Incomplete structure",
 	"Function expected",
 	"Variable or array identifier expected",
 	"Assign operator expected",
@@ -262,8 +262,8 @@ static const char* _ERR_DESC[] = {
 	"Invalid expression",
 	"Out of memory",
 	"Wrong function reached",
-	"Don't suspend in a routine",
-	"Don't mix instructional and structured sub routines",
+	"Do not suspend in a routine",
+	"Do not mix instructional and structured sub routines",
 	"Invalid routine",
 	"Incomplete routine",
 	"Routine expected",
@@ -1050,7 +1050,7 @@ static _object_t* _exp_assign = 0;
 #define _using_jump_set_of_instructional(__s, __obj, __exit, __result) \
 	do { \
 		if((__s)->jump_set & (~_JMP_INS)) { \
-			_handle_error_on_obj(__s, SE_RN_DONT_MIX_INSTRUCTIONAL_AND_STRUCTURED, (__s)->source_file, DON(__obj), MB_FUNC_ERR, __exit, __result); \
+			_handle_error_on_obj(__s, SE_RN_DO_NOT_MIX_INSTRUCTIONAL_AND_STRUCTURED, (__s)->source_file, DON(__obj), MB_FUNC_ERR, __exit, __result); \
 		} else { \
 			(__s)->jump_set |= _JMP_INS; \
 		} \
@@ -1059,7 +1059,7 @@ static _object_t* _exp_assign = 0;
 #define _using_jump_set_of_structured(__s, __obj, __exit, __result) \
 	do { \
 		if((__s)->jump_set & (~_JMP_STR)) { \
-			_handle_error_on_obj(__s, SE_RN_DONT_MIX_INSTRUCTIONAL_AND_STRUCTURED, (__s)->source_file, DON(__obj), MB_FUNC_ERR, __exit, __result); \
+			_handle_error_on_obj(__s, SE_RN_DO_NOT_MIX_INSTRUCTIONAL_AND_STRUCTURED, (__s)->source_file, DON(__obj), MB_FUNC_ERR, __exit, __result); \
 		} else { \
 			(__s)->jump_set |= _JMP_STR; \
 		} \
@@ -3420,7 +3420,7 @@ _array:
 						goto _array;
 					} else {
 						if(ast && _IS_FUNC(ast->data, _core_open_bracket)) {
-							_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
+							_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 						}
 					}
 					_ls_pushback(opnd, c);
@@ -3950,7 +3950,7 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 			break;
 		}
 		if(result == MB_FUNC_SUSPEND && s->error_handler) {
-			_handle_error_now(s, SE_RN_DONT_SUSPEND_IN_A_ROUTINE, s->last_error_file, result);
+			_handle_error_now(s, SE_RN_DO_NOT_SUSPEND_IN_A_ROUTINE, s->last_error_file, result);
 
 			goto _exit;
 		}
@@ -4057,7 +4057,7 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 			break;
 		}
 		if(result == MB_FUNC_SUSPEND && s->error_handler) {
-			_handle_error_now(s, SE_RN_DONT_SUSPEND_IN_A_ROUTINE, s->last_error_file, result);
+			_handle_error_now(s, SE_RN_DO_NOT_SUSPEND_IN_A_ROUTINE, s->last_error_file, result);
 
 			goto _exit;
 		}
@@ -6132,7 +6132,7 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 			_handle_error_on_obj(s, SE_RN_ILLEGAL_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		if(dcount + 1 > arr->data.array->dimension_count) {
-			_handle_error_on_obj(s, SE_RN_DIMENSION_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_DIMENSION_COUNT_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		if((int)val.integer >= arr->data.array->dimensions[dcount]) {
 			_handle_error_on_obj(s, SE_RN_ARRAY_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -9596,7 +9596,7 @@ static int _execute_normal_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 
 	ast = ast->next;
 	if(!ast) {
-		_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	to_node = ast;
 
@@ -9614,7 +9614,7 @@ _to:
 	} else {
 		ast = ast->next;
 		if(!ast) {
-			_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 
 		/* Get step value */
@@ -9678,7 +9678,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 	ast = ast->next;
 	ast = ast->next;
 	if(!ast) {
-		_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 
 	/* Get collection */
@@ -9766,7 +9766,7 @@ static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t)
 	mb_assert(ast && ast->prev);
 	do {
 		if(!ast) {
-			_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(tmp), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(tmp), MB_FUNC_ERR, _exit, result);
 		}
 		tmp = ast;
 		obj = (_object_t*)ast->data;
@@ -9793,7 +9793,7 @@ static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 	mb_assert(ast && ast->prev);
 	do {
 		if(!ast) {
-			_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 		tmp = ast;
 		obj = (_object_t*)ast->data;
@@ -9811,7 +9811,7 @@ static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 			(!(mask & (1 << (nested - 1))) && _IS_FUNC((_object_t*)ast->data, _core_endif)))
 		) {
 			if(--nested < 0) {
-				_handle_error_on_obj(s, SE_RN_STRUCTURE_NOT_COMPLETED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+				_handle_error_on_obj(s, SE_RN_INCOMPLETE_STRUCTURE, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
 			ast = ast->next;
 		}
@@ -9836,7 +9836,7 @@ static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func
 	count = 1;
 	do {
 		if(!ast || !ast->next) {
-			_handle_error_on_obj(s, SE_RN_STRUCTURE_NOT_COMPLETED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_INCOMPLETE_STRUCTURE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		obj_prev = (_object_t*)ast->data;
 		ast = ast->next;
@@ -10557,7 +10557,7 @@ int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
 	ast = (_ls_node_t*)*l;
 	obj = (_object_t*)ast->data;
 	if(!(obj->type == _DT_FUNC)) {
-		_handle_error_on_obj(s, SE_RN_STRUCTURE_NOT_COMPLETED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_INCOMPLETE_STRUCTURE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
 
@@ -11164,7 +11164,7 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 
 	*a = 0;
 	if(c >= MB_MAX_DIMENSION_COUNT) {
-		_handle_error_on_obj(s, SE_RN_DIMENSION_TOO_MUCH, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_TOO_MUCH_DIMENSIONS, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
 	}
 	for(j = 0; j < c; j++) {
 		n = d[j];
@@ -11587,7 +11587,7 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 #endif /* MB_ENABLE_CLASS */
 		obj.type != _DT_ARRAY
 	) {
-		_handle_error_on_obj(s, SE_RN_REFERENCED_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_REFERENCED_TYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 	_REF(&obj);
 
@@ -11616,7 +11616,7 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 #endif /* MB_ENABLE_CLASS */
 		obj.type != _DT_ARRAY
 	) {
-		_handle_error_on_obj(s, SE_RN_REFERENCED_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_REFERENCED_TYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 	_UNREF(&obj);
 
@@ -12752,7 +12752,7 @@ static int _core_is(mb_interpreter_t* s, void** l) {
 	if(fst && fst->type == _DT_VAR) fst = fst->data.variable->data;
 	if(scd && scd->type == _DT_VAR) scd = scd->data.variable->data;
 	if(!fst || !scd) {
-		_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
 	}
 	if(scd->type == _DT_TYPE) {
 		val->type = _DT_INT;
@@ -12805,7 +12805,7 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 	if(obj->type == _DT_FUNC)
 		ast = ast->next;
 	if(!ast || !ast->data) {
-		_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	obj = (_object_t*)ast->data;
 #ifdef MB_ENABLE_CLASS
@@ -12843,7 +12843,7 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 
 	ast = ast->next;
 	if(!ast || !ast->data) {
-		_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 #ifdef MB_ENABLE_COLLECTION_LIB
 	if(var && _IS_COLL(var->data)) {
@@ -13028,7 +13028,7 @@ static int _core_dim(mb_interpreter_t* s, void** l) {
 			_handle_error_on_obj(s, SE_RN_ILLEGAL_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		if(dummy.dimension_count >= MB_MAX_DIMENSION_COUNT) {
-			_handle_error_on_obj(s, SE_RN_DIMENSION_TOO_MUCH, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_TOO_MUCH_DIMENSIONS, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		dummy.dimensions[dummy.dimension_count++] = (int)val.integer;
 		if(dummy.count)
@@ -13378,7 +13378,7 @@ _loop_begin:
 			}
 
 			if(!ast) {
-				_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+				_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
 			obj = (_object_t*)ast->data;
 		}
@@ -13425,7 +13425,7 @@ static int _core_do(mb_interpreter_t* s, void** l) {
 
 	obj = (_object_t*)ast->data;
 	if(!_IS_EOS(obj)) {
-		_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
 
@@ -15247,7 +15247,7 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 	ast = (_ls_node_t*)*l;
 	ast = ast->next;
 	if(!ast || !ast->data) {
-		_handle_error_on_obj(s, SE_RN_SYNTAX, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 
 	obj = (_object_t*)ast->data;
