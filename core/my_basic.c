@@ -12872,7 +12872,7 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 	}
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	obj = (_object_t*)ast->data;
-	if(obj->type != _DT_FUNC || strcmp(obj->data.func->name, "=") != 0) {
+	if(!_IS_FUNC(obj, _core_equal)) { /* Is it an assign operator? */
 		_handle_error_on_obj(s, SE_RN_ASSIGN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 
