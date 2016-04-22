@@ -1191,6 +1191,7 @@ static char* mb_strupr(char* s);
 /** Unicode handling */
 
 #ifdef MB_ENABLE_UNICODE
+static int mb_uu_getbom(const char** ch);
 static int mb_uu_ischar(const char* ch);
 static int mb_uu_strlen(const char* ch);
 static int mb_uu_substr(const char* ch, int begin, int count, char** o);
@@ -1308,11 +1309,14 @@ static bool_t _is_using_char(char c);
 static bool_t _is_exponent_prefix(char* s, int begin, int end);
 
 static int _append_char_to_symbol(mb_interpreter_t* s, char c);
+#ifdef MB_ENABLE_UNICODE_ID
+static int _append_uu_char_to_symbol(mb_interpreter_t* s, const char* str, int n);
+#endif /* MB_ENABLE_UNICODE_ID */
 static int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col);
 static int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int pos, unsigned short row, unsigned short col);
 static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** obj, _ls_node_t*** asgn, bool_t* delsym);
 static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value);
-static int _parse_char(mb_interpreter_t* s, const char** str, int pos, unsigned short row, unsigned short col);
+static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, unsigned short row, unsigned short col);
 static void _set_error_pos(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col);
 static char* _prev_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row, unsigned short* col);
 static char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row, unsigned short* col);
@@ -2914,6 +2918,24 @@ static char* mb_strupr(char* s) {
 /** Unicode handling */
 
 #ifdef MB_ENABLE_UNICODE
+/* Determine whether a string begins with a BOM, and ignore it */
+static int mb_uu_getbom(const char** ch) {
+	if(!ch && !(*ch))
+		return 0;
+
+	if((*ch)[0] == -17 && (*ch)[1] == -69 && (*ch)[2] == -65) {
+		*ch += 3;
+
+		return 3;
+	} else if((*ch)[0] == -2 && (*ch)[1] == -1) {
+		*ch += 2;
+
+		return 2;
+	}
+
+	return 0;
+}
+
 /* Determine whether a buffer is a UTF8 encoded character, and return taken bytes */
 static int mb_uu_ischar(const char* ch) {
 	/* Copyright 2008, 2009 Bjoern Hoehrmann, http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ */
@@ -4274,10 +4296,7 @@ static void _end_of_file(_parsing_context_t* context) {
 
 /* Determine whether a character is blank */
 static bool_t _is_blank_char(char c) {
-	return
-		(c == ' ') || (c == '\t') ||
-		(c == -17) || (c == -69) || (c == -65) ||
-		(c == -2) || (c == -1);
+	return (c == ' ') || (c == '\t');
 }
 
 /* Determine whether a character is end of file */
@@ -4381,7 +4400,7 @@ static int _append_char_to_symbol(mb_interpreter_t* s, char c) {
 	if(context->current_symbol_nonius + 1 >= _SINGLE_SYMBOL_MAX_LENGTH) {
 		_set_current_error(s, SE_PS_SYMBOL_TOO_LONG, 0);
 
-		++result;
+		result = MB_FUNC_ERR;
 	} else {
 		context->current_symbol[context->current_symbol_nonius] = c;
 		++context->current_symbol_nonius;
@@ -4389,6 +4408,29 @@ static int _append_char_to_symbol(mb_interpreter_t* s, char c) {
 
 	return result;
 }
+
+#ifdef MB_ENABLE_UNICODE_ID
+/* Parse a UTF8 character and append it to current parsing symbol */
+static int _append_uu_char_to_symbol(mb_interpreter_t* s, const char* str, int n) {
+	int result = MB_FUNC_OK;
+	_parsing_context_t* context = 0;
+
+	mb_assert(s);
+
+	context = s->parsing_context;
+
+	if(context->current_symbol_nonius + n >= _SINGLE_SYMBOL_MAX_LENGTH) {
+		_set_current_error(s, SE_PS_SYMBOL_TOO_LONG, 0);
+
+		result = MB_FUNC_ERR;
+	} else {
+		memcpy(&context->current_symbol[context->current_symbol_nonius], str, n);
+		context->current_symbol_nonius += n;
+	}
+
+	return result;
+}
+#endif /* MB_ENABLE_UNICODE_ID */
 
 /* Cut current symbol when current one parsing is finished */
 static int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col) {
@@ -5027,19 +5069,28 @@ _exit:
 }
 
 /* Parse a character */
-static int _parse_char(mb_interpreter_t* s, const char** str, int pos, unsigned short row, unsigned short col) {
+static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, unsigned short row, unsigned short col) {
 	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
 	char last_char = _ZERO_CHAR;
 	char c = '\0';
+#ifdef MB_ENABLE_UNICODE_ID
+	unsigned uc = 0;
+#endif /* MB_ENABLE_UNICODE_ID */
 
 	mb_assert(s && s->parsing_context);
 
 	context = s->parsing_context;
 
-	if(str && *str) {
-		c = **str;
-		++(*str);
+	if(str) {
+#ifdef MB_ENABLE_UNICODE_ID
+		if(n == 1)
+			c = *str;
+		else
+			memcpy(&uc, str, n);
+#else /* MB_ENABLE_UNICODE_ID */
+		c = *str;
+#endif /* MB_ENABLE_UNICODE_ID */
 	} else {
 		c = MB_EOS;
 	}
@@ -5049,8 +5100,15 @@ static int _parse_char(mb_interpreter_t* s, const char** str, int pos, unsigned 
 
 	switch(context->parsing_state) {
 	case _PS_NORMAL:
-		c = toupper(c);
+#ifdef MB_ENABLE_UNICODE_ID
+		if(uc) {
+			_mb_check(result = _append_uu_char_to_symbol(s, str, n), _exit);
 
+			break;
+		}
+#endif /* MB_ENABLE_UNICODE_ID */
+
+		c = toupper(c);
 		if(_is_blank_char(c)) { /* \t space */
 			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 		} else if(_is_newline_char(c)) { /* \r \n EOF */
@@ -11803,7 +11861,15 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 
 	context = s->parsing_context;
 
+#ifdef MB_ENABLE_UNICODE
+	mb_uu_getbom(&l);
+#endif /* MB_ENABLE_UNICODE */
 	while(*l) {
+		int n = 1;
+#ifdef MB_ENABLE_UNICODE_ID
+		if(context->parsing_state == _PS_NORMAL)
+			n = mb_uu_ischar(l);
+#endif /* MB_ENABLE_UNICODE_ID */
 		ch = *l;
 		if((ch == _NEWLINE_CHAR || ch == _RETURN_CHAR) && (!wrapped || wrapped == ch)) {
 			wrapped = ch;
@@ -11813,7 +11879,7 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 			wrapped = _ZERO_CHAR;
 			++context->parsing_col;
 		}
-		status = _parse_char(s, &l, context->parsing_pos, _row, _col);
+		status = _parse_char(s, l, n, context->parsing_pos, _row, _col);
 		result = status;
 		if(status) {
 			_set_error_pos(s, context->parsing_pos, _row, _col);
@@ -11824,8 +11890,9 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 		_row = context->parsing_row;
 		_col = context->parsing_col;
 		++context->parsing_pos;
+		l += n;
 	};
-	status = _parse_char(s, 0, context->parsing_pos, context->parsing_row, context->parsing_col);
+	status = _parse_char(s, 0, 1, context->parsing_pos, context->parsing_row, context->parsing_col);
 
 _exit:
 	if(reset)
@@ -11856,7 +11923,7 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 	} else {
 		_set_current_error(s, SE_PS_FILE_OPEN_FAILED, 0);
 
-		++result;
+		result = MB_FUNC_ERR;
 	}
 
 _exit:

@@ -42,6 +42,7 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * **Lightweight** (within memory usage less than 128KB), fast, and cuttable
 * With most both retro and modern BASIC syntax
 * Case-insensitive tokenization, and many other indelible BASIC feelings
+* Unicode support
 * **[Prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm, with reflection support
 * **[Lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function)** enhanced functional programming
 * **Dynamic typed** integer, float point, string, boolean, user defined data types, etc. with array support

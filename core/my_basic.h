@@ -124,6 +124,13 @@ extern "C" {
 #	define MB_ENABLE_UNICODE
 #endif /* MB_ENABLE_UNICODE */
 
+#ifndef MB_ENABLE_UNICODE_ID
+#	define MB_ENABLE_UNICODE_ID
+#	if defined MB_ENABLE_UNICODE_ID && !defined MB_ENABLE_UNICODE
+#		error "Requires MB_ENABLE_UNICODE enabled."
+#	endif
+#endif /* MB_ENABLE_UNICODE_ID */
+
 #ifndef MB_GC_GARBAGE_THRESHOLD
 #	define MB_GC_GARBAGE_THRESHOLD 16
 #endif /* MB_GC_GARBAGE_THRESHOLD */
