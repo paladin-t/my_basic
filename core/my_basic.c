@@ -4910,7 +4910,11 @@ _end_import:
 				goto _exit;
 			}
 			_begin_class(s);
+#ifdef MB_ENABLE_UNICODE_ID
+			if(!_is_identifier_char(sym[0]) && !mb_uu_ischar(sym)) {
+#else /* MB_ENABLE_UNICODE_ID */
 			if(!_is_identifier_char(sym[0])) {
+#endif /* MB_ENABLE_UNICODE_ID */
 				result = _DT_NIL;
 
 				goto _exit;
@@ -4949,7 +4953,11 @@ _end_import:
 		if(_IS_FUNC(context->last_symbol, _core_def) || _IS_FUNC(context->last_symbol, _core_call)) {
 			if(_IS_FUNC(context->last_symbol, _core_def))
 				_begin_routine(s);
+#ifdef MB_ENABLE_UNICODE_ID
+			if(!_is_identifier_char(sym[0]) && !mb_uu_ischar(sym)) {
+#else /* MB_ENABLE_UNICODE_ID */
 			if(!_is_identifier_char(sym[0])) {
+#endif /* MB_ENABLE_UNICODE_ID */
 				result = _DT_NIL;
 
 				goto _exit;
