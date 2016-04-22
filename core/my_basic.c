@@ -1191,9 +1191,9 @@ static char* mb_strupr(char* s);
 /** Unicode handling */
 
 #ifdef MB_ENABLE_UNICODE
-static int mb_uu_ischar(char* ch);
-static int mb_uu_strlen(char* ch);
-static int mb_uu_substr(char* ch, int begin, int count, char** o);
+static int mb_uu_ischar(const char* ch);
+static int mb_uu_strlen(const char* ch);
+static int mb_uu_substr(const char* ch, int begin, int count, char** o);
 #endif /* MB_ENABLE_UNICODE */
 
 /** Expression processing */
@@ -1312,7 +1312,7 @@ static int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigne
 static int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int pos, unsigned short row, unsigned short col);
 static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object_t** obj, _ls_node_t*** asgn, bool_t* delsym);
 static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value);
-static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsigned short col);
+static int _parse_char(mb_interpreter_t* s, const char** str, int pos, unsigned short row, unsigned short col);
 static void _set_error_pos(mb_interpreter_t* s, int pos, unsigned short row, unsigned short col);
 static char* _prev_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row, unsigned short* col);
 static char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned short* row, unsigned short* col);
@@ -2915,7 +2915,7 @@ static char* mb_strupr(char* s) {
 
 #ifdef MB_ENABLE_UNICODE
 /* Determine whether a buffer is a UTF8 encoded character, and return taken bytes */
-static int mb_uu_ischar(char* ch) {
+static int mb_uu_ischar(const char* ch) {
 	/* Copyright 2008, 2009 Bjoern Hoehrmann, http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ */
 #	define _TAKE(__ch, __c, __r) do { __c = *__ch++; __r++; } while(0)
 #	define _COPY(__ch, __c, __r, __cp) do { _TAKE(__ch, __c, __r); __cp = (__cp << 6) | ((unsigned char)__c & 0x3Fu); } while(0)
@@ -2971,7 +2971,7 @@ static int mb_uu_ischar(char* ch) {
 }
 
 /* Tell how many UTF8 character are there in a string */
-static int mb_uu_strlen(char* ch) {
+static int mb_uu_strlen(const char* ch) {
 	int result = 0;
 
 	if(!ch)
@@ -2988,10 +2988,10 @@ static int mb_uu_strlen(char* ch) {
 }
 
 /* Retrieve a sub string of a UTF8 string */
-static int mb_uu_substr(char* ch, int begin, int count, char** o) {
+static int mb_uu_substr(const char* ch, int begin, int count, char** o) {
 	int cnt = 0;
-	char* b = 0;
-	char* e = 0;
+	const char* b = 0;
+	const char* e = 0;
 	int l = 0;
 
 	if(!ch || begin < 0 || count <= 0 || !o)
@@ -5027,14 +5027,22 @@ _exit:
 }
 
 /* Parse a character */
-static int _parse_char(mb_interpreter_t* s, char c, int pos, unsigned short row, unsigned short col) {
+static int _parse_char(mb_interpreter_t* s, const char** str, int pos, unsigned short row, unsigned short col) {
 	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
 	char last_char = _ZERO_CHAR;
+	char c = '\0';
 
 	mb_assert(s && s->parsing_context);
 
 	context = s->parsing_context;
+
+	if(str && *str) {
+		c = **str;
+		++(*str);
+	} else {
+		c = MB_EOS;
+	}
 
 	last_char = context->current_char;
 	context->current_char = c;
@@ -11786,7 +11794,6 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 	int result = MB_FUNC_OK;
 	char ch = 0;
 	int status = 0;
-	int i = 0;
 	unsigned short _row = 0;
 	unsigned short _col = 0;
 	char wrapped = _ZERO_CHAR;
@@ -11796,8 +11803,8 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 
 	context = s->parsing_context;
 
-	while(l[i]) {
-		ch = l[i];
+	while(*l) {
+		ch = *l;
 		if((ch == _NEWLINE_CHAR || ch == _RETURN_CHAR) && (!wrapped || wrapped == ch)) {
 			wrapped = ch;
 			++context->parsing_row;
@@ -11806,7 +11813,7 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 			wrapped = _ZERO_CHAR;
 			++context->parsing_col;
 		}
-		status = _parse_char(s, ch, context->parsing_pos, _row, _col);
+		status = _parse_char(s, &l, context->parsing_pos, _row, _col);
 		result = status;
 		if(status) {
 			_set_error_pos(s, context->parsing_pos, _row, _col);
@@ -11816,10 +11823,9 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 		}
 		_row = context->parsing_row;
 		_col = context->parsing_col;
-		++i;
 		++context->parsing_pos;
 	};
-	status = _parse_char(s, MB_EOS, context->parsing_pos, context->parsing_row, context->parsing_col);
+	status = _parse_char(s, 0, context->parsing_pos, context->parsing_row, context->parsing_col);
 
 _exit:
 	if(reset)
