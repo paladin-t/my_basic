@@ -5076,6 +5076,8 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 	char c = '\0';
 #ifdef MB_ENABLE_UNICODE_ID
 	unsigned uc = 0;
+#else /* MB_ENABLE_UNICODE_ID */
+	mb_unrefvar(n);
 #endif /* MB_ENABLE_UNICODE_ID */
 
 	mb_assert(s && s->parsing_context);
@@ -5102,7 +5104,13 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 	case _PS_NORMAL:
 #ifdef MB_ENABLE_UNICODE_ID
 		if(uc) {
-			_mb_check(result = _append_uu_char_to_symbol(s, str, n), _exit);
+			if(context->symbol_state == _SS_IDENTIFIER) {
+				_mb_check(result = _append_uu_char_to_symbol(s, str, n), _exit);
+			} else if(context->symbol_state == _SS_OPERATOR) {
+				context->symbol_state = _SS_IDENTIFIER;
+				_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+				_mb_check(result = _append_uu_char_to_symbol(s, str, n), _exit);
+			}
 
 			break;
 		}
@@ -11850,7 +11858,6 @@ _exit:
 /* Load and parse a script string */
 int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 	int result = MB_FUNC_OK;
-	char ch = 0;
 	int status = 0;
 	unsigned short _row = 0;
 	unsigned short _col = 0;
@@ -11870,14 +11877,16 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 		if(context->parsing_state == _PS_NORMAL)
 			n = mb_uu_ischar(l);
 #endif /* MB_ENABLE_UNICODE_ID */
-		ch = *l;
-		if((ch == _NEWLINE_CHAR || ch == _RETURN_CHAR) && (!wrapped || wrapped == ch)) {
-			wrapped = ch;
-			++context->parsing_row;
-			context->parsing_col = 0;
-		} else {
-			wrapped = _ZERO_CHAR;
-			++context->parsing_col;
+		if(n == 1) {
+			char ch = *l;
+			if((ch == _NEWLINE_CHAR || ch == _RETURN_CHAR) && (!wrapped || wrapped == ch)) {
+				wrapped = ch;
+				++context->parsing_row;
+				context->parsing_col = 0;
+			} else {
+				wrapped = _ZERO_CHAR;
+				++context->parsing_col;
+			}
 		}
 		status = _parse_char(s, l, n, context->parsing_pos, _row, _col);
 		result = status;
