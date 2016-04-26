@@ -228,6 +228,7 @@ static const char* _ERR_DESC[] = {
 	"Illegal bound",
 	"Too much dimensions",
 	"Operation failed",
+	"Invalid operation usage",
 	"Dimension count out of bound",
 	"Out of bound",
 	"Label does not exist",
@@ -3656,6 +3657,10 @@ _var:
 				_ls_pushback(garbage, r);
 				if(_IS_FUNC(c, _core_close_bracket))
 					hack = true;
+
+				break;
+			case ' ':
+				_handle_error_on_obj(s, SE_RN_INVALID_OPERATION_USAGE, s->source_file, errn ? DON(errn) : DON(ast), MB_FUNC_ERR, _error, result);
 
 				break;
 			}
