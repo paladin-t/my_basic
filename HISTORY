@@ -1,5 +1,5 @@
 Apr. 26 2016
-Added an invalid operation usage error when met unexpected expression
+Added an invalid operation usage error when met an unexpected expression
 
 Apr. 22 2016
 Added UTF8 token support

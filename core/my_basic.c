@@ -344,6 +344,7 @@ typedef void (* _unref_func_t)(struct _ref_t*, void*);
 
 typedef unsigned _ref_count_t;
 
+/* The reference structure should be always at the head of an object */
 typedef struct _ref_t {
 	_ref_count_t* count;
 	_ref_count_t* weak_count;
@@ -6093,9 +6094,8 @@ static void _init_array(_array_t* arr) {
 	mb_assert(arr->count > 0);
 	mb_assert(!arr->raw);
 	arr->raw = (void*)mb_malloc(elemsize * arr->count);
-	if(arr->raw) {
+	if(arr->raw)
 		memset(arr->raw, 0, elemsize * arr->count);
-	}
 #ifndef MB_SIMPLE_ARRAY
 	arr->types = (_data_e*)mb_malloc(sizeof(_data_e) * arr->count);
 	if(arr->types) {
