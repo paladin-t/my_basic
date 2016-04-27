@@ -8,7 +8,7 @@
 
 **Copyright (C) 2011 - 2016 [Wang Renxin](https://cn.linkedin.com/pub/wang-renxin/43/494/20). All rights reserved.**
 
-Why are existing script interpreters so complex? Why is it so difficult to integrate with them and use the API? Why not try MY-BASIC today! Script should be simple and enjoyable.
+Why were other script interpreters so complex? Why was it so difficult to integrate with them and use the API? Why not try MY-BASIC today! Script had never been so simple and enjoyable.
 
 ## Build status
 
@@ -35,7 +35,7 @@ It fits well with Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Co
 
 ## Main features
 
-MY-BASIC is a dynamic typed programming language with BASIC syntax and has a very dynamic nature; it makes it easy to use and powerful. MY-BASIC offers a wide range of features like:
+MY-BASIC is a dynamic typed programming language with BASIC syntax and has a very dynamic nature; it makes it easy to use and flexible. MY-BASIC offers a wide range of features including:
 
 * It is totally **free** to use MY-BASIC for individual or commercial purpose under the MIT license
 * Written in clean **ANSI C**, source code is portable for a dozen of platforms
@@ -78,7 +78,7 @@ enddef
 print foo("Hello", "world");
 ~~~~~~~~~~
 
-Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especially the "**Programming with BASIC**" section) to get more details about how to program in MY-BASIC.
+Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (focusing the "**Programming with BASIC**" section) to get more details about how to program in MY-BASIC.
 
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
@@ -102,7 +102,7 @@ To compile an interpreter binary for your own platform manually, please follow t
 
 1. Retrieve at least `core` and `shell` folders for a minimum build
 2. Setup your compile toolchain configuration
-3. Use your compiler to compile `core/my_basic.c` and `shell/main.c`, they both require including `core/my_basic.h`; then link up your own executable
+3. Compile `core/my_basic.c` and `shell/main.c`, they both require including `core/my_basic.h`; then link up your own executable
 
 The standalone interpreter supports three running modes:
 
@@ -122,7 +122,7 @@ For more details about using MY-BASIC when it's already integrated with a projec
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
-Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf). There are still some other scattered topics besides these aspects, such as the desine principle, machinism behind MY-BASIC, effective practice, etc; all issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki):
+Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf); there are still some other scattered ones besides these aspects, such as the desine principle, machinism behind MY-BASIC, effective practice, etc; all issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki):
 
 * Principles
  * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
