@@ -10603,13 +10603,12 @@ int mb_begin_module(struct mb_interpreter_t* s, const char* n) {
 
 #ifdef MB_ENABLE_MODULE
 	s->with_module = mb_strdup(n, strlen(n) + 1);
-
-	goto _exit; /* Avoid an unreferenced label warning */
 #else /* MB_ENABLE_MODULE */
 	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, (_object_t*)0, MB_FUNC_WARNING, _exit, result);
-#endif /* MB_ENABLE_MODULE */
 
 _exit:
+#endif /* MB_ENABLE_MODULE */
+
 	return result;
 }
 
@@ -10624,12 +10623,12 @@ int mb_end_module(struct mb_interpreter_t* s) {
 		safe_free(s->with_module);
 	}
 
-	goto _exit; /* Avoid an unreferenced label warning */
 #else /* MB_ENABLE_MODULE */
 	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, (_object_t*)0, MB_FUNC_WARNING, _exit, result);
-#endif /* MB_ENABLE_MODULE */
 
 _exit:
+#endif /* MB_ENABLE_MODULE */
+
 	return result;
 }
 
