@@ -1,3 +1,6 @@
+Apr. 29 2016
+Fixed a loading bug when importing a UTF8 file
+
 Apr. 26 2016
 Added an invalid operation usage error when met an unexpected expression
 

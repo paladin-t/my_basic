@@ -4279,10 +4279,19 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) 
 			}
 			buf = (char*)mb_malloc((size_t)(l + 1));
 			mb_assert(buf);
-			if(prefix) {
+			if(prefix)
 				memcpy(buf, prefix, i);
-			}
 			fread(buf + i, 1, l, fp);
+#ifdef MB_ENABLE_UNICODE
+			do {
+				char* off = buf + i;
+				int b = mb_uu_getbom(&off);
+				if(b) {
+					memmove(buf + i, buf + i + b, l - b - i);
+					buf[l - b] = _ZERO_CHAR;
+				}
+			} while(0);
+#endif /* MB_ENABLE_UNICODE */
 			fclose(fp);
 			buf[l] = _ZERO_CHAR;
 		}
