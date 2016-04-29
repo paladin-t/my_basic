@@ -12349,7 +12349,7 @@ int mb_set_memory_manager(mb_memory_allocate_func_t a, mb_memory_free_func_t f) 
 	_mb_allocate_func = a;
 	_mb_free_func = f;
 
-	return 0;
+	return MB_FUNC_OK;
 }
 
 /* ========================================================} */
