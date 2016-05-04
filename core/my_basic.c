@@ -4296,7 +4296,7 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) 
 #ifdef MB_ENABLE_UNICODE
 			do {
 				char* off = buf + i;
-				int b = mb_uu_getbom(&off);
+				int b = mb_uu_getbom((const char**)&off);
 				if(b) {
 					memmove(buf + i, buf + i + b, l - b - i);
 					buf[l - b] = _ZERO_CHAR;
