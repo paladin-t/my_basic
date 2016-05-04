@@ -189,8 +189,10 @@ static int _cmp_size_t(const void* l, const void* r) {
 	size_t* pl = (size_t*)l;
 	size_t* pr = (size_t*)r;
 
-	if(*pl > *pr) return 1;
-	else if(*pl < *pr) return -1;
+	if(*pl > *pr)
+		return 1;
+	else if(*pl < *pr)
+		return -1;
 	else return 0;
 }
 
@@ -553,7 +555,8 @@ static _importing_dirs_t* importing_dirs = 0;
 static void _destroy_importing_directories(void) {
 	int i = 0;
 
-	if(!importing_dirs) return;
+	if(!importing_dirs)
+		return;
 
 	for(i = 0; i < importing_dirs->count; ++i)
 		free(importing_dirs->dirs[i]);
@@ -579,7 +582,8 @@ static _importing_dirs_t* _set_importing_directories(char* dirs) {
 		char* buf = 0;
 		bool_t as = false;
 		strtok(dirs, ";");
-		if(!(*dirs)) continue;
+		if(!(*dirs))
+			continue;
 		if(*dirs == ';') { dirs++; continue; }
 		if(result->count + 1 == result->size) {
 			result->size += _REALLOC_INC_STEP;
@@ -1125,7 +1129,8 @@ static int_t _ticks(void) {
 	int rv = 0;
 
 	rv = gettimeofday(&now, 0);
-	if(rv) return 0;
+	if(rv)
+		return 0;
 	ts.tv_sec  = now.tv_sec;
 	ts.tv_nsec = now.tv_usec * 1000;
 

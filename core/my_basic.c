@@ -1234,7 +1234,8 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 	do { \
 		_set_current_error((__s), (__err), (__f)); \
 		if((__s)->error_handler) { \
-			if((__s)->handled_error) break; \
+			if((__s)->handled_error) \
+				break; \
 			(__s)->handled_error = true; \
 			((__s)->error_handler)((__s), (__s)->last_error, (char*)mb_get_error_desc((__s)->last_error), \
 				(__s)->last_error_file, \
@@ -2325,7 +2326,8 @@ static _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
 					q = (q->next == oldhead ? 0 : q->next);
 				else
 					q = q->next;
-				if(!q) break;
+				if(!q)
+					break;
 			}
 
 			qsize = insize;
@@ -2626,28 +2628,26 @@ static int _ht_cmp_string(void* d1, void* d2) {
 static int _ht_cmp_intptr(void* d1, void* d2) {
 	intptr_t i1 = *(intptr_t*)d1;
 	intptr_t i2 = *(intptr_t*)d2;
-	int result = 0;
 
 	if(i1 < i2)
-		result = -1;
+		return -1;
 	else if(i1 > i2)
-		result = 1;
+		return 1;
 
-	return result;
+	return 0;
 }
 
 static int _ht_cmp_ref(void* d1, void* d2) {
 	_ref_t* r1 = (_ref_t*)d1;
 	_ref_t* r2 = (_ref_t*)d2;
 	intptr_t i = (intptr_t)r1 - (intptr_t)r2;
-	int result = 0;
 
 	if(i < 0)
-		result = -1;
+		return -1;
 	else if(i > 0)
-		result = 1;
+		return 1;
 
-	return result;
+	return 0;
 }
 
 static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra) {
@@ -2871,8 +2871,10 @@ static int mb_memcmp(void* l, void* r, size_t s) {
 	size_t i = 0;
 
 	for(i = 0; i < s; i++) {
-		if(lc[i] < rc[i]) return -1;
-		else if(lc[i] > rc[i]) return 1;
+		if(lc[i] < rc[i])
+			return -1;
+		else if(lc[i] > rc[i])
+			return 1;
 	}
 
 	return 0;
@@ -3003,7 +3005,8 @@ static int mb_uu_strlen(const char* ch) {
 
 	while(*ch) {
 		int t = mb_uu_ischar(ch);
-		if(t <= 0) return t;
+		if(t <= 0)
+			return t;
 		ch += t;
 		result++;
 	}
@@ -3023,7 +3026,8 @@ static int mb_uu_substr(const char* ch, int begin, int count, char** o) {
 
 	while(*ch) {
 		int t = mb_uu_ischar(ch);
-		if(t <= 0) return t;
+		if(t <= 0)
+			return t;
 		if(cnt == begin) {
 			b = ch;
 
@@ -3035,7 +3039,8 @@ static int mb_uu_substr(const char* ch, int begin, int count, char** o) {
 
 	while(*ch) {
 		int t = mb_uu_ischar(ch);
-		if(t <= 0) return t;
+		if(t <= 0)
+			return t;
 		if(cnt == begin + count) {
 			e = ch;
 
@@ -3062,7 +3067,7 @@ static int mb_uu_substr(const char* ch, int begin, int count, char** o) {
 
 /* Determine whether a function is an operator */
 static bool_t _is_operator(mb_func_t op) {
-	return
+	return (
 		(op == _core_dummy_assign) ||
 		(op == _core_add) ||
 		(op == _core_min) ||
@@ -3080,12 +3085,13 @@ static bool_t _is_operator(mb_func_t op) {
 		(op == _core_not_equal) ||
 		(op == _core_and) ||
 		(op == _core_or) ||
-		(op == _core_is);
+		(op == _core_is)
+	);
 }
 
 /* Determine whether a function is for flow control */
 static bool_t _is_flow(mb_func_t op) {
-	return
+	return (
 		(op == _core_if) ||
 		(op == _core_then) ||
 		(op == _core_elseif) ||
@@ -3103,7 +3109,8 @@ static bool_t _is_flow(mb_func_t op) {
 		(op == _core_goto) ||
 		(op == _core_gosub) ||
 		(op == _core_return) ||
-		(op == _core_end);
+		(op == _core_end)
+	);
 }
 
 /* Determine whether a function is unary */
@@ -3113,7 +3120,7 @@ static bool_t _is_unary(mb_func_t op) {
 
 /* Determine whether a function is binary */
 static bool_t _is_binary(mb_func_t op) {
-	return
+	return (
 		(op == _core_add) ||
 		(op == _core_min) ||
 		(op == _core_mul) ||
@@ -3128,7 +3135,8 @@ static bool_t _is_binary(mb_func_t op) {
 		(op == _core_not_equal) ||
 		(op == _core_and) ||
 		(op == _core_or) ||
-		(op == _core_is);
+		(op == _core_is)
+	);
 }
 
 /* Get the priority of two operators */
@@ -3231,7 +3239,7 @@ static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj) {
 
 	mb_assert(s && obj);
 
-	result =
+	result = (
 		(obj->type == _DT_EOS) ||
 		(obj->type == _DT_SEP) ||
 		(obj->type == _DT_FUNC &&
@@ -3240,7 +3248,8 @@ static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj) {
 			obj->data.func->pointer == _core_else ||
 			obj->data.func->pointer == _core_endif ||
 			obj->data.func->pointer == _core_to ||
-			obj->data.func->pointer == _core_step));
+			obj->data.func->pointer == _core_step))
+	);
 
 	return result;
 }
@@ -3268,7 +3277,7 @@ static bool_t _is_unexpected_calc_type(mb_interpreter_t* s, _object_t* obj) {
 static bool_t _is_referenced_calc_type(mb_interpreter_t* s, _object_t* obj) {
 	mb_assert(s && obj);
 
-	return
+	return (
 #ifdef MB_ENABLE_USERTYPE_REF
 		(obj->type == _DT_USERTYPE_REF) ||
 #endif /* MB_ENABLE_USERTYPE_REF */
@@ -3279,7 +3288,8 @@ static bool_t _is_referenced_calc_type(mb_interpreter_t* s, _object_t* obj) {
 		(obj->type == _DT_CLASS) ||
 #endif /* MB_ENABLE_CLASS */
 		(obj->type == _DT_ARRAY) ||
-		(obj->type == _DT_ROUTINE);
+		(obj->type == _DT_ROUTINE)
+	);
 }
 
 /* Calculate an expression */
@@ -4204,12 +4214,13 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
 
 	mb_assert(s && obj);
 
-	result =
+	result = (
 		_IS_EOS(obj) ||
 		_IS_SEP(obj, ':') ||
 		_IS_FUNC(obj, _core_elseif) ||
 		_IS_FUNC(obj, _core_else) ||
-		_IS_FUNC(obj, _core_endif);
+		_IS_FUNC(obj, _core_endif)
+	);
 
 	return result;
 }
@@ -4356,21 +4367,23 @@ static bool_t _is_numeric_char(char c) {
 
 /* Determine whether a character is identifier char */
 static bool_t _is_identifier_char(char c) {
-	return
+	return (
 		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 		(c == '_') ||
 		_is_numeric_char(c) ||
-		(c == _STRING_POSTFIX_CHAR);
+		(c == _STRING_POSTFIX_CHAR)
+	);
 }
 
 /* Determine whether a character is operator char */
 static bool_t _is_operator_char(char c) {
-	return
+	return (
 		(c == '+') || (c == '-') || (c == '*') || (c == '/') ||
 		(c == '^') ||
 		(c == '(') || (c == ')') ||
 		(c == '=') ||
-		(c == '>') || (c == '<');
+		(c == '>') || (c == '<')
+	);
 }
 
 /* Determine whether a character is a exponential char */
@@ -5970,7 +5983,8 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	gc = &s->gc;
 
 	/* Avoid infinity loop */
-	if(gc->collecting) return;
+	if(gc->collecting)
+		return;
 	gc->collecting++;
 
 	/* Get reachable information */
@@ -6205,9 +6219,11 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 	}
 	/* ( */
 	if(!ast->next || ((_object_t*)ast->next->data)->type != _DT_FUNC || ((_object_t*)ast->next->data)->data.func->pointer != _core_open_bracket) {
-		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, s->source_file,
+		_handle_error_on_obj(
+			s, SE_RN_OPEN_BRACKET_EXPECTED, s->source_file,
 			(ast && ast->next) ? ((_object_t*)ast->next->data) : 0,
-			MB_FUNC_ERR, _exit, result);
+			MB_FUNC_ERR, _exit, result
+		);
 	}
 	ast = ast->next;
 	/* Array subscript */
@@ -6969,14 +6985,16 @@ static void _clear_dict(_dict_t* coll) {
 
 /* Determin whether a list iterator is invalid */
 static bool_t _invalid_list_it(_list_it_t* it) {
-	if(!it) return false;
+	if(!it)
+		return false;
 
 	return it && it->list && it->list->lock <= 0;
 }
 
 /* Determin whether a dictionary iterator is invalid */
 static bool_t _invalid_dict_it(_dict_it_t* it) {
-	if(!it) return false;
+	if(!it)
+		return false;
 
 	return it && it->dict && it->dict->lock <= 0;
 }
@@ -7196,7 +7214,8 @@ static bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _cl
 		meta = (_class_t*)node->data;
 		if(meta_walker && meta_depth) {
 			result = meta_walker(meta, extra_data, ret);
-			if(!result) break;
+			if(!result)
+				break;
 		}
 		result = _traverse_class(
 			meta,
@@ -7205,7 +7224,8 @@ static bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _cl
 			meta_walk_on_self,
 			extra_data, ret
 		);
-		if(!result) break;
+		if(!result)
+			break;
 		node = node->next;
 	}
 
@@ -7431,12 +7451,16 @@ static _class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb
 	_object_t* c = 0;
 
 	cs = _search_identifier_in_scope_chain(s, 0, n, 0, 0, 0);
-	if(!cs || !cs->data) return 0;
+	if(!cs)
+		return 0;
 	c = (_object_t*)cs->data;
-	if(!c) return 0;
+	if(!c)
+		return 0;
 	c = _GET_CLASS(c);
-	if(!c) return 0;
-	if(arg) _internal_object_to_public_value(c, arg);
+	if(!c)
+		return 0;
+	if(arg)
+		_internal_object_to_public_value(c, arg);
 
 	return c->data.instance;
 }
@@ -7936,14 +7960,15 @@ static bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda,
 	mb_unrefvar(s);
 	mb_unrefvar(lambda);
 
-	return
+	return (
 		!_IS_FUNC(obj, _core_def) &&
 		!_IS_FUNC(obj, _core_enddef) &&
 #ifdef MB_ENABLE_CLASS
 		!_IS_FUNC(obj, _core_class) &&
 		!_IS_FUNC(obj, _core_endclass) &&
 #endif /* MB_ENABLE_CLASS */
-		true;
+		true
+	);
 }
 #endif /* MB_ENABLE_LAMBDA */
 
@@ -7996,7 +8021,8 @@ static _ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* in
 		while(node) {
 			meta = (_class_t*)node->data;
 			result = _search_identifier_in_class(s, meta, n, ht, sp);
-			if(result) break;
+			if(result)
+				break;
 			node = node->next;
 		}
 	}
@@ -8023,9 +8049,11 @@ static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_con
 				result = _search_identifier_in_class(s, instance, acc, ht, sp);
 			else
 				result = _search_identifier_in_scope_chain(s, scope, acc, 0, ht, sp);
-			if(!result) return 0;
+			if(!result)
+				return 0;
 			obj = (_object_t*)result->data;
-			if(!obj) return 0;
+			if(!obj)
+				return 0;
 			switch(obj->type) {
 			case _DT_VAR:
 				if(obj->data.variable->data->type == _DT_CLASS)
@@ -8804,8 +8832,10 @@ static bool_t _is_internal_object(_object_t* obj) {
 
 	mb_assert(obj);
 
-	result = (_exp_assign == obj) ||
-		(_OBJ_BOOL_TRUE == obj) || (_OBJ_BOOL_FALSE == obj);
+	result = (
+		(_exp_assign == obj) ||
+		(_OBJ_BOOL_TRUE == obj) || (_OBJ_BOOL_FALSE == obj)
+	);
 
 	return result;
 }
@@ -9306,7 +9336,8 @@ static void _tidy_scope_chain(mb_interpreter_t* s) {
 	mb_assert(s);
 
 	context = s->parsing_context;
-	if(!context) return;
+	if(!context)
+		return;
 
 	while(context->routine_state && s->running_context->meta != _SCOPE_META_ROOT) {
 		if(_end_routine(s))
@@ -14017,7 +14048,8 @@ static int _core_class(mb_interpreter_t* s, void** l) {
 			goto _pop_exit;
 		}
 		ast = (_ls_node_t*)*l;
-		if(!ast) break;
+		if(!ast)
+			break;
 		obj = (_object_t*)ast->data;
 	} while(ast && !_IS_FUNC(obj, _core_endclass));
 	_pop_scope(s, false);
