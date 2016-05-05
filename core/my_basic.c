@@ -11929,17 +11929,20 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 		if(context->parsing_state == _PS_NORMAL)
 			n = mb_uu_ischar(l);
 #endif /* MB_ENABLE_UNICODE_ID */
-		if(n == 1) {
-			char ch = *l;
-			if((ch == _NEWLINE_CHAR || ch == _RETURN_CHAR) && (!wrapped || wrapped == ch)) {
-				wrapped = ch;
-				++context->parsing_row;
-				context->parsing_col = 0;
-			} else {
-				wrapped = _ZERO_CHAR;
-				++context->parsing_col;
+		do {
+			if(n == 1) {
+				char ch = *l;
+				if((ch == _NEWLINE_CHAR || ch == _RETURN_CHAR) && (!wrapped || wrapped == ch)) {
+					wrapped = ch;
+					++context->parsing_row;
+					context->parsing_col = 0;
+
+					break;
+				}
 			}
-		}
+			wrapped = _ZERO_CHAR;
+			++context->parsing_col;
+		} while(0);
 		status = _parse_char(s, l, n, context->parsing_pos, _row, _col);
 		result = status;
 		if(status) {

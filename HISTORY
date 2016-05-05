@@ -1,3 +1,6 @@
+May. 5 2016
+Fixed a column counting bug with UTF8
+
 Apr. 29 2016
 Fixed a loading bug when importing a UTF8 file
 
