@@ -280,6 +280,7 @@ static const char* _ERR_DESC[] = {
 	"Collection expected",
 	"Iterator expected",
 	"Collection or iterator expected",
+	"Collection or iterator or class expected",
 	"Invalid iterator",
 	"Empty collection",
 	"Referenced type expected",
@@ -1865,6 +1866,7 @@ static int _std_str(mb_interpreter_t* s, void** l);
 static int _std_val(mb_interpreter_t* s, void** l);
 static int _std_len(mb_interpreter_t* s, void** l);
 static int _std_get(mb_interpreter_t* s, void** l);
+static int _std_set(mb_interpreter_t* s, void** l);
 static int _std_print(mb_interpreter_t* s, void** l);
 static int _std_input(mb_interpreter_t* s, void** l);
 
@@ -1880,7 +1882,6 @@ static int _coll_insert(mb_interpreter_t* s, void** l);
 static int _coll_sort(mb_interpreter_t* s, void** l);
 static int _coll_exist(mb_interpreter_t* s, void** l);
 static int _coll_index_of(mb_interpreter_t* s, void** l);
-static int _coll_set(mb_interpreter_t* s, void** l);
 static int _coll_remove(mb_interpreter_t* s, void** l);
 static int _coll_clear(mb_interpreter_t* s, void** l);
 static int _coll_clone(mb_interpreter_t* s, void** l);
@@ -1997,6 +1998,7 @@ static const _func_t _std_libs[] = {
 
 	{ "LEN", _std_len },
 	{ "GET", _std_get },
+	{ "SET", _std_set },
 
 	{ "PRINT", _std_print },
 	{ "INPUT", _std_input }
@@ -2013,7 +2015,6 @@ static const _func_t _coll_libs[] = {
 	{ "SORT", _coll_sort },
 	{ "EXIST", _coll_exist },
 	{ "INDEX_OF", _coll_index_of },
-	{ "SET", _coll_set },
 	{ "REMOVE", _coll_remove },
 	{ "CLEAR", _coll_clear },
 	{ "CLONE", _coll_clone },
@@ -3297,15 +3298,15 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 	int result = 0;
 	_ls_node_t* ast = 0;
 	_running_context_t* running = 0;
-	_ls_node_t* garbage = 0;
-	_ls_node_t* optr = 0;
-	_ls_node_t* opnd = 0;
-	_object_t* c = 0;
-	_object_t* x = 0;
-	_object_t* a = 0;
-	_object_t* b = 0;
-	_object_t* r = 0;
-	_object_t* theta = 0;
+	register _ls_node_t* garbage = 0;
+	register _ls_node_t* optr = 0;
+	register _ls_node_t* opnd = 0;
+	register _object_t* c = 0;
+	register _object_t* x = 0;
+	register _object_t* a = 0;
+	register _object_t* b = 0;
+	register _object_t* r = 0;
+	register _object_t* theta = 0;
 	char pri = _ZERO_CHAR;
 	int* inep = 0;
 	int f = 0;
@@ -15356,7 +15357,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 		break;
 #endif /* MB_ENABLE_CLASS */
 	default:
-		_handle_error_on_obj(s, SE_RN_COLLECTION_OR_ITERATOR_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_COLLECTION_OR_ITERATOR_OR_CLASS_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 
 		break;
 	}
@@ -15367,6 +15368,72 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 
 _exit:
 	_assign_public_value(&coi, 0);
+
+	return result;
+}
+
+/* SET statement */
+static int _std_set(mb_interpreter_t* s, void** l) {
+	int result = MB_FUNC_OK;
+	mb_value_t coll;
+	mb_value_t key;
+	mb_value_t val;
+	_object_t ocoll;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	_object_t* oval = 0;
+	int_t idx = 0;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
+	mb_assert(s && l);
+
+	mb_make_nil(coll);
+	mb_make_nil(key);
+	mb_make_nil(val);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_pop_value(s, l, &coll));
+	_MAKE_NIL(&ocoll);
+	switch(coll.type) {
+#ifdef MB_ENABLE_COLLECTION_LIB
+	case MB_DT_LIST:
+		_public_value_to_internal_object(&coll, &ocoll);
+		while(mb_has_arg(s, l)) {
+			mb_make_nil(val);
+			mb_check(mb_pop_int(s, l, &idx));
+			mb_check(mb_pop_value(s, l, &val));
+			if(!_set_list(ocoll.data.list, idx, &val, &oval)) {
+				_destroy_object(oval, 0);
+
+				_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			}
+		}
+
+		break;
+	case MB_DT_DICT:
+		_public_value_to_internal_object(&coll, &ocoll);
+		while(mb_has_arg(s, l)) {
+			mb_make_nil(key);
+			mb_make_nil(val);
+			mb_check(mb_pop_value(s, l, &key));
+			mb_check(mb_pop_value(s, l, &val));
+			_set_dict(ocoll.data.dict, &key, &val, 0, 0);
+		}
+
+		break;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+	default:
+		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	mb_check(mb_push_value(s, l, coll));
+
+_exit:
+	_assign_public_value(&coll, 0);
 
 	return result;
 }
@@ -15973,68 +16040,6 @@ static int _coll_index_of(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	mb_check(mb_push_value(s, l, ret));
-
-_exit:
-	_assign_public_value(&coll, 0);
-
-	return result;
-}
-
-/* SET statement */
-static int _coll_set(mb_interpreter_t* s, void** l) {
-	int result = MB_FUNC_OK;
-	mb_value_t coll;
-	int_t idx = 0;
-	mb_value_t key;
-	mb_value_t val;
-	_object_t ocoll;
-	_object_t* oval = 0;
-
-	mb_assert(s && l);
-
-	mb_make_nil(coll);
-	mb_make_nil(key);
-	mb_make_nil(val);
-
-	mb_check(mb_attempt_open_bracket(s, l));
-
-	mb_check(mb_pop_value(s, l, &coll));
-	_MAKE_NIL(&ocoll);
-	switch(coll.type) {
-	case MB_DT_LIST:
-		_public_value_to_internal_object(&coll, &ocoll);
-		while(mb_has_arg(s, l)) {
-			mb_make_nil(val);
-			mb_check(mb_pop_int(s, l, &idx));
-			mb_check(mb_pop_value(s, l, &val));
-			if(!_set_list(ocoll.data.list, idx, &val, &oval)) {
-				_destroy_object(oval, 0);
-
-				_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
-			}
-		}
-
-		break;
-	case MB_DT_DICT:
-		_public_value_to_internal_object(&coll, &ocoll);
-		while(mb_has_arg(s, l)) {
-			mb_make_nil(key);
-			mb_make_nil(val);
-			mb_check(mb_pop_value(s, l, &key));
-			mb_check(mb_pop_value(s, l, &val));
-			_set_dict(ocoll.data.dict, &key, &val, 0, 0);
-		}
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
-
-		break;
-	}
-
-	mb_check(mb_attempt_close_bracket(s, l));
-
-	mb_check(mb_push_value(s, l, coll));
 
 _exit:
 	_assign_public_value(&coll, 0);
