@@ -1,3 +1,7 @@
+May. 17 2016
+Fixed an evaluation bug when accessing a collection by brackets
+Fixed a memory leak with expression calculation
+
 May. 13 2016
 Added an error type
 

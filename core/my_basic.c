@@ -3580,11 +3580,13 @@ _var:
 
 										mb_make_nil(ret);
 
-										mb_check(mb_attempt_open_bracket(s, (void**)l));
+										*l = ast->prev;
+
+										_mb_check(mb_attempt_open_bracket(s, (void**)l), _error);
 
 										switch(ocoll->type) {
 										case _DT_LIST:
-											mb_check(mb_pop_int(s, (void**)l, &idx));
+											_mb_check(mb_pop_int(s, (void**)l, &idx), _error);
 											if(!_at_list(ocoll->data.list, idx, &ret)) {
 												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
 											}
@@ -3592,7 +3594,7 @@ _var:
 											break;
 										case _DT_DICT:
 											mb_make_nil(key);
-											mb_check(mb_pop_value(s, (void**)l, &key));
+											_mb_check(mb_pop_value(s, (void**)l, &key), _error);
 											if(!_find_dict(ocoll->data.dict, &key, &ret)) {
 												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
 											}
@@ -3602,7 +3604,7 @@ _var:
 											break;
 										}
 
-										mb_check(mb_attempt_close_bracket(s, (void**)l));
+										_mb_check(mb_attempt_close_bracket(s, (void**)l), _error);
 
 										c = _create_object();
 										_ls_pushback(garbage, c);
