@@ -222,6 +222,7 @@ static const char* _ERR_DESC[] = {
 	"Syntax error",
 	"Invalid data type",
 	"Type does not match",
+	"Number overflow",
 	"Invalid string",
 	"Index out of bound",
 	"Cannot find with given index",
@@ -1193,8 +1194,8 @@ static char* mb_strupr(char* s);
 
 /** Unicode handling */
 
-#ifdef MB_ENABLE_UNICODE
 static int mb_uu_getbom(const char** ch);
+#ifdef MB_ENABLE_UNICODE
 static int mb_uu_ischar(const char* ch);
 static int mb_uu_strlen(const char* ch);
 static int mb_uu_substr(const char* ch, int begin, int count, char** o);
@@ -2922,7 +2923,6 @@ static char* mb_strupr(char* s) {
 
 /** Unicode handling */
 
-#ifdef MB_ENABLE_UNICODE
 /* Determine whether a string begins with a BOM, and ignore it */
 static int mb_uu_getbom(const char** ch) {
 	if(!ch && !(*ch))
@@ -2941,6 +2941,7 @@ static int mb_uu_getbom(const char** ch) {
 	return 0;
 }
 
+#ifdef MB_ENABLE_UNICODE
 /* Determine whether a buffer is a UTF8 encoded character, and return taken bytes */
 static int mb_uu_ischar(const char* ch) {
 	/* Copyright 2008, 2009 Bjoern Hoehrmann, http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ */
@@ -4296,7 +4297,6 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) 
 			if(prefix)
 				memcpy(buf, prefix, i);
 			fread(buf + i, 1, l, fp);
-#ifdef MB_ENABLE_UNICODE
 			do {
 				char* off = buf + i;
 				int b = mb_uu_getbom((const char**)&off);
@@ -4305,7 +4305,6 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) 
 					buf[l - b] = _ZERO_CHAR;
 				}
 			} while(0);
-#endif /* MB_ENABLE_UNICODE */
 			fclose(fp);
 			buf[l] = _ZERO_CHAR;
 		}
@@ -4876,7 +4875,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 					if(s->import_handler && s->import_handler(s, sym + 1) == MB_FUNC_OK) {
 						_ls_pushback(context->imported, mb_strdup(sym + 1, strlen(sym + 1) + 1));
 					} else {
-						_handle_error_now(s, SE_PS_FILE_OPEN_FAILED, s->source_file, MB_FUNC_ERR);
+						_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
 					}
 				}
 			}
@@ -11923,9 +11922,7 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 
 	context = s->parsing_context;
 
-#ifdef MB_ENABLE_UNICODE
 	mb_uu_getbom(&l);
-#endif /* MB_ENABLE_UNICODE */
 	while(*l) {
 		int n = 1;
 #ifdef MB_ENABLE_UNICODE_ID
@@ -11988,7 +11985,7 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 		if(result)
 			goto _exit;
 	} else {
-		_set_current_error(s, SE_PS_FILE_OPEN_FAILED, 0);
+		_set_current_error(s, SE_PS_OPEN_FILE_FAILED, 0);
 
 		result = MB_FUNC_ERR;
 	}
@@ -14928,7 +14925,9 @@ static int _std_asc(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	char* arg = 0;
 	int_t val = 0;
+#ifdef MB_ENABLE_UNICODE
 	size_t sz = 0;
+#endif /* MB_ENABLE_UNICODE */
 
 	mb_assert(s && l);
 
@@ -14943,9 +14942,16 @@ static int _std_asc(mb_interpreter_t* s, void** l) {
 
 		goto _exit;
 	}
-	sz = strlen(arg);
-	if(sizeof(int_t) < sz) sz = sizeof(int_t);
+#ifdef MB_ENABLE_UNICODE
+	sz = (size_t)mb_uu_ischar(arg);
+	if(sizeof(int_t) < sz) {
+		sz = sizeof(int_t);
+		_handle_error_on_obj(s, SE_RN_NUMBER_OVERFLOW, s->source_file, TON(l), MB_FUNC_WARNING, _exit, result);
+	}
 	memcpy(&val, arg, sz);
+#else /* MB_ENABLE_UNICODE */
+	val = (int_t)arg[0];
+#endif /* MB_ENABLE_UNICODE */
 	mb_check(mb_push_int(s, l, val));
 
 _exit:
