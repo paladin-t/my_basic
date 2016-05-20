@@ -1,3 +1,6 @@
+May. 20 2016
+Added an assertion when buffer overflow in STR
+
 May. 19 2016
 Added UTF8 BOM detection even with MB_ENABLE_UNICODE disabled
 Fixed a bug in ASC with UTF8 character

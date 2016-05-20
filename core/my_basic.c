@@ -15119,6 +15119,7 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
 	char* chr = 0;
+	const size_t size = 32;
 
 	mb_assert(s && l);
 
@@ -15130,15 +15131,19 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	chr = (char*)mb_malloc(32);
-	memset(chr, 0, 32);
+	chr = (char*)mb_malloc(size);
+	memset(chr, 0, size);
 	switch(arg.type) {
 	case MB_DT_INT:
-		sprintf(chr, MB_INT_FMT, arg.value.integer);
+		if((size_t)sprintf(chr, MB_INT_FMT, arg.value.integer) >= size) {
+			mb_assert(0 && "Buffer overflow.");
+		}
 
 		break;
 	case MB_DT_REAL:
-		sprintf(chr, MB_REAL_FMT, arg.value.float_point);
+		if((size_t)sprintf(chr, MB_REAL_FMT, arg.value.float_point) >= size) {
+			mb_assert(0 && "Buffer overflow.");
+		}
 
 		break;
 	default:
