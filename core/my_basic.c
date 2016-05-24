@@ -14997,9 +14997,7 @@ static int _std_left(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	if(count <= 0) {
-		result = MB_FUNC_ERR;
-
-		goto _exit;
+		_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 
 #ifdef MB_ENABLE_UNICODE
@@ -15043,9 +15041,7 @@ static int _std_mid(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	if(count <= 0 || start < 0 || start >= (int_t)strlen(arg)) {
-		result = MB_FUNC_ERR;
-
-		goto _exit;
+		_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 
 #ifdef MB_ENABLE_UNICODE
@@ -15087,9 +15083,7 @@ static int _std_right(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	if(count <= 0) {
-		result = MB_FUNC_ERR;
-
-		goto _exit;
+		_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 
 #ifdef MB_ENABLE_UNICODE

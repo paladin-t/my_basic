@@ -1,5 +1,8 @@
+May. 24 2016
+Refactored error raising of string manipulation
+
 May. 20 2016
-Added an assertion when buffer overflow in STR
+Added an assertion when buffer overflow in the STR statement
 
 May. 19 2016
 Added UTF8 BOM detection even with MB_ENABLE_UNICODE disabled
