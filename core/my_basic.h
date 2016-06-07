@@ -182,7 +182,11 @@ extern "C" {
 #	define int_t int
 #endif /* int_t */
 #ifndef real_t
-#	define real_t float
+#	ifdef MB_DOUBLE_FLOAT
+#		define real_t double
+#	else /* MB_DOUBLE_FLOAT */
+#		define real_t float
+#	endif /* MB_DOUBLE_FLOAT */
 #endif /* real_t */
 
 #ifndef mb_strtol
@@ -200,10 +204,18 @@ extern "C" {
 #endif /* MB_REAL_FMT */
 
 #ifndef MB_FNAN
-#	define MB_FNAN 0xffc00000
+#	ifdef MB_DOUBLE_FLOAT
+#		define MB_FNAN 0x7ff8000000000000
+#	else /* MB_DOUBLE_FLOAT */
+#		define MB_FNAN 0x7fc00000
+#	endif /* MB_DOUBLE_FLOAT */
 #endif /* MB_FNAN */
 #ifndef MB_FINF
-#	define MB_FINF 0x7f800000
+#	ifdef MB_DOUBLE_FLOAT
+#		define MB_FINF 0x7ff0000000000000
+#	else /* MB_DOUBLE_FLOAT */
+#		define MB_FINF 0x7f800000
+#	endif /* MB_DOUBLE_FLOAT */
 #endif /* MB_FINF */
 
 #ifndef MB_EOS
@@ -221,6 +233,10 @@ extern "C" {
 #ifndef MB_NULL_STRING
 #	define MB_NULL_STRING "(EMPTY)"
 #endif /* MB_NULL_STRING */
+
+#ifndef mb_max
+#	define mb_max(a, b) (((a) > (b)) ? (a) : (b))
+#endif /* mb_max */
 
 #ifndef mb_stricmp
 #	ifdef MB_CP_VC
@@ -452,7 +468,7 @@ typedef enum mb_data_e {
 	MB_DT_ROUTINE = 1 << 13
 } mb_data_e;
 
-typedef unsigned char mb_val_bytes_t[sizeof(void*) > sizeof(unsigned long) ? sizeof(void*) : sizeof(unsigned long)];
+typedef unsigned char mb_val_bytes_t[mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), sizeof(real_t))];
 
 typedef enum mb_meta_func_u {
 	MB_MF_IS,
