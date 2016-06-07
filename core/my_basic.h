@@ -468,8 +468,6 @@ typedef enum mb_data_e {
 	MB_DT_ROUTINE = 1 << 13
 } mb_data_e;
 
-typedef unsigned char mb_val_bytes_t[mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), sizeof(real_t))];
-
 typedef enum mb_meta_func_u {
 	MB_MF_IS,
 	MB_MF_ADD,
@@ -477,6 +475,8 @@ typedef enum mb_meta_func_u {
 	MB_MF_MUL,
 	MB_MF_DIV
 } mb_meta_func_u;
+
+typedef unsigned char mb_val_bytes_t[mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), mb_max(sizeof(int_t), sizeof(real_t)))];
 
 typedef union mb_value_u {
 	mb_data_e type;
