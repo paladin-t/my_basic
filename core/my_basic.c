@@ -4940,11 +4940,11 @@ _end_import:
 				goto _exit;
 			}
 			_begin_class(s);
-#ifdef MB_ENABLE_UNICODE_ID
+#	ifdef MB_ENABLE_UNICODE_ID
 			if(!_is_identifier_char(sym[0]) && !mb_uu_ischar(sym)) {
-#else /* MB_ENABLE_UNICODE_ID */
+#	else /* MB_ENABLE_UNICODE_ID */
 			if(!_is_identifier_char(sym[0])) {
-#endif /* MB_ENABLE_UNICODE_ID */
+#	endif /* MB_ENABLE_UNICODE_ID */
 				result = _DT_NIL;
 
 				goto _exit;
@@ -8189,11 +8189,11 @@ static void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void
 #ifdef MB_ENABLE_LAMBDA
 	if(running->refered_lambdas) {
 		tuple.s = s;
-#ifdef MB_ENABLE_CLASS
+#	ifdef MB_ENABLE_CLASS
 		tuple.instance = (_class_t*)instance;
-#else /* MB_ENABLE_CLASS */
+#	else /* MB_ENABLE_CLASS */
 		mb_unrefvar(instance);
-#endif /* MB_ENABLE_CLASS */
+#	endif /* MB_ENABLE_CLASS */
 		tuple.scope = running;
 		tuple.outer_scope = _create_outer_scope(s);
 		tuple.lambda = 0;
@@ -13806,11 +13806,11 @@ _retry:
 		obj = _GET_ROUTINE(obj);
 		routine = obj->data.routine;
 #ifdef MB_ENABLE_CLASS
-#ifdef MB_ENABLE_LAMBDA
+#	ifdef MB_ENABLE_LAMBDA
 		if(routine->type != _IT_LAMBDA) {
-#else /* MB_ENABLE_LAMBDA */
+#	else /* MB_ENABLE_LAMBDA */
 		{
-#endif /* MB_ENABLE_LAMBDA */
+#	endif /* MB_ENABLE_LAMBDA */
 			bool_t is_a0 = false;
 			bool_t is_a1 = false;
 			if(s->last_instance && routine->instance) {
