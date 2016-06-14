@@ -2468,7 +2468,7 @@ static unsigned int _ht_hash_object(void* ht, void* d) {
 			mb_value_t va[1];
 			mb_make_nil(va[0]);
 			memset(&ast, 0, sizeof(_ls_node_t));
-			if(_eval_routine(s, &tmp, va, 1, o->data.instance->hash, 0, 0) == MB_FUNC_OK) {
+			if(_eval_routine(s, &tmp, va, 1, o->data.instance->hash, _has_routine_fun_arg, _pop_routine_fun_arg) == MB_FUNC_OK) {
 				_MAKE_NIL(&val);
 				_public_value_to_internal_object(&s->running_context->intermediate_value, &val);
 				if(val.type != _DT_INT) {
@@ -2556,6 +2556,7 @@ static int _ht_cmp_object(void* d1, void* d2) {
 #ifdef MB_ENABLE_CLASS
 	_routine_t* cmp = 0;
 	_object_t val;
+	bool_t fst = true;
 #endif /* MB_ENABLE_CLASS */
 
 	if(o1->type < o2->type)
@@ -2568,17 +2569,22 @@ static int _ht_cmp_object(void* d1, void* d2) {
 		return _ht_cmp_string(o1->data.string, o2->data.string);
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
-		if(o1->data.instance->compare) cmp = o1->data.instance->compare;
-		else if(o2->data.instance->compare) cmp = o2->data.instance->compare;
+		if(o1->data.instance->compare) {
+			cmp = o1->data.instance->compare;
+			fst = true;
+		} else if(o2->data.instance->compare) {
+			cmp = o2->data.instance->compare;
+			fst = false;
+		}
 		if(cmp) {
 			mb_interpreter_t* s = o1->data.instance->ref.s;
 			_ls_node_t ast;
 			_ls_node_t* tmp = &ast;
 			mb_value_t va[1];
 			mb_make_nil(va[0]);
-			_internal_object_to_public_value(o2, &va[0]);
+			_internal_object_to_public_value(fst ? o2 : o1, &va[0]);
 			memset(&ast, 0, sizeof(_ls_node_t));
-			if(_eval_routine(s, &tmp, va, 1, cmp, 0, 0) == MB_FUNC_OK) {
+			if(_eval_routine(s, &tmp, va, 1, cmp, _has_routine_fun_arg, _pop_routine_fun_arg) == MB_FUNC_OK) {
 				_MAKE_NIL(&val);
 				_public_value_to_internal_object(&s->running_context->intermediate_value, &val);
 				if(val.type != _DT_INT) {
@@ -2586,7 +2592,7 @@ static int _ht_cmp_object(void* d1, void* d2) {
 					_handle_error_on_obj(s, SE_RN_INTEGER_EXPECTED, s->source_file, o1, MB_FUNC_ERR, _exit, ignored);
 				}
 
-				return (int)val.data.integer;
+				return (int)(fst ? val.data.integer : -val.data.integer);
 			}
 		}
 
@@ -3760,7 +3766,7 @@ static int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigne
 	_ls_node_t* ast = *l;
 
 	mb_make_nil(*arg);
-	if(ast && _IS_FUNC(ast->data, _core_args)) {
+	if(ast && ast->data && _IS_FUNC(ast->data, _core_args)) {
 		if(args) {
 			_object_t* obj = (_object_t*)_ls_popfront(args);
 			if(obj) {
@@ -15531,7 +15537,7 @@ _print:
 					_ls_node_t* tmp = (_ls_node_t*)*l;
 					mb_value_t va[1];
 					mb_make_nil(va[0]);
-					if(_eval_routine(s, &tmp, va, 1, tso->data.routine, 0, 0) == MB_FUNC_OK) {
+					if(_eval_routine(s, &tmp, va, 1, tso->data.routine, _has_routine_fun_arg, _pop_routine_fun_arg) == MB_FUNC_OK) {
 						val_ptr = &val_obj;
 						_MAKE_NIL(val_ptr);
 						_public_value_to_internal_object(&s->running_context->intermediate_value, val_ptr);
