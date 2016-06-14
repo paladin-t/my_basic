@@ -24,6 +24,7 @@ Why were other script interpreters so complex? Why was it so difficult to integr
 * [Installation](#installation)
 * [Wiki](#wiki)
 * [References](#references)
+* [Support the MY-BASIC project](#support-the-my-basic-project)
 
 ## Introduction
 
@@ -31,7 +32,7 @@ MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter writt
 
 ## Compatibility
 
-It fits well with Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Console, Raspberry Pi, Intel Edison, Arduino and even MCU; totally portable to Windows, MacOS, Unix, Linux, iOS, Android, RTOS, etc.
+It fits well on a large scale of Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Console, Raspberry Pi, Intel Edison, Arduino and even MCU; totally portable to Windows, MacOS, Unix, Linux, iOS, Android, RTOS, etc.
 
 ## Main features
 
@@ -169,7 +170,7 @@ Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](M
 * [Prototype-based programming - Wikipedia](https://en.wikipedia.org/wiki/Prototype-based_programming)
 * [Lambda abstraction - Wikipedia](https://en.wikipedia.org/wiki/Anonymous_function)
 
------
+## Support the MY-BASIC project
 
 You can support MY-BASIC development with a donation:
 <br>
