@@ -1192,6 +1192,8 @@ static char* mb_strupr(char* s);
 
 #define safe_free(__p) do { if(__p) { mb_free(__p); __p = 0; } else { mb_assert(0 && "Memory already released."); } } while(0)
 
+static bool_t mb_is_little_endian(void);
+
 /** Unicode handling */
 
 static int mb_uu_getbom(const char** ch);
@@ -2610,11 +2612,20 @@ static int _ht_cmp_object(void* d1, void* d2) {
 #ifdef MB_ENABLE_CLASS
 _default:
 #endif /* MB_ENABLE_CLASS */
-		for(i = 0; i < sizeof(_raw_t); ++i) {
-			if(o1->data.raw[i] < o2->data.raw[i])
-				return -1;
-			else if(o1->data.raw[i] > o2->data.raw[i])
-				return 1;
+		if(mb_is_little_endian()) {
+			for(i = sizeof(_raw_t) - 1; i >= 0; --i) {
+				if(o1->data.raw[i] < o2->data.raw[i])
+					return -1;
+				else if(o1->data.raw[i] > o2->data.raw[i])
+					return 1;
+			}
+		} else {
+			for(i = 0; i < sizeof(_raw_t); ++i) {
+				if(o1->data.raw[i] < o2->data.raw[i])
+					return -1;
+				else if(o1->data.raw[i] > o2->data.raw[i])
+					return 1;
+			}
 		}
 
 		break;
@@ -2925,6 +2936,13 @@ static char* mb_strupr(char* s) {
 	}
 
 	return t;
+}
+
+/* Determine whether it's running on a little endian platform */
+static bool_t mb_is_little_endian(void) {
+	int i = 1;
+
+	return ((char*)&i)[0] == 1;
 }
 
 /** Unicode handling */
@@ -12549,7 +12567,7 @@ static int _core_neg(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	running = s->running_context;
-	ast = *l;
+	ast = (_ls_node_t*)*l;
 	if(ast) ast = ast->next;
 
 	if(!_ls_empty(s->in_neg_expr))
@@ -12826,7 +12844,7 @@ static int _core_not(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	running = s->running_context;
-	ast = *l;
+	ast = (_ls_node_t*)*l;
 	if(ast) ast = ast->next;
 
 	calc_depth = running->calc_depth;
