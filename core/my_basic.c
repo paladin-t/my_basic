@@ -125,7 +125,6 @@ extern "C" {
 #endif /* toupper */
 
 #define _copy_bytes(__l, __r) do { memcpy((__l), (__r), sizeof(mb_val_bytes_t)); } while(0)
-#define _cmp_bytes(__l, __r) (memcmp((__l), (__r), sizeof(mb_val_bytes_t)))
 
 #define _mb_check(__expr, __exit) do { if((__expr) != MB_FUNC_OK) goto __exit; } while(0)
 #define _mb_check_mark(__expr, __result, __exit) do { __result = (__expr); if(__result != MB_FUNC_OK) goto __exit; } while(0)
@@ -2887,13 +2886,22 @@ static void mb_free(void* p) {
 static int mb_memcmp(void* l, void* r, size_t s) {
 	char* lc = (char*)l;
 	char* rc = (char*)r;
-	size_t i = 0;
+	int i = 0;
 
-	for(i = 0; i < s; i++) {
-		if(lc[i] < rc[i])
-			return -1;
-		else if(lc[i] > rc[i])
-			return 1;
+	if(mb_is_little_endian()) {
+		for(i = (int)s - 1; i >= 0; i--) {
+			if(lc[i] < rc[i])
+				return -1;
+			else if(lc[i] > rc[i])
+				return 1;
+		}
+	} else {
+		for(i = 0; i < (int)s; i++) {
+			if(lc[i] < rc[i])
+				return -1;
+			else if(lc[i] > rc[i])
+				return 1;
+		}
 	}
 
 	return 0;
@@ -9177,7 +9185,7 @@ static int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t*
 	if(pbl->type != tmp.type) {
 		result = pbl->type - tmp.type;
 	} else {
-		result = _cmp_bytes(pbl->value.bytes, tmp.value.bytes);
+		result = mb_memcmp(pbl->value.bytes, tmp.value.bytes, sizeof(mb_val_bytes_t));
 	}
 
 	return result;
