@@ -1,3 +1,6 @@
+Jun. 15 2016
+Added endian determination for object comparison
+
 Jun. 14 2016
 Fixed some bugs with meta method calling
 
