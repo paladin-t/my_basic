@@ -2561,7 +2561,7 @@ static unsigned int _ht_hash_ref(void* ht, void* d) {
 static int _ht_cmp_object(void* d1, void* d2) {
 	_object_t* o1 = (_object_t*)d1;
 	_object_t* o2 = (_object_t*)d2;
-	size_t i = 0;
+	int i = 0;
 #ifdef MB_ENABLE_CLASS
 	_routine_t* cmp = 0;
 	_object_t val;
@@ -2620,14 +2620,14 @@ static int _ht_cmp_object(void* d1, void* d2) {
 _default:
 #endif /* MB_ENABLE_CLASS */
 		if(mb_is_little_endian()) {
-			for(i = sizeof(_raw_t) - 1; i >= 0; --i) {
+			for(i = (int)sizeof(_raw_t) - 1; i >= 0; --i) {
 				if(o1->data.raw[i] < o2->data.raw[i])
 					return -1;
 				else if(o1->data.raw[i] > o2->data.raw[i])
 					return 1;
 			}
 		} else {
-			for(i = 0; i < sizeof(_raw_t); ++i) {
+			for(i = 0; i < (int)sizeof(_raw_t); ++i) {
 				if(o1->data.raw[i] < o2->data.raw[i])
 					return -1;
 				else if(o1->data.raw[i] > o2->data.raw[i])
