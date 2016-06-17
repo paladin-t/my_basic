@@ -1,5 +1,5 @@
 Jun. 17 2016
-Improved UTF8 string output on Windows
+Improved UTF8 string input/output on Windows
 
 Jun. 15 2016
 Added endian determination for object comparison
