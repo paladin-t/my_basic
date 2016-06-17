@@ -1196,7 +1196,9 @@ static char* mb_strupr(char* s);
 static bool_t mb_is_little_endian(void);
 
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
-static bool_t mb_bytes_to_wchar(const char* sz, wchar_t** out, size_t size);
+static int mb_bytes_to_wchar(const char* sz, wchar_t** out, size_t size);
+static int mb_bytes_to_wchar_ansi(const char* sz, wchar_t** out, size_t size);
+static int mb_wchar_to_bytes(const wchar_t* sz, char** out, size_t size);
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 
 /** Unicode handling */
@@ -2961,13 +2963,33 @@ static bool_t mb_is_little_endian(void) {
 
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 /* Map a UTF8 character string to a UTF16 (wide character) string */
-static bool_t mb_bytes_to_wchar(const char* sz, wchar_t** out, size_t size) {
-	int min_size = MultiByteToWideChar(CP_UTF8, 0, sz, -1, NULL, 0);
-	if((int)size < min_size)
-		*out = (wchar_t*)mb_malloc(sizeof(wchar_t) * min_size);
-	MultiByteToWideChar(CP_UTF8, 0, sz, -1, *out, min_size);
+static int mb_bytes_to_wchar(const char* sz, wchar_t** out, size_t size) {
+	int result = MultiByteToWideChar(CP_UTF8, 0, sz, -1, 0, 0);
+	if((int)size < result)
+		*out = (wchar_t*)mb_malloc(sizeof(wchar_t) * result);
+	MultiByteToWideChar(CP_UTF8, 0, sz, -1, *out, result);
 
 	return true;
+}
+
+/* Map an ANSI character string to a UTF16 (wide character) string */
+static int mb_bytes_to_wchar_ansi(const char* sz, wchar_t** out, size_t size) {
+	int result = MultiByteToWideChar(CP_ACP, 0, sz, -1, 0, 0);
+	if((int)size < result)
+		*out = (wchar_t*)mb_malloc(sizeof(wchar_t) * result);
+	MultiByteToWideChar(CP_ACP, 0, sz, -1, *out, result);
+
+	return result;
+}
+
+/* Map a UTF16 (wide character) string to a UTF8 character string */
+static int mb_wchar_to_bytes(const wchar_t* sz, char** out, size_t size) {
+	int result = WideCharToMultiByte(CP_UTF8, 0, sz, -1, 0, 0, 0, 0);
+	if((int)size < result)
+		*out = (char*)mb_malloc(result);
+	WideCharToMultiByte(CP_UTF8, 0, sz, -1, *out, result, 0, 0);
+
+	return result;
 }
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 
@@ -15708,7 +15730,24 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 			safe_free(obj->data.variable->data->data.string);
 		}
 		len = _get_inputer(s)(line, sizeof(line));
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+		{
+			char str[16];
+			char* strp = str;
+			wchar_t wstr[16];
+			wchar_t* wstrp = wstr;
+			mb_bytes_to_wchar_ansi(line, &wstrp, countof(wstr));
+			len = mb_wchar_to_bytes(wstrp, &strp, countof(str));
+			if(wstrp != wstr)
+				mb_free(wstrp);
+			if(strp != str)
+				obj->data.variable->data->data.string = strp;
+			else
+				obj->data.variable->data->data.string = mb_memdup(strp, len + 1);
+		}
+#else /* MB_CP_VC && MB_ENABLE_UNICODE */
 		obj->data.variable->data->data.string = mb_memdup(line, len + 1);
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 		ast = ast->next;
 	} else {
 		result = MB_FUNC_ERR;
