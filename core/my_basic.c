@@ -32,7 +32,9 @@
 #include "my_basic.h"
 #ifdef MB_CP_VC
 #	include <conio.h>
+#	include <locale.h>
 #	include <malloc.h>
+#	include <Windows.h>
 #else /* MB_CP_VC */
 #	include <stdint.h>
 #endif /* MB_CP_VC */
@@ -1192,6 +1194,10 @@ static char* mb_strupr(char* s);
 #define safe_free(__p) do { if(__p) { mb_free(__p); __p = 0; } else { mb_assert(0 && "Memory already released."); } } while(0)
 
 static bool_t mb_is_little_endian(void);
+
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+static bool_t mb_bytes_to_wchar(const char* sz, wchar_t** out, size_t size);
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 
 /** Unicode handling */
 
@@ -2952,6 +2958,18 @@ static bool_t mb_is_little_endian(void) {
 
 	return ((char*)&i)[0] == 1;
 }
+
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+/* Map a UTF8 character string to a UTF16 (wide character) string */
+static bool_t mb_bytes_to_wchar(const char* sz, wchar_t** out, size_t size) {
+	int min_size = MultiByteToWideChar(CP_UTF8, 0, sz, -1, NULL, 0);
+	if((int)size < min_size)
+		*out = (wchar_t*)mb_malloc(sizeof(wchar_t) * min_size);
+	MultiByteToWideChar(CP_UTF8, 0, sz, -1, *out, min_size);
+
+	return true;
+}
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 
 /** Unicode handling */
 
@@ -15540,7 +15558,18 @@ _print:
 			} else if(val_ptr->type == _DT_REAL) {
 				_get_printer(s)(MB_REAL_FMT, val_ptr->data.float_point);
 			} else if(val_ptr->type == _DT_STRING) {
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+				char* str = val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING;
+				wchar_t wstr[16];
+				wchar_t* wstrp = wstr;
+				setlocale(LC_ALL, "");
+				mb_bytes_to_wchar(str, &wstrp, countof(wstr));
+				_get_printer(s)("%ls", wstrp);
+				if(wstrp != wstr)
+					mb_free(wstrp);
+#else /* MB_CP_VC && MB_ENABLE_UNICODE */
 				_get_printer(s)(val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING);
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 				if(!val_ptr->ref && val_ptr->data.string) {
 					safe_free(val_ptr->data.string);
 				}
