@@ -841,7 +841,7 @@ static _object_t* _exp_assign = 0;
 	} while(0)
 
 #if MB_CONVERT_TO_INT_LEVEL == MB_CONVERT_TO_INT_LEVEL_NONE
-#	define _convert_to_int_if_posible(__o) ((void)(__o))
+#	define _convert_to_int_if_posible(__o) do { ((void)(__o)); } while(0)
 #else /* MB_CONVERT_TO_INT_LEVEL == MB_CONVERT_TO_INT_LEVEL_NONE */
 #	define _convert_to_int_if_posible(__o) \
 		do { \
@@ -1013,7 +1013,7 @@ static _object_t* _exp_assign = 0;
 			} \
 		} while(0)
 #else /* MB_ENABLE_USERTYPE_REF */
-#	define _instruct_obj_meta_obj(__optr, __tuple, __result, __exit) ((void)(__tuple)); ((void)(__result));
+#	define _instruct_obj_meta_obj(__optr, __tuple, __result, __exit) do { ((void)(__tuple)); ((void)(__result)); } while(0)
 #endif /* MB_ENABLE_USERTYPE_REF */
 #define _proc_div_by_zero(__s, __tuple, __exit, __result, __kind) \
 	do { \
@@ -1038,19 +1038,21 @@ static _object_t* _exp_assign = 0;
 	} while(0)
 
 #define _math_calculate_fun_real(__s, __l, __a, __f, __exit, __result) \
-	switch((__a).type) { \
-	case MB_DT_INT: \
-		(__a).value.float_point = (real_t)__f((real_t)(__a).value.integer); \
-		(__a).type = MB_DT_REAL; \
-		break; \
-	case MB_DT_REAL: \
-		(__a).value.float_point = (real_t)__f((__a).value.float_point); \
-		break; \
-	default: \
-		_handle_error_on_obj(__s, SE_RN_NUMBER_EXPECTED, (__s)->source_file, ((__l) && *(__l)) ? ((_object_t*)(((_tuple3_t*)(*(__l)))->e1)) : 0, MB_FUNC_WARNING, __exit, __result); \
-		break; \
-	} \
-	mb_convert_to_int_if_posible(__a);
+	do { \
+		switch((__a).type) { \
+		case MB_DT_INT: \
+			(__a).value.float_point = (real_t)__f((real_t)(__a).value.integer); \
+			(__a).type = MB_DT_REAL; \
+			break; \
+		case MB_DT_REAL: \
+			(__a).value.float_point = (real_t)__f((__a).value.float_point); \
+			break; \
+		default: \
+			_handle_error_on_obj(__s, SE_RN_NUMBER_EXPECTED, (__s)->source_file, ((__l) && *(__l)) ? ((_object_t*)(((_tuple3_t*)(*(__l)))->e1)) : 0, MB_FUNC_WARNING, __exit, __result); \
+			break; \
+		} \
+		mb_convert_to_int_if_posible(__a); \
+	} while(0)
 
 #define _using_jump_set_of_instructional(__s, __obj, __exit, __result) \
 	do { \
@@ -1060,7 +1062,6 @@ static _object_t* _exp_assign = 0;
 			(__s)->jump_set |= _JMP_INS; \
 		} \
 	} while(0)
-
 #define _using_jump_set_of_structured(__s, __obj, __exit, __result) \
 	do { \
 		if((__s)->jump_set & (~_JMP_STR)) { \
