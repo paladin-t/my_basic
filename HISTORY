@@ -4,6 +4,7 @@ Improved error prompting for wrong function reaching
 Improved variable argument list processing with lambda
 Improved UTF8 string input/output on Windows for the shell
 Fixed a wrong variable argument list processing issue
+Fixed a referenced usertype operation bug
 
 Jun. 17 2016
 Improved UTF8 string input/output on Windows
