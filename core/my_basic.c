@@ -14437,6 +14437,7 @@ static int _core_mem(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	mb_check(mb_attempt_func_begin(s, l));
+
 	mb_check(mb_attempt_func_end(s, l));
 
 	mb_check(mb_push_int(s, l, (int_t)_mb_allocated));
@@ -14803,7 +14804,9 @@ static int _std_rnd(mb_interpreter_t* s, void** l) {
 	if(ast && ast->next && _IS_FUNC(ast->next->data, _core_open_bracket)) {
 		int_t lw = 0;
 		int_t hg = 0;
+
 		mb_check(mb_attempt_open_bracket(s, l));
+
 		if(mb_has_arg(s, l)) {
 			mb_check(mb_pop_int(s, l, &hg));
 		}
@@ -14811,6 +14814,7 @@ static int _std_rnd(mb_interpreter_t* s, void** l) {
 			lw = hg;
 			mb_check(mb_pop_int(s, l, &hg));
 		}
+
 		mb_check(mb_attempt_close_bracket(s, l));
 
 		if(lw >= hg) {
@@ -14822,6 +14826,7 @@ static int _std_rnd(mb_interpreter_t* s, void** l) {
 		mb_check(mb_push_int(s, l, (int_t)rnd));
 	} else {
 		mb_check(mb_attempt_func_begin(s, l));
+
 		mb_check(mb_attempt_func_end(s, l));
 
 		rnd = (real_t)(((real_t)(rand() % 101)) / 100.0f); /* [0.0, 1.0] */
@@ -15718,6 +15723,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 	mb_assert(s && l);
 
 	mb_check(mb_attempt_func_begin(s, l));
+
 	mb_check(mb_attempt_func_end(s, l));
 
 	ast = (_ls_node_t*)*l;
