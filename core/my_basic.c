@@ -991,19 +991,19 @@ static _object_t* _exp_assign = 0;
 			_object_t* retval = (_object_t*)(tpptr->e3); \
 			if(opnd1->type == _DT_VAR) opnd1 = opnd1->data.variable->data; \
 			if(opnd2->type == _DT_VAR) opnd2 = opnd2->data.variable->data; \
-			if(opnd1->type == _DT_USERTYPE_REF) { \
+			{ \
 				mb_value_t vfst, vscd; \
 				mb_value_t ret; \
 				mb_make_nil(vfst); \
 				mb_make_nil(vscd); \
 				mb_make_nil(ret); \
-				if(opnd1->data.usertype_ref->operators && opnd1->data.usertype_ref->operators->__optr) { \
+				if(opnd1->type == _DT_USERTYPE_REF && opnd1->data.usertype_ref->operators && opnd1->data.usertype_ref->operators->__optr) { \
 					_internal_object_to_public_value(opnd1, &vfst); \
 					_internal_object_to_public_value(opnd2, &vscd); \
 					__result = opnd1->data.usertype_ref->operators->__optr(s, (__tuple), &vfst, &vscd, &ret); \
 					_public_value_to_internal_object(&ret, retval); \
 					goto __exit; \
-				} else if(opnd2->data.usertype_ref->operators && opnd2->data.usertype_ref->operators->__optr) { \
+				} else if(opnd2->type == _DT_USERTYPE_REF && opnd2->data.usertype_ref->operators && opnd2->data.usertype_ref->operators->__optr) { \
 					_internal_object_to_public_value(opnd1, &vfst); \
 					_internal_object_to_public_value(opnd2, &vscd); \
 					__result = opnd2->data.usertype_ref->operators->__optr(s, (__tuple), &vfst, &vscd, &ret); \
