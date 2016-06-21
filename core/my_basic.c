@@ -3961,6 +3961,12 @@ static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		result = _eval_script_routine(s, l, va, ca, r, has_arg, pop_arg);
 #ifdef MB_ENABLE_LAMBDA
 	} else if(r->type == _IT_LAMBDA && r->func.lambda.entry) {
+		_ls_node_t* top = _ls_back(s->stack_frames);
+		if(top) {
+			char ln[32];
+			sprintf(ln, "LAMBDA_0x%p", &r->func.lambda.ref);
+			top->data = ln;
+		}
 		result = _eval_lambda_routine(s, l, va, ca, r, has_arg, pop_arg);
 #endif /* MB_ENABLE_LAMBDA */
 	} else if(r->type == _IT_NATIVE && r->func.native.entry) {
