@@ -13988,6 +13988,10 @@ static int _core_def(mb_interpreter_t* s, void** l) {
 			if(!routine->func.basic.parameters)
 				routine->func.basic.parameters = _ls_create();
 			_ls_pushback(routine->func.basic.parameters, (void*)&_VAR_ARGS);
+			ast = ast->next;
+			obj = (_object_t*)ast->data;
+
+			break;
 		}
 
 		ast = ast->next;
@@ -14330,10 +14334,20 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 #endif /* MB_ENABLE_CLASS */
 		void* v = 0;
 
-		_mb_check_mark(mb_get_var(s, l, &v), result, _error);
-
 		if(!routine->func.lambda.parameters)
 			routine->func.lambda.parameters = _ls_create();
+
+		ast = (_ls_node_t*)*l;
+		if(ast && _IS_FUNC(ast->data, _core_args)) {
+			_ls_pushback(routine->func.lambda.parameters, (void*)&_VAR_ARGS);
+			ast = ast->next;
+			*l = ast;
+
+			break;
+		}
+
+		_mb_check_mark(mb_get_var(s, l, &v), result, _error);
+
 		if(!v || ((_object_t*)v)->type != _DT_VAR) {
 			_handle_error_on_obj(s, SE_RN_INVALID_LAMBDA, s->source_file, DON2(l), MB_FUNC_ERR, _error, result);
 		}
