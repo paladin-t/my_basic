@@ -1341,14 +1341,23 @@ static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f
 	mb_unrefvar(s);
 	mb_unrefvar(p);
 
-	if(SE_NO_ERR != e) {
+	if(e != SE_NO_ERR) {
 		if(f) {
-			_printf(
-				"Error:\n    Line %d, Col %d in File: %s\n    Code %d, Abort Code %d\n    Message: %s.\n",
-				row, col, f,
-				e, e == SE_EA_EXTENDED_ABORT ? abort_code - MB_EXTENDED_ABORT : abort_code,
-				m
-			);
+			if(e == SE_RN_WRONG_FUNCTION_REACHED) {
+				_printf(
+					"Error:\n    Line %d, Col %d in Func: %s\n    Code %d, Abort Code %d\n    Message: %s.\n",
+					row, col, f,
+					e, abort_code,
+					m
+				);
+			} else {
+				_printf(
+					"Error:\n    Line %d, Col %d in File: %s\n    Code %d, Abort Code %d\n    Message: %s.\n",
+					row, col, f,
+					e, e == SE_EA_EXTENDED_ABORT ? abort_code - MB_EXTENDED_ABORT : abort_code,
+					m
+				);
+			}
 		} else {
 			_printf(
 				"Error:\n    Line %d, Col %d\n    Code %d, Abort Code %d\n    Message: %s.\n",
