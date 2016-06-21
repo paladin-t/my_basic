@@ -83,7 +83,7 @@ enddef
 print foo("Hello", "world");
 ~~~~~~~~~~
 
-Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (focusing the "**Programming with BASIC**" section) to get more details about how to program in MY-BASIC.
+Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especially the "**Programming with BASIC**" section) to get more details about how to program in MY-BASIC.
 
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
@@ -97,7 +97,7 @@ More detail are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
 ### Use standalone interpreter binary
 
-This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [MacOS](output/my_basic_mac), it's efficient to download it and have a first impressive playground. Or you could make a build as follow:
+This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [MacOS](output/my_basic_mac), it's efficient to download one of them and have a first impressive playground. Or you could make a build as follow:
 
 * Open the Visual Studio solution `my_basic.sln` on Windows to build an executable
 * Open the Xcode solution `my_basic_mac.xcodeproj` on MacOS to build an MacOS executable
@@ -107,13 +107,13 @@ To compile an interpreter binary for your own platform manually, please follow t
 
 1. Retrieve at least `core` and `shell` folders for a minimum build
 2. Setup your compile toolchain configuration
-3. Compile `core/my_basic.c` and `shell/main.c`, they both require including `core/my_basic.h`; then link up your own executable
+3. Compile `core/my_basic.c` and `shell/main.c`, they both require `core/my_basic.h`; then link up your own executable
 
 The standalone interpreter supports three running modes:
 
 * Execute the binary without arguments to enter MY-BASIC's interactive mode
 * Pass a file path to the binary to load and run that script file directly
-* Pass an argument `-e` followed by an expression to evaluate and print it, eg. `-e "2 * (3 + 4)"`
+* Pass an argument `-e` followed by an expression to evaluate it and print the result, eg. `-e "2 * (3 + 4)"`
 
 Type "HELP" and hint Enter under interactive mode to view full detail usage of the interpreter.
 
@@ -123,11 +123,11 @@ MY-BASIC is cleanly written in a single C source file and an associated header f
 
 You can definitely [link with MY-BASIC as a lib](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC) as well.
 
-For more details about using MY-BASIC when it's already integrated with a project, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) or read the Wiki pages below.
+For more details about using MY-BASIC when it has be integrated with a project, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) or read the following Wiki pages.
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
-Most of the fundamental topics are mentioned in the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf); there are still some other scattered ones besides these aspects, such as the desine principle, machinism behind MY-BASIC, effective practice, etc; all issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki):
+The [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) includes most of the fundamental topics, however, it hasn't covered everything, such as the design principle, machinism behind MY-BASIC, effective practice, etc; all of them are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki):
 
 * Principles
  * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
