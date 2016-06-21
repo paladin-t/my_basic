@@ -1,6 +1,8 @@
 Jun. 21 2016
 Added lambda tracing
 Improved error prompting for wrong function reaching
+Improved variable argument list processing with lambda
+Fixed a wrong variable argument list processing issue
 
 Jun. 17 2016
 Improved UTF8 string input/output on Windows
