@@ -779,7 +779,7 @@ static void _list_program(const char* sn, const char* cn) {
 		long i = 0;
 		for(i = 0; i < _code()->count; ++i) {
 			p = _code()->lines[i];
-			_get_unicode_bom(&p);
+			_get_unicode_bom((const char**)&p);
 			_list_one_line(false, i + 1, p);
 		}
 	} else {
@@ -802,7 +802,7 @@ static void _list_program(const char* sn, const char* cn) {
 				break;
 
 			p = _code()->lines[i];
-			_get_unicode_bom(&p);
+			_get_unicode_bom((const char**)&p);
 			_list_one_line(true, i + 1, p);
 		}
 	}
