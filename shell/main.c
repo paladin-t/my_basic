@@ -1246,7 +1246,7 @@ static int sys(struct mb_interpreter_t* s, void** l) {
 static int trace(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	char* frames[16];
-	char** p = frames;
+	int i = 0;
 
 	mb_assert(s && l);
 
@@ -1258,11 +1258,11 @@ static int trace(struct mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_debug_get_stack_trace(s, l, frames, countof(frames)));
 
-	++p;
-	while(*p) {
-		_printf("%s", *p);
-		++p;
-		if(*p) {
+	for(i = 1; i < countof(frames); ) {
+		if(frames[i]) {
+			_printf("%s", frames[i]);
+		}
+		if(++i < countof(frames) && frames[i]) {
 			_printf(" <- ");
 		}
 	}
