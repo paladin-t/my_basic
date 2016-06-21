@@ -12240,6 +12240,10 @@ int mb_debug_get_stack_trace(struct mb_interpreter_t* s, void** l, char** fs, un
 	mb_assert(s);
 
 	if(fs && fc) {
+		if(_ls_count(s->stack_frames) > fc) {
+			fs[fc - 1] = "...";
+			fc--;
+		}
 		f = s->stack_frames->prev;
 		while(f != s->stack_frames && f && f->data && i < fc) {
 			fs[i++] = (char*)f->data;
