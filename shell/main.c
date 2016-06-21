@@ -31,8 +31,9 @@
 
 #include "../core/my_basic.h"
 #ifdef MB_CP_VC
-#	include <crtdbg.h>
 #	include <conio.h>
+#	include <crtdbg.h>
+#	include <locale.h>
 #	include <Windows.h>
 #elif !defined MB_CP_BORLANDC && !defined MB_CP_TCC
 #	include <unistd.h>
@@ -438,7 +439,8 @@ static void _clear_code(void) {
 	code->count = 0;
 }
 
-static void _append_line(char* txt) {
+static int _append_line(const char* txt) {
+	int result = 0;
 	int l = 0;
 	char* buf = 0;
 
@@ -448,12 +450,14 @@ static void _append_line(char* txt) {
 		code->size += _REALLOC_INC_STEP;
 		code->lines = (char**)realloc(code->lines, sizeof(char*) * code->size);
 	}
-	l = (int)strlen(txt);
+	result = l = (int)strlen(txt);
 	buf = (char*)malloc(l + 2);
 	memcpy(buf, txt, l);
 	buf[l] = '\n';
 	buf[l + 1] = '\0';
 	code->lines[code->count++] = buf;
+
+	return result;
 }
 
 static char* _get_code(void) {
@@ -657,6 +661,23 @@ static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
 ** Interactive commands
 */
 
+static int _get_unicode_bom(const char** ch) {
+	if(!ch && !(*ch))
+		return 0;
+
+	if((*ch)[0] == -17 && (*ch)[1] == -69 && (*ch)[2] == -65) {
+		*ch += 3;
+
+		return 3;
+	} else if((*ch)[0] == -2 && (*ch)[1] == -1) {
+		*ch += 2;
+
+		return 2;
+	}
+
+	return 0;
+}
+
 static void _clear_screen(void) {
 #ifdef MB_OS_WIN
 	system("cls");
@@ -681,9 +702,74 @@ static int _new_program(void) {
 	return result;
 }
 
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+static int _bytes_to_wchar(const char* sz, wchar_t** out, size_t size) {
+	int result = MultiByteToWideChar(CP_UTF8, 0, sz, -1, 0, 0);
+	if((int)size < result)
+		*out = (wchar_t*)malloc(sizeof(wchar_t) * result);
+	MultiByteToWideChar(CP_UTF8, 0, sz, -1, *out, result);
+
+	return true;
+}
+
+static int _bytes_to_wchar_ansi(const char* sz, wchar_t** out, size_t size) {
+	int result = MultiByteToWideChar(CP_ACP, 0, sz, -1, 0, 0);
+	if((int)size < result)
+		*out = (wchar_t*)malloc(sizeof(wchar_t) * result);
+	MultiByteToWideChar(CP_ACP, 0, sz, -1, *out, result);
+
+	return result;
+}
+
+static int _wchar_to_bytes(const wchar_t* sz, char** out, size_t size) {
+	int result = WideCharToMultiByte(CP_UTF8, 0, sz, -1, 0, 0, 0, 0);
+	if((int)size < result)
+		*out = (char*)malloc(result);
+	WideCharToMultiByte(CP_UTF8, 0, sz, -1, *out, result, 0, 0);
+
+	return result;
+}
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
+
+static int _append_one_line(const char* line) {
+	int result = 0;
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+	char str[16];
+	char* strp = str;
+	wchar_t wstr[16];
+	wchar_t* wstrp = wstr;
+	_bytes_to_wchar_ansi(line, &wstrp, countof(wstr));
+	result = _wchar_to_bytes(wstrp, &strp, countof(str));
+	if(wstrp != wstr)
+		free(wstrp);
+	_append_line(strp);
+	if(strp != str)
+		free(strp);
+#else /* MB_CP_VC && MB_ENABLE_UNICODE */
+	result = _append_line(line);
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
+
+	return result;
+}
+
+static void _list_one_line(bool_t nl, long l, const char* ln) {
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+	wchar_t wstr[16];
+	wchar_t* wstrp = wstr;
+	setlocale(LC_ALL, "");
+	_bytes_to_wchar(ln, &wstrp, countof(wstr));
+	_printf(nl ? "%ld]%ls\n" : "%ld]%ls", l, wstrp);
+	if(wstrp != wstr)
+		free(wstrp);
+#else /* MB_CP_VC && MB_ENABLE_UNICODE */
+	_printf(nl ? "%ld]%s\n" : "%ld]%s", l, ln);
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
+}
+
 static void _list_program(const char* sn, const char* cn) {
 	long lsn = 0;
 	long lcn = 0;
+	char* p = 0;
 
 	mb_assert(sn && cn);
 
@@ -692,7 +778,9 @@ static void _list_program(const char* sn, const char* cn) {
 	if(lsn == 0 && lcn == 0) {
 		long i = 0;
 		for(i = 0; i < _code()->count; ++i) {
-			_printf("%ld]%s", i + 1, _code()->lines[i]);
+			p = _code()->lines[i];
+			_get_unicode_bom(&p);
+			_list_one_line(false, i + 1, p);
 		}
 	} else {
 		long i = 0;
@@ -713,7 +801,9 @@ static void _list_program(const char* sn, const char* cn) {
 			if(i >= _code()->count)
 				break;
 
-			_printf("%ld]%s\n", i + 1, _code()->lines[i]);
+			p = _code()->lines[i];
+			_get_unicode_bom(&p);
+			_list_one_line(true, i + 1, p);
 		}
 	}
 }
@@ -961,7 +1051,7 @@ static int _do_line(void) {
 		char* path = line + strlen(line) + 1;
 		_list_directory(path);
 	} else {
-		_append_line(dup);
+		_append_one_line(dup);
 	}
 
 	return result;
