@@ -469,12 +469,12 @@ typedef enum mb_data_e {
 } mb_data_e;
 
 typedef enum mb_meta_func_u {
-	MB_MF_IS,
-	MB_MF_ADD,
-	MB_MF_SUB,
-	MB_MF_MUL,
-	MB_MF_DIV,
-	MB_MF_NEG
+	MB_MF_IS = 1 << 0,
+	MB_MF_ADD = 1 << 1,
+	MB_MF_SUB = 1 << 2,
+	MB_MF_MUL = 1 << 3,
+	MB_MF_DIV = 1 << 4,
+	MB_MF_NEG = 1 << 5
 } mb_meta_func_u;
 
 typedef unsigned char mb_val_bytes_t[mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), mb_max(sizeof(int_t), sizeof(real_t)))];
