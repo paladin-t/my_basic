@@ -364,13 +364,14 @@ typedef struct _gc_t {
 	int_t collecting;
 } _gc_t;
 
-typedef struct _override_operator_info_t {
+typedef struct _calculation_operator_info_t {
 	mb_meta_operator_t is;
 	mb_meta_operator_t add;
 	mb_meta_operator_t sub;
 	mb_meta_operator_t mul;
 	mb_meta_operator_t div;
-} _override_operator_info_t;
+	mb_meta_operator_t neg;
+} _calculation_operator_info_t;
 
 typedef struct _usertype_ref_t {
 	_ref_t ref;
@@ -380,7 +381,7 @@ typedef struct _usertype_ref_t {
 	mb_hash_func_t hash;
 	mb_cmp_func_t cmp;
 	mb_fmt_func_t fmt;
-	_override_operator_info_t* operators;
+	_calculation_operator_info_t* calc_operators;
 } _usertype_ref_t;
 
 typedef struct _func_t {
@@ -997,16 +998,16 @@ static _object_t* _exp_assign = 0;
 				mb_make_nil(vfst); \
 				mb_make_nil(vscd); \
 				mb_make_nil(ret); \
-				if(opnd1->type == _DT_USERTYPE_REF && opnd1->data.usertype_ref->operators && opnd1->data.usertype_ref->operators->__optr) { \
+				if(opnd1->type == _DT_USERTYPE_REF && opnd1->data.usertype_ref->calc_operators && opnd1->data.usertype_ref->calc_operators->__optr) { \
 					_internal_object_to_public_value(opnd1, &vfst); \
 					_internal_object_to_public_value(opnd2, &vscd); \
-					__result = opnd1->data.usertype_ref->operators->__optr(s, (__tuple), &vfst, &vscd, &ret); \
+					__result = opnd1->data.usertype_ref->calc_operators->__optr(s, (__tuple), &vfst, &vscd, &ret); \
 					_public_value_to_internal_object(&ret, retval); \
 					goto __exit; \
-				} else if(opnd2->type == _DT_USERTYPE_REF && opnd2->data.usertype_ref->operators && opnd2->data.usertype_ref->operators->__optr) { \
+				} else if(opnd2->type == _DT_USERTYPE_REF && opnd2->data.usertype_ref->calc_operators && opnd2->data.usertype_ref->calc_operators->__optr) { \
 					_internal_object_to_public_value(opnd1, &vfst); \
 					_internal_object_to_public_value(opnd2, &vscd); \
-					__result = opnd2->data.usertype_ref->operators->__optr(s, (__tuple), &vfst, &vscd, &ret); \
+					__result = opnd2->data.usertype_ref->calc_operators->__optr(s, (__tuple), &vfst, &vscd, &ret); \
 					_public_value_to_internal_object(&ret, retval); \
 					goto __exit; \
 				} \
@@ -6131,8 +6132,8 @@ static void _destroy_usertype_ref(_usertype_ref_t* c) {
 
 	if(c->dtor)
 		c->dtor(c->ref.s, c->usertype);
-	if(c->operators) {
-		safe_free(c->operators);
+	if(c->calc_operators) {
+		safe_free(c->calc_operators);
 	}
 	_destroy_ref(&c->ref);
 	safe_free(c);
@@ -8529,9 +8530,9 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 			obj->data.usertype_ref->dtor, obj->data.usertype_ref->clone,
 			obj->data.usertype_ref->hash, obj->data.usertype_ref->cmp, obj->data.usertype_ref->fmt
 		);
-		if(obj->data.usertype_ref->operators)
-			tgt->data.usertype_ref->operators = (_override_operator_info_t*)mb_malloc(sizeof(_override_operator_info_t));
-		memcpy(tgt->data.usertype_ref->operators, obj->data.usertype_ref->operators, sizeof(_override_operator_info_t));
+		if(obj->data.usertype_ref->calc_operators)
+			tgt->data.usertype_ref->calc_operators = (_calculation_operator_info_t*)mb_malloc(sizeof(_calculation_operator_info_t));
+		memcpy(tgt->data.usertype_ref->calc_operators, obj->data.usertype_ref->calc_operators, sizeof(_calculation_operator_info_t));
 		_ref(&tgt->data.usertype_ref->ref, tgt->data.usertype_ref);
 
 		break;
@@ -11846,29 +11847,33 @@ int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_m
 		_usertype_ref_t* user = 0;
 		_public_value_to_internal_object(&val, &obj);
 		user = obj.data.usertype_ref;
-		if(!user->operators) {
-			user->operators = (_override_operator_info_t*)mb_malloc(sizeof(_override_operator_info_t));
-			memset(user->operators, 0, sizeof(_override_operator_info_t));
+		if(!user->calc_operators) {
+			user->calc_operators = (_calculation_operator_info_t*)mb_malloc(sizeof(_calculation_operator_info_t));
+			memset(user->calc_operators, 0, sizeof(_calculation_operator_info_t));
 		}
 		switch(m) {
 		case MB_MF_IS:
-			user->operators->is = f;
+			user->calc_operators->is = f;
 
 			break;
 		case MB_MF_ADD:
-			user->operators->add = f;
+			user->calc_operators->add = f;
 
 			break;
 		case MB_MF_SUB:
-			user->operators->sub = f;
+			user->calc_operators->sub = f;
 
 			break;
 		case MB_MF_MUL:
-			user->operators->mul = f;
+			user->calc_operators->mul = f;
 
 			break;
 		case MB_MF_DIV:
-			user->operators->div = f;
+			user->calc_operators->div = f;
+
+			break;
+		case MB_MF_NEG:
+			user->calc_operators->neg = f;
 
 			break;
 		}
@@ -12622,6 +12627,9 @@ static int _core_neg(mb_interpreter_t* s, void** l) {
 	_running_context_t* running = 0;
 	int* inep = 0;
 	int calc_depth = 0;
+#ifdef MB_ENABLE_USERTYPE_REF
+	_object_t obj;
+#endif /* MB_ENABLE_USERTYPE_REF */
 
 	mb_assert(s && l);
 
@@ -12666,6 +12674,18 @@ static int _core_neg(mb_interpreter_t* s, void** l) {
 		arg.value.float_point = -(arg.value.float_point);
 
 		break;
+#ifdef MB_ENABLE_USERTYPE_REF
+	case MB_DT_USERTYPE_REF:
+		_MAKE_NIL(&obj);
+		_public_value_to_internal_object(&arg, &obj);
+		if(obj.data.usertype_ref->calc_operators && obj.data.usertype_ref->calc_operators->neg) {
+			mb_meta_operator_t neg = obj.data.usertype_ref->calc_operators->neg;
+			mb_check(neg(s, l, &arg, 0, &arg));
+
+			break;
+		}
+		/* Fall through */
+#endif /* MB_ENABLE_USERTYPE_REF */
 	default:
 		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, s->source_file, TON(l), MB_FUNC_WARNING, _exit, result);
 
