@@ -1660,7 +1660,7 @@ static _running_context_t* _push_scope_by_routine(mb_interpreter_t* s, _running_
 static void _destroy_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _pop_weak_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _pop_scope(mb_interpreter_t* s, bool_t tidy);
-static void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* instance, bool_t lose);
+static void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* instance, _routine_t* routine, bool_t lose);
 static _running_context_t* _find_scope(mb_interpreter_t* s, _running_context_t* p);
 static _running_context_t* _get_root_scope(_running_context_t* scope);
 #ifdef MB_ENABLE_LAMBDA
@@ -4088,9 +4088,9 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 	} while(ast);
 
 #ifdef MB_ENABLE_CLASS
-	_out_of_scope(s, running, r->instance, true);
+	_out_of_scope(s, running, r->instance, r, true);
 #else /* MB_ENABLE_CLASS */
-	_out_of_scope(s, running, 0, true);
+	_out_of_scope(s, running, 0, r, true);
 #endif /* MB_ENABLE_CLASS */
 
 	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false, 0);
@@ -4194,7 +4194,7 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 		}
 	} while(ast);
 
-	_out_of_scope(s, running, 0, true);
+	_out_of_scope(s, running, 0, r, true);
 
 	result = _proc_args(s, l, running, 0, 0, r, 0, 0, false, 0);
 	if(result != MB_FUNC_OK)
@@ -7245,7 +7245,7 @@ static void _unref_class(_ref_t* ref, void* data) {
 	mb_assert(ref);
 
 	if(ref->s->valid)
-		_out_of_scope(ref->s, ((_class_t*)data)->scope, (_class_t*)data, false);
+		_out_of_scope(ref->s, ((_class_t*)data)->scope, (_class_t*)data, 0, false);
 
 	if(*ref->count == _NONE_REF)
 		_destroy_class((_class_t*)data);
@@ -8255,16 +8255,17 @@ static _running_context_t* _pop_scope(mb_interpreter_t* s, bool_t tidy) {
 	if(running->meta == _SCOPE_META_REF)
 		_destroy_scope(s, running);
 	else if(tidy)
-		_out_of_scope(s, running, 0, true);
+		_out_of_scope(s, running, 0, 0, true);
 
 	return s->running_context;
 }
 
 /* Out of current scope */
-static void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* instance, bool_t lose) {
+static void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void* instance, _routine_t* routine, bool_t lose) {
 #ifdef MB_ENABLE_LAMBDA
 	_upvalue_scope_tuple_t tuple;
 #endif /* MB_ENABLE_LAMBDA */
+	mb_unrefvar(routine);
 
 	mb_assert(s);
 
@@ -8289,8 +8290,10 @@ static void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void
 	mb_unrefvar(instance);
 #endif /* MB_ENABLE_LAMBDA */
 
-	if(lose && running->var_dict)
-		_ht_foreach(running->var_dict, _lose_object);
+	if(lose) {
+		if(running->var_dict)
+			_ht_foreach(running->var_dict, _lose_object);
+	}
 }
 
 /* Find a scope in a scope chain */
@@ -14075,6 +14078,7 @@ static int _core_args(mb_interpreter_t* s, void** l) {
 			mb_make_nil(arg);
 			_internal_object_to_public_value(obj, &arg);
 			mb_check(mb_push_value(s, l, arg));
+			_UNREF(obj);
 			pushed = true;
 			_destroy_object_capsule_only(obj, 0);
 		}
