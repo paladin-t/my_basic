@@ -1,3 +1,6 @@
+Jun. 23 2016
+Added unary negative meta function overriding support for referenced usertype
+
 Jun. 21 2016
 Added lambda tracing
 Improved error prompting for wrong function reaching
