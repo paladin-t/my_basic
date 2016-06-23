@@ -12680,6 +12680,8 @@ static int _core_neg(mb_interpreter_t* s, void** l) {
 		_public_value_to_internal_object(&arg, &obj);
 		if(obj.data.usertype_ref->calc_operators && obj.data.usertype_ref->calc_operators->neg) {
 			mb_meta_operator_t neg = obj.data.usertype_ref->calc_operators->neg;
+			mb_check(mb_ref_value(s, l, arg));
+			mb_check(mb_unref_value(s, l, arg));
 			mb_check(neg(s, l, &arg, 0, &arg));
 
 			break;
