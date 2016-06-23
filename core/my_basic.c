@@ -11847,9 +11847,11 @@ int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_m
 		_usertype_ref_t* user = 0;
 		_public_value_to_internal_object(&val, &obj);
 		user = obj.data.usertype_ref;
-		if(!user->calc_operators) {
-			user->calc_operators = (_calculation_operator_info_t*)mb_malloc(sizeof(_calculation_operator_info_t));
-			memset(user->calc_operators, 0, sizeof(_calculation_operator_info_t));
+		if(m & (MB_MF_IS | MB_MF_ADD | MB_MF_SUB | MB_MF_MUL | MB_MF_DIV | MB_MF_NEG)) {
+			if(!user->calc_operators) {
+				user->calc_operators = (_calculation_operator_info_t*)mb_malloc(sizeof(_calculation_operator_info_t));
+				memset(user->calc_operators, 0, sizeof(_calculation_operator_info_t));
+			}
 		}
 		switch(m) {
 		case MB_MF_IS:
