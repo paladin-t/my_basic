@@ -1360,9 +1360,9 @@ static char* _extract_string(_object_t* obj);
 			_gc_add(&(__o)->data.usertype_ref->ref, (__o)->data.usertype_ref, (__g)); \
 			break;
 #else /* MB_ENABLE_USERTYPE_REF */
-#	define _REF_USERTYPE_REF(__o) ((void)(__o));
-#	define _UNREF_USERTYPE_REF(__o) ((void)(__o));
-#	define _ADDGC_USERTYPE_REF(__o, __g) ((void)(__o)); ((void)(__g));
+#	define _REF_USERTYPE_REF(__o) { (void)(__o); }
+#	define _UNREF_USERTYPE_REF(__o) { (void)(__o); }
+#	define _ADDGC_USERTYPE_REF(__o, __g) { (void)(__o); (void)(__g); }
 #endif /* MB_ENABLE_USERTYPE_REF */
 #ifdef MB_ENABLE_ARRAY_REF
 #	define _REF_ARRAY(__o) \
@@ -1381,9 +1381,9 @@ static char* _extract_string(_object_t* obj);
 				_gc_add(&(__o)->data.array->ref, (__o)->data.array, (__g)); \
 			break;
 #else /* MB_ENABLE_ARRAY_REF */
-#	define _REF_ARRAY(__o) ((void)(__o));
-#	define _UNREF_ARRAY(__o) ((void)(__o));
-#	define _ADDGC_ARRAY(__o, __g) ((void)(__o)); ((void)(__g));
+#	define _REF_ARRAY(__o) { (void)(__o); }
+#	define _UNREF_ARRAY(__o) { (void)(__o); }
+#	define _ADDGC_ARRAY(__o, __g) { (void)(__o); (void)(__g); }
 #endif /* MB_ENABLE_ARRAY_REF */
 #ifdef MB_ENABLE_COLLECTION_LIB
 #	define _REF_COLL(__o) \
@@ -1422,11 +1422,11 @@ static char* _extract_string(_object_t* obj);
 			_destroy_dict_it(obj->data.dict_it); \
 			break;
 #else /* MB_ENABLE_COLLECTION_LIB */
-#	define _REF_COLL(__o) ((void)(__o));
-#	define _UNREF_COLL(__o) ((void)(__o));
-#	define _ADDGC_COLL(__o, __g) ((void)(__o)); ((void)(__g));
-#	define _UNREF_COLL_IT(__o) ((void)(__o));
-#	define _ADDGC_COLL_IT(__o, __g) ((void)(__o)); ((void)(__g));
+#	define _REF_COLL(__o) { (void)(__o); }
+#	define _UNREF_COLL(__o) { (void)(__o); }
+#	define _ADDGC_COLL(__o, __g) { (void)(__o); (void)(__g); }
+#	define _UNREF_COLL_IT(__o) { (void)(__o); }
+#	define _ADDGC_COLL_IT(__o, __g) { (void)(__o); (void)(__g); }
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 #	define _REF_CLASS(__o) \
@@ -1444,9 +1444,9 @@ static char* _extract_string(_object_t* obj);
 				_gc_add(&(__o)->data.instance->ref, (__o)->data.instance, (__g)); \
 			break;
 #else /* MB_ENABLE_CLASS */
-#	define _REF_CLASS(__o) ((void)(__o));
-#	define _UNREF_CLASS(__o) ((void)(__o));
-#	define _ADDGC_CLASS(__o, __g) ((void)(__o)); ((void)(__g));
+#	define _REF_CLASS(__o) { (void)(__o); }
+#	define _UNREF_CLASS(__o) { (void)(__o); }
+#	define _ADDGC_CLASS(__o, __g) { (void)(__o); (void)(__g); }
 #endif /* MB_ENABLE_CLASS */
 #ifdef MB_ENABLE_LAMBDA
 #	define _REF_ROUTINE(__o) \
@@ -1468,8 +1468,8 @@ static char* _extract_string(_object_t* obj);
 				_dispose_object(__o); \
 			break;
 #else /* MB_ENABLE_LAMBDA */
-#	define _REF_ROUTINE(__o) ((void)(__o));
-#	define _UNREF_ROUTINE(__o) ((void)(__o));
+#	define _REF_ROUTINE(__o) { (void)(__o); }
+#	define _UNREF_ROUTINE(__o) { (void)(__o); }
 #	define _ADDGC_ROUTINE(__o, __g) \
 		case _DT_ROUTINE: \
 			((void)(__g)); \
@@ -1553,7 +1553,9 @@ static void _unref_usertype_ref(_ref_t* ref, void* data);
 #endif /* MB_ENABLE_USERTYPE_REF */
 
 static _array_t* _create_array(mb_interpreter_t* s, const char* n, _data_e t);
+#ifdef MB_ENABLE_ARRAY_REF
 static void _destroy_array(_array_t* arr);
+#endif /* MB_ENABLE_ARRAY_REF */
 static void _init_array(_array_t* arr);
 static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr);
 static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c);
@@ -1562,7 +1564,9 @@ static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int i
 static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
 static void _clear_array(_array_t* arr);
 static bool_t _is_array(void* obj);
+#ifdef MB_ENABLE_ARRAY_REF
 static void _unref_array(_ref_t* ref, void* data);
+#endif /* MB_ENABLE_ARRAY_REF */
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 static _list_t* _create_list(mb_interpreter_t* s);
@@ -6168,6 +6172,7 @@ static _array_t* _create_array(mb_interpreter_t* s, const char* n, _data_e t) {
 	return result;
 }
 
+#ifdef MB_ENABLE_ARRAY_REF
 /* Destroy an array */
 static void _destroy_array(_array_t* arr) {
 	mb_assert(arr);
@@ -6186,6 +6191,7 @@ static void _destroy_array(_array_t* arr) {
 #endif /* MB_ENABLE_ARRAY_REF */
 	safe_free(arr);
 }
+#endif /* MB_ENABLE_ARRAY_REF */
 
 /* Initialize an array */
 static void _init_array(_array_t* arr) {
@@ -6501,6 +6507,7 @@ static bool_t _is_array(void* obj) {
 	return result;
 }
 
+#ifdef MB_ENABLE_ARRAY_REF
 /* Unreference an array */
 static void _unref_array(_ref_t* ref, void* data) {
 	mb_assert(ref);
@@ -6508,6 +6515,7 @@ static void _unref_array(_ref_t* ref, void* data) {
 	if(*ref->count == _NONE_REF)
 		_destroy_array((_array_t*)data);
 }
+#endif /* MB_ENABLE_ARRAY_REF */
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 /* Create a list */
