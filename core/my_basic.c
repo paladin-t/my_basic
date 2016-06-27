@@ -9524,12 +9524,12 @@ static void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
 		if(ast && ast->data) {
 			obj = (_object_t*)ast->data;
 #ifdef MB_ENABLE_SOURCE_TRACE
-			s->debug_stepped_handler(s, s->source_file, obj->source_pos, obj->source_row, obj->source_col);
+			s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, obj->source_row, obj->source_col);
 #else /* MB_ENABLE_SOURCE_TRACE */
-			s->debug_stepped_handler(s, s->source_file, obj->source_pos, 0, 0);
+			s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, 0, 0);
 #endif /* MB_ENABLE_SOURCE_TRACE */
 		} else {
-			s->debug_stepped_handler(s, s->source_file, -1, 0, 0);
+			s->debug_stepped_handler(s, (void**)&ast, s->source_file, -1, 0, 0);
 		}
 	}
 }
