@@ -1,3 +1,6 @@
+Jun. 27 2016
+Added a context parameter to stepped handler
+
 Jun. 23 2016
 Added unary negative meta function overriding support for referenced usertype
 Fixed a memory leak with variable arguments
