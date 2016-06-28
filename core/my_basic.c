@@ -85,6 +85,7 @@ extern "C" {
 
 /** Macros */
 
+/* Version information */
 #define _VER_MAJOR 1
 #define _VER_MINOR 2
 #define _VER_REVISION 0
@@ -108,6 +109,20 @@ extern "C" {
 #define _COMMA_AS_NEWLINE 0
 
 #define _NO_EAT_COMMA 2
+
+/* Hash table size */
+#define _HT_ARRAY_SIZE_TINY 1
+#define _HT_ARRAY_SIZE_SMALL 193
+#define _HT_ARRAY_SIZE_MID 1543
+#define _HT_ARRAY_SIZE_BIG 12289
+#define _HT_ARRAY_SIZE_DEFAULT _HT_ARRAY_SIZE_SMALL
+
+/* Max length of a single symbol */
+#define _SINGLE_SYMBOL_MAX_LENGTH 128
+
+/* Buffer length of some string operations */
+#define _INPUT_MAX_LENGTH 256
+#define _TEMP_FORMAT_MAX_LENGTH 32
 
 /* Helper */
 #ifndef sgn
@@ -142,39 +157,12 @@ extern "C" {
 #define _IS_FUNC(__o, __f) (((_object_t*)(__o))->type == _DT_FUNC && ((_object_t*)(__o))->data.func->pointer == __f)
 #define _IS_UNARY_FUNC(__o) (((_object_t*)(__o))->type == _DT_FUNC && _is_unary(((_object_t*)(__o))->data.func->pointer))
 #define _IS_VAR(__o) ((__o) && ((_object_t*)(__o))->type == _DT_VAR)
-#ifdef MB_ENABLE_COLLECTION_LIB
-#	define _IS_LIST(__o) ((__o) && ((_object_t*)(__o))->type == _DT_LIST)
-#	define _IS_DICT(__o) ((__o) && ((_object_t*)(__o))->type == _DT_DICT)
-#	define _IS_COLL(__o) (_IS_LIST(__o) || _IS_DICT(__o))
-#endif /* MB_ENABLE_COLLECTION_LIB */
-#ifdef MB_ENABLE_CLASS
-#	define _IS_CLASS(__o) ((__o) && ((_object_t*)(__o))->type == _DT_CLASS)
-#	define _GET_CLASS(__o) ((!__o) ? 0 : (_IS_CLASS(__o) ? (__o) : (_IS_VAR(__o) && _IS_CLASS((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
-#	define _IS_ME(__v) (!!(__v)->isme)
-#else /* MB_ENABLE_CLASS */
-#	define _IS_ME(__v) false
-#endif /* MB_ENABLE_CLASS */
-#define _IS_ROUTINE(__o) ((__o) && ((_object_t*)(__o))->type == _DT_ROUTINE)
-#define _GET_ROUTINE(__o) ((!__o) ? 0 : (_IS_ROUTINE(__o) ? (__o) : (_IS_VAR(__o) && _IS_ROUTINE((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
 
-/* Hash table size */
-#define _HT_ARRAY_SIZE_TINY 1
-#define _HT_ARRAY_SIZE_SMALL 193
-#define _HT_ARRAY_SIZE_MID 1543
-#define _HT_ARRAY_SIZE_BIG 12289
-#define _HT_ARRAY_SIZE_DEFAULT _HT_ARRAY_SIZE_SMALL
-
-/* Max length of a single symbol */
-#define _SINGLE_SYMBOL_MAX_LENGTH 128
-
-#define _META_LIST_MAX_DEPTH UINT_MAX
-
-typedef int (* _common_compare)(void*, void*);
-
-/* Container operation */
+/* Collection functors */
 #define _OP_RESULT_NORMAL 0
 #define _OP_RESULT_DEL_NODE -1
 
+typedef int (* _common_compare)(void*, void*);
 typedef int (* _common_operation)(void*, void*);
 
 /** List */
@@ -465,6 +453,8 @@ typedef struct _label_t {
 } _label_t;
 
 #ifdef MB_ENABLE_CLASS
+#define _META_LIST_MAX_DEPTH UINT_MAX
+
 #define _CLASS_ME "ME"
 
 #define _CLASS_HASH_FUNC "HASH"
@@ -1346,6 +1336,21 @@ static bool_t _is_number(void* obj);
 static bool_t _is_string(void* obj);
 static char* _extract_string(_object_t* obj);
 
+#ifdef MB_ENABLE_COLLECTION_LIB
+#	define _IS_LIST(__o) ((__o) && ((_object_t*)(__o))->type == _DT_LIST)
+#	define _IS_DICT(__o) ((__o) && ((_object_t*)(__o))->type == _DT_DICT)
+#	define _IS_COLL(__o) (_IS_LIST(__o) || _IS_DICT(__o))
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+#	define _IS_CLASS(__o) ((__o) && ((_object_t*)(__o))->type == _DT_CLASS)
+#	define _GET_CLASS(__o) ((!__o) ? 0 : (_IS_CLASS(__o) ? (__o) : (_IS_VAR(__o) && _IS_CLASS((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
+#	define _IS_ME(__v) (!!(__v)->isme)
+#else /* MB_ENABLE_CLASS */
+#	define _IS_ME(__v) false
+#endif /* MB_ENABLE_CLASS */
+#define _IS_ROUTINE(__o) ((__o) && ((_object_t*)(__o))->type == _DT_ROUTINE)
+#define _GET_ROUTINE(__o) ((!__o) ? 0 : (_IS_ROUTINE(__o) ? (__o) : (_IS_VAR(__o) && _IS_ROUTINE((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
+
 #ifdef MB_ENABLE_USERTYPE_REF
 #	define _REF_USERTYPE_REF(__o) \
 		case _DT_USERTYPE_REF: \
@@ -1710,6 +1715,8 @@ static void _tidy_scope_chain(mb_interpreter_t* s);
 static void _tidy_intermediate_value(_ref_t* ref, void* data);
 static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _ls_node_t** ast, _object_t* obj);
 
+/** Interpretation */
+
 static void _stepped(mb_interpreter_t* s, _ls_node_t* ast);
 static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l, bool_t force_next);
 static int _common_end_looping(mb_interpreter_t* s, _ls_node_t** l);
@@ -1725,6 +1732,8 @@ static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func
 static _running_context_t* _create_running_context(bool_t create_var_dict);
 static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context);
 static void _destroy_parsing_context(_parsing_context_t** context);
+
+/** Interface processors */
 
 #ifdef MB_ENABLE_MODULE
 static _module_func_t* _create_module_func(mb_interpreter_t* s, mb_func_t f);
@@ -4315,7 +4324,7 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
 	return result;
 }
 
-/** Others */
+/** Handlers */
 
 /* Set current error information */
 static void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f) {
@@ -4346,6 +4355,8 @@ static mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 
 	return mb_gets;
 }
+
+/** Parsing helpers */
 
 /* Read all content of a file into a buffer */
 static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
@@ -5450,6 +5461,8 @@ static char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned shor
 	return 0;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 }
+
+/** Object processors */
 
 /* Get the size of a data type */
 static int_t _get_size_of(_data_e type) {
@@ -9514,6 +9527,8 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 	return *val_ptr;
 }
 
+/** Interpretation */
+
 /* Callback a stepped debug handler, this function is called each step */
 static void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
 	_object_t* obj = 0;
@@ -10119,6 +10134,8 @@ static void _destroy_parsing_context(_parsing_context_t** context) {
 		safe_free(*context);
 	}
 }
+
+/** Interface processors */
 
 #ifdef MB_ENABLE_MODULE
 /* Create a module function structure */
@@ -15663,10 +15680,22 @@ _print:
 				}
 #ifdef MB_ENABLE_USERTYPE_REF
 			} else if(val_ptr->type == _DT_USERTYPE_REF) {
-				if(val_ptr->data.usertype_ref->fmt)
-					val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _get_printer(s));
-				else
+				if(val_ptr->data.usertype_ref->fmt) {
+					char buf[_TEMP_FORMAT_MAX_LENGTH];
+					char* pbuf = buf;
+					int lbuf = 0;
+					memset(buf, 0, sizeof(buf));
+					lbuf = val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, pbuf, countof(buf));
+					if(lbuf > countof(buf)) {
+						pbuf = (char*)mb_malloc((size_t)lbuf);
+						val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, pbuf, lbuf);
+					}
+					_get_printer(s)(pbuf);
+					if(pbuf != buf)
+						mb_free(pbuf);
+				} else {
 					_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
+				}
 				_unref(&val_ptr->data.usertype_ref->ref, val_ptr->data.usertype_ref);
 #endif /* MB_ENABLE_USERTYPE_REF */
 			} else if(val_ptr->type == _DT_TYPE) {
@@ -15753,7 +15782,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
-	char line[256];
+	char line[_INPUT_MAX_LENGTH];
 	char* conv_suc = 0;
 
 	mb_assert(s && l);
@@ -15799,9 +15828,9 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		len = _get_inputer(s)(line, sizeof(line));
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 		{
-			char str[16];
+			char str[_TEMP_FORMAT_MAX_LENGTH];
 			char* strp = str;
-			wchar_t wstr[16];
+			wchar_t wstr[_TEMP_FORMAT_MAX_LENGTH];
 			wchar_t* wstrp = wstr;
 			mb_bytes_to_wchar_ansi(line, &wstrp, countof(wstr));
 			len = mb_wchar_to_bytes(wstrp, &strp, countof(str));
