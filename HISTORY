@@ -1,3 +1,6 @@
+Jun. 28 2016
+Fixed a type detection bug with string
+
 Jun. 27 2016
 Added a context parameter to stepped handler
 
