@@ -3412,7 +3412,7 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 		if(c->type == _DT_STRING) {
 			if(ast->next) {
 				_object_t* _fsn = (_object_t*)ast->next->data;
-				if(_IS_FUNC(_fsn, _core_add) || _IS_FUNC(_fsn, _core_and) || _IS_FUNC(_fsn, _core_or))
+				if(_IS_FUNC(_fsn, _core_add) || _IS_FUNC(_fsn, _core_and) || _IS_FUNC(_fsn, _core_or) || _IS_FUNC(_fsn, _core_is))
 					break;
 			}
 
