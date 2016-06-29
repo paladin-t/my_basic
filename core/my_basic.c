@@ -1181,7 +1181,7 @@ static void _resize_dynamic_buffer(_dynamic_buffer_t* buf, size_t es, size_t c);
 #define _DISPOSE_BUF(b) do { _dispose_dynamic_buffer(&(b)); } while(0)
 #define _CHARS_OF_BUF(b) (_countof_dynamic_buffer((&b), sizeof(char)))
 #define _RESIZE_CHAR_BUF(b, c) do { _resize_dynamic_buffer(&(b), sizeof(char), (c)); } while(0)
-#define _HEAP_CHAR_BUF(b) (((b).pointer.charp != (b).bytes) ? ((b).pointer.charp) : (mb_memdup((b).pointer.charp, (b).size)))
+#define _HEAP_CHAR_BUF(b) (((b).pointer.charp != (b).bytes) ? ((b).pointer.charp) : (mb_memdup((b).pointer.charp, (unsigned)(b).size)))
 #define _CHAR_BUF_PTR(b) ((b).pointer.charp)
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 #define _WCHARS_OF_BUF(b) (_countof_dynamic_buffer((&b), sizeof(wchar_t)))
@@ -15753,7 +15753,7 @@ _print:
 					_dynamic_buffer_t buf;
 					size_t lbuf = 0;
 					_INIT_BUF(buf);
-					while((lbuf = (size_t)val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf))) > _CHARS_OF_BUF(buf)) {
+					while((lbuf = (size_t)val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _CHAR_BUF_PTR(buf), (unsigned)_CHARS_OF_BUF(buf))) > _CHARS_OF_BUF(buf)) {
 						_RESIZE_CHAR_BUF(buf, lbuf);
 					}
 					_get_printer(s)(_CHAR_BUF_PTR(buf));
