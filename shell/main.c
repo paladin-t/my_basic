@@ -709,7 +709,7 @@ static int _bytes_to_wchar(const char* sz, wchar_t** out, size_t size) {
 		*out = (wchar_t*)malloc(sizeof(wchar_t) * result);
 	MultiByteToWideChar(CP_UTF8, 0, sz, -1, *out, result);
 
-	return true;
+	return result;
 }
 
 static int _bytes_to_wchar_ansi(const char* sz, wchar_t** out, size_t size) {
