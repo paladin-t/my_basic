@@ -15736,10 +15736,8 @@ _print:
 				size_t lbuf = 0;
 				_INIT_BUF(buf);
 				setlocale(LC_ALL, "");
-				lbuf = (size_t)mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf));
-				if(lbuf > _WCHARS_OF_BUF(buf)) {
+				while((lbuf = (size_t)mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf))) > _WCHARS_OF_BUF(buf)) {
 					_RESIZE_WCHAR_BUF(buf, lbuf);
-					mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf));
 				}
 				_get_printer(s)("%ls", _WCHAR_BUF_PTR(buf));
 				_DISPOSE_BUF(buf);
@@ -15755,10 +15753,8 @@ _print:
 					_dynamic_buffer_t buf;
 					size_t lbuf = 0;
 					_INIT_BUF(buf);
-					lbuf = (size_t)val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf));
-					if(lbuf > _CHARS_OF_BUF(buf)) {
+					while((lbuf = (size_t)val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf))) > _CHARS_OF_BUF(buf)) {
 						_RESIZE_CHAR_BUF(buf, lbuf);
-						val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf));
 					}
 					_get_printer(s)(_CHAR_BUF_PTR(buf));
 					_DISPOSE_BUF(buf);
@@ -15890,26 +15886,22 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		}
 		ast = ast->next;
 	} else if(obj->data.variable->data->type == _DT_STRING) {
-		int len = 0;
+		size_t len = 0;
 		if(obj->data.variable->data->data.string) {
 			safe_free(obj->data.variable->data->data.string);
 		}
-		len = _get_inputer(s)(line, sizeof(line));
+		len = (size_t)_get_inputer(s)(line, sizeof(line));
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 		{
 			_dynamic_buffer_t buf;
 			_dynamic_buffer_t wbuf;
 			_INIT_BUF(buf);
 			_INIT_BUF(wbuf);
-			len = mb_bytes_to_wchar_ansi(line, &_WCHAR_BUF_PTR(wbuf), _WCHARS_OF_BUF(wbuf));
-			if(len > (int)_WCHARS_OF_BUF(wbuf)) {
+			while((len = (size_t)mb_bytes_to_wchar_ansi(line, &_WCHAR_BUF_PTR(wbuf), _WCHARS_OF_BUF(wbuf))) > _WCHARS_OF_BUF(wbuf)) {
 				_RESIZE_WCHAR_BUF(wbuf, len);
-				mb_bytes_to_wchar_ansi(line, &_WCHAR_BUF_PTR(wbuf), _WCHARS_OF_BUF(wbuf));
 			}
-			len = mb_wchar_to_bytes(_WCHAR_BUF_PTR(wbuf), &_CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf));
-			if(len > (int)_CHARS_OF_BUF(buf)) {
+			while((len = mb_wchar_to_bytes(_WCHAR_BUF_PTR(wbuf), &_CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf))) > _CHARS_OF_BUF(buf)) {
 				_RESIZE_CHAR_BUF(buf, len);
-				mb_wchar_to_bytes(_WCHAR_BUF_PTR(wbuf), &_CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf));
 			}
 			_DISPOSE_BUF(wbuf);
 			obj->data.variable->data->data.string = _HEAP_CHAR_BUF(buf);
