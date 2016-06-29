@@ -1,3 +1,6 @@
+Jun. 29 2016
+Added a dynamic buffer helper for temporary string manipulation
+
 Jun. 28 2016
 Fixed a type detection bug with string
 Refactored formatting functor of a referenced usertype
