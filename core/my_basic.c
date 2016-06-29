@@ -593,6 +593,17 @@ typedef struct _module_func_t {
 } _module_func_t;
 #endif /* MB_ENABLE_MODULE */
 
+typedef struct _dynamic_buffer_t {
+	char bytes[_TEMP_FORMAT_MAX_LENGTH];
+	union {
+		char* charp;
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+		wchar_t* wcharp;
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
+	} pointer;
+	size_t size;
+} _dynamic_buffer_t;
+
 #define _MB_MEM_TAG_SIZE (sizeof(mb_mem_tag_t))
 
 MBAPI size_t MB_SIZEOF_4BYTES = 4;
@@ -1161,6 +1172,23 @@ static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht);
 
 /** Memory manipulations */
 
+static void _init_dynamic_buffer(_dynamic_buffer_t* buf);
+static void _dispose_dynamic_buffer(_dynamic_buffer_t* buf);
+static size_t _countof_dynamic_buffer(_dynamic_buffer_t* buf, size_t es);
+static void _resize_dynamic_buffer(_dynamic_buffer_t* buf, size_t es, size_t c);
+
+#define _INIT_BUF(b) do { _init_dynamic_buffer(&(b)); } while(0)
+#define _DISPOSE_BUF(b) do { _dispose_dynamic_buffer(&(b)); } while(0)
+#define _CHARS_OF_BUF(b) (_countof_dynamic_buffer((&b), sizeof(char)))
+#define _RESIZE_CHAR_BUF(b, c) do { _resize_dynamic_buffer(&(b), sizeof(char), (c)); } while(0)
+#define _HEAP_CHAR_BUF(b) (((b).pointer.charp != (b).bytes) ? ((b).pointer.charp) : (mb_memdup((b).pointer.charp, (b).size)))
+#define _CHAR_BUF_PTR(b) ((b).pointer.charp)
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+#define _WCHARS_OF_BUF(b) (_countof_dynamic_buffer((&b), sizeof(wchar_t)))
+#define _RESIZE_WCHAR_BUF(b, c) do { _resize_dynamic_buffer(&(b), sizeof(wchar_t), (c)); } while(0)
+#define _WCHAR_BUF_PTR(b) ((b).pointer.wcharp)
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
+
 #define _MB_CHECK_MEM_TAG_SIZE(y, s) ((mb_mem_tag_t)(s) == (s))
 #define _MB_WRITE_MEM_TAG_SIZE(t, s) (*((mb_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)) = (mb_mem_tag_t)(s))
 #define _MB_READ_MEM_TAG_SIZE(t) (*((mb_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)))
@@ -1187,13 +1215,13 @@ static char* mb_strupr(char* s);
 
 static bool_t mb_is_little_endian(void);
 
+/** Unicode handling */
+
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 static int mb_bytes_to_wchar(const char* sz, wchar_t** out, size_t size);
 static int mb_bytes_to_wchar_ansi(const char* sz, wchar_t** out, size_t size);
 static int mb_wchar_to_bytes(const wchar_t* sz, char** out, size_t size);
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
-
-/** Unicode handling */
 
 static int mb_uu_getbom(const char** ch);
 #ifdef MB_ENABLE_UNICODE
@@ -2864,6 +2892,48 @@ static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht) {
 
 /** Memory manipulations */
 
+/* Initialize a chunk of resizable dynamic buffer */
+static void _init_dynamic_buffer(_dynamic_buffer_t* buf) {
+	mb_assert(buf);
+
+	buf->pointer.charp = buf->bytes;
+	buf->size = sizeof(buf->bytes);
+}
+
+/* Dispose a chunk of resizable dynamic buffer */
+static void _dispose_dynamic_buffer(_dynamic_buffer_t* buf) {
+	mb_assert(buf);
+
+	if(buf->pointer.charp != buf->bytes)
+		mb_free(buf->pointer.charp);
+	buf->pointer.charp = 0;
+	buf->size = 0;
+}
+
+/* Get the element count of a chunk of resizable dynamic buffer */
+static size_t _countof_dynamic_buffer(_dynamic_buffer_t* buf, size_t es) {
+	mb_assert(buf);
+
+	return buf->size / es;
+}
+
+/* Resize a chunk of resizable dynamic buffer */
+static void _resize_dynamic_buffer(_dynamic_buffer_t* buf, size_t es, size_t c) {
+	size_t as = es * c;
+
+	mb_assert(buf);
+
+	if(as > buf->size) {
+		if(buf->pointer.charp != buf->bytes) {
+			mb_free(buf->pointer.charp);
+			buf->pointer.charp = (char*)mb_malloc(as);
+		} else {
+			buf->pointer.charp = (char*)mb_malloc(as);
+		}
+		buf->size = as;
+	}
+}
+
 /* Allocate a chunk of memory with a specific size */
 static void* mb_malloc(size_t s) {
 	char* ret = 0;
@@ -2976,23 +3046,23 @@ static bool_t mb_is_little_endian(void) {
 	return ((char*)&i)[0] == 1;
 }
 
+/** Unicode handling */
+
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 /* Map a UTF8 character string to a UTF16 (wide character) string */
 static int mb_bytes_to_wchar(const char* sz, wchar_t** out, size_t size) {
 	int result = MultiByteToWideChar(CP_UTF8, 0, sz, -1, 0, 0);
-	if((int)size < result)
-		*out = (wchar_t*)mb_malloc(sizeof(wchar_t) * result);
-	MultiByteToWideChar(CP_UTF8, 0, sz, -1, *out, result);
+	if((int)size >= result)
+		MultiByteToWideChar(CP_UTF8, 0, sz, -1, *out, result);
 
-	return true;
+	return result;
 }
 
 /* Map an ANSI character string to a UTF16 (wide character) string */
 static int mb_bytes_to_wchar_ansi(const char* sz, wchar_t** out, size_t size) {
 	int result = MultiByteToWideChar(CP_ACP, 0, sz, -1, 0, 0);
-	if((int)size < result)
-		*out = (wchar_t*)mb_malloc(sizeof(wchar_t) * result);
-	MultiByteToWideChar(CP_ACP, 0, sz, -1, *out, result);
+	if((int)size >= result)
+		MultiByteToWideChar(CP_ACP, 0, sz, -1, *out, result);
 
 	return result;
 }
@@ -3000,15 +3070,12 @@ static int mb_bytes_to_wchar_ansi(const char* sz, wchar_t** out, size_t size) {
 /* Map a UTF16 (wide character) string to a UTF8 character string */
 static int mb_wchar_to_bytes(const wchar_t* sz, char** out, size_t size) {
 	int result = WideCharToMultiByte(CP_UTF8, 0, sz, -1, 0, 0, 0, 0);
-	if((int)size < result)
-		*out = (char*)mb_malloc(result);
-	WideCharToMultiByte(CP_UTF8, 0, sz, -1, *out, result, 0, 0);
+	if((int)size >= result)
+		WideCharToMultiByte(CP_UTF8, 0, sz, -1, *out, result, 0, 0);
 
 	return result;
 }
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
-
-/** Unicode handling */
 
 /* Determine whether a string begins with a BOM, and ignore it */
 static int mb_uu_getbom(const char** ch) {
@@ -15665,13 +15732,17 @@ _print:
 			} else if(val_ptr->type == _DT_STRING) {
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 				char* str = val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING;
-				wchar_t wstr[16];
-				wchar_t* wstrp = wstr;
+				_dynamic_buffer_t buf;
+				size_t lbuf = 0;
+				_INIT_BUF(buf);
 				setlocale(LC_ALL, "");
-				mb_bytes_to_wchar(str, &wstrp, countof(wstr));
-				_get_printer(s)("%ls", wstrp);
-				if(wstrp != wstr)
-					mb_free(wstrp);
+				lbuf = (size_t)mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf));
+				if(lbuf > _WCHARS_OF_BUF(buf)) {
+					_RESIZE_WCHAR_BUF(buf, lbuf);
+					mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf));
+				}
+				_get_printer(s)("%ls", _WCHAR_BUF_PTR(buf));
+				_DISPOSE_BUF(buf);
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 				_get_printer(s)(val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING);
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
@@ -15681,18 +15752,16 @@ _print:
 #ifdef MB_ENABLE_USERTYPE_REF
 			} else if(val_ptr->type == _DT_USERTYPE_REF) {
 				if(val_ptr->data.usertype_ref->fmt) {
-					char buf[_TEMP_FORMAT_MAX_LENGTH];
-					char* pbuf = buf;
-					int lbuf = 0;
-					memset(buf, 0, sizeof(buf));
-					lbuf = val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, pbuf, countof(buf));
-					if(lbuf > countof(buf)) {
-						pbuf = (char*)mb_malloc((size_t)lbuf);
-						val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, pbuf, lbuf);
+					_dynamic_buffer_t buf;
+					size_t lbuf = 0;
+					_INIT_BUF(buf);
+					lbuf = (size_t)val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf));
+					if(lbuf > _CHARS_OF_BUF(buf)) {
+						_RESIZE_CHAR_BUF(buf, lbuf);
+						val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf));
 					}
-					_get_printer(s)(pbuf);
-					if(pbuf != buf)
-						mb_free(pbuf);
+					_get_printer(s)(_CHAR_BUF_PTR(buf));
+					_DISPOSE_BUF(buf);
 				} else {
 					_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
 				}
@@ -15828,18 +15897,22 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		len = _get_inputer(s)(line, sizeof(line));
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 		{
-			char str[_TEMP_FORMAT_MAX_LENGTH];
-			char* strp = str;
-			wchar_t wstr[_TEMP_FORMAT_MAX_LENGTH];
-			wchar_t* wstrp = wstr;
-			mb_bytes_to_wchar_ansi(line, &wstrp, countof(wstr));
-			len = mb_wchar_to_bytes(wstrp, &strp, countof(str));
-			if(wstrp != wstr)
-				mb_free(wstrp);
-			if(strp != str)
-				obj->data.variable->data->data.string = strp;
-			else
-				obj->data.variable->data->data.string = mb_memdup(strp, len + 1);
+			_dynamic_buffer_t buf;
+			_dynamic_buffer_t wbuf;
+			_INIT_BUF(buf);
+			_INIT_BUF(wbuf);
+			len = mb_bytes_to_wchar_ansi(line, &_WCHAR_BUF_PTR(wbuf), _WCHARS_OF_BUF(wbuf));
+			if(len > (int)_WCHARS_OF_BUF(wbuf)) {
+				_RESIZE_WCHAR_BUF(wbuf, len);
+				mb_bytes_to_wchar_ansi(line, &_WCHAR_BUF_PTR(wbuf), _WCHARS_OF_BUF(wbuf));
+			}
+			len = mb_wchar_to_bytes(_WCHAR_BUF_PTR(wbuf), &_CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf));
+			if(len > (int)_CHARS_OF_BUF(buf)) {
+				_RESIZE_CHAR_BUF(buf, len);
+				mb_wchar_to_bytes(_WCHAR_BUF_PTR(wbuf), &_CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf));
+			}
+			_DISPOSE_BUF(wbuf);
+			obj->data.variable->data->data.string = _HEAP_CHAR_BUF(buf);
 		}
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 		obj->data.variable->data->data.string = mb_memdup(line, len + 1);
