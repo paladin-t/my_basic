@@ -43,6 +43,7 @@
 #endif /* MB_CP_ARDUINO */
 #include <assert.h>
 #include <ctype.h>
+#include <float.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -2896,6 +2897,7 @@ static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht) {
 static void _init_dynamic_buffer(_dynamic_buffer_t* buf) {
 	mb_assert(buf);
 
+	memset(buf->bytes, 0, sizeof(buf->bytes));
 	buf->pointer.charp = buf->bytes;
 	buf->size = sizeof(buf->bytes);
 }
@@ -15334,12 +15336,14 @@ _exit:
 static int _std_str(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
-	char* chr = 0;
-	const size_t size = 32;
+	_dynamic_buffer_t buf;
+	size_t lbuf = 32;
 
 	mb_assert(s && l);
 
 	mb_make_nil(arg);
+
+	_INIT_BUF(buf);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
@@ -15347,17 +15351,19 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	chr = (char*)mb_malloc(size);
-	memset(chr, 0, size);
 	switch(arg.type) {
 	case MB_DT_INT:
-		if((size_t)sprintf(chr, MB_INT_FMT, arg.value.integer) >= size) {
+		lbuf = 32;
+		_RESIZE_CHAR_BUF(buf, lbuf);
+		if((size_t)sprintf(_CHAR_BUF_PTR(buf), MB_INT_FMT, arg.value.integer) >= lbuf) {
 			mb_assert(0 && "Buffer overflow.");
 		}
 
 		break;
 	case MB_DT_REAL:
-		if((size_t)sprintf(chr, MB_REAL_FMT, arg.value.float_point) >= size) {
+		lbuf = 1 /* - */ + (DBL_MAX_10_EXP + 1) /* 308 + 1 digits */ + 1 /* . */ + 6 /* precision */ + 1 /* \0 */;
+		_RESIZE_CHAR_BUF(buf, lbuf);
+		if((size_t)sprintf(_CHAR_BUF_PTR(buf), MB_REAL_FMT, arg.value.float_point) >= lbuf) {
 			mb_assert(0 && "Buffer overflow.");
 		}
 
@@ -15367,7 +15373,7 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 
 		goto _exit;
 	}
-	mb_check(mb_push_string(s, l, chr));
+	mb_check(mb_push_string(s, l, _HEAP_CHAR_BUF(buf)));
 
 _exit:
 	return result;
