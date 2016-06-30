@@ -1,3 +1,6 @@
+Jun. 30 2016
+Fixed a buffer overflow issue when formatting real number with the STR statement
+
 Jun. 29 2016
 Added a dynamic buffer helper for temporary string manipulation
 
