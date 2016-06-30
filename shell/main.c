@@ -194,7 +194,8 @@ static int _cmp_size_t(const void* l, const void* r) {
 		return 1;
 	else if(*pl < *pr)
 		return -1;
-	else return 0;
+	else
+		return 0;
 }
 
 static void _tidy_mem_pool(bool_t force) {
@@ -1221,6 +1222,7 @@ static int_t _ticks(void) {
 	rv = gettimeofday(&now, 0);
 	if(rv)
 		return 0;
+
 	ts.tv_sec  = now.tv_sec;
 	ts.tv_nsec = now.tv_usec * 1000;
 
