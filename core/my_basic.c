@@ -2926,12 +2926,9 @@ static void _resize_dynamic_buffer(_dynamic_buffer_t* buf, size_t es, size_t c) 
 	mb_assert(buf);
 
 	if(as > buf->size) {
-		if(buf->pointer.charp != buf->bytes) {
+		if(buf->pointer.charp != buf->bytes)
 			mb_free(buf->pointer.charp);
-			buf->pointer.charp = (char*)mb_malloc(as);
-		} else {
-			buf->pointer.charp = (char*)mb_malloc(as);
-		}
+		buf->pointer.charp = (char*)mb_malloc(as);
 		buf->size = as;
 	}
 }
@@ -11430,10 +11427,12 @@ int mb_get_var_value(struct mb_interpreter_t* s, void* v, mb_value_t* val) {
 
 	mb_assert(s);
 
-	if(!val || !v) goto _exit;
+	if(!val || !v)
+		goto _exit;
 
 	obj = (_object_t*)v;
-	if(obj->type != _DT_VAR) goto _exit;
+	if(obj->type != _DT_VAR)
+		goto _exit;
 
 	_internal_object_to_public_value(obj->data.variable->data, val);
 
@@ -11448,9 +11447,11 @@ int mb_set_var_value(struct mb_interpreter_t* s, void* v, mb_value_t val) {
 
 	mb_assert(s);
 
-	if(!v) goto _exit;
+	if(!v)
+		goto _exit;
 	obj = (_object_t*)v;
-	if(obj->type != _DT_VAR) goto _exit;
+	if(obj->type != _DT_VAR)
+		goto _exit;
 
 	_public_value_to_internal_object(&val, obj->data.variable->data);
 
@@ -14021,9 +14022,9 @@ _retry:
 				_traverse_class(s->last_instance->created_from, 0, _is_a_class, _META_LIST_MAX_DEPTH, true, routine->instance->created_from, &is_a0);
 				_traverse_class(routine->instance->created_from, 0, _is_a_class, _META_LIST_MAX_DEPTH, true, s->last_instance->created_from, &is_a1);
 			}
-			if(routine->instance &&
-				(!s->last_instance ||
-					(s->last_instance &&
+			if(routine->instance && (
+				!s->last_instance || (
+					s->last_instance &&
 						!is_a0 && !is_a1 &&
 						s->last_instance->created_from != routine->instance &&
 						routine->instance->created_from != s->last_instance
@@ -14768,7 +14769,7 @@ static int _std_floor(mb_interpreter_t* s, void** l) {
 
 	switch(arg.type) {
 	case MB_DT_INT:
-		arg.value.integer = (int_t)(arg.value.integer);
+		/* Do nothing */
 
 		break;
 	case MB_DT_REAL:
@@ -14804,7 +14805,7 @@ static int _std_ceil(mb_interpreter_t* s, void** l) {
 
 	switch(arg.type) {
 	case MB_DT_INT:
-		arg.value.integer = (int_t)(arg.value.integer);
+		/* Do nothing */
 
 		break;
 	case MB_DT_REAL:
@@ -14840,7 +14841,7 @@ static int _std_fix(mb_interpreter_t* s, void** l) {
 
 	switch(arg.type) {
 	case MB_DT_INT:
-		arg.value.integer = (int_t)(arg.value.integer);
+		/* Do nothing */
 
 		break;
 	case MB_DT_REAL:
@@ -14876,7 +14877,7 @@ static int _std_round(mb_interpreter_t* s, void** l) {
 
 	switch(arg.type) {
 	case MB_DT_INT:
-		arg.value.integer = (int_t)(arg.value.integer);
+		/* Do nothing */
 
 		break;
 	case MB_DT_REAL:
@@ -15898,7 +15899,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		}
 		len = (size_t)_get_inputer(s)(line, sizeof(line));
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
-		{
+		do {
 			_dynamic_buffer_t buf;
 			_dynamic_buffer_t wbuf;
 			_INIT_BUF(buf);
@@ -15911,7 +15912,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 			}
 			_DISPOSE_BUF(wbuf);
 			obj->data.variable->data->data.string = _HEAP_CHAR_BUF(buf);
-		}
+		} while(0);
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 		obj->data.variable->data->data.string = mb_memdup(line, len + 1);
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
