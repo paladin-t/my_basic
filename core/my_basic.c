@@ -15914,7 +15914,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 			obj->data.variable->data->data.string = _HEAP_CHAR_BUF(buf);
 		} while(0);
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
-		obj->data.variable->data->data.string = mb_memdup(line, len + 1);
+		obj->data.variable->data->data.string = mb_memdup(line, (unsigned)(len + 1));
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 		ast = ast->next;
 	} else {
