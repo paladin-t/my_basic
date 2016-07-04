@@ -162,6 +162,7 @@ The [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) includes most o
  * [Customize an importer](https://github.com/paladin-t/my_basic/wiki/Customize-an-importer)
 * [More scripting APIs](https://github.com/paladin-t/my_basic/wiki/More-scripting-APIs)
  * [String matching module](https://github.com/paladin-t/my_basic/wiki/String-matching-module)
+ * [String manipulation module](https://github.com/paladin-t/my_basic/wiki/String-manipulation-module)
  * [File module](https://github.com/paladin-t/my_basic/wiki/File-module)
  * [Bit operation module](https://github.com/paladin-t/my_basic/wiki/Bit-operation-module)
  * [Miscellaneous module](https://github.com/paladin-t/my_basic/wiki/Miscellaneous-module)
