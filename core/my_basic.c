@@ -221,7 +221,8 @@ static const char* _ERR_DESC[] = {
 	"Operation failed",
 	"Invalid operation usage",
 	"Dimension count out of bound",
-	"Out of bound",
+	"Rank out of bound",
+	"Complex array required",
 	"Label does not exist",
 	"No return point",
 	"Colon expected",
@@ -253,6 +254,7 @@ static const char* _ERR_DESC[] = {
 	"MOD by zero",
 	"Invalid expression",
 	"Out of memory",
+	"Module not match",
 	"Wrong function reached",
 	"Do not suspend in a routine",
 	"Do not mix instructional and structured sub routines",
@@ -275,6 +277,7 @@ static const char* _ERR_DESC[] = {
 	"Invalid iterator",
 	"Empty collection",
 	"Referenced type expected",
+	"Debug identifier not found",
 	"Stack trace disabled",
 	/** Extended abort */
 	"Extended abort"
@@ -6416,7 +6419,7 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 			_handle_error_on_obj(s, SE_RN_DIMENSION_COUNT_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		if((int)val.integer >= arr->data.array->dimensions[dcount]) {
-			_handle_error_on_obj(s, SE_RN_ARRAY_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		idx += (unsigned int)val.integer * f;
 		/* Comma? */
@@ -6428,7 +6431,7 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 	}
 	*index = idx;
 	if(!arr->data.array->raw) {
-		_handle_error_on_obj(s, SE_RN_ARRAY_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_RANK_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 
 _exit:
@@ -10820,13 +10823,16 @@ int mb_begin_module(struct mb_interpreter_t* s, const char* n) {
 	mb_assert(s && n);
 
 #ifdef MB_ENABLE_MODULE
-	s->with_module = mb_strdup(n, strlen(n) + 1);
+	if(s->with_module) {
+		_handle_error_on_obj(s, SE_RN_MODULE_NOT_MATCH, s->source_file, (_object_t*)0, MB_FUNC_ERR, _exit, result);
+	} else {
+		s->with_module = mb_strdup(n, strlen(n) + 1);
+	}
 #else /* MB_ENABLE_MODULE */
 	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, (_object_t*)0, MB_FUNC_WARNING, _exit, result);
-
-_exit:
 #endif /* MB_ENABLE_MODULE */
 
+_exit:
 	return result;
 }
 
@@ -10839,14 +10845,15 @@ int mb_end_module(struct mb_interpreter_t* s) {
 #ifdef MB_ENABLE_MODULE
 	if(s->with_module) {
 		safe_free(s->with_module);
+	} else {
+		_handle_error_on_obj(s, SE_RN_MODULE_NOT_MATCH, s->source_file, (_object_t*)0, MB_FUNC_ERR, _exit, result);
 	}
 
 #else /* MB_ENABLE_MODULE */
 	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, (_object_t*)0, MB_FUNC_WARNING, _exit, result);
-
-_exit:
 #endif /* MB_ENABLE_MODULE */
 
+_exit:
 	return result;
 }
 
@@ -11472,12 +11479,12 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 
 	*a = 0;
 	if(c >= MB_MAX_DIMENSION_COUNT) {
-		_handle_error_on_obj(s, SE_RN_TOO_MUCH_DIMENSIONS, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_TOO_MUCH_DIMENSIONS, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 	for(j = 0; j < c; j++) {
 		n = d[j];
 		if(n <= 0) {
-			_handle_error_on_obj(s, SE_RN_ILLEGAL_BOUND, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_ILLEGAL_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 	}
 
@@ -11487,9 +11494,7 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 	} else if(t == MB_DT_STRING) {
 		type = _DT_STRING;
 	} else {
-		result = MB_NEED_COMPLEX_ARRAY;
-
-		goto _exit;
+		_handle_error_on_obj(s, SE_RN_NEED_COMPLEX_ARRAY, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 #else /* MB_SIMPLE_ARRAY */
 	type = _DT_REAL;
@@ -11525,9 +11530,7 @@ int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* 
 
 	arr = (_array_t*)a;
 	if(r < 0 || r >= arr->dimension_count) {
-		result = MB_RANK_OUT_OF_BOUNDS;
-
-		goto _exit;
+		_handle_error_on_obj(s, SE_RN_RANK_OUT_OF_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 	if(i)
 		*i = arr->dimensions[r];
@@ -11547,18 +11550,14 @@ int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int
 
 	arr = (_array_t*)a;
 	if(c < 0 || c > arr->dimension_count) {
-		result = MB_RANK_OUT_OF_BOUNDS;
-
-		goto _exit;
+		_handle_error_on_obj(s, SE_RN_DIMENSION_COUNT_OUT_OF_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 	if(!val)
 		goto _exit;
 
 	index = _get_array_pos(s, arr, d, c);
 	if(index < 0) {
-		result = MB_INDEX_OUT_OF_BOUNDS;
-
-		goto _exit;
+		_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 
 	_get_array_elem(s, arr, index, &val->value, &type);
@@ -11579,16 +11578,12 @@ int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int
 
 	arr = (_array_t*)a;
 	if(c < 0 || c > arr->dimension_count) {
-		result = MB_RANK_OUT_OF_BOUNDS;
-
-		goto _exit;
+		_handle_error_on_obj(s, SE_RN_DIMENSION_COUNT_OUT_OF_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 
 	index = _get_array_pos(s, arr, d, c);
 	if(index < 0) {
-		result = MB_INDEX_OUT_OF_BOUNDS;
-
-		goto _exit;
+		_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 
 	type = _public_type_to_internal_type(val.type);
@@ -12305,9 +12300,10 @@ int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 		if(val) {
 			mb_make_nil(*val);
 		}
-		result = MB_DEBUG_ID_NOT_FOUND;
+		_handle_error_on_obj(s, SE_RN_DEBUG_ID_NOT_FOUND, s->source_file, (_object_t*)0, MB_FUNC_ERR, _exit, result);
 	}
 
+_exit:
 	return result;
 }
 
@@ -12328,9 +12324,10 @@ int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
 		mb_assert(obj->type == _DT_VAR);
 		result = _public_value_to_internal_object(&val, obj->data.variable->data);
 	} else {
-		result = MB_DEBUG_ID_NOT_FOUND;
+		_handle_error_on_obj(s, SE_RN_DEBUG_ID_NOT_FOUND, s->source_file, (_object_t*)0, MB_FUNC_ERR, _exit, result);
 	}
 
+_exit:
 	return result;
 }
 
@@ -15171,7 +15168,7 @@ static int _std_asc(mb_interpreter_t* s, void** l) {
 	sz = (size_t)mb_uu_ischar(arg);
 	if(sizeof(int_t) < sz) {
 		sz = sizeof(int_t);
-		_handle_error_on_obj(s, SE_RN_NUMBER_OVERFLOW, s->source_file, TON(l), MB_FUNC_WARNING, _exit, result);
+		_handle_error_on_obj(s, SE_RN_NUMBER_OVERFLOW, s->source_file, DON2(l), MB_FUNC_WARNING, _exit, result);
 	}
 	memcpy(&val, arg, sz);
 #else /* MB_ENABLE_UNICODE */
