@@ -1,3 +1,6 @@
+Jul. 5 2016
+Improved error handling
+
 Jun. 30 2016
 Fixed a buffer overflow issue when formatting real number with the STR statement
 
