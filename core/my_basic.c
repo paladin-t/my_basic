@@ -15726,6 +15726,8 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 		case _DT_FUNC: /* Fall through */
 		case _DT_ROUTINE:
 			result = _calc_expression(s, &ast, &val_ptr);
+			_REF(val_ptr);
+			_UNREF(val_ptr);
 _print:
 			if(val_ptr->type == _DT_NIL) {
 				_get_printer(s)(MB_NIL);
