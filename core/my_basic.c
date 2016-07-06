@@ -752,7 +752,15 @@ typedef struct _tuple3_t {
 #define _JMP_STR 0x02
 
 typedef struct mb_interpreter_t {
+	/** Fundamental */
 	bool_t valid;
+	void* userdata;
+	_ls_node_t* ast;
+	/** Memory management */
+	_gc_t gc;
+	_ls_node_t* edge_destroy_objects;
+	_ls_node_t* lazy_destroy_objects;
+	/** Scripting interface and module */
 	_ht_node_t* local_func_dict;
 	_ht_node_t* global_func_dict;
 #ifdef MB_ENABLE_MODULE
@@ -760,8 +768,8 @@ typedef struct mb_interpreter_t {
 	char* with_module;
 	_ls_node_t* using_modules;
 #endif /* MB_ENABLE_MODULE */
+	/** Parsing and interpreting */
 	char* source_file;
-	_ls_node_t* ast;
 	_parsing_context_t* parsing_context;
 	_running_context_t* running_context;
 	_ls_node_t* var_args;
@@ -774,27 +782,25 @@ typedef struct mb_interpreter_t {
 	_ls_node_t* sub_stack;
 	_ls_node_t* suspent_point;
 	int schedule_suspend_tag;
-	_ls_node_t* edge_destroy_objects;
-	_ls_node_t* lazy_destroy_objects;
-	_gc_t gc;
 	int_t no_eat_comma_mark;
 	_ls_node_t* skip_to_eoi;
 	_ls_node_t* in_neg_expr;
+#ifdef MB_ENABLE_STACK_TRACE
+	_ls_node_t* stack_frames;
+#endif /* MB_ENABLE_STACK_TRACE */
+	/** Error handling */
 	bool_t handled_error;
 	mb_error_e last_error;
 	char* last_error_file;
 	int last_error_pos;
 	unsigned short last_error_row;
 	unsigned short last_error_col;
-#ifdef MB_ENABLE_STACK_TRACE
-	_ls_node_t* stack_frames;
-#endif /* MB_ENABLE_STACK_TRACE */
+	/** Handlers */
 	mb_debug_stepped_handler_t debug_stepped_handler;
 	mb_error_handler_t error_handler;
 	mb_print_func_t printer;
 	mb_input_func_t inputer;
 	mb_import_handler_t import_handler;
-	void* userdata;
 } mb_interpreter_t;
 
 /* Operations */
