@@ -1,3 +1,6 @@
+Jul. 6 2016
+Fixed a memory leak with the PRINT statement
+
 Jul. 5 2016
 Improved error handling
 
