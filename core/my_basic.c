@@ -1281,7 +1281,7 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 		} \
 	} while(0)
 #if _WARNING_AS_ERROR
-#	define _handle_error(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
+#	define _handle_error_at_pos(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
 			_set_current_error((__s), (__err), (__f)); \
 			_set_error_pos((__s), (__pos), (__row), (__col)); \
@@ -1289,7 +1289,7 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 			goto __exit; \
 		} while(0)
 #else /* _WARNING_AS_ERROR */
-#	define _handle_error(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
+#	define _handle_error_at_pos(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
 			_set_current_error((__s), (__err), (__f)); \
 			_set_error_pos((__s), (__pos), (__row), (__col)); \
@@ -1300,18 +1300,18 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
 		} while(0)
 #endif /* _WARNING_AS_ERROR */
 #ifdef MB_ENABLE_SOURCE_TRACE
-#	define _HANDLE_ERROR(__s, __err, __f, __obj, __ret, __exit, __result) _handle_error((__s), (__err), (__f), (__obj)->source_pos, (__obj)->source_row, (__obj)->source_col, (__ret), __exit, (__result))
+#	define _handle_error_on_obj(__s, __err, __f, __obj, __ret, __exit, __result) \
+		do { \
+			if(__obj) { \
+				_handle_error_at_pos((__s), (__err), (__f), (__obj)->source_pos, (__obj)->source_row, (__obj)->source_col, (__ret), __exit, (__result)); \
+			} else { \
+				_handle_error_at_pos((__s), (__err), (__f), 0, 0, 0, (__ret), __exit, (__result)); \
+			} \
+		} while(0)
 #else /* MB_ENABLE_SOURCE_TRACE */
-#	define _HANDLE_ERROR(__s, __err, __f, __obj, __ret, __exit, __result) _handle_error((__s), (__err), (__f), 0, 0, 0, (__ret), __exit, (__result))
+#	define _handle_error_on_obj(__s, __err, __f, __obj, __ret, __exit, __result) \
+		do { ((void)(__obj)); _handle_error_at_pos((__s), (__err), (__f), 0, 0, 0, (__ret), __exit, (__result)); } while(0)
 #endif /* MB_ENABLE_SOURCE_TRACE */
-#define _handle_error_on_obj(__s, __err, __f, __obj, __ret, __exit, __result) \
-	do { \
-		if(__obj) { \
-			_HANDLE_ERROR((__s), (__err), (__f), (__obj), (__ret), __exit, (__result)); \
-		} else { \
-			_handle_error((__s), (__err), (__f), 0, 0, 0, (__ret), __exit, (__result)); \
-		} \
-	} while(0)
 
 #define _OUTTER_SCOPE(__s) ((__s)->prev ? (__s)->prev : (__s))
 
@@ -5354,7 +5354,7 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 						_mb_check(result = _append_char_to_symbol(s, c), _exit);
 					}
 				} else {
-					_handle_error(s, SE_PS_INVALID_CHAR, s->source_file, pos, row, col, MB_FUNC_ERR, _exit, result);
+					_handle_error_at_pos(s, SE_PS_INVALID_CHAR, s->source_file, pos, row, col, MB_FUNC_ERR, _exit, result);
 				}
 			} else if(context->symbol_state == _SS_OPERATOR) {
 				if(_is_identifier_char(c)) {
@@ -5366,7 +5366,7 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 						_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
 					_mb_check(result = _append_char_to_symbol(s, c), _exit);
 				} else {
-					_handle_error(s, SE_PS_INVALID_CHAR, s->source_file, pos, row, col, MB_FUNC_ERR, _exit, result);
+					_handle_error_at_pos(s, SE_PS_INVALID_CHAR, s->source_file, pos, row, col, MB_FUNC_ERR, _exit, result);
 				}
 			} else {
 				mb_assert(0 && "Impossible.");
