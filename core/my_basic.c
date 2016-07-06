@@ -124,6 +124,7 @@ extern "C" {
 /* Buffer length of some string operations */
 #define _INPUT_MAX_LENGTH 256
 #define _TEMP_FORMAT_MAX_LENGTH 32
+#define _LAMBDA_NAME_MAX_LENGTH 32
 
 /* Helper */
 #ifndef sgn
@@ -4036,6 +4037,9 @@ static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 #ifdef MB_ENABLE_SOURCE_TRACE
 	char* src = 0;
 #endif /* MB_ENABLE_SOURCE_TRACE */
+#ifdef MB_ENABLE_STACK_TRACE
+	char ln[_LAMBDA_NAME_MAX_LENGTH];
+#endif /* MB_ENABLE_STACK_TRACE */
 
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_pushback(s->stack_frames, r->name);
@@ -4053,7 +4057,6 @@ static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 #	ifdef MB_ENABLE_STACK_TRACE
 		_ls_node_t* top = _ls_back(s->stack_frames);
 		if(top) {
-			char ln[32];
 			sprintf(ln, "LAMBDA_0x%p", &r->func.lambda.ref);
 			top->data = ln;
 		}
