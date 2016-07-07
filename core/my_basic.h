@@ -205,16 +205,16 @@ extern "C" {
 
 #ifndef MB_FNAN
 #	ifdef MB_DOUBLE_FLOAT
-#		define MB_FNAN 0x7ff8000000000000
+#		define MB_FNAN 0x7FF8000000000000
 #	else /* MB_DOUBLE_FLOAT */
-#		define MB_FNAN 0x7fc00000
+#		define MB_FNAN 0x7FC00000
 #	endif /* MB_DOUBLE_FLOAT */
 #endif /* MB_FNAN */
 #ifndef MB_FINF
 #	ifdef MB_DOUBLE_FLOAT
-#		define MB_FINF 0x7ff0000000000000
+#		define MB_FINF 0x7FF0000000000000
 #	else /* MB_DOUBLE_FLOAT */
-#		define MB_FINF 0x7f800000
+#		define MB_FINF 0x7F800000
 #	endif /* MB_DOUBLE_FLOAT */
 #endif /* MB_FINF */
 
