@@ -4730,7 +4730,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 	*obj = _create_object();
 #ifdef MB_ENABLE_SOURCE_TRACE
 	(*obj)->source_pos = -1;
-	(*obj)->source_row = (*obj)->source_col = 0xffff;
+	(*obj)->source_row = (*obj)->source_col = 0xFFFF;
 #else /* MB_ENABLE_SOURCE_TRACE */
 	(*obj)->source_pos = -1;
 #endif /* MB_ENABLE_SOURCE_TRACE */
@@ -16052,7 +16052,7 @@ static int _coll_push(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_pop_value(s, l, &lst));
 	if(lst.type != MB_DT_LIST) {
-		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 	_MAKE_NIL(&olst);
 	_public_value_to_internal_object(&lst, &olst);
@@ -16093,7 +16093,7 @@ static int _coll_pop(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	if(lst.type != MB_DT_LIST) {
-		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 
 	_MAKE_NIL(&olst);
@@ -16138,7 +16138,7 @@ static int _coll_peek(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	if(lst.type != MB_DT_LIST) {
-		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 
 	_MAKE_NIL(&olst);
@@ -16186,7 +16186,7 @@ static int _coll_insert(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	if(lst.type != MB_DT_LIST) {
-		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 	_MAKE_NIL(&olst);
 	_public_value_to_internal_object(&lst, &olst);
@@ -16222,7 +16222,7 @@ static int _coll_sort(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	if(lst.type != MB_DT_LIST) {
-		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 	_MAKE_NIL(&olst);
 	_public_value_to_internal_object(&lst, &olst);
