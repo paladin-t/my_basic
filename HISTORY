@@ -1,3 +1,6 @@
+Jul. 7 2016
+Improved error prompting for collection manipulation
+
 Jul. 6 2016
 Fixed a memory leak with the PRINT statement
 Fixed a stack memory issue with stack tracing
