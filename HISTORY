@@ -1,4 +1,5 @@
 Jul. 7 2016
+Added function overriding support for referenced usertype
 Improved error prompting for collection manipulation
 
 Jul. 6 2016
