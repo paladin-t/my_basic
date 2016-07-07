@@ -6278,11 +6278,10 @@ static mb_meta_status_u _try_overridden_usertype_ref(mb_interpreter_t* s, void**
 		_object_t obj;
 		_MAKE_NIL(&obj);
 		_public_value_to_internal_object(d, &obj);
-		if(t == MB_MF_COLL && obj.data.usertype_ref->coll_func) {
+		if(t == MB_MF_COLL && obj.data.usertype_ref->coll_func)
 			return obj.data.usertype_ref->coll_func(s, l, f);
-		} else if(t == MB_MF_FUNC && obj.data.usertype_ref->generic_func) {
+		else if(t == MB_MF_FUNC && obj.data.usertype_ref->generic_func)
 			return obj.data.usertype_ref->generic_func(s, l, f);
-		}
 	}
 #endif /* MB_ENABLE_USERTYPE_REF */
 
