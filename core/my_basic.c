@@ -8677,9 +8677,10 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 			obj->data.usertype_ref->dtor, obj->data.usertype_ref->clone,
 			obj->data.usertype_ref->hash, obj->data.usertype_ref->cmp, obj->data.usertype_ref->fmt
 		);
-		if(obj->data.usertype_ref->calc_operators)
+		if(obj->data.usertype_ref->calc_operators) {
 			tgt->data.usertype_ref->calc_operators = (_calculation_operator_info_t*)mb_malloc(sizeof(_calculation_operator_info_t));
-		memcpy(tgt->data.usertype_ref->calc_operators, obj->data.usertype_ref->calc_operators, sizeof(_calculation_operator_info_t));
+			memcpy(tgt->data.usertype_ref->calc_operators, obj->data.usertype_ref->calc_operators, sizeof(_calculation_operator_info_t));
+		}
 		tgt->data.usertype_ref->coll_func = obj->data.usertype_ref->coll_func;
 		tgt->data.usertype_ref->generic_func = obj->data.usertype_ref->generic_func;
 		_ref(&tgt->data.usertype_ref->ref, tgt->data.usertype_ref);
@@ -12034,6 +12035,8 @@ int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_m
 		case MB_MF_FUNC:
 			user->generic_func = (mb_meta_func_t)(intptr_t)f;
 
+			break;
+		default: /* Do nothing */
 			break;
 		}
 	} else {
