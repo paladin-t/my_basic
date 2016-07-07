@@ -179,6 +179,10 @@ class level
 	enddef
 
 	def update(i)
+		if i = "" then
+			return false
+		endif
+
 		ipt = to_lower_case(i)
 
 		if ipt = "q" then print "Bye."; : end
