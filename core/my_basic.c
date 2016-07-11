@@ -6086,7 +6086,7 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 		if(routine->type == _IT_LAMBDA) {
 			_HT_FOREACH(routine->func.lambda.scope->var_dict, _do_nothing_on_object, _gc_destroy_garbage_in_lambda, gc);
 			_ht_clear(routine->func.lambda.scope->var_dict);
-			if(!routine->func.lambda.outer_scope || !_ht_find(gc->collected_table, &routine->func.lambda.outer_scope->ref))
+			if(routine->func.lambda.outer_scope && !_ht_find(gc->collected_table, &routine->func.lambda.outer_scope->ref))
 				_gc_destroy_garbage_in_outer_scope(routine->func.lambda.outer_scope, gc);
 		}
 
