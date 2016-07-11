@@ -2,6 +2,7 @@ Jul. 11 2016
 Added a HASH and COMPARE must come together error
 Fixed a meta function missing issue for class
 Fixed a source file information missing issue for routine
+Fixed a garbage collection issue of outer scope 
 Fixed a stack tracing issue
 
 Jul. 7 2016
