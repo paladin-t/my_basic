@@ -1,5 +1,6 @@
 Jul. 11 2016
-Fixed a missing source file information issue for routine
+Fixed a meta function missing issue for class
+Fixed a source file information missing issue for routine
 
 Jul. 7 2016
 Added function overriding support for referenced usertype
