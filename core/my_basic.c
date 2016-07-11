@@ -8750,6 +8750,9 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 			tgt->data.instance->created_from = obj->data.instance->created_from;
 			_push_scope_by_class(s, tgt->data.instance->scope);
 			_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, _META_LIST_MAX_DEPTH, false, tgt->data.instance, 0);
+			_search_class_meta_function(s, tgt->data.instance, _CLASS_HASH_FUNC, &tgt->data.instance->hash);
+			_search_class_meta_function(s, tgt->data.instance, _CLASS_COMPARE_FUNC, &tgt->data.instance->compare);
+			tgt->data.instance->userdata = obj->data.instance->userdata;
 			_pop_scope(s, false);
 		} else {
 			tgt->data.instance = obj->data.instance;
