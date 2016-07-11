@@ -5731,16 +5731,24 @@ static _ref_count_t _ref(_ref_t* ref, void* data) {
 static bool_t _unref(_ref_t* ref, void* data) {
 	bool_t result = true;
 	_gc_t* gc = 0;
+	bool_t cld = false;
 
-	gc = &ref->s->gc;
-	result = --(*ref->count) == _NONE_REF;
-	mb_assert(*ref->count >= _NONE_REF);
-	_gc_add(ref, data, &ref->s->gc);
-	if(ref->count && *ref->count == _NONE_REF)
-		_tidy_intermediate_value(ref, data);
-	ref->on_unref(ref, data);
-	if(result)
-		_gc_remove(ref, data, gc);
+	cld = *ref->count == _NONE_REF + 1;
+	do {
+		gc = &ref->s->gc;
+		result = --(*ref->count) == _NONE_REF;
+		mb_assert(*ref->count >= _NONE_REF);
+		_gc_add(ref, data, &ref->s->gc);
+		if(ref->count && *ref->count == _NONE_REF)
+			_tidy_intermediate_value(ref, data);
+		ref->on_unref(ref, data);
+		if(result)
+			_gc_remove(ref, data, gc);
+	} while(0);
+	if(cld) {
+		_ht_set_or_insert(gc->collected_table, ref, data);
+		_ht_set_or_insert(gc->collected_table, data, ref);
+	}
 
 	return result;
 }
@@ -6052,7 +6060,6 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 	int result = _OP_RESULT_NORMAL;
 	_ref_t* ref = 0;
 	bool_t proc = true;
-	bool_t cld = false;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	_list_t* lst = 0;
 	_dict_t* dct = 0;
@@ -6105,14 +6112,8 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 
 		break;
 	}
-	if(proc && ref->count) {
-		cld = *ref->count == _NONE_REF + 1;
+	if(proc && ref->count)
 		_unref(ref, data);
-		if(cld) {
-			_ht_set_or_insert(gc->collected_table, ref, data);
-			_ht_set_or_insert(gc->collected_table, data, ref);
-		}
-	}
 
 	if(proc)
 		result = _OP_RESULT_DEL_NODE;
@@ -6126,7 +6127,6 @@ static int _gc_destroy_garbage_class(void* data, void* extra, _gc_t* gc) {
 	int result = _OP_RESULT_NORMAL;
 	_ref_t* ref = 0;
 	bool_t proc = true;
-	bool_t cld = false;
 	_class_t* instance = 0;
 
 	mb_assert(data && extra);
@@ -6151,14 +6151,8 @@ static int _gc_destroy_garbage_class(void* data, void* extra, _gc_t* gc) {
 
 		break;
 	}
-	if(proc && ref->count) {
-		cld = *ref->count == _NONE_REF + 1;
+	if(proc && ref->count)
 		_unref(ref, data);
-		if(cld) {
-			_ht_set_or_insert(gc->collected_table, ref, data);
-			_ht_set_or_insert(gc->collected_table, data, ref);
-		}
-	}
 
 	if(proc)
 		result = _OP_RESULT_DEL_NODE;
