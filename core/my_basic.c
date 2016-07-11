@@ -7600,7 +7600,9 @@ static int _search_class_hash_and_compare_functions(mb_interpreter_t* s, _class_
 	_search_class_meta_function(s, instance, _CLASS_HASH_FUNC, &instance->hash);
 	_search_class_meta_function(s, instance, _CLASS_COMPARE_FUNC, &instance->compare);
 
-	if(instance->hash && instance->compare) {
+	if(!instance->hash && !instance->compare) {
+		return MB_FUNC_OK;
+	} else if(instance->hash && instance->compare) {
 		return MB_FUNC_OK;
 	} else {
 		instance->hash = 0;
