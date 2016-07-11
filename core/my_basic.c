@@ -7849,8 +7849,10 @@ static _routine_t* _clone_routine(_routine_t* sub, void* c, bool_t toupval) {
 	if(!result) {
 		result = (_routine_t*)mb_malloc(sizeof(_routine_t));
 		memset(result, 0, sizeof(_routine_t));
-		if(sub->name)
-			result->name = mb_strdup(sub->name, 0);
+		result->name = sub->name;
+#ifdef MB_ENABLE_SOURCE_TRACE
+		result->source_file = sub->source_file;
+#endif /* MB_ENABLE_SOURCE_TRACE */
 #ifdef MB_ENABLE_CLASS
 		result->instance = instance;
 #endif /* MB_ENABLE_CLASS */
@@ -7894,15 +7896,15 @@ static void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 	mb_assert(r);
 
 	if(s) gc = &s->gc;
-	if(r->name) {
-		safe_free(r->name);
-	}
-#ifdef MB_ENABLE_SOURCE_TRACE
-	if(r->source_file) {
-		safe_free(r->source_file);
-	}
-#endif /* MB_ENABLE_SOURCE_TRACE */
 	if(!r->is_cloned) {
+		if(r->name) {
+			safe_free(r->name);
+		}
+#ifdef MB_ENABLE_SOURCE_TRACE
+		if(r->source_file) {
+			safe_free(r->source_file);
+		}
+#endif /* MB_ENABLE_SOURCE_TRACE */
 		switch(r->type) {
 		case _IT_SCRIPT:
 			if(r->func.basic.scope) {
