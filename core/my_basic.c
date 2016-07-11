@@ -268,6 +268,7 @@ static const char* _ERR_DESC[] = {
 	"Class expected",
 	"Duplicate class",
 	"Wrong meta class",
+	"HASH and COMPARE must come together",
 	"Cannot change ME",
 	"Invalid lambda",
 	"List expected",
@@ -1667,6 +1668,7 @@ static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
 static int _clone_clsss_field(void* data, void* extra, void* n);
 static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret);
 static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t** f);
+static int _search_class_hash_and_compare_functions(mb_interpreter_t* s, _class_t* instance);
 static bool_t _is_a_class(_class_t* instance, void* m, void* ret);
 static bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret);
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -7591,6 +7593,23 @@ static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, 
 	return 0;
 }
 
+/* Search for the HASH and COMPARE meta function for a class */
+static int _search_class_hash_and_compare_functions(mb_interpreter_t* s, _class_t* instance) {
+	mb_assert(s && instance);
+
+	_search_class_meta_function(s, instance, _CLASS_HASH_FUNC, &instance->hash);
+	_search_class_meta_function(s, instance, _CLASS_COMPARE_FUNC, &instance->compare);
+
+	if(instance->hash && instance->compare) {
+		return MB_FUNC_OK;
+	} else {
+		instance->hash = 0;
+		instance->compare = 0;
+
+		return MB_FUNC_WARNING;
+	}
+}
+
 /* Detect whether a class instance is inherited from another */
 static bool_t _is_a_class(_class_t* instance, void* m, void* ret) {
 	_class_t* meta = (_class_t*)m;
@@ -8750,8 +8769,9 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 			tgt->data.instance->created_from = obj->data.instance->created_from;
 			_push_scope_by_class(s, tgt->data.instance->scope);
 			_traverse_class(obj->data.instance, _clone_clsss_field, _clone_class_meta_link, _META_LIST_MAX_DEPTH, false, tgt->data.instance, 0);
-			_search_class_meta_function(s, tgt->data.instance, _CLASS_HASH_FUNC, &tgt->data.instance->hash);
-			_search_class_meta_function(s, tgt->data.instance, _CLASS_COMPARE_FUNC, &tgt->data.instance->compare);
+			if(_search_class_hash_and_compare_functions(s, tgt->data.instance) != MB_FUNC_OK) {
+				mb_assert(0 && "Impossible.");
+			}
 			tgt->data.instance->userdata = obj->data.instance->userdata;
 			_pop_scope(s, false);
 		} else {
@@ -14337,8 +14357,9 @@ static int _core_class(mb_interpreter_t* s, void** l) {
 	_pop_scope(s, false);
 
 	/* Search for meta functions */
-	_search_class_meta_function(s, instance, _CLASS_HASH_FUNC, &instance->hash);
-	_search_class_meta_function(s, instance, _CLASS_COMPARE_FUNC, &instance->compare);
+	if(_search_class_hash_and_compare_functions(s, instance) != MB_FUNC_OK) {
+		_handle_error_on_obj(s, SE_RN_HASH_AND_COMPARE_MUST_COME_TOGETHER, s->source_file, DON(ast), MB_FUNC_WARNING, _exit, result);
+	}
 
 	/* Finished */
 	if(ast) {
