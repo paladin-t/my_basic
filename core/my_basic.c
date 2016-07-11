@@ -3627,7 +3627,13 @@ _array:
 					} else {
 						int calc_depth = running->calc_depth;
 						running->calc_depth = _INFINITY_CALC_DEPTH;
+#ifdef MB_ENABLE_STACK_TRACE
+						_ls_pushback(s->stack_frames, c->data.func->name);
+#endif /* MB_ENABLE_STACK_TRACE */
 						result = (c->data.func->pointer)(s, (void**)&ast);
+#ifdef MB_ENABLE_STACK_TRACE
+						_ls_popback(s->stack_frames);
+#endif /* MB_ENABLE_STACK_TRACE */
 						running->calc_depth = calc_depth;
 					}
 					if(result != MB_FUNC_OK) {
@@ -9726,13 +9732,17 @@ _retry:
 		if(_is_binary(obj->data.func->pointer)) {
 			_handle_error_on_obj(s, SE_RN_INVALID_EXPRESSION, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
+		if(_is_flow(obj->data.func->pointer)) {
+			result = (obj->data.func->pointer)(s, (void**)&ast);
+		} else {
 #ifdef MB_ENABLE_STACK_TRACE
-		_ls_pushback(s->stack_frames, obj->data.func->name);
+			_ls_pushback(s->stack_frames, obj->data.func->name);
 #endif /* MB_ENABLE_STACK_TRACE */
-		result = (obj->data.func->pointer)(s, (void**)&ast);
+			result = (obj->data.func->pointer)(s, (void**)&ast);
 #ifdef MB_ENABLE_STACK_TRACE
-		_ls_popback(s->stack_frames);
+			_ls_popback(s->stack_frames);
 #endif /* MB_ENABLE_STACK_TRACE */
+		}
 		if(result == MB_FUNC_IGNORE) {
 			result = MB_FUNC_OK;
 			obj = (_object_t*)ast->data;
