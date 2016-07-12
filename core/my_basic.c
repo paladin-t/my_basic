@@ -4276,6 +4276,7 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 
 	running = _link_lambda_scope_chain(s, &r->func.lambda, true);
 	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true, lastv);
+	ast = (_ls_node_t*)*l;
 	if(result != MB_FUNC_OK) {
 		_unlink_lambda_scope_chain(s, &r->func.lambda, true);
 
