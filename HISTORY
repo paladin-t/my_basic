@@ -1,5 +1,6 @@
 Jul. 12 2016
 Fixed some memory issues with GC
+Fixed a crash when met invalid lambda arguments
 
 Jul. 11 2016
 Added a HASH and COMPARE must come together error
