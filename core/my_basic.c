@@ -1575,6 +1575,7 @@ static void _destroy_ref(_ref_t* ref);
 static void _gc_add(_ref_t* ref, void* data, _gc_t* gc);
 static void _gc_remove(_ref_t* ref, void* data, _gc_t* gc);
 static int _gc_add_reachable(void* data, void* extra, void* h);
+static int _gc_add_reachable_both(void* data, void* extra, void* h);
 static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht);
 static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc);
 static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc);
@@ -5895,7 +5896,7 @@ static int _gc_add_reachable(void* data, void* extra, void* h) {
 	case _DT_DICT:
 		if(!_ht_find(ht, &obj->data.dict->ref)) {
 			_ht_set_or_insert(ht, &obj->data.dict->ref, obj->data.dict);
-			_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _gc_add_reachable, ht);
+			_HT_FOREACH(obj->data.dict->dict, _do_nothing_on_object, _gc_add_reachable_both, ht);
 		}
 
 		break;
@@ -5937,6 +5938,18 @@ static int _gc_add_reachable(void* data, void* extra, void* h) {
 	}
 
 _exit:
+	return result;
+}
+
+/* Get reachable objects from both key and value */
+static int _gc_add_reachable_both(void* data, void* extra, void* h) {
+	int result = _OP_RESULT_NORMAL;
+
+	mb_assert(data && extra && h);
+
+	_gc_add_reachable(extra, 0, h);
+	_gc_add_reachable(data, extra, h);
+
 	return result;
 }
 
@@ -6071,6 +6084,11 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 	mb_assert(data && extra);
 
 	ref = (_ref_t*)extra;
+	if(_ht_find(gc->collected_table, ref)) {
+		proc = true;
+
+		goto _exit;
+	}
 	switch(ref->type) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 	case _DT_LIST:
@@ -6115,6 +6133,7 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 	if(proc && ref->count)
 		_unref(ref, data);
 
+_exit:
 	if(proc)
 		result = _OP_RESULT_DEL_NODE;
 
@@ -6132,6 +6151,11 @@ static int _gc_destroy_garbage_class(void* data, void* extra, _gc_t* gc) {
 	mb_assert(data && extra);
 
 	ref = (_ref_t*)extra;
+	if(_ht_find(gc->collected_table, ref)) {
+		proc = true;
+
+		goto _exit;
+	}
 	switch(ref->type) {
 	case _DT_CLASS:
 		instance = (_class_t*)data;
@@ -6154,6 +6178,7 @@ static int _gc_destroy_garbage_class(void* data, void* extra, _gc_t* gc) {
 	if(proc && ref->count)
 		_unref(ref, data);
 
+_exit:
 	if(proc)
 		result = _OP_RESULT_DEL_NODE;
 
