@@ -4072,9 +4072,9 @@ static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 #ifdef MB_ENABLE_SOURCE_TRACE
 	char* src = 0;
 #endif /* MB_ENABLE_SOURCE_TRACE */
-#ifdef MB_ENABLE_STACK_TRACE
+#if defined MB_ENABLE_STACK_TRACE && defined MB_ENABLE_LAMBDA
 	char ln[_LAMBDA_NAME_MAX_LENGTH];
-#endif /* MB_ENABLE_STACK_TRACE */
+#endif /* MB_ENABLE_STACK_TRACE && MB_ENABLE_LAMBDA */
 
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_pushback(s->stack_frames, r->name);
@@ -6310,6 +6310,8 @@ static mb_meta_status_u _try_overridden_usertype_ref(mb_interpreter_t* s, void**
 		else if(t == MB_MF_FUNC && obj.data.usertype_ref->generic_func)
 			return obj.data.usertype_ref->generic_func(s, l, f);
 	}
+#else /* MB_ENABLE_USERTYPE_REF */
+	mb_unrefvar(t);
 #endif /* MB_ENABLE_USERTYPE_REF */
 
 	return MB_MS_NONE;
