@@ -2518,14 +2518,12 @@ static void _ls_destroy(_ls_node_t* list) {
 }
 
 static int _ls_free_extra(void* data, void* extra) {
-	int result = _OP_RESULT_NORMAL;
+	int result = _OP_RESULT_DEL_NODE;
 	mb_unrefvar(data);
 
 	mb_assert(extra);
 
 	safe_free(extra);
-
-	result = _OP_RESULT_DEL_NODE;
 
 	return result;
 }
@@ -3919,6 +3917,7 @@ _var:
 _error:
 		_LS_FOREACH(garbage, _do_nothing_on_object, _remove_if_exist, opnd);
 	}
+
 _exit:
 	_LS_FOREACH(garbage, _destroy_object, _try_clear_intermediate_value, s);
 	_ls_destroy(garbage);
@@ -5973,7 +5972,7 @@ static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
 
 /* Destroy only the capsule (wrapper) of an object, leave the data behind, and add it to GC if possible */
 static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc) {
-	int result = _OP_RESULT_NORMAL;
+	int result = _OP_RESULT_DEL_NODE;
 	_object_t* obj = 0;
 	mb_unrefvar(extra);
 
@@ -5983,14 +5982,12 @@ static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc) {
 	_ADDGC(obj, gc);
 	safe_free(obj);
 
-	result = _OP_RESULT_DEL_NODE;
-
 	return result;
 }
 
 /* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
 static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc) {
-	int result = _OP_RESULT_NORMAL;
+	int result = _OP_RESULT_DEL_NODE;
 	_object_t* obj = 0;
 
 	mb_assert(data);
@@ -6003,15 +6000,13 @@ static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc) {
 	_ADDGC(obj, gc);
 	safe_free(obj);
 
-	result = _OP_RESULT_DEL_NODE;
-
 	return result;
 }
 
 #ifdef MB_ENABLE_CLASS
 /* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
 static int _gc_destroy_garbage_in_class(void* data, void* extra, _gc_t* gc) {
-	int result = _OP_RESULT_NORMAL;
+	int result = _OP_RESULT_DEL_NODE;
 	_object_t* obj = 0;
 	mb_unrefvar(extra);
 
@@ -6027,8 +6022,6 @@ static int _gc_destroy_garbage_in_class(void* data, void* extra, _gc_t* gc) {
 	}
 	safe_free(obj);
 
-	result = _OP_RESULT_DEL_NODE;
-
 	return result;
 }
 #endif /* MB_ENABLE_CLASS */
@@ -6036,7 +6029,7 @@ static int _gc_destroy_garbage_in_class(void* data, void* extra, _gc_t* gc) {
 #ifdef MB_ENABLE_LAMBDA
 /* Destroy only the capsule (wrapper) of an object, leave the data behind, deal with extra as well, and add it to GC if possible */
 static int _gc_destroy_garbage_in_lambda(void* data, void* extra, _gc_t* gc) {
-	int result = _OP_RESULT_NORMAL;
+	int result = _OP_RESULT_DEL_NODE;
 	_object_t* obj = 0;
 	mb_unrefvar(extra);
 
@@ -6051,8 +6044,6 @@ static int _gc_destroy_garbage_in_lambda(void* data, void* extra, _gc_t* gc) {
 		_ADDGC(obj, gc);
 	}
 	safe_free(obj);
-
-	result = _OP_RESULT_DEL_NODE;
 
 	return result;
 }
@@ -7171,8 +7162,6 @@ static void _fill_ranged(_list_t* coll) {
 /* Set an element to a dictionary with a key-value pair */
 static void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object_t* okey, _object_t* oval) {
 	_ls_node_t* exist = 0;
-	void* data = 0;
-	void* extra = 0;
 
 	mb_assert(coll && (key || okey) && (val || oval));
 
@@ -7181,11 +7170,8 @@ static void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object_t
 	if(val && !oval)
 		_create_internal_object_from_public_value(val, &oval);
 	exist = _ht_find(coll->dict, okey);
-	if(exist) {
-		data = exist->data;
-		extra = exist->extra;
+	if(exist)
 		_ht_remove(coll->dict, okey, _ls_cmp_extra_object);
-	}
 	_ht_set_or_insert(coll->dict, okey, oval);
 
 	_write_on_ref_object(&coll->lock, &coll->ref, coll);
@@ -8947,7 +8933,7 @@ _exit:
 
 /* Destroy an object and its data */
 static int _destroy_object(void* data, void* extra) {
-	int result = _OP_RESULT_NORMAL;
+	int result = _OP_RESULT_DEL_NODE;
 	_object_t* obj = 0;
 	mb_unrefvar(extra);
 
@@ -8959,14 +8945,12 @@ static int _destroy_object(void* data, void* extra) {
 	safe_free(obj);
 
 _exit:
-	result = _OP_RESULT_DEL_NODE;
-
 	return result;
 }
 
 /* Destroy an object, including its data and extra data */
 static int _destroy_object_with_extra(void* data, void* extra) {
-	int result = _OP_RESULT_NORMAL;
+	int result = _OP_RESULT_DEL_NODE;
 	_object_t* obj = 0;
 
 	mb_assert(data);
@@ -8981,14 +8965,12 @@ static int _destroy_object_with_extra(void* data, void* extra) {
 	safe_free(obj);
 
 _exit:
-	result = _OP_RESULT_DEL_NODE;
-
 	return result;
 }
 
 /* Destroy an object which is not come from compile time */
 static int _destroy_object_not_compile_time(void* data, void* extra) {
-	int result = _OP_RESULT_NORMAL;
+	int result = _OP_RESULT_DEL_NODE;
 	_object_t* obj = 0;
 	mb_unrefvar(extra);
 
@@ -9002,14 +8984,12 @@ static int _destroy_object_not_compile_time(void* data, void* extra) {
 	}
 
 _exit:
-	result = _OP_RESULT_DEL_NODE;
-
 	return result;
 }
 
 /* Destroy only the capsule (wrapper) of an object, leave the data behind */
 static int _destroy_object_capsule_only(void* data, void* extra) {
-	int result = _OP_RESULT_NORMAL;
+	int result = _OP_RESULT_DEL_NODE;
 	_object_t* obj = 0;
 	mb_unrefvar(extra);
 
@@ -9017,8 +8997,6 @@ static int _destroy_object_capsule_only(void* data, void* extra) {
 
 	obj = (_object_t*)data;
 	safe_free(obj);
-
-	result = _OP_RESULT_DEL_NODE;
 
 	return result;
 }
@@ -10340,7 +10318,7 @@ static _module_func_t* _create_module_func(mb_interpreter_t* s, mb_func_t f) {
 
 /* Destroy a module function structure */
 static int _ls_destroy_module_func(void* data, void* extra) {
-	int result = _OP_RESULT_NORMAL;
+	int result = _OP_RESULT_DEL_NODE;
 	_module_func_t* mod = 0;
 	mb_unrefvar(extra);
 
@@ -10350,14 +10328,12 @@ static int _ls_destroy_module_func(void* data, void* extra) {
 	safe_free(mod->module);
 	safe_free(mod);
 
-	result = _OP_RESULT_DEL_NODE;
-
 	return result;
 }
 
 /* Destroy all module function structures */
 static int _ht_destroy_module_func_list(void* data, void* extra) {
-	int result = _OP_RESULT_NORMAL;
+	int result = _OP_RESULT_DEL_NODE;
 	_ls_node_t* lst = 0;
 	char* n = 0;
 
@@ -10368,8 +10344,6 @@ static int _ht_destroy_module_func_list(void* data, void* extra) {
 	_ls_foreach(lst, _ls_destroy_module_func);
 	_ls_destroy(lst);
 	safe_free(n);
-
-	result = _OP_RESULT_DEL_NODE;
 
 	return result;
 }
