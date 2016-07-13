@@ -680,7 +680,7 @@ static _object_t* _OBJ_BOOL_TRUE = 0;
 static _object_t* _OBJ_BOOL_FALSE = 0;
 
 #ifdef MB_ENABLE_CLASS
-static const _var_t _VAR_ARGS = { "...", 0, 0 };
+static const _var_t _VAR_ARGS = { "...", 0, 0, 0 };
 #else /* MB_ENABLE_CLASS */
 static const _var_t _VAR_ARGS = { "...", 0 };
 #endif /* MB_ENABLE_CLASS */
