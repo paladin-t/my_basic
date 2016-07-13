@@ -1,3 +1,6 @@
+Jul. 13 2016
+Refactored error prompting
+
 Jul. 12 2016
 Fixed some memory issues with GC
 Fixed a crash when met invalid lambda arguments
