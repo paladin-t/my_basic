@@ -4441,7 +4441,7 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
 
 /* Set current error information */
 static void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f) {
-	mb_assert(s && err >= 0 && err < countof(_ERR_DESC));
+	mb_assert(s && err >= 0);
 
 	if(s->last_error == SE_NO_ERR) {
 		s->last_error = err;
@@ -12556,7 +12556,7 @@ const char* mb_get_error_desc(mb_error_e err) {
 	if(err < countof(_ERR_DESC))
 		return _ERR_DESC[err];
 
-	return 0;
+	return "";
 }
 
 /* Set an error handler to a MY-BASIC environment */
