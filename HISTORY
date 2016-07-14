@@ -1,3 +1,7 @@
+Jul. 14 2016
+Fixed a boolean operation bug with the NOT statement on float number
+Improved boolean operation
+
 Jul. 13 2016
 Refactored error prompting
 
