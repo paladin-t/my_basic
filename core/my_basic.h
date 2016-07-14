@@ -273,6 +273,9 @@ extern "C" {
 #ifndef mb_make_type
 #	define mb_make_type(__v, __d) do { (__v).value.type = (__d); (__v).type = MB_DT_TYPE; } while(0)
 #endif /* mb_make_type */
+#ifndef mb_make_bool
+#	define mb_make_bool(__v, __d) do { (__v).value.integer = (!!(__d) ? true : false); (__v).type = MB_DT_INT; } while(0)
+#endif /* mb_make_bool */
 #ifndef mb_make_int
 #	define mb_make_int(__v, __d) do { (__v).value.integer = (__d); (__v).type = MB_DT_INT; } while(0)
 #endif /* mb_make_int */
