@@ -13146,22 +13146,19 @@ static int _core_not(mb_interpreter_t* s, void** l) {
 
 	switch(arg.type) {
 	case MB_DT_NIL:
-		arg.value.integer = true;
-		arg.type = MB_DT_INT;
+		mb_make_bool(arg, true);
 
 		break;
 	case MB_DT_INT:
-		arg.value.integer = (int_t)(!arg.value.integer);
+		mb_make_bool(arg, !arg.value.integer);
 
 		break;
 	case MB_DT_REAL:
-		arg.value.integer = (int_t)(!((int_t)arg.value.float_point));
-		arg.type = MB_DT_INT;
+		mb_make_bool(arg, arg.value.float_point == (real_t)0);
 
 		break;
 	default:
-		arg.value.integer = false;
-		arg.type = MB_DT_INT;
+		mb_make_bool(arg, false);
 
 		break;
 	}
@@ -16415,17 +16412,16 @@ static int _coll_exist(mb_interpreter_t* s, void** l){
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		mb_check(mb_pop_value(s, l, &arg));
 
-		ret.type = MB_DT_INT;
 		_MAKE_NIL(&ocoll);
 		switch(coll.type) {
 		case MB_DT_LIST:
 			_public_value_to_internal_object(&coll, &ocoll);
-			ret.value.integer = !!_find_list(ocoll.data.list, &arg, 0);
+			mb_make_bool(ret, _find_list(ocoll.data.list, &arg, 0));
 
 			break;
 		case MB_DT_DICT:
 			_public_value_to_internal_object(&coll, &ocoll);
-			ret.value.integer = !!_find_dict(ocoll.data.dict, &arg, 0);
+			mb_make_bool(ret, _find_dict(ocoll.data.dict, &arg, 0));
 
 			break;
 		default:
@@ -16785,8 +16781,7 @@ static int _coll_move_next(mb_interpreter_t* s, void** l) {
 		if(_invalid_list_it(oit.data.list_it)) {
 			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		} else if(oit.data.list_it) {
-			ret.type = MB_DT_INT;
-			ret.value.integer = 1;
+			mb_make_bool(ret, true);
 		} else {
 			mb_make_nil(ret);
 		}
@@ -16798,8 +16793,7 @@ static int _coll_move_next(mb_interpreter_t* s, void** l) {
 		if(_invalid_dict_it(oit.data.dict_it)) {
 			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		} else if(oit.data.dict_it) {
-			ret.type = MB_DT_INT;
-			ret.value.integer = 1;
+			mb_make_bool(ret, true);
 		} else {
 			mb_make_nil(ret);
 		}
