@@ -1,3 +1,6 @@
+Jul. 16 2016
+Added class format support with the STR statement
+
 Jul. 14 2016
 Fixed a boolean operation bug with the NOT statement on float number
 Improved boolean operation
