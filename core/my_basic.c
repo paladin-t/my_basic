@@ -1675,6 +1675,7 @@ static bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret);
 #ifdef MB_ENABLE_COLLECTION_LIB
 static int _reflect_class_field(void* data, void* extra, void* d);
 #endif /* MB_ENABLE_COLLECTION_LIB */
+static int _format_class_to_string(mb_interpreter_t* s, void** l, _class_t* instance, _object_t* out, bool_t* got_tostr);
 static _class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb_value_t* arg);
 static bool_t _is_valid_class_accessor_following_routine(mb_interpreter_t* s, _var_t* var, _ls_node_t* ast, _ls_node_t** out);
 #endif /* MB_ENABLE_CLASS */
@@ -7707,6 +7708,38 @@ _exit:
 	return result;
 }
 #endif /* MB_ENABLE_COLLECTION_LIB */
+
+/* Call the TOSTRING function of a class instance to format it */
+static int _format_class_to_string(mb_interpreter_t* s, void** l, _class_t* instance, _object_t* out, bool_t* got_tostr) {
+	int result = MB_FUNC_OK;
+
+	mb_assert(s && l && instance && out);
+
+	_ls_node_t* tsn = _search_identifier_in_class(s, instance, _CLASS_TOSTRING_FUNC, 0, 0);
+	if(got_tostr) *got_tostr = false;
+	if(tsn) {
+		_object_t* tso = (_object_t*)tsn->data;
+		_ls_node_t* tmp = (_ls_node_t*)*l;
+		mb_value_t va[1];
+		mb_make_nil(va[0]);
+		if(_eval_routine(s, &tmp, va, 1, tso->data.routine, _has_routine_fun_arg, _pop_routine_fun_arg) == MB_FUNC_OK) {
+			_MAKE_NIL(out);
+			_public_value_to_internal_object(&s->running_context->intermediate_value, out);
+			if(out->type == _DT_STRING) {
+				out->data.string = mb_strdup(out->data.string, strlen(out->data.string) + 1);
+				out->ref = false;
+				mb_make_nil(s->running_context->intermediate_value);
+			} else {
+				_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			}
+			if(got_tostr)
+				*got_tostr = true;
+		}
+	}
+
+_exit:
+	return result;
+}
 
 /* Reflect a class instance from a string */
 static _class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb_value_t* arg) {
@@ -15469,6 +15502,28 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 		}
 
 		break;
+#ifdef MB_ENABLE_CLASS
+	case MB_DT_CLASS: {
+			bool_t got_tostr = false;
+			_class_t* instance = (_class_t*)arg.value.instance;
+			_object_t val_obj;
+			_MAKE_NIL(&val_obj);
+			if((result = _format_class_to_string(s, l, instance, &val_obj, &got_tostr)) == MB_FUNC_OK) {
+				if(got_tostr) {
+					mb_check(mb_push_string(s, l, val_obj.data.string));
+				} else {
+					const char* sp = mb_get_type_string(_internal_type_to_public_type(_DT_CLASS));
+					char* ret = mb_strdup(sp, strlen(sp) + 1);
+					mb_check(mb_push_string(s, l, ret));
+				}
+
+				goto _exit;
+			} else {
+				goto _exit;
+			}
+		}
+		break;
+#endif /* MB_ENABLE_CLASS */
 	default:
 		result = MB_FUNC_ERR;
 
@@ -15903,31 +15958,20 @@ _print:
 #ifdef MB_ENABLE_CLASS
 			} else if(val_ptr->type == _DT_CLASS) {
 				bool_t got_tostr = false;
-				_ls_node_t* tsn = _search_identifier_in_class(s, val_ptr->data.instance, _CLASS_TOSTRING_FUNC, 0, 0);
-				if(tsn) {
-					_object_t* tso = (_object_t*)tsn->data;
-					_ls_node_t* tmp = (_ls_node_t*)*l;
-					mb_value_t va[1];
-					mb_make_nil(va[0]);
-					if(_eval_routine(s, &tmp, va, 1, tso->data.routine, _has_routine_fun_arg, _pop_routine_fun_arg) == MB_FUNC_OK) {
-						val_ptr = &val_obj;
-						_MAKE_NIL(val_ptr);
-						_public_value_to_internal_object(&s->running_context->intermediate_value, val_ptr);
-						if(val_ptr->type == _DT_STRING) {
-							val_ptr->data.string = mb_strdup(val_ptr->data.string, strlen(val_ptr->data.string) + 1);
-							val_ptr->ref = false;
-							mb_make_nil(s->running_context->intermediate_value);
-						} else {
-							_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, s->source_file, DON(ast), MB_FUNC_WARNING, _exit, result);
-						}
+				_class_t* instance = val_ptr->data.instance;
+				val_ptr = &val_obj;
+				_MAKE_NIL(val_ptr);
+				if((result = _format_class_to_string(s, (void**)&ast, instance, val_ptr, &got_tostr)) == MB_FUNC_OK) {
+					if(got_tostr) {
 						obj = val_ptr;
-						got_tostr = true;
 
 						goto _print;
+					} else {
+						_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(_DT_CLASS)));
 					}
+				} else {
+					goto _exit;
 				}
-
-				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
 #endif /* MB_ENABLE_CLASS */
 			} else {
 				_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
