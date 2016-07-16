@@ -15522,7 +15522,6 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 				goto _exit;
 			}
 		}
-		break;
 #endif /* MB_ENABLE_CLASS */
 	default:
 		result = MB_FUNC_ERR;
