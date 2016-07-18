@@ -14754,9 +14754,9 @@ static int _core_type(mb_interpreter_t* s, void** l) {
 		arg.type = MB_DT_TYPE;
 	}
 
+_found:
 	mb_check(mb_attempt_close_bracket(s, l));
 
-_found:
 	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
 		mb_check(mb_push_value(s, l, arg));
 	}
@@ -15487,7 +15487,7 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 
 	switch(arg.type) {
 	case MB_DT_INT:
-		lbuf = 32;
+		lbuf = 32; /* Enough for even 64bit integer */
 		_RESIZE_CHAR_BUF(buf, lbuf);
 		if((size_t)sprintf(_CHAR_BUF_PTR(buf), MB_INT_FMT, arg.value.integer) >= lbuf) {
 			mb_assert(0 && "Buffer overflow.");
