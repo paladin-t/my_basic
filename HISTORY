@@ -1,3 +1,6 @@
+Jul. 18 2016
+Fixed a wrong interpretation bug in the TYPE statement
+
 Jul. 16 2016
 Added class format support with the STR statement
 
