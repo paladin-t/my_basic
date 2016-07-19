@@ -1,6 +1,7 @@
 Jul. 19 2016
 Added a too many routines error
 Added a reference count overflow error
+Added a weak reference count overflow error
 
 Jul. 18 2016
 Fixed a wrong interpretation bug in the TYPE statement
