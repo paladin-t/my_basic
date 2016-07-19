@@ -447,11 +447,11 @@ typedef enum mb_error_e {
 typedef enum mb_data_e {
 	MB_DT_NIL = 0,
 	MB_DT_UNKNOWN = 1 << 0,
-	MB_DT_TYPE = 1 << 1,
-	MB_DT_INT = 1 << 2,
-	MB_DT_REAL = 1 << 3,
+	MB_DT_INT = 1 << 1,
+	MB_DT_REAL = 1 << 2,
 	MB_DT_NUM = MB_DT_INT | MB_DT_REAL,
-	MB_DT_STRING = 1 << 4,
+	MB_DT_STRING = 1 << 3,
+	MB_DT_TYPE = 1 << 4,
 	MB_DT_USERTYPE = 1 << 5,
 #ifdef MB_ENABLE_USERTYPE_REF
 	MB_DT_USERTYPE_REF = 1 << 6,
