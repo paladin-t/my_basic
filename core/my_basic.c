@@ -218,7 +218,7 @@ static const char* _ERR_DESC[] = {
 	"Index out of bound",
 	"Cannot find with given index",
 	"Illegal bound",
-	"Too much dimensions",
+	"Too many dimensions",
 	"Operation failed",
 	"Invalid operation usage",
 	"Dimension count out of bound",
@@ -263,6 +263,7 @@ static const char* _ERR_DESC[] = {
 	"Incomplete routine",
 	"Routine expected",
 	"Duplicate routine",
+	"To many routines",
 	"Invalid class",
 	"Incomplete class",
 	"Class expected",
@@ -279,6 +280,7 @@ static const char* _ERR_DESC[] = {
 	"Invalid iterator",
 	"Empty collection",
 	"Referenced type expected",
+	"Reference count overflow",
 	"Debug identifier not found",
 	"Stack trace disabled",
 	/** Extended abort */
@@ -1680,7 +1682,7 @@ static _class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb
 static bool_t _is_valid_class_accessor_following_routine(mb_interpreter_t* s, _var_t* var, _ls_node_t* ast, _ls_node_t** out);
 #endif /* MB_ENABLE_CLASS */
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f);
-static void _begin_routine(mb_interpreter_t* s);
+static int _begin_routine(mb_interpreter_t* s);
 static bool_t _end_routine(mb_interpreter_t* s);
 static void _begin_routine_parameter_list(mb_interpreter_t* s);
 static void _end_routine_parameter_list(mb_interpreter_t* s);
@@ -5185,15 +5187,19 @@ _end_import:
 	if(context->last_symbol && !_is_bracket_char(sym[0])) {
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
-			if(_IS_FUNC(context->last_symbol, _core_def))
-				_begin_routine(s);
+			if(_IS_FUNC(context->last_symbol, _core_def)) {
+				if(_begin_routine(s) != MB_FUNC_OK)
+					goto _exit;
+			}
 			result = _DT_ROUTINE;
 
 			goto _exit;
 		}
 		if(_IS_FUNC(context->last_symbol, _core_def) || _IS_FUNC(context->last_symbol, _core_call)) {
-			if(_IS_FUNC(context->last_symbol, _core_def))
-				_begin_routine(s);
+			if(_IS_FUNC(context->last_symbol, _core_def)) {
+				if(_begin_routine(s) != MB_FUNC_OK)
+					goto _exit;
+			}
 #ifdef MB_ENABLE_UNICODE_ID
 			if(!_is_identifier_char(sym[0]) && !mb_uu_ischar(sym)) {
 #else /* MB_ENABLE_UNICODE_ID */
@@ -5724,7 +5730,10 @@ static _ref_count_t _ref(_ref_t* ref, void* data) {
 	mb_unrefvar(data);
 
 	++(*ref->count);
-	mb_assert(*ref->count > before && "Too many referencing, count overflow, please redefine _ref_count_t.");
+	if(before > *ref->count) {
+		mb_assert(0 && "Too many referencing, count overflow, please redefine _ref_count_t.");
+		_handle_error_now(ref->s, SE_RN_REFERENCE_COUNT_OVERFLOW, ref->s->last_error_file, MB_FUNC_ERR);
+	}
 
 	return *ref->count;
 }
@@ -7829,13 +7838,22 @@ static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_
 }
 
 /* Begin parsing a routine */
-static void _begin_routine(mb_interpreter_t* s) {
+static int _begin_routine(mb_interpreter_t* s) {
+	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
+	unsigned short before = 0;
 
 	mb_assert(s);
 
 	context = s->parsing_context;
-	context->routine_state++;
+	before = context->routine_state++;
+	if(before > context->routine_state) {
+		context->routine_state--;
+		result = MB_FUNC_ERR;
+		_handle_error_now(s, SE_RN_TOO_MANY_ROUTINES, s->last_error_file, result);
+	}
+
+	return result;
 }
 
 /* End parsing a routine */
@@ -11602,7 +11620,7 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 
 	*a = 0;
 	if(c >= MB_MAX_DIMENSION_COUNT) {
-		_handle_error_on_obj(s, SE_RN_TOO_MUCH_DIMENSIONS, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_TOO_MANY_DIMENSIONS, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 	for(j = 0; j < c; j++) {
 		n = d[j];
@@ -12320,14 +12338,14 @@ int mb_run(struct mb_interpreter_t* s) {
 	if(s->parsing_context) {
 		if(s->parsing_context->routine_state) {
 			result = MB_FUNC_ERR;
-			_handle_error_now(s, SE_RN_INCOMPLETE_ROUTINE, s->source_file, MB_FUNC_ERR);
+			_handle_error_now(s, SE_RN_INCOMPLETE_ROUTINE, s->source_file, result);
 
 			goto _exit;
 		}
 #ifdef MB_ENABLE_CLASS
 		if(s->parsing_context->class_state != _CLASS_STATE_NONE) {
 			result = MB_FUNC_ERR;
-			_handle_error_now(s, SE_RN_INCOMPLETE_CLASS, s->source_file, MB_FUNC_ERR);
+			_handle_error_now(s, SE_RN_INCOMPLETE_CLASS, s->source_file, result);
 
 			goto _exit;
 		}
@@ -13497,7 +13515,7 @@ static int _core_dim(mb_interpreter_t* s, void** l) {
 			_handle_error_on_obj(s, SE_RN_ILLEGAL_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		if(dummy.dimension_count >= MB_MAX_DIMENSION_COUNT) {
-			_handle_error_on_obj(s, SE_RN_TOO_MUCH_DIMENSIONS, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_TOO_MANY_DIMENSIONS, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		dummy.dimensions[dummy.dimension_count++] = (int)val.integer;
 		if(dummy.count)
