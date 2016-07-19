@@ -14901,9 +14901,7 @@ static int _std_floor(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	switch(arg.type) {
-	case MB_DT_INT:
-		/* Do nothing */
-
+	case MB_DT_INT: /* Do nothing */
 		break;
 	case MB_DT_REAL:
 		arg.value.integer = (int_t)floor(arg.value.float_point);
@@ -14937,9 +14935,7 @@ static int _std_ceil(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	switch(arg.type) {
-	case MB_DT_INT:
-		/* Do nothing */
-
+	case MB_DT_INT: /* Do nothing */
 		break;
 	case MB_DT_REAL:
 		arg.value.integer = (int_t)ceil(arg.value.float_point);
@@ -14973,9 +14969,7 @@ static int _std_fix(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	switch(arg.type) {
-	case MB_DT_INT:
-		/* Do nothing */
-
+	case MB_DT_INT: /* Do nothing */
 		break;
 	case MB_DT_REAL:
 		arg.value.integer = (int_t)(arg.value.float_point);
@@ -15009,9 +15003,7 @@ static int _std_round(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	switch(arg.type) {
-	case MB_DT_INT:
-		/* Do nothing */
-
+	case MB_DT_INT: /* Do nothing */
 		break;
 	case MB_DT_REAL:
 		arg.value.integer = (int_t)(arg.value.float_point + (real_t)0.5f);
