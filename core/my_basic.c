@@ -292,10 +292,10 @@ typedef enum _data_e {
 	_DT_INVALID = -1,
 	_DT_NIL = 0,
 	_DT_UNKNOWN,
-	_DT_TYPE,
 	_DT_INT,
 	_DT_REAL,
 	_DT_STRING,
+	_DT_TYPE,
 	_DT_USERTYPE,
 #ifdef MB_ENABLE_USERTYPE_REF
 	_DT_USERTYPE_REF,
@@ -556,10 +556,10 @@ typedef unsigned char _raw_t[sizeof(_raw_u)];
 typedef struct _object_t {
 	_data_e type;
 	union {
-		mb_data_e type;
 		int_t integer;
 		real_t float_point;
 		char* string;
+		mb_data_e type;
 		void* usertype;
 		_usertype_ref_t* usertype_ref;
 		_func_t* func;
@@ -668,11 +668,11 @@ MBAPI size_t MB_SIZEOF_RTN = sizeof(_routine_t);
 #endif /* MB_ENABLE_ALLOC_STAT */
 
 #ifdef MB_ENABLE_SOURCE_TRACE
-static const _object_t _OBJ_INT_UNIT = { _DT_INT, (mb_data_e)1, false, 0, 0, 0 };
-static const _object_t _OBJ_INT_ZERO = { _DT_INT, (mb_data_e)0, false, 0, 0, 0 };
+static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0, 0, 0 };
+static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0, 0, 0 };
 #else /* MB_ENABLE_SOURCE_TRACE */
-static const _object_t _OBJ_INT_UNIT = { _DT_INT, (mb_data_e)1, false, 0 };
-static const _object_t _OBJ_INT_ZERO = { _DT_INT, (mb_data_e)0, false, 0 };
+static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0 };
+static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0 };
 #endif /* MB_ENABLE_SOURCE_TRACE */
 #define _MAKE_NIL(__o) do { memset((__o), 0, sizeof(_object_t)); (__o)->type = _DT_NIL; } while(0)
 
@@ -8844,9 +8844,9 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 		break;
 	case _DT_NIL: /* Fall through */
 	case _DT_UNKNOWN: /* Fall through */
-	case _DT_TYPE: /* Fall through */
 	case _DT_INT: /* Fall through */
 	case _DT_REAL: /* Fall through */
+	case _DT_TYPE: /* Fall through */
 	case _DT_SEP: /* Fall through */
 	case _DT_EOS: /* Fall through */
 	case _DT_USERTYPE:
@@ -8937,9 +8937,9 @@ static int _dispose_object(_object_t* obj) {
 #endif /* MB_ENABLE_SOURCE_TRACE */
 	case _DT_NIL: /* Fall through */
 	case _DT_UNKNOWN: /* Fall through */
-	case _DT_TYPE: /* Fall through */
 	case _DT_INT: /* Fall through */
 	case _DT_REAL: /* Fall through */
+	case _DT_TYPE: /* Fall through */
 	case _DT_SEP: /* Fall through */
 	case _DT_EOS: /* Fall through */
 	case _DT_USERTYPE: /* Do nothing */
@@ -9145,14 +9145,14 @@ static _data_e _public_type_to_internal_type(mb_data_e t) {
 	switch(t) {
 	case MB_DT_NIL:
 		return _DT_NIL;
-	case MB_DT_TYPE:
-		return _DT_TYPE;
 	case MB_DT_INT:
 		return _DT_INT;
 	case MB_DT_REAL:
 		return _DT_REAL;
 	case MB_DT_STRING:
 		return _DT_STRING;
+	case MB_DT_TYPE:
+		return _DT_TYPE;
 	case MB_DT_USERTYPE:
 		return _DT_USERTYPE;
 #ifdef MB_ENABLE_USERTYPE_REF
@@ -9187,14 +9187,14 @@ static mb_data_e _internal_type_to_public_type(_data_e t) {
 	switch(t) {
 	case _DT_NIL:
 		return MB_DT_NIL;
-	case _DT_TYPE:
-		return MB_DT_TYPE;
 	case _DT_INT:
 		return MB_DT_INT;
 	case _DT_REAL:
 		return MB_DT_REAL;
 	case _DT_STRING:
 		return MB_DT_STRING;
+	case _DT_TYPE:
+		return MB_DT_TYPE;
 	case _DT_USERTYPE:
 		return MB_DT_USERTYPE;
 #ifdef MB_ENABLE_USERTYPE_REF
@@ -9243,11 +9243,6 @@ static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 		itn->data.integer = false;
 
 		break;
-	case MB_DT_TYPE:
-		itn->type = _DT_TYPE;
-		itn->data.type = pbl->value.type;
-
-		break;
 	case MB_DT_INT:
 		itn->type = _DT_INT;
 		itn->data.integer = pbl->value.integer;
@@ -9262,6 +9257,11 @@ static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 		itn->type = _DT_STRING;
 		itn->data.string = pbl->value.string;
 		itn->ref = true;
+
+		break;
+	case MB_DT_TYPE:
+		itn->type = _DT_TYPE;
+		itn->data.type = pbl->value.type;
 
 		break;
 	case MB_DT_USERTYPE:
@@ -9345,11 +9345,6 @@ static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 		pbl->value.integer = false;
 
 		break;
-	case _DT_TYPE:
-		pbl->type = MB_DT_TYPE;
-		pbl->value.type = itn->data.type;
-
-		break;
 	case _DT_INT:
 		pbl->type = MB_DT_INT;
 		pbl->value.integer = itn->data.integer;
@@ -9363,6 +9358,11 @@ static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 	case _DT_STRING:
 		pbl->type = MB_DT_STRING;
 		pbl->value.string = itn->data.string;
+
+		break;
+	case _DT_TYPE:
+		pbl->type = MB_DT_TYPE;
+		pbl->value.type = itn->data.type;
 
 		break;
 	case _DT_USERTYPE:
@@ -12517,8 +12517,6 @@ const char* mb_get_type_string(mb_data_e t) {
 		return "NIL";
 	case MB_DT_UNKNOWN:
 		return "UNKNOWN";
-	case MB_DT_TYPE:
-		return "TYPE";
 	case MB_DT_INT:
 		return "INTEGER";
 	case MB_DT_REAL:
@@ -12527,6 +12525,8 @@ const char* mb_get_type_string(mb_data_e t) {
 		return "NUMBER";
 	case MB_DT_STRING:
 		return "STRING";
+	case MB_DT_TYPE:
+		return "TYPE";
 	case MB_DT_USERTYPE:
 		return "USERTYPE";
 #ifdef MB_ENABLE_USERTYPE_REF
@@ -14715,11 +14715,11 @@ static int _core_type(mb_interpreter_t* s, void** l) {
 		mb_data_e types[] = {
 			MB_DT_NIL,
 			MB_DT_UNKNOWN,
-			MB_DT_TYPE,
 			MB_DT_INT,
 			MB_DT_REAL,
 			MB_DT_NUM,
 			MB_DT_STRING,
+			MB_DT_TYPE,
 			MB_DT_USERTYPE,
 #ifdef MB_ENABLE_USERTYPE_REF
 			MB_DT_USERTYPE_REF,
@@ -15898,11 +15898,11 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 #endif /* MB_ENABLE_CLASS */
 			/* Fall through */
 		case _DT_ARRAY: /* Fall through */
-		case _DT_TYPE: /* Fall through */
 		case _DT_NIL: /* Fall through */
 		case _DT_INT: /* Fall through */
 		case _DT_REAL: /* Fall through */
 		case _DT_STRING: /* Fall through */
+		case _DT_TYPE: /* Fall through */
 #ifdef MB_ENABLE_CLASS
 		case _DT_CLASS: /* Fall through */
 #endif /* MB_ENABLE_CLASS */
