@@ -203,12 +203,12 @@ static const char* _ERR_DESC[] = {
 	"Open MY-BASIC failed",
 	"A function with the same name already exists",
 	"A function with the name does not exists",
+	"Not supported",
 	/** Parsing */
 	"Open file failed",
 	"Symbol too long",
 	"Invalid character",
 	/** Running */
-	"Not supported",
 	"Empty program",
 	"Syntax error",
 	"Invalid data type",
@@ -5068,7 +5068,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 
 				goto _end_import;
 #else /* MB_ENABLE_MODULE */
-				_handle_error_now(s, SE_RN_NOT_SUPPORTED, s->source_file, MB_FUNC_ERR);
+				_handle_error_now(s, SE_CM_NOT_SUPPORTED, s->source_file, MB_FUNC_ERR);
 
 				goto _end_import;
 #endif /* MB_ENABLE_MODULE */
@@ -10976,7 +10976,7 @@ int mb_begin_module(struct mb_interpreter_t* s, const char* n) {
 		s->with_module = mb_strdup(n, strlen(n) + 1);
 	}
 #else /* MB_ENABLE_MODULE */
-	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, (_object_t*)0, MB_FUNC_WARNING, _exit, result);
+	_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, (_object_t*)0, MB_FUNC_WARNING, _exit, result);
 #endif /* MB_ENABLE_MODULE */
 
 _exit:
@@ -10997,7 +10997,7 @@ int mb_end_module(struct mb_interpreter_t* s) {
 	}
 
 #else /* MB_ENABLE_MODULE */
-	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, (_object_t*)0, MB_FUNC_WARNING, _exit, result);
+	_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, (_object_t*)0, MB_FUNC_WARNING, _exit, result);
 #endif /* MB_ENABLE_MODULE */
 
 _exit:
@@ -11764,7 +11764,7 @@ int mb_init_coll(struct mb_interpreter_t* s, void** l, mb_value_t* coll) {
 #else /* MB_ENABLE_COLLECTION_LIB */
 	mb_unrefvar(coll);
 
-	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+	_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 _exit:
@@ -11810,7 +11810,7 @@ int mb_get_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 	mb_unrefvar(coll);
 	mb_unrefvar(i);
 
-	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+	_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 _exit:
@@ -11863,7 +11863,7 @@ int mb_set_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 	mb_unrefvar(oval);
 	mb_unrefvar(i);
 
-	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+	_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 _exit:
@@ -11909,7 +11909,7 @@ int mb_remove_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_val
 	mb_unrefvar(idx);
 	mb_unrefvar(i);
 
-	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+	_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 _exit:
@@ -11949,7 +11949,7 @@ int mb_count_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, int* c)
 #else /* MB_ENABLE_COLLECTION_LIB */
 	mb_unrefvar(coll);
 
-	_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+	_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 _exit:
@@ -13261,7 +13261,7 @@ static int _core_is(mb_interpreter_t* s, void** l) {
 #else /* MB_ENABLE_CLASS */
 		mb_unrefvar(is_a);
 
-		_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
 #endif /* MB_ENABLE_CLASS */
 	}
 
@@ -13458,7 +13458,7 @@ _proc_extra_var:
 			break;
 		default:
 			safe_free(val);
-			_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 
 			break;
 		}
@@ -15682,7 +15682,7 @@ static int _std_len(mb_interpreter_t* s, void** l) {
 			break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 		default:
-			_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 
 			break;
 		}
@@ -16008,7 +16008,7 @@ _print:
 
 			break;
 		default:
-			_handle_error_on_obj(s, SE_RN_NOT_SUPPORTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 
 			break;
 		}
