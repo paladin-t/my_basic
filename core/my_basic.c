@@ -281,6 +281,7 @@ static const char* _ERR_DESC[] = {
 	"Empty collection",
 	"Referenced type expected",
 	"Reference count overflow",
+	"Weak reference count overflow",
 	"Debug identifier not found",
 	"Stack trace disabled",
 	/** Extended abort */
@@ -5732,6 +5733,7 @@ static _ref_count_t _ref(_ref_t* ref, void* data) {
 	++(*ref->count);
 	if(before > *ref->count) {
 		mb_assert(0 && "Too many referencing, count overflow, please redefine _ref_count_t.");
+
 		_handle_error_now(ref->s, SE_RN_REFERENCE_COUNT_OVERFLOW, ref->s->last_error_file, MB_FUNC_ERR);
 	}
 
@@ -5771,7 +5773,11 @@ static _ref_count_t _weak_ref(_ref_t* ref, void* data, _ref_t* weak) {
 	mb_unrefvar(data);
 
 	++(*ref->weak_count);
-	mb_assert(*ref->weak_count > before && "Too many referencing, weak count overflow, please redefine _ref_count_t.");
+	if(before > *ref->weak_count) {
+		mb_assert(0 && "Too many referencing, weak count overflow, please redefine _ref_count_t.");
+
+		_handle_error_now(ref->s, SE_RN_WEAK_REFERENCE_COUNT_OVERFLOW, ref->s->last_error_file, MB_FUNC_ERR);
+	}
 	memcpy(weak, ref, sizeof(_ref_t));
 
 	return *ref->weak_count;
