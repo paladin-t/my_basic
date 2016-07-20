@@ -3020,8 +3020,8 @@ static void mb_free(void* p) {
 
 /* Compare two chunks of memory */
 static int mb_memcmp(void* l, void* r, size_t s) {
-	char* lc = (char*)l;
-	char* rc = (char*)r;
+	unsigned char* lc = (unsigned char*)l;
+	unsigned char* rc = (unsigned char*)r;
 	int i = 0;
 
 	if(mb_is_little_endian()) {
