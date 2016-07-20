@@ -2585,12 +2585,13 @@ static unsigned int _ht_hash_object(void* ht, void* d) {
 
 			break;
 		}
-		/* Fall through */
+
+		goto _default;
 #endif /* MB_ENABLE_USERTYPE_REF */
 	default:
-#ifdef MB_ENABLE_CLASS
+#if defined MB_ENABLE_CLASS || defined MB_ENABLE_USERTYPE_REF
 _default:
-#endif /* MB_ENABLE_CLASS */
+#endif /* MB_ENABLE_CLASS || MB_ENABLE_USERTYPE_REF */
 		for(i = 0; i < sizeof(_raw_t); ++i)
 			h = 5 * h + o->data.raw[i];
 		result = h % self->array_size;
@@ -2699,12 +2700,13 @@ static int _ht_cmp_object(void* d1, void* d2) {
 			return o1->data.usertype_ref->cmp(o1->data.usertype_ref->ref.s, o1->data.usertype_ref->usertype, o2->data.usertype_ref->usertype);
 		else if(o2->data.usertype_ref->cmp)
 			return o2->data.usertype_ref->cmp(o1->data.usertype_ref->ref.s, o1->data.usertype_ref->usertype, o2->data.usertype_ref->usertype);
-		/* Fall through */
+
+		goto _default;
 #endif /* MB_ENABLE_USERTYPE_REF */
 	default:
-#ifdef MB_ENABLE_CLASS
+#if defined MB_ENABLE_CLASS || defined MB_ENABLE_USERTYPE_REF
 _default:
-#endif /* MB_ENABLE_CLASS */
+#endif /* MB_ENABLE_CLASS || MB_ENABLE_USERTYPE_REF */
 		if(mb_is_little_endian()) {
 			for(i = (int)sizeof(_raw_t) - 1; i >= 0; --i) {
 				if(o1->data.raw[i] < o2->data.raw[i])
@@ -9473,11 +9475,10 @@ static int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t*
 
 	mb_make_nil(tmp);
 	_internal_object_to_public_value(itn, &tmp);
-	if(pbl->type != tmp.type) {
+	if(pbl->type != tmp.type)
 		result = pbl->type - tmp.type;
-	} else {
+	else
 		result = mb_memcmp(pbl->value.bytes, tmp.value.bytes, sizeof(mb_val_bytes_t));
-	}
 
 	return result;
 }
