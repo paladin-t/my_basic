@@ -30,6 +30,9 @@
 #endif /* _MSC_VER */
 
 #include "my_basic.h"
+#if defined ARDUINO && !defined MB_CP_ARDUINO
+#	define MB_CP_ARDUINO
+#endif /* ARDUINO && !MB_CP_ARDUINO */
 #ifdef MB_CP_VC
 #	include <conio.h>
 #	include <locale.h>
