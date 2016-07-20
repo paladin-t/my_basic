@@ -1,5 +1,6 @@
 Jul. 20 2016
 Added a program too long error
+Fixed a memory comparison issue
 
 Jul. 19 2016
 Added a too many routines error
