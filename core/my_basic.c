@@ -210,6 +210,7 @@ static const char* _ERR_DESC[] = {
 	"Invalid character",
 	/** Running */
 	"Empty program",
+	"Program too long",
 	"Syntax error",
 	"Invalid data type",
 	"Type does not match",
@@ -12271,9 +12272,16 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 			if(n == 1) {
 				char ch = *l;
 				if((ch == _NEWLINE_CHAR || ch == _RETURN_CHAR) && (!wrapped || wrapped == ch)) {
+					unsigned short before = 0;
 					wrapped = ch;
-					++context->parsing_row;
+					before = context->parsing_row++;
 					context->parsing_col = 0;
+					if(before > context->parsing_row) {
+						context->parsing_col = 1;
+						_handle_error_now(s, SE_RN_PROGRAM_TOO_LONG, s->last_error_file, MB_FUNC_ERR);
+
+						goto _exit;
+					}
 
 					break;
 				}
