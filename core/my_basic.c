@@ -686,10 +686,12 @@ static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0 };
 static _object_t* _OBJ_BOOL_TRUE = 0;
 static _object_t* _OBJ_BOOL_FALSE = 0;
 
+#define _VAR_ARGS_STR "..."
+
 #ifdef MB_ENABLE_CLASS
-static const _var_t _VAR_ARGS = { "...", 0, 0, 0 };
+static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0, 0, 0 };
 #else /* MB_ENABLE_CLASS */
-static const _var_t _VAR_ARGS = { "...", 0 };
+static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0 };
 #endif /* MB_ENABLE_CLASS */
 
 /* Parsing context */
@@ -2026,7 +2028,7 @@ static const _func_t _core_libs[] = {
 	{ "CALL", _core_call },
 	{ "DEF", _core_def },
 	{ "ENDDEF", _core_enddef },
-	{ "...", _core_args },
+	{ _VAR_ARGS_STR, _core_args },
 
 #ifdef MB_ENABLE_CLASS
 	{ "CLASS", _core_class },
