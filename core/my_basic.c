@@ -2955,8 +2955,9 @@ static void _init_dynamic_buffer(_dynamic_buffer_t* buf) {
 static void _dispose_dynamic_buffer(_dynamic_buffer_t* buf) {
 	mb_assert(buf);
 
-	if(buf->pointer.charp != buf->bytes)
-		mb_free(buf->pointer.charp);
+	if(buf->pointer.charp != buf->bytes) {
+		safe_free(buf->pointer.charp);
+	}
 	buf->pointer.charp = 0;
 	buf->size = 0;
 }
@@ -2975,8 +2976,9 @@ static void _resize_dynamic_buffer(_dynamic_buffer_t* buf, size_t es, size_t c) 
 	mb_assert(buf);
 
 	if(as > buf->size) {
-		if(buf->pointer.charp != buf->bytes)
-			mb_free(buf->pointer.charp);
+		if(buf->pointer.charp != buf->bytes) {
+			safe_free(buf->pointer.charp);
+		}
 		buf->pointer.charp = (char*)mb_malloc(as);
 		buf->size = as;
 	}
@@ -6062,7 +6064,15 @@ static int _gc_destroy_garbage_in_lambda(void* data, void* extra, _gc_t* gc) {
 
 	obj = (_object_t*)data;
 	if(obj->type == _DT_VAR) {
+#ifdef MB_ENABLE_CLASS
+		if(_is_string(obj) && obj->data.variable->pathing) {
+			safe_free(obj->data.variable->data);
+		} else {
+			_gc_destroy_garbage_in_lambda(obj->data.variable->data, 0, gc);
+		}
+#else /* MB_ENABLE_CLASS */
 		_gc_destroy_garbage_in_lambda(obj->data.variable->data, 0, gc);
+#endif /* MB_ENABLE_CLASS */
 		safe_free(obj->data.variable->name);
 		safe_free(obj->data.variable);
 	} else {
@@ -8121,7 +8131,7 @@ static void _destroy_outer_scope(_running_context_ref_t* p) {
 		p = p->prev;
 		_destroy_scope(scope->ref.s, scope->scope);
 		_destroy_ref(&scope->ref);
-		mb_free(scope);
+		safe_free(scope);
 	}
 	while(p) {
 		_running_context_ref_t* scope = p;
@@ -13297,6 +13307,7 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 	unsigned int arr_idx = 0;
 	bool_t literally = false;
 	_object_t* val = 0;
+	bool_t freed = false;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	int_t idx = 0;
 	mb_value_t key;
@@ -13410,9 +13421,15 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 		}
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
+		if(evar && evar->pathing && evar->data->type == _DT_STRING && !(var->data->type == _DT_STRING && evar->data->data.string != var->data->data.string)) {
+			_dispose_object(evar->data);
+			evar = 0;
+			freed = true;
+		}
 _proc_extra_var:
 #endif /* MB_ENABLE_CLASS */
-		_dispose_object(var->data);
+		if(!freed)
+			_dispose_object(var->data);
 		var->data->type = val->type;
 #ifdef MB_ENABLE_COLLECTION_LIB
 		if(val->type == _DT_LIST_IT || val->type == _DT_DICT_IT)
@@ -15891,6 +15908,7 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 	_object_t* obj = 0;
 	_object_t val_obj;
 	_object_t* val_ptr = 0;
+	bool_t pathed_str = false;
 
 	mb_assert(s && l);
 
@@ -15903,6 +15921,7 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 
 	obj = (_object_t*)ast->data;
 	do {
+		pathed_str = false;
 		val_ptr = &val_obj;
 		_MAKE_NIL(val_ptr);
 		switch(obj->type) {
@@ -15920,6 +15939,8 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 					if(obj != (_object_t*)pathed->data) {
 						obj = (_object_t*)pathed->data;
 						val_ptr = _eval_var_in_print(s, &val_ptr, &ast, obj);
+						if(val_ptr->type == _DT_STRING)
+							pathed_str = true;
 					}
 				}
 
@@ -15963,7 +15984,7 @@ _print:
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 				_get_printer(s)(val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING);
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
-				if(!val_ptr->ref && val_ptr->data.string) {
+				if(!val_ptr->ref && val_ptr->data.string && !pathed_str) {
 					safe_free(val_ptr->data.string);
 				}
 #ifdef MB_ENABLE_USERTYPE_REF
