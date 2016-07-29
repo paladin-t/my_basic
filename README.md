@@ -130,6 +130,7 @@ For more details about using MY-BASIC when it has be integrated with a project, 
 The [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) includes most of the fundamental topics, however, it hasn't covered everything, such as the design principle, machinism behind MY-BASIC, effective practice, etc; all of them are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki):
 
 * Principles
+ * [Language design](https://github.com/paladin-t/my_basic/wiki/Language-design)
  * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
  * [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 * Code with MY-BASIC
