@@ -170,7 +170,7 @@ The [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) includes most o
  * [Miscellaneous module](https://github.com/paladin-t/my_basic/wiki/Miscellaneous-module)
  * [Stack module](https://github.com/paladin-t/my_basic/wiki/Stack-module)
 * [FAQ](https://github.com/paladin-t/my_basic/wiki/FAQ)
- * [Is it possible to introduce another feature?](https://github.com/paladin-t/my_basic/wiki/Is-it-possible-to-introduce-another-feature%3F)
+ * [Is it possible to introduce another feature](https://github.com/paladin-t/my_basic/wiki/Is-it-possible-to-introduce-another-feature)
 
 ## References
 
