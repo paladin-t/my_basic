@@ -15971,16 +15971,17 @@ _print:
 				_get_printer(s)(MB_REAL_FMT, val_ptr->data.float_point);
 			} else if(val_ptr->type == _DT_STRING) {
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+				char* loc = setlocale(LC_ALL, "");
 				char* str = val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING;
 				_dynamic_buffer_t buf;
 				size_t lbuf = 0;
 				_INIT_BUF(buf);
-				setlocale(LC_ALL, "");
 				while((lbuf = (size_t)mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf))) > _WCHARS_OF_BUF(buf)) {
 					_RESIZE_WCHAR_BUF(buf, lbuf);
 				}
 				_get_printer(s)("%ls", _WCHAR_BUF_PTR(buf));
 				_DISPOSE_BUF(buf);
+				setlocale(LC_ALL, loc);
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 				_get_printer(s)(val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING);
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */

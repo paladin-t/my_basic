@@ -757,11 +757,12 @@ static void _list_one_line(bool_t nl, long l, const char* ln) {
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 	wchar_t wstr[16];
 	wchar_t* wstrp = wstr;
-	setlocale(LC_ALL, "");
+	char* loc = setlocale(LC_ALL, "");
 	_bytes_to_wchar(ln, &wstrp, countof(wstr));
 	_printf(nl ? "%ld]%ls\n" : "%ld]%ls", l, wstrp);
 	if(wstrp != wstr)
 		free(wstrp);
+	setlocale(LC_ALL, loc);
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 	_printf(nl ? "%ld]%s\n" : "%ld]%s", l, ln);
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
