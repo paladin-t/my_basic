@@ -15732,9 +15732,9 @@ _exit:
 /* GET statement */
 static int _std_get(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
-	mb_value_t coi;
+	mb_value_t ov;
 	mb_value_t arg;
-	_object_t ocoi;
+	_object_t obj;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	int_t index = 0;
 #endif /* MB_ENABLE_COLLECTION_LIB */
@@ -15748,49 +15748,49 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	mb_make_nil(coi);
+	mb_make_nil(ov);
 	mb_make_nil(arg);
 	mb_make_nil(ret);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
-	mb_check(mb_pop_value(s, l, &coi));
-	os = _try_overridden_usertype_ref(s, l, &coi, _STD_ID_GET, MB_MF_FUNC);
+	mb_check(mb_pop_value(s, l, &ov));
+	os = _try_overridden_usertype_ref(s, l, &ov, _STD_ID_GET, MB_MF_FUNC);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
-		_MAKE_NIL(&ocoi);
-		switch(coi.type) {
+		_MAKE_NIL(&obj);
+		switch(ov.type) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 		case MB_DT_LIST:
-			_public_value_to_internal_object(&coi, &ocoi);
+			_public_value_to_internal_object(&ov, &obj);
 			mb_check(mb_pop_int(s, l, &index));
-			if(!_at_list(ocoi.data.list, index, &ret)) {
+			if(!_at_list(obj.data.list, index, &ret)) {
 				_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
 
 			break;
 		case MB_DT_DICT:
-			_public_value_to_internal_object(&coi, &ocoi);
+			_public_value_to_internal_object(&ov, &obj);
 			mb_check(mb_pop_value(s, l, &arg));
-			if(!_find_dict(ocoi.data.dict, &arg, &ret)) {
+			if(!_find_dict(obj.data.dict, &arg, &ret)) {
 				_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
 
 			break;
 		case MB_DT_LIST_IT:
-			_public_value_to_internal_object(&coi, &ocoi);
-			if(ocoi.data.list_it && !ocoi.data.list_it->list->range_begin && ocoi.data.list_it->curr.node && ocoi.data.list_it->curr.node->data) {
-				_internal_object_to_public_value((_object_t*)ocoi.data.list_it->curr.node->data, &ret);
-			} else if(ocoi.data.list_it && ocoi.data.list_it->list->range_begin) {
-				mb_make_int(ret, ocoi.data.list_it->curr.ranging);
+			_public_value_to_internal_object(&ov, &obj);
+			if(obj.data.list_it && !obj.data.list_it->list->range_begin && obj.data.list_it->curr.node && obj.data.list_it->curr.node->data) {
+				_internal_object_to_public_value((_object_t*)obj.data.list_it->curr.node->data, &ret);
+			} else if(obj.data.list_it && obj.data.list_it->list->range_begin) {
+				mb_make_int(ret, obj.data.list_it->curr.ranging);
 			} else {
 				_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
 
 			break;
 		case MB_DT_DICT_IT:
-			_public_value_to_internal_object(&coi, &ocoi);
-			if(ocoi.data.dict_it && ocoi.data.dict_it->curr_node && ocoi.data.dict_it->curr_node->extra) {
-				_internal_object_to_public_value((_object_t*)ocoi.data.dict_it->curr_node->extra, &ret);
+			_public_value_to_internal_object(&ov, &obj);
+			if(obj.data.dict_it && obj.data.dict_it->curr_node && obj.data.dict_it->curr_node->extra) {
+				_internal_object_to_public_value((_object_t*)obj.data.dict_it->curr_node->extra, &ret);
 			} else {
 				_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
@@ -15799,10 +15799,10 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 		case MB_DT_CLASS:
-			_public_value_to_internal_object(&coi, &ocoi);
+			_public_value_to_internal_object(&ov, &obj);
 			mb_check(mb_pop_string(s, l, &field));
 			field = mb_strupr(field);
-			fnode = _search_identifier_in_class(s, ocoi.data.instance, field, 0, 0);
+			fnode = _search_identifier_in_class(s, obj.data.instance, field, 0, 0);
 			if(fnode && fnode->data) {
 				fobj = (_object_t*)fnode->data;
 				_internal_object_to_public_value(fobj, &ret);
@@ -15824,7 +15824,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 	}
 
 _exit:
-	_assign_public_value(&coi, 0);
+	_assign_public_value(&ov, 0);
 
 	return result;
 }
@@ -15832,37 +15832,43 @@ _exit:
 /* SET statement */
 static int _std_set(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
-	mb_value_t coll;
+	mb_value_t ov;
 	mb_value_t key;
 	mb_value_t val;
-	_object_t ocoll;
+	_object_t obj;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	_object_t* oval = 0;
 	int_t idx = 0;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	char* field = 0;
+	_ls_node_t* fnode = 0;
+	_object_t* fobj = 0;
+	mb_value_t nv;
+#endif /* MB_ENABLE_CLASS */
 	mb_meta_status_u os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
-	mb_make_nil(coll);
+	mb_make_nil(ov);
 	mb_make_nil(key);
 	mb_make_nil(val);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
-	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden_usertype_ref(s, l, &coll, _STD_ID_SET, MB_MF_FUNC);
+	mb_check(mb_pop_value(s, l, &ov));
+	os = _try_overridden_usertype_ref(s, l, &ov, _STD_ID_SET, MB_MF_FUNC);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
-		_MAKE_NIL(&ocoll);
-		switch(coll.type) {
+		_MAKE_NIL(&obj);
+		switch(ov.type) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 		case MB_DT_LIST:
-			_public_value_to_internal_object(&coll, &ocoll);
+			_public_value_to_internal_object(&ov, &obj);
 			while(mb_has_arg(s, l)) {
 				mb_make_nil(val);
 				mb_check(mb_pop_int(s, l, &idx));
 				mb_check(mb_pop_value(s, l, &val));
-				if(!_set_list(ocoll.data.list, idx, &val, &oval)) {
+				if(!_set_list(obj.data.list, idx, &val, &oval)) {
 					_destroy_object(oval, 0);
 
 					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -15871,17 +15877,38 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 
 			break;
 		case MB_DT_DICT:
-			_public_value_to_internal_object(&coll, &ocoll);
+			_public_value_to_internal_object(&ov, &obj);
 			while(mb_has_arg(s, l)) {
 				mb_make_nil(key);
 				mb_make_nil(val);
 				mb_check(mb_pop_value(s, l, &key));
 				mb_check(mb_pop_value(s, l, &val));
-				_set_dict(ocoll.data.dict, &key, &val, 0, 0);
+				_set_dict(obj.data.dict, &key, &val, 0, 0);
 			}
 
 			break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+		case MB_DT_CLASS:
+			mb_make_nil(nv);
+
+			_public_value_to_internal_object(&ov, &obj);
+			mb_check(mb_pop_string(s, l, &field));
+			mb_check(mb_pop_value(s, l, &nv));
+			field = mb_strupr(field);
+			fnode = _search_identifier_in_class(s, obj.data.instance, field, 0, 0);
+			if (fnode && _IS_VAR(fnode->data)) {
+				_object_t* nobj = 0;
+				fobj = (_object_t*)fnode->data;
+				_destroy_object(fobj->data.variable->data, 0);
+				_create_internal_object_from_public_value(&nv, &nobj);
+				fobj->data.variable->data = nobj;
+			} else {
+				_handle_error_on_obj(s, SE_RN_VARIABLE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			}
+
+			break;
+#endif /* MB_ENABLE_CLASS */
 		default:
 			_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 
@@ -15892,11 +15919,11 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_close_bracket(s, l));
 
 	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-		mb_check(mb_push_value(s, l, coll));
+		mb_check(mb_push_value(s, l, ov));
 	}
 
 _exit:
-	_assign_public_value(&coll, 0);
+	_assign_public_value(&ov, 0);
 
 	return result;
 }
