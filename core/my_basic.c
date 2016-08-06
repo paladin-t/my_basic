@@ -146,7 +146,7 @@ extern "C" {
 #	define toupper(__c) (islower(__c) ? ((__c) - 'a' + 'A') : (__c))
 #endif /* toupper */
 
-#define _copy_bytes(__l, __r) do { memcpy((__l), (__r), sizeof(mb_val_bytes_t)); } while(0)
+#define _COPY_BYTES(__l, __r) do { memcpy((__l), (__r), sizeof(mb_val_bytes_t)); } while(0)
 
 #define _mb_check(__expr, __exit) do { if((__expr) != MB_FUNC_OK) goto __exit; } while(0)
 #define _mb_check_mark(__expr, __result, __exit) do { __result = (__expr); if(__result != MB_FUNC_OK) goto __exit; } while(0)
@@ -392,11 +392,18 @@ typedef struct _func_t {
 	mb_func_t pointer;
 } _func_t;
 
+#define _PATHING_NONE 0
+#define _PATHING_NORMAL 1
+#define _PATHING_UNKNOWN_FOR_NOT_FOUND 2
+
+#define _PN(__b) ((!!(__b)) ? (_PATHING_NORMAL) : (_PATHING_NONE))
+#define _PU(__b) ((!!(__b)) ? (_PATHING_UNKNOWN_FOR_NOT_FOUND) : (_PATHING_NONE))
+
 typedef struct _var_t {
 	char* name;
 	struct _object_t* data;
 #ifdef MB_ENABLE_CLASS
-	int pathing;
+	bool_t pathing;
 	bool_t isme;
 #endif /* MB_ENABLE_CLASS */
 } _var_t;
@@ -685,6 +692,15 @@ static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0 };
 
 static _object_t* _OBJ_BOOL_TRUE = 0;
 static _object_t* _OBJ_BOOL_FALSE = 0;
+
+#ifdef MB_ENABLE_CLASS
+#ifdef MB_ENABLE_SOURCE_TRACE
+static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0, 0, 0 };
+#else /* MB_ENABLE_SOURCE_TRACE */
+static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0 };
+#endif /* MB_ENABLE_SOURCE_TRACE */
+static const _ls_node_t _LS_NODE_UNKNOWN = { (void*)&_OBJ_UNKNOWN, 0, 0, 0 };
+#endif /* MB_ENABLE_CLASS */
 
 #define _VAR_ARGS_STR "..."
 
@@ -1716,7 +1732,7 @@ static bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda,
 static _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c);
 static _running_context_t* _push_scope_by_class(mb_interpreter_t* s, _running_context_t* p);
 static _ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* instance, const char* n, _ht_node_t** ht, _running_context_t** sp);
-static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp);
+static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp, bool_t unknown_for_not_found);
 #endif /* MB_ENABLE_CLASS */
 static _running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r);
 static _running_context_t* _push_weak_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r);
@@ -3599,7 +3615,7 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 
 #ifdef MB_ENABLE_CLASS
 					if(s->last_instance) {
-						_ls_node_t* cs = _search_identifier_in_scope_chain(s, 0, c->data.array->name, 1, 0, 0);
+						_ls_node_t* cs = _search_identifier_in_scope_chain(s, 0, c->data.array->name, _PATHING_NORMAL, 0, 0);
 						if(cs)
 							c = (_object_t*)cs->data;
 					}
@@ -3620,7 +3636,7 @@ _array:
 						_ls_pushback(garbage, arr_elem);
 						arr_elem->type = arr_type;
 						arr_elem->ref = true;
-						_copy_bytes(arr_elem->data.bytes, arr_val.bytes);
+						_COPY_BYTES(arr_elem->data.bytes, arr_val.bytes);
 						if(f) {
 							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 						}
@@ -3759,7 +3775,7 @@ _routine:
 					if(c->type == _DT_VAR) {
 						_ls_node_t* cs = _search_identifier_in_scope_chain(s, 0, c->data.variable->name,
 #ifdef MB_ENABLE_CLASS
-							c->data.variable->pathing,
+							_PU(c->data.variable->pathing),
 #else /* MB_ENABLE_CLASS */
 							0,
 #endif /* MB_ENABLE_CLASS */
@@ -4027,7 +4043,7 @@ static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* r
 				if(proc_ref)
 					var->data->ref = false;
 			} else {
-				rnode = _search_identifier_in_scope_chain(s, running, var->name, 0, 0, 0);
+				rnode = _search_identifier_in_scope_chain(s, running, var->name, _PATHING_NONE, 0, 0);
 				if(rnode)
 					var = ((_object_t*)rnode->data)->data.variable;
 
@@ -4832,7 +4848,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 
 		break;
 	case _DT_ARRAY:
-		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
+		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ARRAY) {
 			(*obj)->data.array = ((_object_t*)glbsyminscope->data)->data.array;
 			(*obj)->ref = true;
@@ -4854,7 +4870,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		break;
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
-		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
+		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_CLASS) {
 			(*obj)->data.instance = ((_object_t*)glbsyminscope->data)->data.instance;
 			(*obj)->ref = true;
@@ -4888,7 +4904,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		break;
 #endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
-		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
+		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
 			(*obj)->data.routine = ((_object_t*)glbsyminscope->data)->data.routine;
 			(*obj)->ref = true;
@@ -4926,7 +4942,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		if(context->routine_params_state)
 			glbsyminscope = _ht_find(running->var_dict, sym);
 		else
-			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
+			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 #ifdef MB_ENABLE_CLASS
 		is_field = context->last_symbol && _IS_FUNC(context->last_symbol, _core_var);
 #endif /* MB_ENABLE_CLASS */
@@ -4952,7 +4968,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			tmp.var->data->data.integer = 0;
 #ifdef MB_ENABLE_CLASS
 			if(context->class_state != _CLASS_STATE_NONE)
-				tmp.var->pathing = 1;
+				tmp.var->pathing = true;
 			else if(!is_field)
 				tmp.var->pathing = context->current_symbol_contains_accessor;
 #endif /* MB_ENABLE_CLASS */
@@ -5124,7 +5140,7 @@ _end_import:
 		goto _exit;
 	}
 	/* _array_t */
-	glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
+	glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 	if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ARRAY) {
 		tmp.obj = (_object_t*)glbsyminscope->data;
 		memcpy(*value, &(tmp.obj->data.array->type), sizeof(tmp.obj->data.array->type));
@@ -5148,7 +5164,7 @@ _end_import:
 	/* _class_t */
 #ifdef MB_ENABLE_CLASS
 	if(context->last_symbol) {
-		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
+		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_CLASS) {
 			if(_IS_FUNC(context->last_symbol, _core_class)) {
 				_handle_error_now(s, SE_RN_DUPLICATE_CLASS, s->source_file, MB_FUNC_ERR);
@@ -5196,7 +5212,7 @@ _end_import:
 #endif /* MB_ENABLE_CLASS */
 	/* _routine_t */
 	if(context->last_symbol && !_is_bracket_char(sym[0])) {
-		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
+		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
 			if(_IS_FUNC(context->last_symbol, _core_def)) {
 				if(_begin_routine(s) != MB_FUNC_OK)
@@ -5300,7 +5316,7 @@ _end_import:
 		goto _exit;
 	}
 	/* _var_t */
-	glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
+	glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 	if(glbsyminscope) {
 		if(((_object_t*)glbsyminscope->data)->type != _DT_LABEL) {
 			memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
@@ -5313,7 +5329,7 @@ _end_import:
 	/* _label_t */
 	if(context->current_char == ':') {
 		if(!context->last_symbol || _IS_EOS(context->last_symbol)) {
-			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, 0, 0, 0);
+			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 			if(glbsyminscope)
 				memcpy(*value, &glbsyminscope->data, sizeof(glbsyminscope->data));
 
@@ -6568,7 +6584,7 @@ static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int i
 		val->float_point = *((real_t*)rawptr);
 		*type = _DT_REAL;
 #else /* MB_SIMPLE_ARRAY */
-		_copy_bytes(val->bytes, *((mb_val_bytes_t*)rawptr));
+		_COPY_BYTES(val->bytes, *((mb_val_bytes_t*)rawptr));
 		*type = arr->types[index];
 #endif /* MB_SIMPLE_ARRAY */
 	} else if(arr->type == _DT_STRING) {
@@ -6614,7 +6630,7 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 
 		break;
 	default:
-		_copy_bytes(*((mb_val_bytes_t*)rawptr), val->bytes);
+		_COPY_BYTES(*((mb_val_bytes_t*)rawptr), val->bytes);
 
 		break;
 	}
@@ -6630,7 +6646,7 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 
 		break;
 	default:
-		_copy_bytes(*((mb_val_bytes_t*)rawptr), val->bytes);
+		_COPY_BYTES(*((mb_val_bytes_t*)rawptr), val->bytes);
 		arr->types[index] = *type;
 
 		break;
@@ -7406,7 +7422,7 @@ static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	me = _create_var(&meobj, _CLASS_ME, strlen(_CLASS_ME) + 1, true);
 	me->data->type = _DT_CLASS;
 	me->data->data.instance = instance;
-	me->pathing = 1;
+	me->pathing = true;
 	me->isme = true;
 	_ht_set_or_insert(instance->scope->var_dict, me->name, meobj);
 }
@@ -7787,7 +7803,7 @@ static _class_t* _reflect_string_to_class(mb_interpreter_t* s, const char* n, mb
 	_ls_node_t* cs = 0;
 	_object_t* c = 0;
 
-	cs = _search_identifier_in_scope_chain(s, 0, n, 0, 0, 0);
+	cs = _search_identifier_in_scope_chain(s, 0, n, _PATHING_NONE, 0, 0);
 	if(!cs)
 		return 0;
 	c = (_object_t*)cs->data;
@@ -8064,7 +8080,7 @@ static void _mark_upvalue(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj
 	mb_assert(s && lambda && obj);
 
 	running = s->running_context;
-	scp = _search_identifier_in_scope_chain(s, running, n, 1, 0, &found_in_scope);
+	scp = _search_identifier_in_scope_chain(s, running, n, _PATHING_NORMAL, 0, &found_in_scope);
 	if(scp && found_in_scope) {
 		if(!found_in_scope->refered_lambdas)
 			found_in_scope->refered_lambdas = _ls_create();
@@ -8170,7 +8186,7 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 		_ls_node_t* nori = 0;
 #ifdef MB_ENABLE_CLASS
 		if(tuple->instance)
-			nori = _search_identifier_in_scope_chain(tuple->s, tuple->scope, n, 1, 0, 0);
+			nori = _search_identifier_in_scope_chain(tuple->s, tuple->scope, n, _PATHING_NORMAL, 0, 0);
 		else
 			nori = _ht_find(tuple->scope->var_dict, (void*)n);
 #else /* MB_ENABLE_CLASS */
@@ -8190,7 +8206,7 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 			if(obj->type == _DT_VAR)
 				var->pathing = obj->data.variable->pathing;
 			else
-				var->pathing = 0;
+				var->pathing = false;
 #endif /* MB_ENABLE_CLASS */
 			ul = _ht_set_or_insert(tuple->outer_scope->scope->var_dict, ovar->data.variable->name, ovar);
 			mb_assert(ul);
@@ -8379,7 +8395,7 @@ static _ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* in
 }
 
 /* Try to search an identifier accessor in a scope */
-static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp) {
+static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp, bool_t unknown_for_not_found) {
 	_ls_node_t* result = 0;
 	_object_t* obj = 0;
 	char acc[_SINGLE_SYMBOL_MAX_LENGTH];
@@ -8393,10 +8409,16 @@ static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_con
 		acc[j] = n[i];
 		if(_is_accessor_char(acc[j]) || acc[j] == _ZERO_CHAR) {
 			acc[j] = _ZERO_CHAR;
-			if(instance)
+			if(instance) {
 				result = _search_identifier_in_class(s, instance, acc, ht, sp);
-			else
-				result = _search_identifier_in_scope_chain(s, scope, acc, 0, ht, sp);
+				if(!result && unknown_for_not_found) {
+					result = (_ls_node_t*)&_LS_NODE_UNKNOWN;
+
+					return result;
+				}
+			} else {
+				result = _search_identifier_in_scope_chain(s, scope, acc, _PATHING_NONE, ht, sp);
+			}
 			if(!result)
 				return 0;
 			obj = (_object_t*)result->data;
@@ -8645,7 +8667,7 @@ static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _runni
 
 #ifdef MB_ENABLE_CLASS
 	if(pathing) {
-		result = _search_identifier_accessor(s, scope, n, &fn, &fs);
+		result = _search_identifier_accessor(s, scope, n, &fn, &fs, pathing == _PATHING_UNKNOWN_FOR_NOT_FOUND);
 		if(result)
 			goto _exit;
 	}
@@ -8701,7 +8723,7 @@ static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, 
 	mb_assert(s && i);
 
 	result = i;
-	scp = _search_identifier_in_scope_chain(s, 0, result->name, 0, 0, 0);
+	scp = _search_identifier_in_scope_chain(s, 0, result->name, _PATHING_NONE, 0, 0);
 	if(scp) {
 		obj = (_object_t*)scp->data;
 		if(obj && obj->type == _DT_ARRAY) {
@@ -8722,7 +8744,7 @@ static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
 	mb_assert(s && i);
 
 	result = i;
-	scp = _search_identifier_in_scope_chain(s, 0, result->name, 1, 0, 0);
+	scp = _search_identifier_in_scope_chain(s, 0, result->name, _PATHING_NORMAL, 0, 0);
 	if(scp) {
 		obj = (_object_t*)scp->data;
 		if(obj && obj->type == _DT_VAR)
@@ -9845,7 +9867,7 @@ _retry:
 			}
 		} else if(s->last_instance || obj->data.variable->pathing) {
 			/* Need to path */
-			_ls_node_t* pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing, 0, 0);
+			_ls_node_t* pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, _PU(obj->data.variable->pathing), 0, 0);
 			if(pathed && pathed->data) {
 				if(obj != (_object_t*)pathed->data) {
 					/* Found another node */
@@ -11391,7 +11413,7 @@ int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 
 	_using_jump_set_of_structured(s, tmp, _exit, result);
 
-	tmp = _search_identifier_in_scope_chain(s, 0, n, 0, 0, 0);
+	tmp = _search_identifier_in_scope_chain(s, 0, n, _PATHING_NONE, 0, 0);
 	if(tmp && tmp->data) {
 		obj = (_object_t*)tmp->data;
 		if(obj->type == _DT_VAR)
@@ -11527,7 +11549,7 @@ int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb
 
 	mb_make_nil(*val);
 
-	tmp = _search_identifier_in_scope_chain(s, 0, n, 1, 0, 0);
+	tmp = _search_identifier_in_scope_chain(s, 0, n, _PATHING_NORMAL, 0, 0);
 	if(tmp && tmp->data) {
 		obj = (_object_t*)tmp->data;
 		_internal_object_to_public_value(obj, val);
@@ -12191,7 +12213,7 @@ int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 
 	mb_make_nil(*val);
 
-	scp = _search_identifier_in_scope_chain(s, 0, n, 0, 0, 0);
+	scp = _search_identifier_in_scope_chain(s, 0, n, _PATHING_NONE, 0, 0);
 	if(scp) {
 		obj = (_object_t*)scp->data;
 		if(obj) {
@@ -12477,7 +12499,7 @@ int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 
 	running = s->running_context;
 
-	v = _search_identifier_in_scope_chain(s, 0, n, 0, 0, 0);
+	v = _search_identifier_in_scope_chain(s, 0, n, _PATHING_NONE, 0, 0);
 	if(v) {
 		obj = (_object_t*)v->data;
 		mb_assert(obj->type == _DT_VAR);
@@ -12507,7 +12529,7 @@ int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
 
 	running = s->running_context;
 
-	v = _search_identifier_in_scope_chain(s, 0, n, 0, 0, 0);
+	v = _search_identifier_in_scope_chain(s, 0, n, _PATHING_NONE, 0, 0);
 	if(v) {
 		obj = (_object_t*)v->data;
 		mb_assert(obj->type == _DT_VAR);
@@ -13492,7 +13514,7 @@ _proc_extra_var:
 		case _DT_REAL: /* Fall through */
 		case _DT_STRING: /* Fall through */
 		case _DT_USERTYPE:
-			_copy_bytes(_val.bytes, val->data.bytes);
+			_COPY_BYTES(_val.bytes, val->data.bytes);
 
 			break;
 		default:
@@ -14162,7 +14184,7 @@ _retry:
 			obj = (_object_t*)ast->data;
 #ifdef MB_ENABLE_CLASS
 			if(obj->type == _DT_VAR) {
-				pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing, 0, 0);
+				pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, _PN(obj->data.variable->pathing), 0, 0);
 				if(pathed && pathed->data)
 					obj = (_object_t*)pathed->data;
 			}
@@ -14190,7 +14212,7 @@ _retry:
 			goto _retry;
 		}
 #ifdef MB_ENABLE_CLASS
-		pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing, 0, 0);
+		pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, _PN(obj->data.variable->pathing), 0, 0);
 		if(pathed && pathed->data)
 			obj = (_object_t*)pathed->data;
 		/* Fall through */
@@ -14223,7 +14245,7 @@ _retry:
 			) {
 				pathed = _search_identifier_in_class(s, routine->instance, routine->name, 0, 0);
 			} else {
-				pathed = _search_identifier_in_scope_chain(s, 0, routine->name, 0, 0, 0);
+				pathed = _search_identifier_in_scope_chain(s, 0, routine->name, _PATHING_NONE, 0, 0);
 			}
 			if(pathed && pathed->data) {
 				obj = (_object_t*)pathed->data;
@@ -14290,7 +14312,7 @@ static int _core_def(mb_interpreter_t* s, void** l) {
 	while(!_IS_FUNC(obj, _core_close_bracket)) {
 		if(obj->type == _DT_VAR) {
 			var = obj->data.variable;
-			rnode = _search_identifier_in_scope_chain(s, routine->func.basic.scope, var->name, 0, 0, 0);
+			rnode = _search_identifier_in_scope_chain(s, routine->func.basic.scope, var->name, _PATHING_NONE, 0, 0);
 			if(rnode)
 				var = ((_object_t*)rnode->data)->data.variable;
 			if(!routine->func.basic.parameters)
@@ -14417,7 +14439,7 @@ static int _core_class(mb_interpreter_t* s, void** l) {
 			ast = ast->next;
 			obj = (_object_t*)ast->data;
 			if(obj && obj->type == _DT_VAR) {
-				_ls_node_t* tmp =_search_identifier_in_scope_chain(s, _OUTTER_SCOPE(running), obj->data.variable->name, 0, 0, 0);
+				_ls_node_t* tmp =_search_identifier_in_scope_chain(s, _OUTTER_SCOPE(running), obj->data.variable->name, _PATHING_NONE, 0, 0);
 				if(tmp && tmp->data)
 					obj = (_object_t*)tmp->data;
 			}
@@ -15969,7 +15991,7 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 			}
 #ifdef MB_ENABLE_CLASS
 			if(obj->data.variable->pathing) {
-				_ls_node_t* pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, obj->data.variable->pathing, 0, 0);
+				_ls_node_t* pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, _PU(obj->data.variable->pathing), 0, 0);
 				if(pathed && pathed->data) {
 					if(obj != (_object_t*)pathed->data) {
 						obj = (_object_t*)pathed->data;

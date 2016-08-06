@@ -1,3 +1,6 @@
+Aug. 7 2016
+Refactored to return UNKNOWN when trying to access a not exist member in a prototype
+
 Aug. 6 2016
 Refactored to return UNKNOWN when trying to access a not exist key in a dictionary
 Added reflection accessing ability to the SET statement
