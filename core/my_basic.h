@@ -496,10 +496,10 @@ typedef enum mb_meta_status_u {
 typedef unsigned char mb_val_bytes_t[mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), mb_max(sizeof(int_t), sizeof(real_t)))];
 
 typedef union mb_value_u {
-	mb_data_e type;
 	int_t integer;
 	real_t float_point;
 	char* string;
+	mb_data_e type;
 	void* usertype;
 #ifdef MB_ENABLE_USERTYPE_REF
 	void* usertype_ref;
