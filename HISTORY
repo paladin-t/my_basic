@@ -1,4 +1,5 @@
 Aug. 6 2016
+Refactored to return UNKNOWN when trying to access a not exist key in a dictionary
 Added reflection accessing ability to the SET statement
 
 Aug. 4 2016

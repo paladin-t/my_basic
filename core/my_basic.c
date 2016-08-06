@@ -7245,8 +7245,16 @@ static bool_t _find_dict(_dict_t* coll, mb_value_t* val, mb_value_t* oval) {
 	_create_internal_object_from_public_value(val, &oarg);
 	result = _ht_find(coll->dict, oarg);
 	_destroy_object(oarg, 0);
-	if(oval && result && result->data)
-		_internal_object_to_public_value((_object_t*)result->data, oval);
+	if(oval) {
+		if(result && result->data) {
+			_internal_object_to_public_value((_object_t*)result->data, oval);
+		} else {
+			oval->type = MB_DT_UNKNOWN;
+			oval->value.integer = 0;
+
+			return true;
+		}
+	}
 
 	return !!(result && result->data);
 }
