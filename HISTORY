@@ -1,3 +1,6 @@
+Aug. 9 2016
+Fixed a multiple disposing bug with GC
+
 Aug. 7 2016
 Refactored to return UNKNOWN when trying to access a not exist member in a prototype
 

@@ -6,6 +6,7 @@
 import "level.bas"
 import "player.bas"
 
+cls()
 print "Welcome to Yet Another RPG Dungeon!";
 
 level.create()

@@ -5861,7 +5861,7 @@ static void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 		return;
 
 	if(gc && _ht_find(gc->collected_table, ref))
-		return;
+		_ht_remove(gc->collected_table, ref, 0);
 
 	if(!gc->table)
 		return;
