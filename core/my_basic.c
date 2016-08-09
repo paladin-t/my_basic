@@ -8712,20 +8712,23 @@ static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_con
 		acc[j] = n[i];
 		if(_is_accessor_char(acc[j]) || acc[j] == _ZERO_CHAR) {
 			acc[j] = _ZERO_CHAR;
+			do {
 #ifdef MB_ENABLE_CLASS
-			if(instance) {
-				result = _search_identifier_in_class(s, instance, acc, ht, sp);
-				if(!result && unknown_for_not_found) {
-					result = (_ls_node_t*)&_LS_NODE_UNKNOWN;
+				if(instance) {
+					result = _search_identifier_in_class(s, instance, acc, ht, sp);
+					if(!result && unknown_for_not_found) {
+						result = (_ls_node_t*)&_LS_NODE_UNKNOWN;
 
-					return result;
+						return result;
+					}
+
+					break;
 				}
-			} else {
-				result = _search_identifier_in_scope_chain(s, scope, acc, _PATHING_NONE, ht, sp);
-			}
-#else /* MB_ENABLE_CLASS */
-			result = _search_identifier_in_scope_chain(s, scope, acc, _PATHING_NONE, ht, sp);
 #endif /* MB_ENABLE_CLASS */
+
+				result = _search_identifier_in_scope_chain(s, scope, acc, _PATHING_NONE, ht, sp);
+			} while(0);
+
 			if(!result)
 				return 0;
 			obj = (_object_t*)result->data;
