@@ -483,6 +483,8 @@ typedef struct _label_t {
 #define _CLASS_COMPARE_FUNC "COMPARE"
 #define _CLASS_TOSTRING_FUNC "TOSTRING"
 
+#define _CLASS_OVERRIDE_FMT "_%s"
+
 typedef struct _class_t {
 	_ref_t ref;
 	char* name;
@@ -4489,7 +4491,7 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 		_object_t obj;
 		_MAKE_NIL(&obj);
 		_public_value_to_internal_object(d, &obj);
-		sprintf(buf, "_%s", f);
+		sprintf(buf, _CLASS_OVERRIDE_FMT, f);
 		ofn = _search_identifier_in_class(s, obj.data.instance, buf, 0, 0);
 		if(ofn) {
 			_object_t* ofo = (_object_t*)ofn->data;
