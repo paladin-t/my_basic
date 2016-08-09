@@ -1732,7 +1732,6 @@ static bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda,
 static _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c);
 static _running_context_t* _push_scope_by_class(mb_interpreter_t* s, _running_context_t* p);
 static _ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* instance, const char* n, _ht_node_t** ht, _running_context_t** sp);
-static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp, bool_t unknown_for_not_found);
 #endif /* MB_ENABLE_CLASS */
 static _running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r);
 static _running_context_t* _push_weak_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r);
@@ -1750,6 +1749,7 @@ static _running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s);
 static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, const char* n, int pathing, _ht_node_t** ht, _running_context_t** sp);
 static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o);
 static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i);
+static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp, bool_t unknown_for_not_found);
 
 static _var_t* _create_var(_object_t** oobj, const char* n, size_t ns, bool_t dup_name);
 static _object_t* _create_object(void);
@@ -8393,67 +8393,6 @@ static _ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* in
 
 	return result;
 }
-
-/* Try to search an identifier accessor in a scope */
-static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp, bool_t unknown_for_not_found) {
-	_ls_node_t* result = 0;
-	_object_t* obj = 0;
-	char acc[_SINGLE_SYMBOL_MAX_LENGTH];
-	int i = 0;
-	int j = 0;
-	_class_t* instance = 0;
-
-	mb_assert(s && n);
-
-	while((i == 0) || (i > 0 && n[i - 1])) {
-		acc[j] = n[i];
-		if(_is_accessor_char(acc[j]) || acc[j] == _ZERO_CHAR) {
-			acc[j] = _ZERO_CHAR;
-			if(instance) {
-				result = _search_identifier_in_class(s, instance, acc, ht, sp);
-				if(!result && unknown_for_not_found) {
-					result = (_ls_node_t*)&_LS_NODE_UNKNOWN;
-
-					return result;
-				}
-			} else {
-				result = _search_identifier_in_scope_chain(s, scope, acc, _PATHING_NONE, ht, sp);
-			}
-			if(!result)
-				return 0;
-			obj = (_object_t*)result->data;
-			if(!obj)
-				return 0;
-			switch(obj->type) {
-			case _DT_VAR:
-				if(obj->data.variable->data->type == _DT_CLASS)
-					instance = obj->data.variable->data->data.instance;
-
-				break;
-			case _DT_CLASS:
-				instance = obj->data.instance;
-
-				break;
-			case _DT_ARRAY: /* Fall through */
-			case _DT_ROUTINE: /* Do nothing */
-				break;
-			default:
-				mb_assert(0 && "Unsupported.");
-
-				return 0;
-			}
-
-			j = 0;
-			i++;
-
-			continue;
-		}
-		j++;
-		i++;
-	}
-
-	return result;
-}
 #endif /* MB_ENABLE_CLASS */
 
 /* Create a scope reference to an exist one by a routine */
@@ -8749,6 +8688,79 @@ static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
 		obj = (_object_t*)scp->data;
 		if(obj && obj->type == _DT_VAR)
 			result = obj->data.variable;
+	}
+
+	return result;
+}
+
+/* Try to search an identifier accessor in a scope */
+static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp, bool_t unknown_for_not_found) {
+	_ls_node_t* result = 0;
+	_object_t* obj = 0;
+	char acc[_SINGLE_SYMBOL_MAX_LENGTH];
+	int i = 0;
+	int j = 0;
+#ifdef MB_ENABLE_CLASS
+	_class_t* instance = 0;
+#else /* MB_ENABLE_CLASS */
+	mb_unrefvar(unknown_for_not_found);
+#endif /* MB_ENABLE_CLASS */
+
+	mb_assert(s && n);
+
+	while((i == 0) || (i > 0 && n[i - 1])) {
+		acc[j] = n[i];
+		if(_is_accessor_char(acc[j]) || acc[j] == _ZERO_CHAR) {
+			acc[j] = _ZERO_CHAR;
+#ifdef MB_ENABLE_CLASS
+			if(instance) {
+				result = _search_identifier_in_class(s, instance, acc, ht, sp);
+				if(!result && unknown_for_not_found) {
+					result = (_ls_node_t*)&_LS_NODE_UNKNOWN;
+
+					return result;
+				}
+			} else {
+				result = _search_identifier_in_scope_chain(s, scope, acc, _PATHING_NONE, ht, sp);
+			}
+#else /* MB_ENABLE_CLASS */
+			result = _search_identifier_in_scope_chain(s, scope, acc, _PATHING_NONE, ht, sp);
+#endif /* MB_ENABLE_CLASS */
+			if(!result)
+				return 0;
+			obj = (_object_t*)result->data;
+			if(!obj)
+				return 0;
+			switch(obj->type) {
+			case _DT_VAR:
+#ifdef MB_ENABLE_CLASS
+				if(obj->data.variable->data->type == _DT_CLASS)
+					instance = obj->data.variable->data->data.instance;
+#endif /* MB_ENABLE_CLASS */
+
+				break;
+#ifdef MB_ENABLE_CLASS
+			case _DT_CLASS:
+				instance = obj->data.instance;
+
+				break;
+#endif /* MB_ENABLE_CLASS */
+			case _DT_ARRAY: /* Fall through */
+			case _DT_ROUTINE: /* Do nothing */
+				break;
+			default:
+				mb_assert(0 && "Unsupported.");
+
+				return 0;
+			}
+
+			j = 0;
+			i++;
+
+			continue;
+		}
+		j++;
+		i++;
 	}
 
 	return result;
