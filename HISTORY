@@ -1,8 +1,9 @@
 Aug. 9 2016
+Added function overriding support for class instance
 Fixed a multiple disposing bug with GC
 
 Aug. 7 2016
-Refactored to return UNKNOWN when trying to access a not exist member in a prototype
+Refactored to return UNKNOWN when trying to access a not exist member in a class instance
 
 Aug. 6 2016
 Refactored to return UNKNOWN when trying to access a not exist key in a dictionary

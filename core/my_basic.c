@@ -1297,6 +1297,7 @@ static int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, u
 static int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r);
 static int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r, mb_value_t* val);
 static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
+static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_t* d, const char* f, mb_meta_func_u t);
 
 /** Handlers */
 
@@ -1624,7 +1625,6 @@ static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_
 static void _destroy_usertype_ref(_usertype_ref_t* c);
 static void _unref_usertype_ref(_ref_t* ref, void* data);
 #endif /* MB_ENABLE_USERTYPE_REF */
-static mb_meta_status_u _try_overridden_usertype_ref(mb_interpreter_t* s, void** l, mb_value_t* d, const char* f, mb_meta_func_u t);
 
 static _array_t* _create_array(mb_interpreter_t* s, const char* n, _data_e t);
 #ifdef MB_ENABLE_ARRAY_REF
@@ -4467,6 +4467,51 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
 	return result;
 }
 
+/* Try to call overridden function */
+static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_t* d, const char* f, mb_meta_func_u t) {
+	mb_assert(s && l && d && f);
+
+#ifdef MB_ENABLE_USERTYPE_REF
+	if(d->type == MB_DT_USERTYPE_REF) {
+		_object_t obj;
+		_MAKE_NIL(&obj);
+		_public_value_to_internal_object(d, &obj);
+		if(t == MB_MF_COLL && obj.data.usertype_ref->coll_func)
+			return obj.data.usertype_ref->coll_func(s, l, f);
+		else if(t == MB_MF_FUNC && obj.data.usertype_ref->generic_func)
+			return obj.data.usertype_ref->generic_func(s, l, f);
+	}
+#endif /* MB_ENABLE_USERTYPE_REF */
+#ifdef MB_ENABLE_CLASS
+	if(d->type == MB_DT_CLASS) {
+		char buf[_TEMP_FORMAT_MAX_LENGTH];
+		_ls_node_t* ofn = 0;
+		_object_t obj;
+		_MAKE_NIL(&obj);
+		_public_value_to_internal_object(d, &obj);
+		sprintf(buf, "_%s", f);
+		ofn = _search_identifier_in_class(s, obj.data.instance, buf, 0, 0);
+		if(ofn) {
+			_object_t* ofo = (_object_t*)ofn->data;
+			_ls_node_t* ast = (_ls_node_t*)*l;
+			mb_value_t va[1];
+			mb_make_nil(va[0]);
+			if(_eval_routine(s, &ast, va, 0, ofo->data.routine, _has_routine_lex_arg, _pop_routine_lex_arg) == MB_FUNC_OK) {
+				if(ast)
+					*l = ast->prev;
+
+				return MB_MS_DONE | MB_MS_RETURNED;
+			}
+		}
+	}
+#endif /* MB_ENABLE_CLASS */
+#if !defined MB_ENABLE_USERTYPE_REF && !defined MB_ENABLE_CLASS
+	mb_unrefvar(t);
+#endif /* !MB_ENABLE_USERTYPE_REF && !MB_ENABLE_CLASS */
+
+	return MB_MS_NONE;
+}
+
 /** Handlers */
 
 /* Set current error information */
@@ -6337,27 +6382,6 @@ static void _unref_usertype_ref(_ref_t* ref, void* data) {
 		_destroy_usertype_ref((_usertype_ref_t*)data);
 }
 #endif /* MB_ENABLE_USERTYPE_REF */
-
-/* Try to call overridden referenced usertype function */
-static mb_meta_status_u _try_overridden_usertype_ref(mb_interpreter_t* s, void** l, mb_value_t* d, const char* f, mb_meta_func_u t) {
-	mb_assert(s && l && d && f);
-
-#ifdef MB_ENABLE_USERTYPE_REF
-	if(d->type == MB_DT_USERTYPE_REF) {
-		_object_t obj;
-		_MAKE_NIL(&obj);
-		_public_value_to_internal_object(d, &obj);
-		if(t == MB_MF_COLL && obj.data.usertype_ref->coll_func)
-			return obj.data.usertype_ref->coll_func(s, l, f);
-		else if(t == MB_MF_FUNC && obj.data.usertype_ref->generic_func)
-			return obj.data.usertype_ref->generic_func(s, l, f);
-	}
-#else /* MB_ENABLE_USERTYPE_REF */
-	mb_unrefvar(t);
-#endif /* MB_ENABLE_USERTYPE_REF */
-
-	return MB_MS_NONE;
-}
 
 /* Create an array */
 static _array_t* _create_array(mb_interpreter_t* s, const char* n, _data_e t) {
@@ -14848,7 +14872,7 @@ static int _core_type(mb_interpreter_t* s, void** l) {
 			}
 		}
 	}
-	os = _try_overridden_usertype_ref(s, l, &arg, _CORE_ID_TYPE, MB_MF_FUNC);
+	os = _try_overridden(s, l, &arg, _CORE_ID_TYPE, MB_MF_FUNC);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		arg.value.type = arg.type;
 		arg.type = MB_DT_TYPE;
@@ -15645,7 +15669,7 @@ static int _std_val(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &arg));
-	os = _try_overridden_usertype_ref(s, l, &arg, _STD_ID_VAL, MB_MF_FUNC);
+	os = _try_overridden(s, l, &arg, _STD_ID_VAL, MB_MF_FUNC);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		switch(arg.type) {
 		case MB_DT_STRING:
@@ -15727,7 +15751,7 @@ static int _std_len(mb_interpreter_t* s, void** l) {
 		goto _exit;
 	}
 	mb_check(mb_pop_value(s, l, &arg));
-	os = _try_overridden_usertype_ref(s, l, &arg, _STD_ID_LEN, MB_MF_FUNC);
+	os = _try_overridden(s, l, &arg, _STD_ID_LEN, MB_MF_FUNC);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		switch(arg.type) {
 		case MB_DT_STRING:
@@ -15800,7 +15824,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &ov));
-	os = _try_overridden_usertype_ref(s, l, &ov, _STD_ID_GET, MB_MF_FUNC);
+	os = _try_overridden(s, l, &ov, _STD_ID_GET, MB_MF_FUNC);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		_MAKE_NIL(&obj);
 		switch(ov.type) {
@@ -15902,7 +15926,7 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &ov));
-	os = _try_overridden_usertype_ref(s, l, &ov, _STD_ID_SET, MB_MF_FUNC);
+	os = _try_overridden(s, l, &ov, _STD_ID_SET, MB_MF_FUNC);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		_MAKE_NIL(&obj);
 		switch(ov.type) {
@@ -16339,7 +16363,7 @@ static int _coll_push(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden_usertype_ref(s, l, &coll, _COLL_ID_PUSH, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_PUSH, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
 			_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -16383,7 +16407,7 @@ static int _coll_pop(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden_usertype_ref(s, l, &coll, _COLL_ID_POP, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_POP, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
 			_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -16435,7 +16459,7 @@ static int _coll_peek(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden_usertype_ref(s, l, &coll, _COLL_ID_PEEK, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_PEEK, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
 			_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -16488,7 +16512,7 @@ static int _coll_insert(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden_usertype_ref(s, l, &coll, _COLL_ID_INSERT, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_INSERT, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		mb_check(mb_pop_int(s, l, &idx));
 		mb_check(mb_pop_value(s, l, &arg));
@@ -16534,7 +16558,7 @@ static int _coll_sort(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden_usertype_ref(s, l, &coll, _COLL_ID_SORT, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_SORT, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
 			_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -16575,7 +16599,7 @@ static int _coll_exist(mb_interpreter_t* s, void** l){
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden_usertype_ref(s, l, &coll, _COLL_ID_EXIST, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_EXIST, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		mb_check(mb_pop_value(s, l, &arg));
 
@@ -16630,7 +16654,7 @@ static int _coll_index_of(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden_usertype_ref(s, l, &coll, _COLL_ID_INDEX_OF, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_INDEX_OF, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		ret.type = MB_DT_UNKNOWN;
 		mb_check(mb_pop_value(s, l, &val));
@@ -16679,7 +16703,7 @@ static int _coll_remove(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden_usertype_ref(s, l, &coll, _COLL_ID_REMOVE, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_REMOVE, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		_MAKE_NIL(&ocoll);
 		switch(coll.type) {
@@ -16738,7 +16762,7 @@ static int _coll_clear(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden_usertype_ref(s, l, &coll, _COLL_ID_CLEAR, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_CLEAR, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		_MAKE_NIL(&ocoll);
 		switch(coll.type) {
