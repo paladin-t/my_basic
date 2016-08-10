@@ -14,9 +14,8 @@
 
 Why were other script interpreters so complex? Why was it so difficult to integrate with them and use the API? Why not try MY-BASIC today! Script had never been so simple and enjoyable.
 
-## Build status
-
-[![Build Status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
+[![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
+[![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 
 ## Contents
 
