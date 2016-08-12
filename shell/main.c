@@ -1260,7 +1260,7 @@ static int ticks(struct mb_interpreter_t* s, void** l) {
 static int now(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	time_t ct;
-	struct tm* timeinfo;
+	struct tm* timeinfo = 0;
 	char buf[80];
 	char* arg = 0;
 
