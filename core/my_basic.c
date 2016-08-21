@@ -15968,7 +15968,7 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 			mb_check(mb_pop_value(s, l, &nv));
 			field = mb_strupr(field);
 			fnode = _search_identifier_in_class(s, obj.data.instance, field, 0, 0);
-			if (fnode && _IS_VAR(fnode->data)) {
+			if(fnode && _IS_VAR(fnode->data)) {
 				_object_t* nobj = 0;
 				fobj = (_object_t*)fnode->data;
 				_destroy_object(fobj->data.variable->data, 0);
