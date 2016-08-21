@@ -1224,7 +1224,7 @@ static int_t _ticks(void) {
 	if(rv)
 		return 0;
 
-	ts.tv_sec  = now.tv_sec;
+	ts.tv_sec = now.tv_sec;
 	ts.tv_nsec = now.tv_usec * 1000;
 
 	return (int_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
@@ -1527,11 +1527,11 @@ static void _on_exit(void) {
 	_close_mem_pool();
 #endif /* _USE_MEM_POOL */
 
-#if defined MB_CP_VC && !defined _WIN64
-	if(!!_CrtDumpMemoryLeaks()) { _asm { int 3 } }
+#ifdef MB_CP_VC
+	if(!!_CrtDumpMemoryLeaks()) { _CrtDbgBreak(); }
 #elif _USE_MEM_POOL
 	if(alloc_count > 0 || alloc_bytes > 0) { mb_assert(0 && "Memory leak."); }
-#endif /* MB_CP_VC && !_WIN64 */
+#endif /* MB_CP_VC */
 }
 
 /* ========================================================} */
@@ -1544,9 +1544,9 @@ static void _on_exit(void) {
 int main(int argc, char* argv[]) {
 	int status = 0;
 
-#if defined MB_CP_VC && !defined _WIN64
+#ifdef MB_CP_VC
 	_CrtSetBreakAlloc(0);
-#endif /* MB_CP_VC && !_WIN64 */
+#endif /* MB_CP_VC */
 
 	atexit(_on_exit);
 
