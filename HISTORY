@@ -1,3 +1,6 @@
+Oct. 23 2016
+Fixed a percent symbol printing bug, thanks to Philip Bister for pointing it out
+
 Aug. 9 2016
 Added function overriding support for class instance
 Fixed a multiple disposing bug with GC

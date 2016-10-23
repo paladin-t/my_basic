@@ -16081,7 +16081,7 @@ _print:
 				_DISPOSE_BUF(buf);
 				setlocale(LC_ALL, loc);
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
-				_get_printer(s)(val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING);
+				_get_printer(s)("%s", val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING);
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 				if(!val_ptr->ref && val_ptr->data.string && !pathed_str) {
 					safe_free(val_ptr->data.string);
@@ -16095,7 +16095,7 @@ _print:
 					while((lbuf = (size_t)val_ptr->data.usertype_ref->fmt(s, val_ptr->data.usertype_ref->usertype, _CHAR_BUF_PTR(buf), (unsigned)_CHARS_OF_BUF(buf))) > _CHARS_OF_BUF(buf)) {
 						_RESIZE_CHAR_BUF(buf, lbuf);
 					}
-					_get_printer(s)(_CHAR_BUF_PTR(buf));
+					_get_printer(s)("%s", _CHAR_BUF_PTR(buf));
 					_DISPOSE_BUF(buf);
 				} else {
 					_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
