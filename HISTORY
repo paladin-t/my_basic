@@ -1,3 +1,7 @@
+Nov. 1 2016
+Fixed a file importing bug
+Removed the SET_IMPORTING_DIRS statement
+
 Oct. 23 2016
 Fixed a percent symbol printing bug, thanks to Philip Bister for pointing it out
 

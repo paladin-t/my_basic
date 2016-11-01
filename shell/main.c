@@ -1287,23 +1287,6 @@ static int now(struct mb_interpreter_t* s, void** l) {
 	return result;
 }
 
-static int set_importing_dirs(struct mb_interpreter_t* s, void** l) {
-	int result = MB_FUNC_OK;
-	char* arg = 0;
-
-	mb_assert(s && l);
-
-	mb_check(mb_attempt_open_bracket(s, l));
-
-	mb_check(mb_pop_string(s, l, &arg));
-	if(arg)
-		_set_importing_directories(arg);
-
-	mb_check(mb_attempt_close_bracket(s, l));
-
-	return result;
-}
-
 static int os(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
@@ -1505,7 +1488,6 @@ static void _on_startup(void) {
 	mb_reg_fun(bas, ticks);
 #endif /* _HAS_TICKS */
 	mb_reg_fun(bas, now);
-	mb_reg_fun(bas, set_importing_dirs);
 	mb_reg_fun(bas, os);
 	mb_reg_fun(bas, sys);
 	mb_reg_fun(bas, trace);

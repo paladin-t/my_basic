@@ -5159,8 +5159,16 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 				}
 			} else {
 				if(!_ls_find(context->imported, (void*)(sym + 1), (_ls_compare)_ht_cmp_string, 0)) {
-					if(s->import_handler && s->import_handler(s, sym + 1) == MB_FUNC_OK) {
-						_ls_pushback(context->imported, mb_strdup(sym + 1, strlen(sym + 1) + 1));
+					if(s->import_handler) {
+						_object_t* sep = _create_object();
+						sep->type = _DT_SEP;
+						sep->data.separator = ':';
+						_ls_pushback(s->ast, sep);
+						if(s->import_handler(s, sym + 1) == MB_FUNC_OK) {
+							_ls_pushback(context->imported, mb_strdup(sym + 1, strlen(sym + 1) + 1));
+						} else {
+							_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
+						}
 					} else {
 						_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
 					}
