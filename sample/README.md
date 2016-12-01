@@ -27,7 +27,7 @@ Including loop, condition, and other fundamental statements.
 
 	sample07.bas
 
-**YARD (Yet Another RPG Dungeon)**
+**A comprehensive simple game named YARD (Yet Another RPG Dungeon)**
 
 	yard/entity.bas
 	yard/goal.bas
