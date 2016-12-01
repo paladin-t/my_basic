@@ -62,8 +62,12 @@ extern "C" {
 #	define MB_CP_UNKNOWN
 #endif /* Compiler dependent macro */
 
-#if defined _WIN32 || defined _WIN64
+#if defined _WIN64
 #	define MB_OS_WIN
+#	define MB_OS_WIN64
+#elif defined _WIN32
+#	define MB_OS_WIN
+#	define MB_OS_WIN32
 #elif defined __APPLE__
 #	include <TargetConditionals.h>
 #	define MB_OS_APPLE

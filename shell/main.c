@@ -953,16 +953,16 @@ static void _show_tip(void) {
 
 static void _show_help(void) {
 	_printf("Modes:\n");
-	_printf("  %s           - Start interactive mode without arguments\n", _BIN_FILE_NAME);
+	_printf("  %s           - Launch interactive mode\n", _BIN_FILE_NAME);
 	_printf("  %s *.*       - Load and run a file\n", _BIN_FILE_NAME);
-	_printf("  %s -e \"expr\" - Evaluate an expression directly\n", _BIN_FILE_NAME);
+	_printf("  %s -e \"expr\" - Evaluate an expression\n", _BIN_FILE_NAME);
 	_printf("\n");
 	_printf("Options:\n");
 	_printf("  -h         - Show help information\n");
 #if _USE_MEM_POOL
 	_printf("  -p n       - Set memory pool threashold size, n is size in bytes\n");
 #endif /* _USE_MEM_POOL */
-	_printf("  -f \"dirs\"  - Set importing directories, separated by semicolon\n");
+	_printf("  -f \"dirs\"  - Set importing directories, separated with \";\" for more than one\n");
 	_printf("\n");
 	_printf("Interactive commands:\n");
 	_printf("  HELP  - View help information\n");
@@ -982,7 +982,7 @@ static void _show_help(void) {
 	_printf("          Usage: SAVE *.*\n");
 	_printf("  KILL  - Delete a file\n");
 	_printf("          Usage: KILL *.*\n");
-	_printf("  DIR   - List a directory\n");
+	_printf("  DIR   - List all files in a directory\n");
 	_printf("          Usage: DIR [p], p is a directory path\n");
 }
 

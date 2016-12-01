@@ -146,6 +146,14 @@ extern "C" {
 #	define toupper(__c) (islower(__c) ? ((__c) - 'a' + 'A') : (__c))
 #endif /* toupper */
 
+#ifndef _mb_unaligned
+#	if defined MB_CP_VC && defined MB_OS_WIN64
+#		define _mb_unaligned __unaligned
+#	else
+#		define _mb_unaligned
+#	endif
+#endif /* _mb_unaligned */
+
 #define _COPY_BYTES(__l, __r) do { memcpy((__l), (__r), sizeof(mb_val_bytes_t)); } while(0)
 
 #define _mb_check(__expr, __exit) do { if((__expr) != MB_FUNC_OK) goto __exit; } while(0)
@@ -1143,7 +1151,7 @@ static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data);
 static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op);
 static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
 static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op);
-static _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp);
+static _ls_node_t* _ls_sort(_ls_node_t* _mb_unaligned * list, _ls_compare cmp);
 static unsigned _ls_count(_ls_node_t* list);
 static bool_t _ls_empty(_ls_node_t* list);
 static void _ls_clear(_ls_node_t* list);
@@ -1695,7 +1703,7 @@ static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived);
 static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
 static int _clone_clsss_field(void* data, void* extra, void* n);
 static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret);
-static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t** f);
+static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t* _mb_unaligned * f);
 static int _search_class_hash_and_compare_functions(mb_interpreter_t* s, _class_t* instance);
 static bool_t _is_a_class(_class_t* instance, void* m, void* ret);
 static bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret);
@@ -2413,7 +2421,7 @@ static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
 	return idx;
 }
 
-static _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
+static _ls_node_t* _ls_sort(_ls_node_t* _mb_unaligned * list, _ls_compare cmp) {
 	/* Copyright 2001 Simon Tatham, http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.c */
 	bool_t is_circular = false, is_double = true;
 	_ls_node_t* p, * q, * e, * tail, * oldhead;
@@ -7680,7 +7688,7 @@ static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret) {
 }
 
 /* Search for a meta function with a specific name and assign to a member field */
-static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t** f) {
+static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t* _mb_unaligned * f) {
 	_ls_node_t* node = 0;
 
 	mb_assert(s);
