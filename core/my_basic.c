@@ -1377,6 +1377,8 @@ static void _end_of_file(_parsing_context_t* context);
 #define _STRING_POSTFIX_CHAR '$'
 #define _DUMMY_ASSIGN_CHAR "#"
 
+#define _REMARK_STR "REM"
+
 static bool_t _is_blank_char(char c);
 static bool_t _is_eof_char(char c);
 static bool_t _is_newline_char(char c);
@@ -5199,6 +5201,14 @@ _end_import:
 		memcpy(*value, tmp.any, sizeof(_raw_t));
 
 		result = _DT_NIL;
+
+		goto _exit;
+	}
+	/* REM */
+	if(!strcmp(sym, _REMARK_STR)) {
+		context->parsing_state = _PS_COMMENT;
+
+		result = _DT_EOS;
 
 		goto _exit;
 	}
