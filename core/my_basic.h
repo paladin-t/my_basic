@@ -542,7 +542,7 @@ typedef int (* mb_input_func_t)(char*, int);
 typedef int (* mb_import_handler_t)(struct mb_interpreter_t*, const char*);
 typedef void (* mb_dtor_func_t)(struct mb_interpreter_t*, void*);
 typedef void* (* mb_clone_func_t)(struct mb_interpreter_t*, void*);
-typedef unsigned int (* mb_hash_func_t)(struct mb_interpreter_t*, void*);
+typedef unsigned (* mb_hash_func_t)(struct mb_interpreter_t*, void*);
 typedef int (* mb_cmp_func_t)(struct mb_interpreter_t*, void*, void*);
 typedef int (* mb_fmt_func_t)(struct mb_interpreter_t*, void*, char*, unsigned);
 typedef int (* mb_meta_operator_t)(struct mb_interpreter_t*, void**, mb_value_t*, mb_value_t*, mb_value_t*);
@@ -550,7 +550,7 @@ typedef mb_meta_status_u (* mb_meta_func_t)(struct mb_interpreter_t*, void**, co
 typedef char* (* mb_memory_allocate_func_t)(unsigned);
 typedef void (* mb_memory_free_func_t)(char*);
 
-MBAPI unsigned int mb_ver(void);
+MBAPI unsigned mb_ver(void);
 MBAPI const char* mb_ver_string(void);
 
 MBAPI int mb_init(void);

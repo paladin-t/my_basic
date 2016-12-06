@@ -192,7 +192,7 @@ typedef struct _ls_node_t {
 
 /** Dictionary */
 
-typedef unsigned int (* _ht_hash)(void*, void*);
+typedef unsigned (* _ht_hash)(void*, void*);
 typedef _common_compare _ht_compare;
 typedef _common_operation _ht_operation;
 
@@ -200,8 +200,8 @@ typedef struct _ht_node_t {
 	_ls_operation free_extra;
 	_ht_compare compare;
 	_ht_hash hash;
-	unsigned int array_size;
-	unsigned int count;
+	unsigned array_size;
+	unsigned count;
 	_ls_node_t** array;
 } _ht_node_t;
 
@@ -426,7 +426,7 @@ typedef struct _array_t {
 	_data_e* types;
 #endif /* MB_SIMPLE_ARRAY */
 	void* raw;
-	unsigned int count;
+	unsigned count;
 	int dimension_count;
 	int dimensions[MB_MAX_DIMENSION_COUNT];
 } _array_t;
@@ -472,7 +472,7 @@ typedef struct _dict_it_t {
 	_ref_t weak_ref;
 	_dict_t* dict;
 	bool_t locking;
-	unsigned int curr_bucket;
+	unsigned curr_bucket;
 	_ls_node_t* curr_node;
 } _dict_it_t;
 #endif /* MB_ENABLE_COLLECTION_LIB */
@@ -1148,9 +1148,9 @@ static void* _ls_popback(_ls_node_t* list);
 static _ls_node_t* _ls_front(_ls_node_t* node);
 static void* _ls_popfront(_ls_node_t* list);
 static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data);
-static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op);
-static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
-static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op);
+static unsigned _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op);
+static unsigned _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
+static unsigned _ls_foreach(_ls_node_t* list, _ls_operation op);
 static _ls_node_t* _ls_sort(_ls_node_t* _mb_unaligned * list, _ls_compare cmp);
 static unsigned _ls_count(_ls_node_t* list);
 static bool_t _ls_empty(_ls_node_t* list);
@@ -1186,29 +1186,29 @@ static int _ls_free_extra(void* data, void* extra);
 
 /** Dictionary operations */
 
-static unsigned int _ht_hash_object(void* ht, void* d);
-static unsigned int _ht_hash_string(void* ht, void* d);
-static unsigned int _ht_hash_intptr(void* ht, void* d);
-static unsigned int _ht_hash_ref(void* ht, void* d);
+static unsigned _ht_hash_object(void* ht, void* d);
+static unsigned _ht_hash_string(void* ht, void* d);
+static unsigned _ht_hash_intptr(void* ht, void* d);
+static unsigned _ht_hash_ref(void* ht, void* d);
 
 static int _ht_cmp_object(void* d1, void* d2);
 static int _ht_cmp_string(void* d1, void* d2);
 static int _ht_cmp_intptr(void* d1, void* d2);
 static int _ht_cmp_ref(void* d1, void* d2);
 
-static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra);
+static _ht_node_t* _ht_create(unsigned size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra);
 static _ls_node_t* _ht_find(_ht_node_t* ht, void* key);
-static unsigned int _ht_set_or_insert(_ht_node_t* ht, void* key, void* value);
-static unsigned int _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp);
-static unsigned int _ht_foreach(_ht_node_t* ht, _ht_operation op);
-static unsigned int _ht_count(_ht_node_t* ht);
+static unsigned _ht_set_or_insert(_ht_node_t* ht, void* key, void* value);
+static unsigned _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp);
+static unsigned _ht_foreach(_ht_node_t* ht, _ht_operation op);
+static unsigned _ht_count(_ht_node_t* ht);
 static void _ht_clear(_ht_node_t* ht);
 static void _ht_destroy(_ht_node_t* ht);
 static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht);
 #define _HT_FOREACH(H, O, P, E) \
 	do { \
 		_ls_node_t* __bucket = 0; \
-		unsigned int __ul = 0; \
+		unsigned __ul = 0; \
 		if((H)->array) { \
 			for(__ul = 0; __ul < (H)->array_size; ++__ul) { \
 				__bucket = (H)->array[__ul]; \
@@ -1645,9 +1645,9 @@ static void _destroy_array(_array_t* arr);
 static void _init_array(_array_t* arr);
 static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr);
 static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c);
-static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned int* index, bool_t* literally);
-static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
-static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
+static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned* index, bool_t* literally);
+static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned index, mb_value_u* val, _data_e* type);
+static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned index, mb_value_u* val, _data_e* type);
 static void _clear_array(_array_t* arr);
 static bool_t _is_array(void* obj);
 #ifdef MB_ENABLE_ARRAY_REF
@@ -2343,8 +2343,8 @@ static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data) {
 	return result;
 }
 
-static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op) {
-	unsigned int result = 0;
+static unsigned _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op) {
+	unsigned result = 0;
 
 	mb_assert(list && node);
 
@@ -2365,8 +2365,8 @@ static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation
 	return result;
 }
 
-static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op) {
-	unsigned int result = 0;
+static unsigned _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op) {
+	unsigned result = 0;
 	_ls_node_t* tmp = 0;
 
 	mb_assert(list && cmp);
@@ -2396,8 +2396,8 @@ static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp
 	return result;
 }
 
-static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
-	unsigned int idx = 0;
+static unsigned _ls_foreach(_ls_node_t* list, _ls_operation op) {
+	unsigned idx = 0;
 	int opresult = _OP_RESULT_NORMAL;
 	_ls_node_t* node = 0;
 	_ls_node_t* tmp = 0;
@@ -2568,12 +2568,12 @@ static int _ls_free_extra(void* data, void* extra) {
 
 /** Dictionary operations */
 
-static unsigned int _ht_hash_object(void* ht, void* d) {
-	unsigned int result = 0;
+static unsigned _ht_hash_object(void* ht, void* d) {
+	unsigned result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
 	_object_t* o = (_object_t*)d;
 	size_t i = 0;
-	unsigned int h = 0;
+	unsigned h = 0;
 #ifdef MB_ENABLE_CLASS
 	_object_t val;
 #endif /* MB_ENABLE_CLASS */
@@ -2638,11 +2638,11 @@ _exit:
 	return result;
 }
 
-static unsigned int _ht_hash_string(void* ht, void* d) {
-	unsigned int result = 0;
+static unsigned _ht_hash_string(void* ht, void* d) {
+	unsigned result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
 	char* s = (char*)d;
-	unsigned int h = 0;
+	unsigned h = 0;
 
 	mb_assert(ht);
 
@@ -2653,26 +2653,26 @@ static unsigned int _ht_hash_string(void* ht, void* d) {
 	return result;
 }
 
-static unsigned int _ht_hash_intptr(void* ht, void* d) {
-	unsigned int result = 0;
+static unsigned _ht_hash_intptr(void* ht, void* d) {
+	unsigned result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
 	intptr_t i = *(intptr_t*)d;
 
 	mb_assert(ht);
 
-	result = (unsigned int)(i % self->array_size);
+	result = (unsigned)(i % self->array_size);
 
 	return result;
 }
 
-static unsigned int _ht_hash_ref(void* ht, void* d) {
-	unsigned int result = 0;
+static unsigned _ht_hash_ref(void* ht, void* d) {
+	unsigned result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
 	_ref_t* ref = (_ref_t*)d;
 
 	mb_assert(ht);
 
-	result = (unsigned int)(intptr_t)ref;
+	result = (unsigned)(intptr_t)ref;
 	result %= self->array_size;
 
 	return result;
@@ -2797,10 +2797,10 @@ static int _ht_cmp_ref(void* d1, void* d2) {
 	return 0;
 }
 
-static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra) {
-	const unsigned int array_size = size ? size : _HT_ARRAY_SIZE_DEFAULT;
+static _ht_node_t* _ht_create(unsigned size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra) {
+	const unsigned array_size = size ? size : _HT_ARRAY_SIZE_DEFAULT;
 	_ht_node_t* result = 0;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 
 	if(!cmp)
 		cmp = _ht_cmp_intptr;
@@ -2829,7 +2829,7 @@ static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _
 static _ls_node_t* _ht_find(_ht_node_t* ht, void* key) {
 	_ls_node_t* result = 0;
 	_ls_node_t* bucket = 0;
-	unsigned int hash_code = 0;
+	unsigned hash_code = 0;
 
 	mb_assert(ht && key);
 
@@ -2850,11 +2850,11 @@ static _ls_node_t* _ht_find(_ht_node_t* ht, void* key) {
 	return result;
 }
 
-static unsigned int _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
-	unsigned int result = 0;
+static unsigned _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
+	unsigned result = 0;
 	_ls_node_t* bucket = 0;
-	unsigned int hash_code = 0;
-	unsigned int ul = 0;
+	unsigned hash_code = 0;
+	unsigned ul = 0;
 
 	mb_assert(ht && key);
 
@@ -2882,9 +2882,9 @@ static unsigned int _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
 	return result;
 }
 
-static unsigned int _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
-	unsigned int result = 0;
-	unsigned int hash_code = 0;
+static unsigned _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
+	unsigned result = 0;
+	unsigned hash_code = 0;
 	_ls_node_t* bucket = 0;
 
 	mb_assert(ht && key);
@@ -2903,10 +2903,10 @@ static unsigned int _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
 	return result;
 }
 
-static unsigned int _ht_foreach(_ht_node_t* ht, _ht_operation op) {
-	unsigned int result = 0;
+static unsigned _ht_foreach(_ht_node_t* ht, _ht_operation op) {
+	unsigned result = 0;
 	_ls_node_t* bucket = 0;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 
 	if(ht->array) {
 		for(ul = 0; ul < ht->array_size; ++ul) {
@@ -2919,14 +2919,14 @@ static unsigned int _ht_foreach(_ht_node_t* ht, _ht_operation op) {
 	return result;
 }
 
-static unsigned int _ht_count(_ht_node_t* ht) {
+static unsigned _ht_count(_ht_node_t* ht) {
 	mb_assert(ht);
 
 	return ht->count;
 }
 
 static void _ht_clear(_ht_node_t* ht) {
-	unsigned int ul = 0;
+	unsigned ul = 0;
 
 	mb_assert(ht);
 
@@ -2940,7 +2940,7 @@ static void _ht_clear(_ht_node_t* ht) {
 }
 
 static void _ht_destroy(_ht_node_t* ht) {
-	unsigned int ul = 0;
+	unsigned ul = 0;
 
 	mb_assert(ht);
 
@@ -3620,7 +3620,7 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 				}
 			} else {
 				if(c->type == _DT_ARRAY) {
-					unsigned int arr_idx = 0;
+					unsigned arr_idx = 0;
 					mb_value_u arr_val;
 					_data_e arr_type;
 					_object_t* arr_elem = 0;
@@ -3745,7 +3745,7 @@ _routine:
 					_ls_pushback(opnd, c);
 					f++;
 				} else if(c->type == _DT_VAR && c->data.variable->data->type == _DT_ARRAY) {
-					unsigned int arr_idx = 0;
+					unsigned arr_idx = 0;
 					mb_value_u arr_val;
 					_data_e arr_type;
 					_object_t* arr_elem = 0;
@@ -4835,7 +4835,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		_routine_t* routine; _var_t* var; _label_t* label; real_t float_point; int_t integer; _raw_t any;
 	} tmp;
 	_raw_t value;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
 	_ls_node_t* glbsyminscope = 0;
@@ -6471,7 +6471,7 @@ static void _init_array(_array_t* arr) {
 #ifndef MB_SIMPLE_ARRAY
 	arr->types = (_data_e*)mb_malloc(sizeof(_data_e) * arr->count);
 	if(arr->types) {
-		unsigned int ul = 0;
+		unsigned ul = 0;
 		for(ul = 0; ul < arr->count; ++ul)
 			arr->types[ul] = _DT_INT;
 	}
@@ -6481,7 +6481,7 @@ static void _init_array(_array_t* arr) {
 /* Clone an array */
 static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr) {
 	_array_t* result = 0;
-	unsigned int index = 0;
+	unsigned index = 0;
 	mb_value_u val;
 	_data_e type = _DT_NIL;
 
@@ -6530,7 +6530,7 @@ _exit:
 }
 
 /* Calculate the true index of an array, used when walking through an AST */
-static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned int* index, bool_t* literally) {
+static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned* index, bool_t* literally) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* arr = 0;
@@ -6540,7 +6540,7 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 	mb_value_u val;
 	int dcount = 0;
 	int f = 1;
-	unsigned int idx = 0;
+	unsigned idx = 0;
 
 	mb_assert(s && l && index);
 
@@ -6598,7 +6598,7 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 		if((int)val.integer >= arr->data.array->dimensions[dcount]) {
 			_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
-		idx += (unsigned int)val.integer * f;
+		idx += (unsigned)val.integer * f;
 		/* Comma? */
 		if(_IS_SEP(ast->data, ','))
 			ast = ast->next;
@@ -6618,10 +6618,10 @@ _exit:
 }
 
 /* Get the value of an element in an array */
-static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type) {
+static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned index, mb_value_u* val, _data_e* type) {
 	bool_t result = true;
 	int_t elemsize = 0;
-	unsigned int pos = 0;
+	unsigned pos = 0;
 	void* rawptr = 0;
 
 	mb_assert(s && arr && val && type);
@@ -6629,7 +6629,7 @@ static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int i
 	mb_assert(index < arr->count);
 
 	elemsize = _get_size_of(arr->type);
-	pos = (unsigned int)(elemsize * index);
+	pos = (unsigned)(elemsize * index);
 	rawptr = (void*)((intptr_t)arr->raw + pos);
 	if(arr->type == _DT_REAL) {
 #ifdef MB_SIMPLE_ARRAY
@@ -6650,10 +6650,10 @@ static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int i
 }
 
 /* Set the value of an element in an array */
-static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type) {
+static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned index, mb_value_u* val, _data_e* type) {
 	int result = MB_FUNC_OK;
 	int_t elemsize = 0;
-	unsigned int pos = 0;
+	unsigned pos = 0;
 	void* rawptr = 0;
 	mb_unrefvar(ast);
 
@@ -6662,7 +6662,7 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 	mb_assert(index < arr->count);
 
 	elemsize = _get_size_of(arr->type);
-	pos = (unsigned int)(elemsize * index);
+	pos = (unsigned)(elemsize * index);
 	rawptr = (void*)((intptr_t)arr->raw + pos);
 #ifdef MB_SIMPLE_ARRAY
 	switch(*type) {
@@ -6715,9 +6715,9 @@ _exit:
 static void _clear_array(_array_t* arr) {
 	char* str = 0;
 	int_t elemsize = 0;
-	unsigned int pos = 0;
+	unsigned pos = 0;
 	void* rawptr = 0;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 
 	mb_assert(arr);
 
@@ -6727,7 +6727,7 @@ static void _clear_array(_array_t* arr) {
 			for(ul = 0; ul < arr->count; ++ul) {
 				if(arr->types[ul] == _DT_STRING) {
 					elemsize = _get_size_of(arr->type);
-					pos = (unsigned int)(elemsize * ul);
+					pos = (unsigned)(elemsize * ul);
 					rawptr = (void*)((intptr_t)arr->raw + pos);
 					str = *((char**)rawptr);
 					if(str) {
@@ -6740,7 +6740,7 @@ static void _clear_array(_array_t* arr) {
 		if(arr->type == _DT_STRING) {
 			for(ul = 0; ul < arr->count; ++ul) {
 				elemsize = _get_size_of(arr->type);
-				pos = (unsigned int)(elemsize * ul);
+				pos = (unsigned)(elemsize * ul);
 				rawptr = (void*)((intptr_t)arr->raw + pos);
 				str = *((char**)rawptr);
 				if(str) {
@@ -8229,7 +8229,7 @@ static int _do_nothing_on_ht_for_lambda(void* data, void* extra) {
 static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* tuple) {
 	_object_t* obj = (_object_t*)data;
 	const char* n = (const char*)extra;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 	_ls_node_t* ast = 0;
 	_ls_node_t* nput = 0;
 
@@ -10802,7 +10802,7 @@ static int _close_coll_lib(mb_interpreter_t* s) {
 */
 
 /* Get the version number of this MY-BASIC system */
-unsigned int mb_ver(void) {
+unsigned mb_ver(void) {
 	return _MB_VERSION;
 }
 
@@ -11683,6 +11683,9 @@ int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
 			*v = obj;
 	}
 
+	if(ast && _IS_SEP(ast->data, ','))
+		ast = ast->next;
+
 	*l = ast;
 
 	return result;
@@ -11766,9 +11769,9 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 		n = d[j];
 		arr->dimensions[arr->dimension_count++] = n;
 		if(arr->count)
-			arr->count *= (unsigned int)n;
+			arr->count *= (unsigned)n;
 		else
-			arr->count += (unsigned int)n;
+			arr->count += (unsigned)n;
 	}
 	_init_array(arr);
 	if(!arr->raw) {
@@ -11848,7 +11851,7 @@ int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int
 	}
 
 	type = _public_type_to_internal_type(val.type);
-	_set_array_elem(s, 0, arr, (unsigned int)index, &val.value, &type);
+	_set_array_elem(s, 0, arr, (unsigned)index, &val.value, &type);
 
 _exit:
 	return result;
@@ -13401,7 +13404,7 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 	int refc = 1;
 	_array_t* arr = 0;
 	_object_t* arr_obj = 0;
-	unsigned int arr_idx = 0;
+	unsigned arr_idx = 0;
 	bool_t literally = false;
 	_object_t* val = 0;
 	bool_t freed = false;
@@ -13653,9 +13656,9 @@ static int _core_dim(mb_interpreter_t* s, void** l) {
 		}
 		dummy.dimensions[dummy.dimension_count++] = (int)val.integer;
 		if(dummy.count)
-			dummy.count *= (unsigned int)val.integer;
+			dummy.count *= (unsigned)val.integer;
 		else
-			dummy.count += (unsigned int)val.integer;
+			dummy.count += (unsigned)val.integer;
 		ast = ast->next;
 		/* Comma? */
 		if(_IS_SEP(ast->data, ','))
@@ -14719,7 +14722,7 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 	int brackets = 0;
 	_var_t* var = 0;
 	_object_t* obj = 0;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 	bool_t popped = false;
 
 	mb_assert(s && l);
@@ -14772,7 +14775,6 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 		ast = (_ls_node_t*)*l;
 		if(_IS_FUNC(ast->data, _core_close_bracket))
 			break;
-		ast = ast->next;
 		*l = ast;
 	}
 
@@ -15186,7 +15188,7 @@ static int _std_srnd(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	srand((unsigned int)seed);
+	srand((unsigned)seed);
 
 	return result;
 }
