@@ -165,6 +165,7 @@ The [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) includes most o
  * [String matching module](https://github.com/paladin-t/my_basic/wiki/String-matching-module)
  * [String manipulation module](https://github.com/paladin-t/my_basic/wiki/String-manipulation-module)
  * [File module](https://github.com/paladin-t/my_basic/wiki/File-module)
+ * [Inline data sequence module](https://github.com/paladin-t/my_basic/wiki/Inline-data-sequence-module)
  * [Bit operation module](https://github.com/paladin-t/my_basic/wiki/Bit-operation-module)
  * [Miscellaneous module](https://github.com/paladin-t/my_basic/wiki/Miscellaneous-module)
  * [Stack module](https://github.com/paladin-t/my_basic/wiki/Stack-module)
