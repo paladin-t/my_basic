@@ -10,7 +10,7 @@
 
 [简体中文](https://github.com/paladin-t/my_basic/wiki/%E7%94%B1%E7%BA%AF-C-%E8%AF%AD%E8%A8%80%E7%BC%96%E5%86%99%E7%9A%84-BASIC-%E8%84%9A%E6%9C%AC%E8%A7%A3%E9%87%8A%E5%99%A8)
 
-Why were other script interpreters so complex? Why was it so difficult to integrate with them and use the API? Why not try MY-BASIC today! Script had never been so simple and enjoyable.
+Why are other script interpreters so complex? Why is it so difficult to integrate with them and use the API? Why not try MY-BASIC today! Script have never been so simple and enjoyable.
 
 [![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
@@ -29,7 +29,7 @@ Why were other script interpreters so complex? Why was it so difficult to integr
 
 ## Introduction
 
-MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with less than twenty thousand lines of source code. MY-BASIC is a dynamic typed programming language. It supports structured grammar, and implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm, furthermore it offers a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is pretty light; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it feels extraordinarily tough. Anyone even C programming newbies could learn how to add new scripting interfaces in five minutes. It's able to easily combine MY-BASIC with an existing project in C, C++, Java, Objective-C, Swift, C# and many other languages. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
+MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with less than twenty thousand lines of source code. MY-BASIC is a dynamic typed programming language. It supports structured grammar, and implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm, furthermore it offers a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is very lightweight; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it extraordinarily tough. Anyone even C programming newbies could learn how to use it and add new scripting interfaces in five minutes. It's able to easily combine MY-BASIC with an existing project in C, C++, Java, Objective-C, Swift, C# and many other languages. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
 
 "MY-" could be understood literally as "My" or "Make Your", depends on you.
 
@@ -44,12 +44,12 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * It is totally **free** to use MY-BASIC for individual or commercial purpose under the MIT license
 * Written in clean **ANSI C**, source code is portable for a dozen of platforms
 * **Lightweight** (within memory usage less than 128KB), fast, and cuttable
-* With most both retro and modern BASIC syntax
+* With both retro and modern BASIC syntax
 * Case-insensitive tokenization, and many other indelible BASIC feelings
 * [Unicode support](https://github.com/paladin-t/my_basic/wiki/Support-for-Unicode)
 * **[Prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm, with reflection support
 * **[Lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function)** enhanced functional programming
-* **Dynamic typed** integer, float point, string, boolean, user defined data types, etc. with array support
+* **Dynamic typed** Integer, Real, String, Boolean, User Defined Data Types, etc. with Array support
 * Standard numeric functions, and standard string functions
 * Referenced usertype support
 * Collection implementation and manipulation functions for **`LIST`** and **`DICT`**
@@ -57,7 +57,7 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * Multiple source file support by `IMPORT` statement
 * Structured user customizable **sub routine** definition by **`DEF-ENDDEF`** support, including tail recursion optimization
 * Structured `IF-THEN-ELSEIF-ELSE-ENDIF` support
-* Structured `FOR-TO-STEP-NEXT/FOR-IN/WHILE-WEND/DO-UNTIL` support
+* Structured `FOR-TO-STEP-NEXT/FOR-IN-NEXT/WHILE-WEND/DO-UNTIL` support
 * Reserved retro `GOTO/GOSUB-RETURN` support
 * Debug APIs
 * Customizable memory pool
@@ -69,7 +69,7 @@ You may wondering if it's possible to introduce another feature to MY-BASIC, wel
 
 ## Script at a glance
 
-Come along with a traditional "hello world" script in MY-BASIC:
+Come along with a traditional "Hello World" script in MY-BASIC:
 
 ~~~~~~~~~~bas
 print "What is your name: "
@@ -99,7 +99,7 @@ More detail are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki)
 This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [macOS](output/my_basic_mac), it's efficient to download one of them and have a first impressive playground. Or you could make a build as follow:
 
 * Open the Visual Studio solution `my_basic.sln` on Windows to build an executable
-* Open the Xcode solution `my_basic_mac.xcodeproj` on macOS to build an MacOS executable
+* Open the Xcode solution `my_basic_mac.xcodeproj` on macOS to build an macOS executable
 * If you were using a *nix OS, then use the `makefile` with a "make" toolchain to build an interpreter binary according to your specific platform
 
 To compile an interpreter binary for your own platform manually, please follow the steps:

@@ -1542,14 +1542,14 @@ static char* _extract_string(_object_t* obj);
 		case _DT_ROUTINE: \
 			if(!(__o)->ref && (__o)->data.routine->type == _IT_LAMBDA) \
 				_unref(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine); \
-			else if(!(__o)->ref && (__o)->data.routine->type != _IT_LAMBDA)\
+			else if(!(__o)->ref && (__o)->data.routine->type != _IT_LAMBDA) \
 				_destroy_routine(0, (__o)->data.routine); \
 			break;
 #	define _ADDGC_ROUTINE(__o, __g) \
 		case _DT_ROUTINE: \
 			if(!(__o)->ref && (__o)->data.routine->type == _IT_LAMBDA) \
 				_gc_add(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine, (__g)); \
-			else if(!(__o)->ref && (__o)->data.routine->type != _IT_LAMBDA)\
+			else if(!(__o)->ref && (__o)->data.routine->type != _IT_LAMBDA) \
 				_dispose_object(__o); \
 			break;
 #else /* MB_ENABLE_LAMBDA */
@@ -4517,7 +4517,7 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 		}
 	}
 #endif /* MB_ENABLE_CLASS */
-#if !defined MB_ENABLE_USERTYPE_REF && !defined MB_ENABLE_CLASS
+#if !defined MB_ENABLE_USERTYPE_REF || !defined MB_ENABLE_CLASS
 	mb_unrefvar(t);
 #endif /* !MB_ENABLE_USERTYPE_REF && !MB_ENABLE_CLASS */
 
@@ -5826,7 +5826,6 @@ static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 /* Increase the reference of a stub by 1 */
 static _ref_count_t _ref(_ref_t* ref, void* data) {
 	_ref_count_t before = *ref->count;
-
 	mb_unrefvar(data);
 
 	++(*ref->count);
@@ -5868,7 +5867,6 @@ static bool_t _unref(_ref_t* ref, void* data) {
 /* Increase the weak reference of a stub by 1 */
 static _ref_count_t _weak_ref(_ref_t* ref, void* data, _ref_t* weak) {
 	_ref_count_t before = *ref->weak_count;
-
 	mb_unrefvar(data);
 
 	++(*ref->weak_count);
@@ -6625,7 +6623,6 @@ static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned index
 	void* rawptr = 0;
 
 	mb_assert(s && arr && val && type);
-
 	mb_assert(index < arr->count);
 
 	elemsize = _get_size_of(arr->type);
@@ -6658,7 +6655,6 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 	mb_unrefvar(ast);
 
 	mb_assert(s && arr && val);
-
 	mb_assert(index < arr->count);
 
 	elemsize = _get_size_of(arr->type);
