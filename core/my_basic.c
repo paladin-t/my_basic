@@ -239,6 +239,7 @@ static const char* _ERR_DESC[] = {
 	"Label does not exist",
 	"No return point",
 	"Colon expected",
+	"Comma expected",
 	"Comma or semicolon expected",
 	"Array identifier expected",
 	"Open bracket expected",
@@ -1365,6 +1366,8 @@ static void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f);
 
 static mb_print_func_t _get_printer(mb_interpreter_t* s);
 static mb_input_func_t _get_inputer(mb_interpreter_t* s);
+
+static void _print_string(mb_interpreter_t* s, _object_t* obj);
 
 /** Parsing helpers */
 
@@ -4512,7 +4515,7 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 				if(ast)
 					*l = ast->prev;
 
-				return MB_MS_DONE | MB_MS_RETURNED;
+				return (mb_meta_status_u)(MB_MS_DONE | MB_MS_RETURNED);
 			}
 		}
 	}
@@ -4554,6 +4557,27 @@ static mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 		return s->inputer;
 
 	return mb_gets;
+}
+
+/* Print a string */
+static void _print_string(mb_interpreter_t* s, _object_t* obj) {
+	mb_assert(s && obj);
+
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+	char* loc = setlocale(LC_ALL, "");
+	char* str = obj->data.string ? obj->data.string : MB_NULL_STRING;
+	_dynamic_buffer_t buf;
+	size_t lbuf = 0;
+	_INIT_BUF(buf);
+	while((lbuf = (size_t)mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf))) > _WCHARS_OF_BUF(buf)) {
+		_RESIZE_WCHAR_BUF(buf, lbuf);
+	}
+	_get_printer(s)("%ls", _WCHAR_BUF_PTR(buf));
+	_DISPOSE_BUF(buf);
+	setlocale(LC_ALL, loc);
+#else /* MB_CP_VC && MB_ENABLE_UNICODE */
+	_get_printer(s)("%s", obj->data.string ? obj->data.string : MB_NULL_STRING);
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 }
 
 /** Parsing helpers */
@@ -16092,21 +16116,7 @@ _print:
 			} else if(val_ptr->type == _DT_REAL) {
 				_get_printer(s)(MB_REAL_FMT, val_ptr->data.float_point);
 			} else if(val_ptr->type == _DT_STRING) {
-#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
-				char* loc = setlocale(LC_ALL, "");
-				char* str = val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING;
-				_dynamic_buffer_t buf;
-				size_t lbuf = 0;
-				_INIT_BUF(buf);
-				while((lbuf = (size_t)mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf))) > _WCHARS_OF_BUF(buf)) {
-					_RESIZE_WCHAR_BUF(buf, lbuf);
-				}
-				_get_printer(s)("%ls", _WCHAR_BUF_PTR(buf));
-				_DISPOSE_BUF(buf);
-				setlocale(LC_ALL, loc);
-#else /* MB_CP_VC && MB_ENABLE_UNICODE */
-				_get_printer(s)("%s", val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING);
-#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
+				_print_string(s, val_ptr);
 				if(!val_ptr->ref && val_ptr->data.string && !pathed_str) {
 					safe_free(val_ptr->data.string);
 				}
@@ -16219,6 +16229,16 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 #endif /* MB_CP_VC */
 
 		goto _exit;
+	}
+	if(obj->type == _DT_STRING) {
+		_print_string(s, obj);
+		ast = ast->next;
+		obj = (_object_t*)ast->data;
+		if(!_IS_SEP(obj, ',')) {
+			_handle_error_on_obj(s, SE_RN_COMMA_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		}
+		ast = ast->next;
+		obj = (_object_t*)ast->data;
 	}
 	if(obj->type != _DT_VAR) {
 		_handle_error_on_obj(s, SE_RN_VARIABLE_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
