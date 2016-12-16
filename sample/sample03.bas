@@ -2,8 +2,7 @@
 ' Copyright (c) 2011 - 2016 Wang Renxin. All rights reserved.
 ' For more information, see https://github.com/paladin-t/my_basic/
 
-print "Input: "
-input ns$
+input "Input: ", ns$
 n = val(ns$)
 
 x = n * 2 - 1
