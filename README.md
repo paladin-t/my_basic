@@ -29,9 +29,9 @@ Why are other script interpreters so complex? Why is it so difficult to integrat
 
 ## Introduction
 
-MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with less than twenty thousand lines of source code. MY-BASIC is a dynamic typed programming language. It supports structured grammar, and implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm, furthermore it offers a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is very lightweight; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it extraordinarily tough. Anyone even C programming newbies could learn how to use it and add new scripting interfaces in five minutes. It's able to easily combine MY-BASIC with an existing project in C, C++, Java, Objective-C, Swift, C# and many other languages. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
+MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with less than twenty thousand lines of source code. MY-BASIC is a dynamic typed programming language. It supports structured grammar, and implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm, furthermore it offers a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is very lightweight; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it extraordinarily tough. Anyone even C programming newbies could learn how to use it and add new scripting interfaces in five minutes. It's able to easily combine MY-BASIC with an existing project in C, C++, Java, Objective-C, Swift, C# and many other languages. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own interpreter easily based on it.
 
-"MY-" could be understood literally as "My" or "Make Your", depends on you.
+"MY-" in the name could be understood literally as "My" or "Make Your", depends on you.
 
 ## Compatibility
 
@@ -39,17 +39,17 @@ It fits well on a large scale of Workstation, PC, Tablet, Pad, Mobile Phone, PDA
 
 ## Main features
 
-MY-BASIC is a dynamic typed programming language with BASIC syntax and has a very dynamic nature; it makes it easy to use and flexible. MY-BASIC offers a wide range of features including:
+MY-BASIC is a dynamic typed programming language with BASIC syntax and has a very dynamic nature; it makes it flexible and easy to use. MY-BASIC offers a wide range of features including:
 
-* It is totally **free** to use MY-BASIC for individual or commercial purpose under the MIT license
-* Written in clean **ANSI C**, source code is portable for a dozen of platforms
+* It is totally **free** to use MY-BASIC for commercial or noncommercial purpose under the MIT license
+* Written in clean **ANSI C**, source code is portable to a dozen of platforms
 * **Lightweight** (within memory usage less than 128KB), fast, and cuttable
 * With both retro and modern BASIC syntax
 * Case-insensitive tokenization, and many other indelible BASIC feelings
 * [Unicode support](https://github.com/paladin-t/my_basic/wiki/Support-for-Unicode)
 * **[Prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm, with reflection support
 * **[Lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function)** enhanced functional programming
-* **Dynamic typed** Integer, Real, String, Boolean, User Defined Data Types, etc. with Array support
+* **Dynamic typed** integer, real, string, boolean, usertype, etc. with array support
 * Standard numeric functions, and standard string functions
 * Referenced usertype support
 * Collection implementation and manipulation functions for **`LIST`** and **`DICT`**
@@ -72,8 +72,7 @@ You may wondering if it's possible to introduce another feature to MY-BASIC, wel
 Come along with a traditional "Hello World" script in MY-BASIC:
 
 ~~~~~~~~~~bas
-print "What is your name: "
-input n$
+input "What is your name: ", n$
 
 def foo(a, b)
 	return a + " " + b + " by " + n$ + "."
@@ -86,7 +85,7 @@ Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especiall
 
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
-It's necessary to know some principle of MY-BASIC before doing deep customization; nothing is better than a workflow diagram to get a first impression.
+It's necessary to know some principle of MY-BASIC before doing deep customization; nothing's better than a workflow diagram to get a first impression.
 
 ![](https://github.com/paladin-t/my_basic/blob/master/interpreter%20workflow%20diagram.png)
 
@@ -180,6 +179,6 @@ The [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) includes most o
 
 ## Support the MY-BASIC project
 
-You can support MY-BASIC development with a donation:
+You can support MY-BASIC development with a donation (no registration is required to donate with PayPal):
 <br>
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=hellotony521%40gmail%2ecom&lc=US&item_name=my-basic&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_LG%2egif%3aNonHostedGuest)
