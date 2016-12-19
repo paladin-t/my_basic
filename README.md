@@ -25,7 +25,7 @@ Why are other script interpreters so complex? Why is it so difficult to integrat
 * [Installation](#installation)
 * [Wiki](#wiki)
 * [References](#references)
-* [Support the MY-BASIC project](#support-the-my-basic-project)
+* [Support MY-BASIC development/List of donors](#support-my-basic-developmentlist-of-donors)
 
 ## Introduction
 
@@ -177,8 +177,6 @@ The [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) includes most o
 * [Prototype-based programming - Wikipedia](https://en.wikipedia.org/wiki/Prototype-based_programming)
 * [Lambda abstraction - Wikipedia](https://en.wikipedia.org/wiki/Anonymous_function)
 
-## Support the MY-BASIC project
+## Support MY-BASIC development/List of donors
 
-You can support MY-BASIC development with a donation (no registration is required to donate with PayPal):
-<br>
-[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=hellotony521%40gmail%2ecom&lc=US&item_name=my-basic&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_LG%2egif%3aNonHostedGuest)
+You can support MY-BASIC development with a [donation](https://github.com/paladin-t/my_basic/blob/master/donate.html).
