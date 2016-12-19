@@ -179,4 +179,4 @@ The [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) includes most o
 
 ## Support MY-BASIC development/List of donors
 
-You can support MY-BASIC development with a [donation](http://paladin-t.github.io/my_basic/).
+You can support MY-BASIC development with a [donation](paladin-t.github.io/my_basic/donate.html).
