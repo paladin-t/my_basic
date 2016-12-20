@@ -180,7 +180,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 #ifndef bool_t
-#	define bool_t int
+#	define bool_t char
 #endif /* bool_t */
 #ifndef int_t
 #	define int_t int

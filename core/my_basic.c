@@ -428,8 +428,8 @@ typedef struct _array_t {
 #endif /* MB_SIMPLE_ARRAY */
 	void* raw;
 	unsigned count;
-	int dimension_count;
-	int dimensions[MB_MAX_DIMENSION_COUNT];
+	unsigned char dimension_count;
+	unsigned dimensions[MB_MAX_DIMENSION_COUNT];
 } _array_t;
 
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -1817,7 +1817,7 @@ static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func
 
 static _running_context_t* _create_running_context(bool_t create_var_dict);
 static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context);
-static void _destroy_parsing_context(_parsing_context_t** context);
+static void _destroy_parsing_context(_parsing_context_t* _mb_unaligned * context);
 
 /** Interface processors */
 
@@ -5051,7 +5051,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			if(context->class_state != _CLASS_STATE_NONE)
 				tmp.var->pathing = true;
 			else if(!is_field)
-				tmp.var->pathing = context->current_symbol_contains_accessor;
+				tmp.var->pathing = !!context->current_symbol_contains_accessor;
 #endif /* MB_ENABLE_CLASS */
 			(*obj)->data.variable = tmp.var;
 
@@ -6526,7 +6526,7 @@ static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr) {
 static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c) {
 	int result = 0;
 	int i = 0;
-	int n = 0;
+	unsigned n = 0;
 	int f = 1;
 
 	mb_assert(s && arr && d);
@@ -6617,7 +6617,7 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 		if(dcount + 1 > arr->data.array->dimension_count) {
 			_handle_error_on_obj(s, SE_RN_DIMENSION_COUNT_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
-		if((int)val.integer >= arr->data.array->dimensions[dcount]) {
+		if((unsigned)val.integer >= arr->data.array->dimensions[dcount]) {
 			_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		idx += (unsigned)val.integer * f;
@@ -10476,7 +10476,7 @@ static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
 }
 
 /* Destroy the parsing context of a MY-BASIC environment */
-static void _destroy_parsing_context(_parsing_context_t** context) {
+static void _destroy_parsing_context(_parsing_context_t* _mb_unaligned * context) {
 	if(!context || !(*context))
 		return;
 
