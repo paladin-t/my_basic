@@ -6538,7 +6538,7 @@ static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c) {
 	}
 	for(i = 0; i < c; i++) {
 		n = d[i];
-		if(n < 0 || n >= arr->dimensions[i]) {
+		if(n >= arr->dimensions[i]) {
 			result = -1;
 
 			goto _exit;
