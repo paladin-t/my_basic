@@ -12393,7 +12393,10 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 	char wrapped = _ZERO_CHAR;
 	_parsing_context_t* context = 0;
 
-	mb_assert(s && s->parsing_context);
+	mb_assert(s);
+
+	if(!s->parsing_context)
+		s->parsing_context = _reset_parsing_context(s->parsing_context);
 
 	context = s->parsing_context;
 
