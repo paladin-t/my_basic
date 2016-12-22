@@ -927,7 +927,13 @@ static void _kill_program(const char* path) {
 	if(!unlink(path)) {
 		_printf("Delete file \"%s\" successfully.\n", path);
 	} else {
-		_printf("Delete file \"%s\" failed.\n", path);
+		FILE* fp = fopen(path, "rb");
+		if(fp) {
+			fclose(fp);
+			_printf("Delete file \"%s\" failed.\n", path);
+		} else {
+			_printf("File \"%s\" not found.\n", path);
+		}
 	}
 }
 
