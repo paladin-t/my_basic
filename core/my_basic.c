@@ -2587,7 +2587,10 @@ static unsigned _ht_hash_object(void* ht, void* d) {
 	switch(o->type) {
 	case _DT_STRING:
 		h = 5 * h + _ht_hash_string(ht, o->data.string);
-		result = h % self->array_size;
+		if(self->array_size == 1)
+			result = 0;
+		else
+			result = h % self->array_size;
 
 		break;
 #ifdef MB_ENABLE_CLASS
@@ -2616,8 +2619,12 @@ static unsigned _ht_hash_object(void* ht, void* d) {
 #ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
 		if(o->data.usertype_ref->hash) {
-			h = 5 * h + o->data.usertype_ref->hash(o->data.usertype_ref->ref.s, o->data.usertype_ref->usertype);
-			result = h % self->array_size;
+			if(self->array_size == 1) {
+				result = 0;
+			} else {
+				h = 5 * h + o->data.usertype_ref->hash(o->data.usertype_ref->ref.s, o->data.usertype_ref->usertype);
+				result = h % self->array_size;
+			}
 
 			break;
 		}
@@ -2628,9 +2635,13 @@ static unsigned _ht_hash_object(void* ht, void* d) {
 #if defined MB_ENABLE_CLASS || defined MB_ENABLE_USERTYPE_REF
 _default:
 #endif /* MB_ENABLE_CLASS || MB_ENABLE_USERTYPE_REF */
-		for(i = 0; i < sizeof(_raw_t); ++i)
-			h = 5 * h + o->data.raw[i];
-		result = h % self->array_size;
+		if(self->array_size == 1) {
+			result = 0;
+		} else {
+			for(i = 0; i < sizeof(_raw_t); ++i)
+				h = 5 * h + o->data.raw[i];
+			result = h % self->array_size;
+		}
 
 		break;
 	}
@@ -2649,9 +2660,13 @@ static unsigned _ht_hash_string(void* ht, void* d) {
 
 	mb_assert(ht);
 
-	for( ; *s; ++s)
-		h = 5 * h + *s;
-	result = h % self->array_size;
+	if(self->array_size == 1) {
+		result = 0;
+	} else {
+		for( ; *s; ++s)
+			h = 5 * h + *s;
+		result = h % self->array_size;
+	}
 
 	return result;
 }
@@ -2663,7 +2678,10 @@ static unsigned _ht_hash_intptr(void* ht, void* d) {
 
 	mb_assert(ht);
 
-	result = (unsigned)(i % self->array_size);
+	if(self->array_size == 1)
+		result = 0;
+	else
+		result = (unsigned)(i % self->array_size);
 
 	return result;
 }
@@ -2675,8 +2693,12 @@ static unsigned _ht_hash_ref(void* ht, void* d) {
 
 	mb_assert(ht);
 
-	result = (unsigned)(intptr_t)ref;
-	result %= self->array_size;
+	if(self->array_size == 1) {
+		result = 0;
+	} else {
+		result = (unsigned)(intptr_t)ref;
+		result %= self->array_size;
+	}
 
 	return result;
 }
