@@ -45,6 +45,7 @@
 #	include <sys/time.h>
 #endif /* MB_CP_CLANG */
 #include <assert.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -96,6 +97,10 @@ extern "C" {
 #define _NO_END(s) ((s) == MB_FUNC_OK || (s) == MB_FUNC_SUSPEND || (s) == MB_FUNC_WARNING || (s) == MB_FUNC_ERR || (s) == MB_FUNC_END)
 
 static struct mb_interpreter_t* bas = 0;
+
+static jmp_buf _mem_failure_point;
+
+#define _CHECK_MEM(__p) do { if(!(__p)) { longjmp(_mem_failure_point, 1); } } while(0)
 
 /* ========================================================} */
 
@@ -278,6 +283,7 @@ static void _open_mem_pool(void) {
 	qsort(lst, pool_count, sizeof(lst[0]), _cmp_size_t);
 
 	pool = (_pool_t*)malloc(sizeof(_pool_t) * pool_count);
+	_CHECK_MEM(pool);
 	for(i = 0; i < pool_count; i++) {
 		pool[i].size = lst[i];
 		pool[i].stack = 0;
@@ -329,6 +335,7 @@ static char* _pop_mem(unsigned s) {
 				} else {
 					/* Create a new node */
 					result = _POOL_NODE_ALLOC(pl->size);
+					_CHECK_MEM(result);
 					if((intptr_t)result == sizeof(_pool_tag_t)) {
 						result = 0;
 					} else {
@@ -343,6 +350,7 @@ static char* _pop_mem(unsigned s) {
 
 	/* Allocate directly */
 	result = _POOL_NODE_ALLOC(s);
+	_CHECK_MEM(result);
 	if((intptr_t)result == sizeof(_pool_tag_t)) {
 		result = 0;
 	} else {
@@ -410,9 +418,11 @@ static _code_line_t* _create_code(void) {
 	_code_line_t* result = 0;
 
 	result = (_code_line_t*)malloc(sizeof(_code_line_t));
+	_CHECK_MEM(result);
 	result->count = 0;
 	result->size = _REALLOC_INC_STEP;
 	result->lines = (char**)malloc(sizeof(char*) * result->size);
+	_CHECK_MEM(result->lines);
 
 	code = result;
 
@@ -453,6 +463,7 @@ static int _append_line(const char* txt) {
 	}
 	result = l = (int)strlen(txt);
 	buf = (char*)malloc(l + 2);
+	_CHECK_MEM(buf);
 	memcpy(buf, txt, l);
 	buf[l] = '\n';
 	buf[l + 1] = '\0';
@@ -468,6 +479,7 @@ static char* _get_code(void) {
 	mb_assert(code);
 
 	result = (char*)malloc((_MAX_LINE_LENGTH + 2) * code->count + 1);
+	_CHECK_MEM(result);
 	result[0] = '\0';
 	for(i = 0; i < code->count; ++i) {
 		result = strcat(result, code->lines[i]);
@@ -517,7 +529,7 @@ static char* _load_file(const char* path) {
 		l = ftell(fp);
 		fseek(fp, curpos, SEEK_SET);
 		result = (char*)malloc((size_t)(l + 1));
-		mb_assert(result);
+		_CHECK_MEM(result);
 		fread(result, 1, l, fp);
 		fclose(fp);
 		result[l] = '\0';
@@ -578,9 +590,11 @@ static _importing_dirs_t* _set_importing_directories(char* dirs) {
 
 	end = dirs + strlen(dirs);
 	result = (_importing_dirs_t*)malloc(sizeof(_importing_dirs_t));
+	_CHECK_MEM(result);
 	result->count = 0;
 	result->size = _REALLOC_INC_STEP;
 	result->dirs = (char**)malloc(sizeof(char*) * result->size);
+	_CHECK_MEM(result->dirs);
 
 	while(dirs && dirs < end && *dirs) {
 		int l = 0;
@@ -597,6 +611,7 @@ static _importing_dirs_t* _set_importing_directories(char* dirs) {
 		l = (int)strlen(dirs);
 		as = dirs[l - 1] != '/' && dirs[l - 1] != '\\';
 		buf = (char*)malloc(l + (as ? 2 : 1));
+		_CHECK_MEM(buf);
 		memcpy(buf, dirs, l);
 		if(as) {
 			buf[l] = '/';
@@ -633,6 +648,7 @@ static bool_t _try_import(struct mb_interpreter_t* s, const char* p) {
 		char* buf = _pop_mem(m + n + 1);
 #else /* _USE_MEM_POOL */
 		char* buf = (char*)malloc(m + n + 1);
+		_CHECK_MEM(buf);
 #endif /* _USE_MEM_POOL */
 		memcpy(buf, d, m);
 		memcpy(buf + m, p, n);
@@ -706,8 +722,10 @@ static int _new_program(void) {
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 static int _bytes_to_wchar(const char* sz, wchar_t** out, size_t size) {
 	int result = MultiByteToWideChar(CP_UTF8, 0, sz, -1, 0, 0);
-	if((int)size < result)
+	if((int)size < result) {
 		*out = (wchar_t*)malloc(sizeof(wchar_t) * result);
+		_CHECK_MEM(*out);
+	}
 	MultiByteToWideChar(CP_UTF8, 0, sz, -1, *out, result);
 
 	return result;
@@ -715,8 +733,10 @@ static int _bytes_to_wchar(const char* sz, wchar_t** out, size_t size) {
 
 static int _bytes_to_wchar_ansi(const char* sz, wchar_t** out, size_t size) {
 	int result = MultiByteToWideChar(CP_ACP, 0, sz, -1, 0, 0);
-	if((int)size < result)
+	if((int)size < result) {
 		*out = (wchar_t*)malloc(sizeof(wchar_t) * result);
+		_CHECK_MEM(*out);
+	}
 	MultiByteToWideChar(CP_ACP, 0, sz, -1, *out, result);
 
 	return result;
@@ -724,8 +744,10 @@ static int _bytes_to_wchar_ansi(const char* sz, wchar_t** out, size_t size) {
 
 static int _wchar_to_bytes(const wchar_t* sz, char** out, size_t size) {
 	int result = WideCharToMultiByte(CP_UTF8, 0, sz, -1, 0, 0, 0, 0);
-	if((int)size < result)
+	if((int)size < result) {
 		*out = (char*)malloc(result);
+		_CHECK_MEM(*out);
+	}
 	WideCharToMultiByte(CP_UTF8, 0, sz, -1, *out, result, 0, 0);
 
 	return result;
@@ -1113,6 +1135,7 @@ static void _evaluate_expression(char* p) {
 	}
 	if(a) {
 		e = (char*)malloc(l + k + 1);
+		_CHECK_MEM(e);
 		memcpy(e, print, k);
 		memcpy(e + k, p, l);
 		e[l + k] = '\0';
@@ -1537,6 +1560,12 @@ int main(int argc, char* argv[]) {
 #endif /* MB_CP_VC */
 
 	atexit(_on_exit);
+
+	if(setjmp(_mem_failure_point)) {
+		_printf("Error: out of memory.\n");
+
+		exit(1);
+	}
 
 	_on_startup();
 

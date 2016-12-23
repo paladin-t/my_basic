@@ -1,3 +1,6 @@
+Dec. 23 2016
+Added memory allocation failure check to the shell
+
 Dec. 22 2016
 Improved shell prompting when removing a non-exist file
 
