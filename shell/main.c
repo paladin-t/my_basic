@@ -1528,7 +1528,8 @@ static void _on_startup(void) {
 static void _on_exit(void) {
 	_destroy_importing_directories();
 
-	mb_close(&bas);
+	if(bas)
+		mb_close(&bas);
 
 	mb_dispose();
 

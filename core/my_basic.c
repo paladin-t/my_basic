@@ -3874,7 +3874,7 @@ _var:
 										_ls_pushback(garbage, c);
 										_public_value_to_internal_object(&ret, c);
 
-										ast = (_ls_node_t*)*l;
+										ast = *l;
 									}
 
 									break;
@@ -4199,7 +4199,7 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 	mb_assert(s && l && r);
 
 	if(!va && s->last_routine && !s->last_routine->func.basic.parameters && (s->last_routine->name == r->name || !strcmp(s->last_routine->name, r->name))) {
-		ast = (_ls_node_t*)*l;
+		ast = *l;
 		_skip_to(s, &ast, 0, _DT_EOS);
 		if(ast && ((_object_t*)ast->data)->type == _DT_EOS)
 			ast = ast->next;
@@ -4237,7 +4237,7 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 		_mb_check_mark(mb_attempt_close_bracket(s, (void**)l), result, _error);
 	}
 
-	ast = (_ls_node_t*)*l;
+	ast = *l;
 	_ls_pushback(s->sub_stack, ast);
 
 #ifdef MB_ENABLE_CLASS
@@ -4259,7 +4259,7 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 
 	do {
 		result = _execute_statement(s, l, true);
-		ast = (_ls_node_t*)*l;
+		ast = *l;
 		if(result == MB_SUB_RETURN) {
 			result = MB_FUNC_OK;
 
@@ -4343,7 +4343,7 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 
 	running = _link_lambda_scope_chain(s, &r->func.lambda, true);
 	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true, lastv);
-	ast = (_ls_node_t*)*l;
+	ast = *l;
 	if(result != MB_FUNC_OK) {
 		_unlink_lambda_scope_chain(s, &r->func.lambda, true);
 
@@ -4355,7 +4355,7 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 		_mb_check_mark(mb_attempt_close_bracket(s, (void**)l), result, _error);
 	}
 
-	ast = (_ls_node_t*)*l;
+	ast = *l;
 	_ls_pushback(s->sub_stack, ast);
 
 	running = _link_lambda_scope_chain(s, &r->func.lambda, false);
@@ -4367,7 +4367,7 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 
 	do {
 		result = _execute_statement(s, l, true);
-		ast = (_ls_node_t*)*l;
+		ast = *l;
 		if(result == MB_SUB_RETURN) {
 			result = MB_FUNC_OK;
 
@@ -6594,7 +6594,7 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 	if(literally) *literally = false;
 
 	/* Array name */
-	ast = (_ls_node_t*)*l;
+	ast = *l;
 	if(!c && ast && _is_array(ast->data))
 		c = (_object_t*)ast->data;
 	if(!_is_array(c)) {
@@ -10444,7 +10444,7 @@ static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func
 
 	mb_assert(s && l && open_func && close_func);
 
-	ast = (_ls_node_t*)*l;
+	ast = *l;
 
 	count = 1;
 	do {
