@@ -1,3 +1,6 @@
+Dec. 2 2016
+Fixed a case sensitive issue with the IMPORT statement (for module), thanks to wwiv for pointing it out
+
 Dec. 23 2016
 Added memory allocation failure check to the shell
 
@@ -12,7 +15,7 @@ Narrowed array structure
 Narrowed bool_t
 
 Dec. 16 2016
-Improved INPUT statement
+Improved the INPUT statement
 
 Dec. 5 2016
 Added a REM statement
@@ -257,7 +260,7 @@ Feb. 11 2016
 Fixed a bug with the EXIT statement with multiple line IF statement
 
 Feb. 10 2016
-Fixed a wrong loop bug with WHILE and DO statements
+Fixed a wrong loop bug with the WHILE and DO statement
 
 Feb. 4 2016
 Avoided warnings with some compilers
@@ -307,7 +310,7 @@ Optimized cached list accessing
 Jan. 25 2016
 Fixed a memory leak when printing a referenced usertype
 Fixed a bug with nested IF statement
-Fixed a bug with WHILE and DO statements when returning from a sub routine
+Fixed a bug with the WHILE and DO statement when returning from a sub routine
 Fixed an indexing bug with list
 Added a new sample script source file
 
@@ -316,7 +319,7 @@ Added lazy evaluation for ranged list
 
 Jan. 22 2016
 Added an IN keyword
-Added support to loop on collections by using FOR-IN statement
+Added support to loop on collections by using the FOR/IN statement
 Added a "hash" meta method to calculate the hash code of a class instance
 Added a "compare" meta method to compare two class instances
 
@@ -379,7 +382,7 @@ Fixed a wrong disposing bug when accessing a collection by brackets
 Optimized memory occupation with lambda
 
 Jan. 11 2016
-Fixed a crash bug when a DO-UNTIL statement is the end of a program
+Fixed a crash bug when a DO/UNTIL statement is the end of a program
 Fixed a memory leak with string manipulation
 
 Jan. 9 2016
@@ -399,7 +402,7 @@ Developing lambda, added lambda unreferencing functions
 Jan. 6 2016
 Developing lambda, added cloning support
 Added support to use TYPE("NUMBER") to represent both integer and real
-Improved IS statement
+Improved the IS statement
 
 Jan. 5 2016
 Developing lambda, added data structure
@@ -410,15 +413,15 @@ Developing lambda, added an MB_ENABLE_LAMBDA macro
 Jan. 4 2016
 Added stack tracing
 Added an mb_debug_get_stack_trace function and an MB_ENABLE_STACK_TRACE macro
-Added support to duplicate a class instance by NEW statement with an identifier string
+Added support to duplicate a class instance by a NEW statement with an identifier string
 Fixed a string value copy issue in mb_pop_value
 
 Jan. 2 2016
-Added support to apply GET statement to a class instance
+Added support to apply the GET statement to a class instance
 Added support to access a collection by brackets
 Fixed a wrong scope bug caused by cloned class instance
 Fixed a GC issue by adding reference count when cloning a collection or a referenced usertype
-Fixed a mistake in VAR statement
+Fixed a mistake in the VAR statement
 
 Jan. 1 2016 Version 1.2
 Added a new sample script source file
@@ -481,7 +484,7 @@ Avoided warnings
 
 Dec. 11 2015
 Added an IS statement to detect type equality of a value
-Added support to store a routine in a variable by CALL statement
+Added support to store a routine in a variable by the CALL statement
 Added GC accessing to fields of a class instance
 Fixed a memory leak with GC caused by reference cycle
 Finished internal class development
@@ -557,7 +560,7 @@ Fixed some uninitialized value issues
 
 Oct. 20 2015
 Added a SRND statement
-Added range support for RND statement
+Added range support for the RND statement
 Fixed a wrong processing bug when return in an IF statement chunk
 Fixed a scope manipulation bug when evaluating a none parameter routine, thanks to Cybermonkey342 and John for pointing it out
 Improved error handling
@@ -600,14 +603,14 @@ Improved stability, refused nested array inside other collections, and vice vers
 Oct. 7 2015
 Added non number data comparison
 Improved collection stability
-Accepted dictionary iterator for VAL statement
+Accepted dictionary iterator for the VAL statement
 
 Oct. 5 2015
 Added a LIST collection
 Added a DICT collection
-Added TYPE statement
+Added a TYPE statement
 Added an mb_get_type_string function
-Fixed a wrong evaluation bug in nested IF statements, thanks to Julien Krief for pointing it out
+Fixed a wrong evaluation bug in nested IF statement, thanks to Julien Krief for pointing it out
 
 Sep. 30 2015
 Improved UTF8 string manipulation
@@ -625,7 +628,7 @@ Fixed identifier lookup bugs
 Fixed a memory leak when pushing string arguments
 
 Sep. 22 2015
-Added IMPORT statement
+Added an IMPORT statement
 Added mb_get_var, mb_get_var_value and mb_set_var_value
 
 Sep. 21 2015
@@ -653,7 +656,7 @@ Added an MB_CONVERT_TO_INT_LEVEL macro, would convert float to integer as much a
 
 Sep. 11 2015
 Added a duplicate sub routine error handling
-Added optional argument support for INPUT statement
+Added optional argument support for the INPUT statement
 Fixed a repeated disposing bug of a variable in sub routine
 
 Sep. 8 2015
@@ -758,12 +761,12 @@ Added an mb_remove_reserved_func function which allows a user to disable/remove 
 
 May. 22 2014
 Fixed a crash bug when missing colon in a combined line, thanks to Michael P. Welch for pointing it out
-Fixed a missing lexical cursor stepping bug in INPUT statement
+Fixed a missing lexical cursor stepping bug in the INPUT statement
 
 Mar. 17 2014
 Added an Xcode project
 Added a safe stdin reader function mb_gets
-Fixed a crash bug in INPUT statement
+Fixed a crash bug in the INPUT statement
 
 Feb. 17 2014
 Added mod by zero processing
@@ -794,7 +797,7 @@ Fixed a cross routine RETURN bug, thanks to Bruce Kendall for pointing it out
 Sep. 12 2012
 Fixed a bug in ASC
 Fixed a label parsing, jumping bug, thanks to Ahmad Hawwash for pointing above two issues out
-Fixed a crash bug in IF statement
+Fixed a crash bug in the IF statement
 Added divide by zero processing
 Added calculation error raising
 
@@ -845,7 +848,7 @@ Fixed a newline mistake in PRINT
 
 Jun. 29 2012
 Implemented customizable print functor
-Improved PRINT statement
+Improved the PRINT statement
 Fixed an infinity loop bug in RND function
 Fixed some crash bugs
 

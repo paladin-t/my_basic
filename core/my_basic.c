@@ -5189,6 +5189,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			if(_is_using_char(*(sym + 1))) {
 #ifdef MB_ENABLE_MODULE
 				char* ns = mb_strdup(sym + 2, strlen(sym + 2) + 1);
+				mb_strupr(ns);
 				if(_ls_find(s->using_modules, ns, (_ls_compare)_ht_cmp_string, 0)) {
 					safe_free(ns);
 				} else {
@@ -10567,7 +10568,6 @@ static int _ht_destroy_module_func_list(void* data, void* extra) {
 static char* _generate_func_name(mb_interpreter_t* s, char* n, bool_t with_mod) {
 	char* name = 0;
 	size_t _sl = 0;
-	mb_unrefvar(with_mod);
 
 	mb_assert(s && n);
 
@@ -10584,6 +10584,7 @@ static char* _generate_func_name(mb_interpreter_t* s, char* n, bool_t with_mod) 
 		memcpy(name, n, _sl + 1);
 	}
 #else /* MB_ENABLE_MODULE */
+	mb_unrefvar(with_mod);
 	name = (char*)mb_malloc(_sl + 1);
 	memcpy(name, n, _sl + 1);
 #endif /* MB_ENABLE_MODULE */
