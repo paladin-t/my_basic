@@ -1394,7 +1394,7 @@ static bool_t _is_numeric_char(char c);
 static bool_t _is_identifier_char(char c);
 static bool_t _is_operator_char(char c);
 static bool_t _is_exponential_char(char c);
-static bool_t _is_using_char(char c);
+static bool_t _is_using_at_char(char c);
 static bool_t _is_exponent_prefix(char* s, int begin, int end);
 
 static int _append_char_to_symbol(mb_interpreter_t* s, char c);
@@ -4737,7 +4737,7 @@ static bool_t _is_exponential_char(char c) {
 }
 
 /* Determine whether a character is module using char */
-static bool_t _is_using_char(char c) {
+static bool_t _is_using_at_char(char c) {
 	return (c == '@');
 }
 
@@ -5186,7 +5186,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			sym[_sl - 1] = _ZERO_CHAR;
 			context->parsing_state = _PS_NORMAL;
 			/* Using a module */
-			if(_is_using_char(*(sym + 1))) {
+			if(_is_using_at_char(*(sym + 1))) {
 #ifdef MB_ENABLE_MODULE
 				char* ns = mb_strdup(sym + 2, strlen(sym + 2) + 1);
 				mb_strupr(ns);
