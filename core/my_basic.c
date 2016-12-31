@@ -32,6 +32,7 @@
 #include "my_basic.h"
 #if defined ARDUINO && !defined MB_CP_ARDUINO
 #	define MB_CP_ARDUINO
+# define MB_DISABLE_LOAD_FILE
 #endif /* ARDUINO && !MB_CP_ARDUINO */
 #ifdef MB_CP_VC
 #	include <conio.h>
@@ -4606,7 +4607,7 @@ static void _print_string(mb_interpreter_t* s, _object_t* obj) {
 
 /* Read all content of a file into a buffer */
 static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
-#ifndef MB_CP_ARDUINO
+#ifndef MB_DISABLE_LOAD_FILE
 	FILE* fp = 0;
 	char* buf = 0;
 	long curpos = 0;
