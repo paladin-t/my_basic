@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2016 Wang Renxin
+** Copyright (C) 2011 - 2017 Wang Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -551,7 +551,7 @@ typedef mb_meta_status_u (* mb_meta_func_t)(struct mb_interpreter_t*, void**, co
 typedef char* (* mb_memory_allocate_func_t)(unsigned);
 typedef void (* mb_memory_free_func_t)(char*);
 
-MBAPI unsigned mb_ver(void);
+MBAPI unsigned long mb_ver(void);
 MBAPI const char* mb_ver_string(void);
 
 MBAPI int mb_init(void);

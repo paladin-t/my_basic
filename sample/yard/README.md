@@ -1,6 +1,6 @@
 ## YARD (Yet Another RPG Dungeon)
 
-**Copyright (C) 2016 Wang Renxin. All rights reserved.**
+**Copyright (C) 2011 - 2017 Wang Renxin. All rights reserved.**
 
 "Yet Another RPG Dungeon" is a text based game. It's a simple comprehensive example and a tutorial which demonstrates lots of concepts of MY-BASIC.
 

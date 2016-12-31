@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2016 Wang Renxin
+** Copyright (C) 2011 - 2017 Wang Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -10845,7 +10845,7 @@ static int _close_coll_lib(mb_interpreter_t* s) {
 */
 
 /* Get the version number of this MY-BASIC system */
-unsigned mb_ver(void) {
+unsigned long mb_ver(void) {
 	return _MB_VERSION;
 }
 
@@ -10856,9 +10856,9 @@ const char* mb_ver_string(void) {
 
 /* Initialize the MY-BASIC system */
 int mb_init(void) {
-	int result = MB_FUNC_OK;
+	if(_exp_assign)
+		return MB_FUNC_ERR;
 
-	mb_assert(!_exp_assign);
 	_exp_assign = _create_object();
 	_exp_assign->type = _DT_FUNC;
 	_exp_assign->data.func = (_func_t*)mb_malloc(sizeof(_func_t));
@@ -10880,14 +10880,14 @@ int mb_init(void) {
 		bvar->data->data.integer = 0;
 	}
 
-	return result;
+	return MB_FUNC_OK;
 }
 
 /* Close the MY-BASIC system */
 int mb_dispose(void) {
-	int result = MB_FUNC_OK;
+	if(!_exp_assign)
+		return MB_FUNC_ERR;
 
-	mb_assert(_exp_assign);
 	safe_free(_exp_assign->data.func->name);
 	safe_free(_exp_assign->data.func);
 	safe_free(_exp_assign);
@@ -10910,7 +10910,7 @@ int mb_dispose(void) {
 		_OBJ_BOOL_FALSE = 0;
 	}
 
-	return result;
+	return MB_FUNC_OK;
 }
 
 /* Open a MY-BASIC environment */
@@ -10920,7 +10920,8 @@ int mb_open(struct mb_interpreter_t** s) {
 	_ht_node_t* global_scope = 0;
 	_running_context_t* running = 0;
 
-	mb_assert(s);
+	if(!s)
+		return MB_FUNC_ERR;
 
 	*s = (mb_interpreter_t*)mb_malloc(sizeof(mb_interpreter_t));
 	memset(*s, 0, sizeof(mb_interpreter_t));
@@ -10977,12 +10978,12 @@ int mb_open(struct mb_interpreter_t** s) {
 
 /* Close a MY-BASIC environment */
 int mb_close(struct mb_interpreter_t** s) {
-	int result = MB_FUNC_OK;
 	_ht_node_t* local_scope = 0;
 	_ht_node_t* global_scope = 0;
 	_ls_node_t* ast;
 
-	mb_assert(s);
+	if(!s || !(*s))
+		return MB_FUNC_ERR;
 
 	(*s)->valid = false;
 
@@ -11042,7 +11043,7 @@ int mb_close(struct mb_interpreter_t** s) {
 
 	safe_free(*s);
 
-	return result;
+	return MB_FUNC_OK;
 }
 
 /* Reset a MY-BASIC environment */
@@ -11053,7 +11054,8 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
 
-	mb_assert(s);
+	if(!s || !(*s))
+		return MB_FUNC_ERR;
 
 	(*s)->jump_set = _JMP_NIL;
 	(*s)->last_routine = 0;
@@ -12947,7 +12949,7 @@ _exit:
 	return result;
 }
 
-/* Operator - */
+/* Operator - (minus) */
 static int _core_min(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 

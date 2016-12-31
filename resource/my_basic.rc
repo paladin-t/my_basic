@@ -57,7 +57,7 @@
 				VALUE "FileDescription", "MY-BASIC Interpreter for Windows"
 				VALUE "FileVersion", "1, 2, 0, 0"
 				VALUE "InternalName", "my_basic"
-				VALUE "LegalCopyright", "Copyright (C) 2011 - 2016 Wang Renxin"
+				VALUE "LegalCopyright", "Copyright (C) 2011 - 2017 Wang Renxin"
 				VALUE "LegalTrademarks", "MY-BASIC"
 				VALUE "OriginalFilename", "my_basic.exe"
 				VALUE "ProductName", "MY-BASIC"

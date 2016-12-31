@@ -1,6 +1,6 @@
 ## Samples of MY-BASIC
 
-**Copyright (C) 2011 - 2016 Wang Renxin. All rights reserved.**
+**Copyright (C) 2011 - 2017 Wang Renxin. All rights reserved.**
 
 This folder contains severial sample code of MY-BASIC.
 
