@@ -32,7 +32,9 @@
 #include "my_basic.h"
 #if defined ARDUINO && !defined MB_CP_ARDUINO
 #	define MB_CP_ARDUINO
-# define MB_DISABLE_LOAD_FILE
+#	ifndef MB_DISABLE_LOAD_FILE
+#		define MB_DISABLE_LOAD_FILE
+#	endif /* MB_DISABLE_LOAD_FILE */
 #endif /* ARDUINO && !MB_CP_ARDUINO */
 #ifdef MB_CP_VC
 #	include <conio.h>
@@ -4655,9 +4657,9 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) 
 	}
 
 	return buf;
-#else /* MB_CP_ARDUINO */
+#else /* MB_DISABLE_LOAD_FILE */
 	return 0;
-#endif /* MB_CP_ARDUINO */
+#endif /* MB_DISABLE_LOAD_FILE */
 }
 
 /* Finish loading a file */
