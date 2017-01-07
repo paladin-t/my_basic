@@ -816,6 +816,9 @@ typedef struct mb_interpreter_t {
 	_parsing_context_t* parsing_context;
 	_running_context_t* running_context;
 	_ls_node_t* var_args;
+#ifdef MB_ENABLE_USERTYPE_REF
+	_object_t* usertype_ref_ahead;
+#endif /* MB_ENABLE_USERTYPE_REF */
 	unsigned char jump_set;
 #ifdef MB_ENABLE_CLASS
 	_class_t* last_instance;
@@ -8834,6 +8837,10 @@ static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_con
 				return 0;
 			switch(obj->type) {
 			case _DT_VAR:
+#ifdef MB_ENABLE_USERTYPE_REF
+				if(obj->data.variable->data->type == _DT_USERTYPE_REF)
+					return result;
+#endif /* MB_ENABLE_USERTYPE_REF */
 #ifdef MB_ENABLE_CLASS
 				if(obj->data.variable->data->type == _DT_CLASS)
 					instance = obj->data.variable->data->data.instance;
@@ -9984,6 +9991,30 @@ _retry:
 			if(pathed && pathed->data) {
 				if(obj != (_object_t*)pathed->data) {
 					/* Found another node */
+#ifdef MB_ENABLE_USERTYPE_REF
+					_object_t* tmp = (_object_t*)pathed->data;
+					if(tmp && tmp->type == _DT_VAR && tmp->data.variable->data->type == _DT_USERTYPE_REF) {
+						bool_t mod = false;
+						_ls_node_t* fn = 0;
+						mb_func_t func = 0;
+						char* r = strrchr(obj->data.variable->name, '.');
+						if(r) ++r;
+						fn = _find_func(s, r, &mod);
+						if(fn && fn->data) {
+							func = (mb_func_t)(intptr_t)fn->data;
+							s->usertype_ref_ahead = (_object_t*)pathed->data;
+#ifdef MB_ENABLE_STACK_TRACE
+							_ls_pushback(s->stack_frames, r);
+#endif /* MB_ENABLE_STACK_TRACE */
+							result = (func)(s, (void**)&ast);
+#ifdef MB_ENABLE_STACK_TRACE
+							_ls_popback(s->stack_frames);
+#endif /* MB_ENABLE_STACK_TRACE */
+
+							break;
+						}
+					}
+#endif /* MB_ENABLE_USERTYPE_REF */
 					obj = (_object_t*)pathed->data;
 
 					goto _retry;
@@ -11407,11 +11438,23 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 	val_ptr = &val_obj;
 	_MAKE_NIL(val_ptr);
 
+#ifdef MB_ENABLE_USERTYPE_REF
+	if(s->usertype_ref_ahead) {
+		ast = (_ls_node_t*)*l;
+		memcpy(val_ptr, s->usertype_ref_ahead, sizeof(_object_t));
+		s->usertype_ref_ahead = 0;
+
+		goto _got;
+	}
+#endif /* MB_ENABLE_USERTYPE_REF */
 	ast = (_ls_node_t*)*l;
 	result = _calc_expression(s, &ast, &val_ptr);
 	if(result != MB_FUNC_OK)
 		goto _exit;
 
+#ifdef MB_ENABLE_USERTYPE_REF
+_got:
+#endif /* MB_ENABLE_USERTYPE_REF */
 	if(val_ptr->type == _DT_STRING && !val_ptr->ref) {
 		_destroy_edge_objects(s);
 		_mark_edge_destroy_string(s, val_ptr->data.string);

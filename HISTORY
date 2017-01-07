@@ -1,3 +1,6 @@
+Jan. 7 2017
+Added dot symbol accessing of functions for referenced usertype
+
 Dec. 2 2016
 Fixed a case sensitive issue with the IMPORT statement (for module), thanks to wwiv for pointing it out
 
