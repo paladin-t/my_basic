@@ -7870,10 +7870,11 @@ _exit:
 /* Call the TOSTRING function of a class instance to format it */
 static int _format_class_to_string(mb_interpreter_t* s, void** l, _class_t* instance, _object_t* out, bool_t* got_tostr) {
 	int result = MB_FUNC_OK;
+	_ls_node_t* tsn = 0;
 
 	mb_assert(s && l && instance && out);
 
-	_ls_node_t* tsn = _search_identifier_in_class(s, instance, _CLASS_TOSTRING_FUNC, 0, 0);
+	tsn = _search_identifier_in_class(s, instance, _CLASS_TOSTRING_FUNC, 0, 0);
 	if(got_tostr) *got_tostr = false;
 	if(tsn) {
 		_object_t* tso = (_object_t*)tsn->data;

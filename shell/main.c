@@ -219,7 +219,7 @@ static void _tidy_mem_pool(bool_t force) {
 		return;
 
 	for(i = 0; i < pool_count; i++) {
-		while((s = pool[i].stack)) {
+		while((s = pool[i].stack) != 0) {
 			pool[i].stack = (char*)_POOL_NODE_NEXT(s);
 			_POOL_NODE_FREE(s);
 		}
@@ -299,7 +299,7 @@ static void _close_mem_pool(void) {
 		return;
 
 	for(i = 0; i < pool_count; i++) {
-		while((s = pool[i].stack)) {
+		while((s = pool[i].stack) != 0) {
 			pool[i].stack = (char*)_POOL_NODE_NEXT(s);
 			_POOL_NODE_FREE(s);
 		}
