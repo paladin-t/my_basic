@@ -6,7 +6,7 @@
 	| ||_|| |  |   |         | |_|   ||   _   | _____| ||   | |     |_ 
 	|_|   |_|  |___|         |_______||__| |__||_______||___| |_______|
 
-**Copyright (C) 2011 - 2017 [Wang Renxin](https://cn.linkedin.com/pub/wang-renxin/43/494/20). All rights reserved.**
+**Copyright (C) 2011 - 2017 [Wang Renxin](https://cn.linkedin.com/in/wang-renxin-02049443). All rights reserved.**
 
 [简体中文](https://github.com/paladin-t/my_basic/wiki/%E7%94%B1%E7%BA%AF-C-%E8%AF%AD%E8%A8%80%E7%BC%96%E5%86%99%E7%9A%84-BASIC-%E8%84%9A%E6%9C%AC%E8%A7%A3%E9%87%8A%E5%99%A8)
 
@@ -87,7 +87,7 @@ Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especiall
 
 It's necessary to know some principle of MY-BASIC before doing deep customization; nothing's better than a workflow diagram to get a first impression.
 
-![](https://github.com/paladin-t/my_basic/blob/master/interpreter%20workflow%20diagram.png)
+![](interpreter%20workflow%20diagram.png)
 
 More detail are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki) pages.
 
@@ -103,9 +103,9 @@ This repository contains precompiled binaries for [Windows](output/my_basic.exe)
 
 To compile an interpreter binary for your own platform manually, please follow the steps:
 
-1. Retrieve at least `core` and `shell` folders for a minimum build
+1. Retrieve at least [`core`](core) and [`shell`](shell) folders for a minimum build
 2. Setup your compile toolchain configuration
-3. Compile `core/my_basic.c` and `shell/main.c`, they both require `core/my_basic.h`; then link up your own executable
+3. Compile [`core/my_basic.c`](core/my_basic.c) and [`shell/main.c`](shell/main.c), they both require [`core/my_basic.h`](core/my_basic.h); then link up your own executable
 
 The standalone interpreter supports three running modes:
 
