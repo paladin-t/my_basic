@@ -38,6 +38,9 @@
 #elif !defined MB_CP_BORLANDC && !defined MB_CP_TCC
 #	include <unistd.h>
 #endif /* MB_CP_VC */
+#ifdef MB_CP_BORLANDC
+#	include <Windows.h>
+#endif /* MB_CP_BORLANDC */
 #ifndef MB_CP_VC
 #	include <stdint.h>
 #endif /* MB_CP_VC */
@@ -1230,7 +1233,7 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 #endif /* MB_OS_WIN */
 
 #define _HAS_TICKS
-#if defined MB_CP_VC
+#if defined MB_CP_VC || defined MB_CP_BORLANDC
 static int_t _ticks(void) {
 	LARGE_INTEGER li;
 	double freq = 0.0;
@@ -1266,9 +1269,9 @@ static int_t _ticks(void) {
 
 	return (int_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
-#else /* MB_CP_VC */
+#else /* MB_CP_VC || MB_CP_BORLANDC */
 #	undef _HAS_TICKS
-#endif /* MB_CP_VC */
+#endif /* MB_CP_VC || MB_CP_BORLANDC */
 
 #ifdef _HAS_TICKS
 static int ticks(struct mb_interpreter_t* s, void** l) {
