@@ -37,6 +37,14 @@ MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter writt
 
 It fits well on a large scale of Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Console, Raspberry Pi, Intel Edison, Arduino and even MCU; totally portable to Windows, macOS, Unix, Linux, iOS, Android, RTOS, etc.
 
+**For Arduino**
+
+Are you looking for an Arduino porting of the MY-BASIC interpreter, or for other embedded systems, with a totally rewritten shell and user manual? Please see [MY-BASIC ARDU](https://paladin-t.github.io/c/my_basic_ardu/buy.html).
+
+<a href="https://paladin-t.github.io/c/my_basic_ardu/buy.html">
+<img src="https://upload.wikimedia.org/wikipedia/commons/8/87/Arduino_Logo.svg" width="128">
+</a>
+
 ## Main features
 
 MY-BASIC is a dynamic typed programming language with BASIC syntax and has a very dynamic nature; it makes it flexible and easy to use. MY-BASIC offers a wide range of features including:
