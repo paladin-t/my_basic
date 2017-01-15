@@ -92,7 +92,7 @@ print foo("Hello", "world");
 
 Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especially the "**Programming with BASIC**" section) to get more details about how to program in MY-BASIC.
 
-## [Related projects]
+## Related projects
 
 I've been making some other projects, which use MY-BASIC as dependence, or make MY-BASIC much completer.
 
