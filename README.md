@@ -21,6 +21,7 @@ Why are other script interpreters so complex? Why is it so difficult to integrat
 * [Compatibility](#compatibility)
 * [Main features](#main-features)
 * [Script at a glance](#script-at-a-glance)
+* [Related projects](#related-projects)
 * [Interpreter workflow diagram](#interpreter-workflow-diagram)
 * [Installation](#installation)
 * [Wiki](#wiki)
@@ -90,6 +91,12 @@ print foo("Hello", "world");
 ~~~~~~~~~~
 
 Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especially the "**Programming with BASIC**" section) to get more details about how to program in MY-BASIC.
+
+## [Related projects]
+
+I've been making some other projects, which use MY-BASIC as dependence, or make MY-BASIC much completer.
+
+* [MY-BASIC Code Editor (Unity)](https://github.com/paladin-t/my_basic_code_editor_unity)
 
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
