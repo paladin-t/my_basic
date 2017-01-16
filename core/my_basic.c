@@ -4589,13 +4589,16 @@ static mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 
 /* Print a string */
 static void _print_string(mb_interpreter_t* s, _object_t* obj) {
-	mb_assert(s && obj);
-
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
-	char* loc = setlocale(LC_ALL, "");
-	char* str = obj->data.string ? obj->data.string : MB_NULL_STRING;
+	char* loc = 0;
+	char* str = 0;
 	_dynamic_buffer_t buf;
 	size_t lbuf = 0;
+
+	mb_assert(s && obj);
+
+	loc = setlocale(LC_ALL, "");
+	str = obj->data.string ? obj->data.string : MB_NULL_STRING;
 	_INIT_BUF(buf);
 	while((lbuf = (size_t)mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf))) > _WCHARS_OF_BUF(buf)) {
 		_RESIZE_WCHAR_BUF(buf, lbuf);
@@ -4604,6 +4607,8 @@ static void _print_string(mb_interpreter_t* s, _object_t* obj) {
 	_DISPOSE_BUF(buf);
 	setlocale(LC_ALL, loc);
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
+	mb_assert(s && obj);
+
 	_get_printer(s)("%s", obj->data.string ? obj->data.string : MB_NULL_STRING);
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 }

@@ -1,0 +1,15 @@
+/temp
+/my_basic.VC.db
+/my_basic.VC.VC.opendb
+/.vs/my_basic/v14
+*.DS_Store
+*.exp
+*.idb
+*.ilk
+*.iobj
+*.ipdb
+*.lib
+*.ncb
+*.obj
+*.pdb
+*.suo
