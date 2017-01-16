@@ -10,7 +10,7 @@
 
 	my_basic start.bas
 
-**OS X**
+**macOS**
 
 	my_basic_mac start.bas
 
@@ -20,6 +20,6 @@
 
 **Note**
 
-It requires an importing directories information if the working directory of your interpreter is `my_basic/output/`:
+It requires a directory importing information if the working directory of your interpreter isn't at where `start.bas` is, assuming the interpreter works at `my_basic/output/`, then it goes:
 
 	my_basic -f ../sample/yard/ ../sample/yard/start.bas
