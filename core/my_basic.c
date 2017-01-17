@@ -1809,7 +1809,7 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 
 /** Interpretation */
 
-static void _stepped(mb_interpreter_t* s, _ls_node_t* ast);
+static int _stepped(mb_interpreter_t* s, _ls_node_t* ast);
 static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l, bool_t force_next);
 static int _common_end_looping(mb_interpreter_t* s, _ls_node_t** l);
 static int _common_keep_looping(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop);
@@ -9919,7 +9919,8 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 /** Interpretation */
 
 /* Callback a stepped debug handler, this function is called each step */
-static void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
+static int _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
+	int result = MB_FUNC_OK;
 	_object_t* obj = 0;
 
 	mb_assert(s);
@@ -9928,14 +9929,16 @@ static void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
 		if(ast && ast->data) {
 			obj = (_object_t*)ast->data;
 #ifdef MB_ENABLE_SOURCE_TRACE
-			s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, obj->source_row, obj->source_col);
+			result = s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, obj->source_row, obj->source_col);
 #else /* MB_ENABLE_SOURCE_TRACE */
-			s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, 0, 0);
+			result = s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, 0, 0);
 #endif /* MB_ENABLE_SOURCE_TRACE */
 		} else {
-			s->debug_stepped_handler(s, (void**)&ast, s->source_file, -1, 0, 0);
+			result = s->debug_stepped_handler(s, (void**)&ast, s->source_file, -1, 0, 0);
 		}
 	}
+
+	return result;
 }
 
 /* Execute the ast, this is the core execution function */
@@ -10144,7 +10147,11 @@ _exit:
 
 	*l = ast;
 
-	_stepped(s, ast);
+	do {
+		int ret = _stepped(s, ast);
+		if(result == MB_FUNC_OK)
+			result = ret;
+	} while(0);
 
 	return result;
 }
