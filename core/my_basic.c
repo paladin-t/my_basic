@@ -257,6 +257,7 @@ static const char* _ERR_DESC[] = {
 	"Number expected",
 	"Integer expected",
 	"ELSE statement expected",
+	"ENDIF statement expected",
 	"TO statement expected",
 	"NEXT statement expected",
 	"UNTIL statement expected",
@@ -1336,16 +1337,18 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 #if _WARNING_AS_ERROR
 #	define _handle_error_at_pos(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
-			_set_current_error((__s), (__err), (__f)); \
-			_set_error_pos((__s), (__pos), (__row), (__col)); \
+			if(_set_current_error((__s), (__err), (__f))) { \
+				_set_error_pos((__s), (__pos), (__row), (__col)); \
+			} \
 			__result = (__ret); \
 			goto __exit; \
 		} while(0)
 #else /* _WARNING_AS_ERROR */
 #	define _handle_error_at_pos(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
-			_set_current_error((__s), (__err), (__f)); \
-			_set_error_pos((__s), (__pos), (__row), (__col)); \
+			if(_set_current_error((__s), (__err), (__f))) { \
+				_set_error_pos((__s), (__pos), (__row), (__col)); \
+			} \
 			if((__ret) != MB_FUNC_WARNING) { \
 				__result = (__ret); \
 			} \
@@ -1368,7 +1371,7 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 
 #define _OUTTER_SCOPE(__s) ((__s)->prev ? (__s)->prev : (__s))
 
-static void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f);
+static bool_t _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f);
 
 static mb_print_func_t _get_printer(mb_interpreter_t* s);
 static mb_input_func_t _get_inputer(mb_interpreter_t* s);
@@ -3487,12 +3490,13 @@ static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object
 		if(_status != MB_FUNC_WARNING) {
 			safe_free(result);
 		}
-		_set_current_error(s, SE_RN_OPERATION_FAILED, 0);
+		if(_set_current_error(s, SE_RN_OPERATION_FAILED, 0)) {
 #ifdef MB_ENABLE_SOURCE_TRACE
-		_set_error_pos(s, optr->source_pos, optr->source_row, optr->source_col);
+			_set_error_pos(s, optr->source_pos, optr->source_row, optr->source_col);
 #else /* MB_ENABLE_SOURCE_TRACE */
-		_set_error_pos(s, 0, 0, 0);
+			_set_error_pos(s, 0, 0, 0);
 #endif /* MB_ENABLE_SOURCE_TRACE */
+		}
 	}
 
 	return result;
@@ -4558,13 +4562,17 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 /** Handlers */
 
 /* Set current error information */
-static void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f) {
+static bool_t _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f) {
 	mb_assert(s && err >= 0);
 
 	if(s->last_error == SE_NO_ERR) {
 		s->last_error = err;
 		s->last_error_file = f;
+
+		return true;
 	}
+
+	return false;
 }
 
 /* Get a print functor of an interpreter */
@@ -12834,7 +12842,7 @@ mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
 	mb_assert(s);
 
 	result = s->last_error;
-	s->last_error = SE_NO_ERR;
+	s->last_error = SE_NO_ERR; /* Clear error state */
 
 	return result;
 }
@@ -13890,9 +13898,16 @@ _elseif:
 			}
 
 			do {
-				ast = ast->next;
-				while(_IS_EOS(ast->data))
+				_ls_node_t* la = 0;
+				la = ast = ast->next;
+				while(ast && _IS_EOS(ast->data)) {
 					ast = ast->next;
+					if(ast) la = ast;
+				}
+				if(!ast) {
+					mb_get_last_error(s);
+					_handle_error_on_obj(s, SE_RN_ENDIF_EXPECTED, s->source_file, DON(la), MB_FUNC_ERR, _exit, result);
+				}
 				if(ast && _IS_FUNC(ast->data, _core_endif)) {
 					ast = ast->prev;
 

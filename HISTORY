@@ -1,3 +1,6 @@
+Jan. 19 2017
+Fixed a crash bug with unmatched ENDIF statement, thanks to yukini3 for pointing it out
+
 Jan. 17 2017
 Improved the stepped handler
 
