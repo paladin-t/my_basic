@@ -2,7 +2,7 @@
 ' Copyright (c) 2011 - 2017 Wang Renxin. All rights reserved.
 ' For more information, see https://github.com/paladin-t/my_basic/
 
-Class animal
+class animal
 	def speak(a)
 		print "Default" + a;
 	enddef
