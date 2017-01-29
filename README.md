@@ -6,7 +6,7 @@
 	| ||_|| |  |   |         | |_|   ||   _   | _____| ||   | |     |_ 
 	|_|   |_|  |___|         |_______||__| |__||_______||___| |_______|
 
-**Copyright (C) 2011 - 2017 [Wang Renxin](https://cn.linkedin.com/in/wang-renxin-02049443). All rights reserved.**
+**Copyright (C) 2011 - 2017 [Wang Renxin](https://linkedin.com/in/wangrenxin). All rights reserved.**
 
 [简体中文](https://github.com/paladin-t/my_basic/wiki/%E7%94%B1%E7%BA%AF-C-%E8%AF%AD%E8%A8%80%E7%BC%96%E5%86%99%E7%9A%84-BASIC-%E8%84%9A%E6%9C%AC%E8%A7%A3%E9%87%8A%E5%99%A8)
 
