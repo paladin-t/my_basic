@@ -35,6 +35,9 @@
 #	ifndef MB_DISABLE_LOAD_FILE
 #		define MB_DISABLE_LOAD_FILE
 #	endif /* MB_DISABLE_LOAD_FILE */
+#	ifndef MB_MANUAL_REAL_FORMATTING
+#		define MB_MANUAL_REAL_FORMATTING
+#	endif /* MB_MANUAL_REAL_FORMATTING */
 #endif /* ARDUINO && !MB_CP_ARDUINO */
 #ifdef MB_CP_VC
 #	include <conio.h>
@@ -1427,6 +1430,9 @@ static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected);
 static bool_t _is_number(void* obj);
 static bool_t _is_string(void* obj);
 static char* _extract_string(_object_t* obj);
+#ifdef MB_MANUAL_REAL_FORMATTING
+static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
+#endif /* MB_MANUAL_REAL_FORMATTING */
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 #	define _IS_LIST(__o) ((__o) && ((_object_t*)(__o))->type == _DT_LIST)
@@ -5840,6 +5846,40 @@ static char* _extract_string(_object_t* obj) {
 
 	return result;
 }
+
+#ifdef MB_MANUAL_REAL_FORMATTING
+/* Convert a real number to string */
+static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint) {
+	size_t pos = 0;
+	size_t len = 0;
+	char curr[4];
+	int val = (int)r;
+	char dot = 0;
+
+	itoa(val, str, 10);
+	if(r < 0) {
+		r *= -1;
+		val *= -1;
+	}
+	pos = len = strlen(str);
+	while(pos < size - 1) {
+		r = r - (real_t)val;
+		if(r == 0.0)
+			break;
+		if(!dot) {
+			dot = 1;
+			str[pos++] = '.';
+		}
+		r *= 10;
+		val = (int)r;
+		itoa(val, curr, 10);
+		str[pos++] = *curr;
+		if(--afterpoint == 0)
+			break;
+	}
+	str[pos] = '\0';
+}
+#endif /* MB_MANUAL_REAL_FORMATTING */
 
 #ifdef _HAS_REF_OBJ_LOCK
 /* Lock a referenced object */
@@ -15765,9 +15805,13 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 	case MB_DT_REAL:
 		lbuf = 1 /* - */ + (DBL_MAX_10_EXP + 1) /* 308 + 1 digits */ + 1 /* . */ + 6 /* precision */ + 1 /* \0 */;
 		_RESIZE_CHAR_BUF(buf, lbuf);
+#ifdef MB_MANUAL_REAL_FORMATTING
+		_real_to_str(arg.value.float_point, _CHAR_BUF_PTR(buf), lbuf, 5);
+#else /* MB_MANUAL_REAL_FORMATTING */
 		if((size_t)sprintf(_CHAR_BUF_PTR(buf), MB_REAL_FMT, arg.value.float_point) >= lbuf) {
 			mb_assert(0 && "Buffer overflow.");
 		}
+#endif /* MB_MANUAL_REAL_FORMATTING */
 
 		break;
 #ifdef MB_ENABLE_CLASS
@@ -16216,7 +16260,17 @@ _print:
 			} else if(val_ptr->type == _DT_INT) {
 				_get_printer(s)(MB_INT_FMT, val_ptr->data.integer);
 			} else if(val_ptr->type == _DT_REAL) {
+#ifdef MB_MANUAL_REAL_FORMATTING
+				_dynamic_buffer_t buf;
+				size_t lbuf = 32;
+				_INIT_BUF(buf);
+				_RESIZE_CHAR_BUF(buf, lbuf);
+				_real_to_str(val_ptr->data.float_point, _CHAR_BUF_PTR(buf), lbuf, 5);
+				_get_printer(s)("%s", _CHAR_BUF_PTR(buf));
+				_DISPOSE_BUF(buf);
+#else /* MB_MANUAL_REAL_FORMATTING */
 				_get_printer(s)(MB_REAL_FMT, val_ptr->data.float_point);
+#endif /* MB_MANUAL_REAL_FORMATTING */
 			} else if(val_ptr->type == _DT_STRING) {
 				_print_string(s, val_ptr);
 				if(!val_ptr->ref && val_ptr->data.string && !pathed_str) {
