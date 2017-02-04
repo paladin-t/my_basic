@@ -214,7 +214,7 @@ typedef struct _ht_node_t {
 /** Normal enum/struct/union/const, etc. */
 
 /* Error description text */
-static const char* _ERR_DESC[] = {
+MBCONST static const char* const _ERR_DESC[] = {
 	"No error",
 	/** Common */
 	"Open MY-BASIC failed",
@@ -700,11 +700,11 @@ MBAPI size_t MB_SIZEOF_RTN = sizeof(_routine_t);
 #endif /* MB_ENABLE_ALLOC_STAT */
 
 #ifdef MB_ENABLE_SOURCE_TRACE
-static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0, 0, 0 };
-static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0, 0, 0 };
+MBCONST static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0, 0, 0 };
+MBCONST static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0, 0, 0 };
 #else /* MB_ENABLE_SOURCE_TRACE */
-static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0 };
-static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0 };
+MBCONST static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0 };
+MBCONST static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0 };
 #endif /* MB_ENABLE_SOURCE_TRACE */
 #define _MAKE_NIL(__o) do { memset((__o), 0, sizeof(_object_t)); (__o)->type = _DT_NIL; } while(0)
 
@@ -713,27 +713,27 @@ static _object_t* _OBJ_BOOL_FALSE = 0;
 
 #ifdef MB_ENABLE_CLASS
 #ifdef MB_ENABLE_SOURCE_TRACE
-static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0, 0, 0 };
+MBCONST static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0, 0, 0 };
 #else /* MB_ENABLE_SOURCE_TRACE */
-static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0 };
+MBCONST static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0 };
 #endif /* MB_ENABLE_SOURCE_TRACE */
-static const _ls_node_t _LS_NODE_UNKNOWN = { (void*)&_OBJ_UNKNOWN, 0, 0, 0 };
+MBCONST static const _ls_node_t _LS_NODE_UNKNOWN = { (void*)&_OBJ_UNKNOWN, 0, 0, 0 };
 #endif /* MB_ENABLE_CLASS */
 
 #define _VAR_ARGS_STR "..."
 
 #ifdef MB_ENABLE_CLASS
-static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0, 0, 0 };
+MBCONST static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0, 0, 0 };
 #else /* MB_ENABLE_CLASS */
-static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0 };
+MBCONST static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0 };
 #endif /* MB_ENABLE_CLASS */
 
 /* Parsing context */
 #define _CLASS_STATE_NONE 0
 #define _CLASS_STATE_PROC 1
 
-static const char _MULTI_LINE_COMMENT_PREFIX[] = "'[";
-static const char _MULTI_LINE_COMMENT_POSTFIX[] = "']";
+MBCONST static const char _MULTI_LINE_COMMENT_PREFIX[] = "'[";
+MBCONST static const char _MULTI_LINE_COMMENT_POSTFIX[] = "']";
 
 typedef enum _parsing_state_e {
 	_PS_NORMAL,
@@ -854,7 +854,7 @@ typedef struct mb_interpreter_t {
 } mb_interpreter_t;
 
 /* Operations */
-static const char _PRECEDE_TABLE[20][20] = { /* Operator priority table */
+MBCONST static const char _PRECEDE_TABLE[20][20] = { /* Operator priority table */
 	/* +    -    *    /   MOD   ^    (    )    =    >    <    >=   <=   ==   <>  AND   OR  NOT  NEG   IS */
 	{ '>', '>', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* + */
 	{ '>', '>', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* - */
@@ -2020,7 +2020,7 @@ static int _coll_move_next(mb_interpreter_t* s, void** l);
 
 #define _CORE_ID_TYPE "TYPE"
 
-static const _func_t _core_libs[] = {
+MBCONST static const _func_t _core_libs[] = {
 	{ _DUMMY_ASSIGN_CHAR, _core_dummy_assign },
 	{ "+", _core_add },
 	{ "-", _core_min },
@@ -2102,7 +2102,7 @@ static const _func_t _core_libs[] = {
 #define _STD_ID_GET "GET"
 #define _STD_ID_SET "SET"
 
-static const _func_t _std_libs[] = {
+MBCONST static const _func_t _std_libs[] = {
 	{ "ABS", _std_abs },
 	{ "SGN", _std_sgn },
 	{ "SQR", _std_sqr },
@@ -2154,7 +2154,7 @@ static const _func_t _std_libs[] = {
 #	define _COLL_ID_ITERATOR "ITERATOR"
 #	define _COLL_ID_MOVE_NEXT "MOVE_NEXT"
 
-static const _func_t _coll_libs[] = {
+MBCONST static const _func_t _coll_libs[] = {
 	{ _COLL_ID_LIST, _coll_list },
 	{ _COLL_ID_DICT, _coll_dict },
 	{ _COLL_ID_PUSH, _coll_push },
@@ -3222,7 +3222,7 @@ static int mb_uu_ischar(const char* ch) {
 #	define _TRANS(__m, __cp, __g) do { __cp &= ((__g[(unsigned char)c] & __m) != 0); } while(0)
 #	define _TAIL(__ch, __c, __r, __cp, __g) do { _COPY(__ch, __c, __r, __cp); _TRANS(0x70, __cp, __g); } while(0)
 
-	static const unsigned char range[] = {
+	MBCONST static const unsigned char range[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3433,7 +3433,7 @@ static char _get_priority(mb_func_t op1, mb_func_t op2) {
 static int _get_priority_index(mb_func_t op) {
 	int i = 0;
 
-	mb_func_t funcs[] = {
+	MBCONST mb_func_t funcs[] = {
 		_core_add,
 		_core_min,
 		_core_mul,

@@ -92,6 +92,10 @@ extern "C" {
 #	define MBAPI
 #endif /* MBAPI */
 
+#ifndef MBCONST
+#	define MBCONST
+#endif /* MBCONST */
+
 #ifndef MB_SIMPLE_ARRAY
 #	define MB_SIMPLE_ARRAY
 #endif /* MB_SIMPLE_ARRAY */
