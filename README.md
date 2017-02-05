@@ -22,8 +22,8 @@ Why are other script interpreters so complex? Why is it so difficult to integrat
 * [Main features](#main-features)
 * [Script at a glance](#script-at-a-glance)
 * [Related projects](#related-projects)
-* [Interpreter workflow diagram](#interpreter-workflow-diagram)
 * [Installation](#installation)
+* [Interpreter workflow diagram](#interpreter-workflow-diagram)
 * [Wiki](#wiki)
 * [References](#references)
 * [Support MY-BASIC development/List of donors](#support-my-basic-developmentlist-of-donors)
@@ -96,15 +96,7 @@ Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especiall
 
 I've been making some other projects, which use MY-BASIC as dependence, or make MY-BASIC much completer.
 
-* [MY-BASIC Code Editor (Unity)](https://github.com/paladin-t/my_basic_code_editor_unity)
-
-## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
-
-It's necessary to know some principle of MY-BASIC before doing deep customization; nothing's better than a workflow diagram to get a first impression.
-
-![](interpreter%20workflow%20diagram.png)
-
-More detail are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki) pages.
+* [MY-BASIC Code Editor (Unity)](https://github.com/my-basic/my_basic_code_editor_unity)
 
 ## Installation
 
@@ -137,6 +129,14 @@ MY-BASIC is cleanly written in a single C source file and an associated header f
 You can definitely [link with MY-BASIC as a lib](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC) as well.
 
 For more details about using MY-BASIC when it has be integrated with a project, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) or read the following Wiki pages.
+
+## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
+
+It's necessary to know some principle of MY-BASIC before doing deep customization; nothing's better than a workflow diagram to get a first impression.
+
+![](interpreter%20workflow%20diagram.png)
+
+More detail are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki) pages.
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
