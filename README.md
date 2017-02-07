@@ -97,6 +97,7 @@ Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especiall
 I've been making some other projects, which use MY-BASIC as dependence, or make MY-BASIC much completer.
 
 * [MY-BASIC Code Editor (Unity)](https://github.com/my-basic/my_basic_code_editor_unity)
+ - A code editor for MY-BASIC powered by the Unity3D engine.
 
 ## Installation
 
