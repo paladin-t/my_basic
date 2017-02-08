@@ -40,9 +40,9 @@ It fits well on a large scale of Workstation, PC, Tablet, Pad, Mobile Phone, PDA
 
 **For Arduino**
 
-Are you looking for an Arduino porting of the MY-BASIC interpreter, or for other embedded systems, with a totally rewritten shell and user manual? Please see [MY-BASIC ARDU](https://paladin-t.github.io/c/my_basic_ardu/buy.html).
+Are you looking for an Arduino porting of the MY-BASIC interpreter, or for other embedded systems, with a totally rewritten shell and user manual? Please see [MY-BASIC ARDU](https://my-basic.github.io/my_basic_ardu/).
 
-<a href="https://paladin-t.github.io/c/my_basic_ardu/buy.html">
+<a href="https://my-basic.github.io/my_basic_ardu/">
 <img src="https://upload.wikimedia.org/wikipedia/commons/8/87/Arduino_Logo.svg" width="128">
 </a>
 
