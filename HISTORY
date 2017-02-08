@@ -1,3 +1,6 @@
+Feb. 8 2017
+Fixed a processing bug with the ELSEIF statement
+
 Feb. 3 2017
 Added a replacement real number formatting function
 Added a replacement function of strtod on the wiki page, thanks to Paul Johnson for providing the code

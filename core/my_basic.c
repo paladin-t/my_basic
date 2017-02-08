@@ -13885,6 +13885,8 @@ _elseif:
 
 				break;
 			}
+			if(multi_line && ast && _IS_FUNC(ast->data, _core_elseif))
+				break;
 			result = _execute_statement(s, &ast, true);
 			if(result != MB_FUNC_OK)
 				goto _exit;
