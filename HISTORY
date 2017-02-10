@@ -1,3 +1,6 @@
+Feb. 10 2017
+Fixed a parameter lookup bug when calling a sub routine
+
 Feb. 8 2017
 Fixed a processing bug with the ELSEIF statement
 

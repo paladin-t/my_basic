@@ -747,6 +747,10 @@ typedef enum _symbol_state_e {
 	_SS_OPERATOR
 } _symbol_state_e;
 
+#define _ROUTINE_STATE_NONE 0
+#define _ROUTINE_STATE_DEF 1
+#define _ROUTINE_STATE_PARAMS 2
+
 typedef struct _parsing_context_t {
 	_ls_node_t* imported;
 	char current_char;
@@ -1737,6 +1741,7 @@ static bool_t _is_valid_class_accessor_following_routine(mb_interpreter_t* s, _v
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f);
 static int _begin_routine(mb_interpreter_t* s);
 static bool_t _end_routine(mb_interpreter_t* s);
+static void _begin_routine_definition(mb_interpreter_t* s);
 static void _begin_routine_parameter_list(mb_interpreter_t* s);
 static void _end_routine_parameter_list(mb_interpreter_t* s);
 static _object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* running);
@@ -5067,7 +5072,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 
 		break;
 	case _DT_VAR:
-		if(context->routine_params_state)
+		if(context->routine_params_state == _ROUTINE_STATE_PARAMS)
 			glbsyminscope = _ht_find(running->var_dict, sym);
 		else
 			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
@@ -5419,10 +5424,11 @@ _end_import:
 	glbsyminscope = _find_func(s, sym, &mod);
 	if(glbsyminscope) {
 		if(context->last_symbol && context->last_symbol->type == _DT_ROUTINE) {
-			if(_sl == 1 && sym[0] == '(')
-				_begin_routine_parameter_list(s);
-		}
-		if(context->routine_params_state) {
+			if(_sl == 1 && sym[0] == '(') {
+				if(context->routine_params_state == _ROUTINE_STATE_DEF)
+					_begin_routine_parameter_list(s);
+			}
+		} else if(context->routine_params_state == _ROUTINE_STATE_PARAMS) {
 			if(_sl == 1 && sym[0] == ')')
 				_end_routine_parameter_list(s);
 		}
@@ -5435,6 +5441,8 @@ _end_import:
 		} else {
 			ptr = (intptr_t)glbsyminscope->data;
 			memcpy(*value, &ptr, sizeof(intptr_t));
+			if(ptr == (intptr_t)_core_def)
+				_begin_routine_definition(s);
 		}
 #else /* MB_ENABLE_MODULE */
 		ptr = (intptr_t)glbsyminscope->data;
@@ -8076,6 +8084,16 @@ static bool_t _end_routine(mb_interpreter_t* s) {
 	return true;
 }
 
+/* Begin parsing the definition of a routine */
+static void _begin_routine_definition(mb_interpreter_t* s) {
+	_parsing_context_t* context = 0;
+
+	mb_assert(s);
+
+	context = s->parsing_context;
+	context->routine_params_state = _ROUTINE_STATE_DEF;
+}
+
 /* Begin parsing the parameter list of a routine */
 static void _begin_routine_parameter_list(mb_interpreter_t* s) {
 	_parsing_context_t* context = 0;
@@ -8083,7 +8101,7 @@ static void _begin_routine_parameter_list(mb_interpreter_t* s) {
 	mb_assert(s);
 
 	context = s->parsing_context;
-	context->routine_params_state++;
+	context->routine_params_state = _ROUTINE_STATE_PARAMS;
 }
 
 /* End parsing the parameter list of a routine */
@@ -8093,7 +8111,7 @@ static void _end_routine_parameter_list(mb_interpreter_t* s) {
 	mb_assert(s);
 
 	context = s->parsing_context;
-	context->routine_params_state--;
+	context->routine_params_state = _ROUTINE_STATE_NONE;
 }
 
 /* Duplicate a parameter from a parameter list to variable dictionary */
