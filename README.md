@@ -135,7 +135,7 @@ For more details about using MY-BASIC when it has be integrated with a project, 
 
 It's necessary to know some principle of MY-BASIC before doing deep customization; nothing's better than a workflow diagram to get a first impression.
 
-![](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram.png)
+![](https://github.com/paladin-t/my_basic/wiki/img/Interpreter-workflow-diagram.png)
 
 More detail are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki) pages.
 
