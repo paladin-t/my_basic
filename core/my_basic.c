@@ -5447,6 +5447,8 @@ _end_import:
 #else /* MB_ENABLE_MODULE */
 		ptr = (intptr_t)glbsyminscope->data;
 		memcpy(*value, &ptr, sizeof(intptr_t));
+		if(ptr == (intptr_t)_core_def)
+			_begin_routine_definition(s);
 #endif /* MB_ENABLE_MODULE */
 
 		result = _DT_FUNC;
