@@ -49,10 +49,10 @@
 #endif /* MB_CP_CLANG */
 #include <assert.h>
 #include <setjmp.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 #include <time.h>
 
 #ifdef __cplusplus

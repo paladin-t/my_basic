@@ -378,7 +378,7 @@ typedef struct _gc_t {
 	_ht_node_t* recursive_table;
 	_ht_node_t* collected_table;
 	_ht_node_t* valid_table;
-	int_t collecting;
+	unsigned char collecting;
 } _gc_t;
 
 typedef struct _calculation_operator_info_t {
@@ -419,8 +419,8 @@ typedef struct _var_t {
 	char* name;
 	struct _object_t* data;
 #ifdef MB_ENABLE_CLASS
-	bool_t pathing;
-	bool_t isme;
+	bool_t pathing : 1;
+	bool_t is_me : 1;
 #endif /* MB_ENABLE_CLASS */
 } _var_t;
 
@@ -461,7 +461,7 @@ typedef struct _list_t {
 typedef struct _list_it_t {
 	_ref_t weak_ref;
 	_list_t* list;
-	bool_t locking;
+	bool_t locking : 1;
 	union {
 		_ls_node_t* node;
 		int_t ranging;
@@ -479,7 +479,7 @@ typedef struct _dict_t {
 typedef struct _dict_it_t {
 	_ref_t weak_ref;
 	_dict_t* dict;
-	bool_t locking;
+	bool_t locking : 1;
 	unsigned curr_bucket;
 	_ls_node_t* curr_node;
 } _dict_it_t;
@@ -571,7 +571,7 @@ typedef struct _routine_t {
 #ifdef MB_ENABLE_CLASS
 	_class_t* instance;
 #endif /* MB_ENABLE_CLASS */
-	bool_t is_cloned;
+	bool_t is_cloned : 1;
 	_invokable_e type;
 } _routine_t;
 
@@ -616,13 +616,13 @@ typedef struct _object_t {
 		void* pointer;
 		_raw_t raw;
 	} data;
-	bool_t ref;
+	bool_t is_ref : 1;
 #ifdef MB_ENABLE_SOURCE_TRACE
 	int source_pos;
 	unsigned short source_row;
 	unsigned short source_col;
 #else /* MB_ENABLE_SOURCE_TRACE */
-	char source_pos;
+	char source_pos : 1;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 } _object_t;
 
@@ -1446,7 +1446,7 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 #ifdef MB_ENABLE_CLASS
 #	define _IS_CLASS(__o) ((__o) && ((_object_t*)(__o))->type == _DT_CLASS)
 #	define _GET_CLASS(__o) ((!__o) ? 0 : (_IS_CLASS(__o) ? (__o) : (_IS_VAR(__o) && _IS_CLASS((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
-#	define _IS_ME(__v) (!!(__v)->isme)
+#	define _IS_ME(__v) (!!(__v)->is_me)
 #else /* MB_ENABLE_CLASS */
 #	define _IS_ME(__v) false
 #endif /* MB_ENABLE_CLASS */
@@ -1474,17 +1474,17 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 #ifdef MB_ENABLE_ARRAY_REF
 #	define _REF_ARRAY(__o) \
 		case _DT_ARRAY: \
-			if(!(__o)->ref) \
+			if(!(__o)->is_ref) \
 				_ref(&(__o)->data.array->ref, (__o)->data.array); \
 			break;
 #	define _UNREF_ARRAY(__o) \
 		case _DT_ARRAY: \
-			if(!(__o)->ref) \
+			if(!(__o)->is_ref) \
 				_unref(&(__o)->data.array->ref, (__o)->data.array); \
 			break;
 #	define _ADDGC_ARRAY(__o, __g) \
 		case _DT_ARRAY: \
-			if(!(__o)->ref) \
+			if(!(__o)->is_ref) \
 				_gc_add(&(__o)->data.array->ref, (__o)->data.array, (__g)); \
 			break;
 #else /* MB_ENABLE_ARRAY_REF */
@@ -1542,12 +1542,12 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 			break;
 #	define _UNREF_CLASS(__o) \
 		case _DT_CLASS: \
-			if(!(__o)->ref) \
+			if(!(__o)->is_ref) \
 				_unref(&(__o)->data.instance->ref, (__o)->data.instance); \
 			break;
 #	define _ADDGC_CLASS(__o, __g) \
 		case _DT_CLASS: \
-			if(!(__o)->ref) \
+			if(!(__o)->is_ref) \
 				_gc_add(&(__o)->data.instance->ref, (__o)->data.instance, (__g)); \
 			break;
 #else /* MB_ENABLE_CLASS */
@@ -1562,16 +1562,16 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 			break;
 #	define _UNREF_ROUTINE(__o) \
 		case _DT_ROUTINE: \
-			if(!(__o)->ref && (__o)->data.routine->type == _IT_LAMBDA) \
+			if(!(__o)->is_ref && (__o)->data.routine->type == _IT_LAMBDA) \
 				_unref(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine); \
-			else if(!(__o)->ref && (__o)->data.routine->type != _IT_LAMBDA) \
+			else if(!(__o)->is_ref && (__o)->data.routine->type != _IT_LAMBDA) \
 				_destroy_routine(0, (__o)->data.routine); \
 			break;
 #	define _ADDGC_ROUTINE(__o, __g) \
 		case _DT_ROUTINE: \
-			if(!(__o)->ref && (__o)->data.routine->type == _IT_LAMBDA) \
+			if(!(__o)->is_ref && (__o)->data.routine->type == _IT_LAMBDA) \
 				_gc_add(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine, (__g)); \
-			else if(!(__o)->ref && (__o)->data.routine->type != _IT_LAMBDA) \
+			else if(!(__o)->is_ref && (__o)->data.routine->type != _IT_LAMBDA) \
 				_dispose_object(__o); \
 			break;
 #else /* MB_ENABLE_LAMBDA */
@@ -3618,7 +3618,7 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 
 			(*val)->type = _DT_STRING;
 			(*val)->data.string = c->data.string;
-			(*val)->ref = true;
+			(*val)->is_ref = true;
 			ast = ast->next;
 
 			goto _exit;
@@ -3693,7 +3693,7 @@ _array:
 						arr_elem = _create_object();
 						_ls_pushback(garbage, arr_elem);
 						arr_elem->type = arr_type;
-						arr_elem->ref = true;
+						arr_elem->is_ref = true;
 						_COPY_BYTES(arr_elem->data.bytes, arr_val.bytes);
 						if(f) {
 							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
@@ -3730,7 +3730,7 @@ _array:
 					_ls_pushback(garbage, c);
 					result = _public_value_to_internal_object(&running->intermediate_value, c);
 					if(c->type == _DT_STRING)
-						c->ref = true;
+						c->is_ref = true;
 					if(result != MB_FUNC_OK)
 						goto _error;
 					if(f) {
@@ -3811,7 +3811,7 @@ _routine:
 						arr_elem = _create_object();
 						_ls_pushback(garbage, arr_elem);
 						arr_elem->type = arr_type;
-						arr_elem->ref = true;
+						arr_elem->is_ref = true;
 						if(arr_type == _DT_INT) {
 							arr_elem->data.integer = arr_val.integer;
 						} else if(arr_type == _DT_REAL) {
@@ -3978,13 +3978,13 @@ _var:
 		(*val)->type = c->data.variable->data->type;
 		(*val)->data = c->data.variable->data->data;
 		if(_is_string(c))
-			(*val)->ref = true;
+			(*val)->is_ref = true;
 	} else {
 		(*val)->type = c->type;
 		if(_is_string(c)) {
 			char* _str = _extract_string(c);
 			(*val)->data.string = mb_strdup(_str, strlen(_str) + 1);
-			(*val)->ref = false;
+			(*val)->is_ref = false;
 		} else if(c->type == _DT_ARRAY) {
 			(*val)->data = c->data;
 			c->type = _DT_NIL;
@@ -4099,17 +4099,17 @@ static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* r
 				var = obj->data.variable;
 
 				if(proc_ref)
-					var->data->ref = false;
+					var->data->is_ref = false;
 			} else {
 				rnode = _search_identifier_in_scope_chain(s, running, var->name, _PATHING_NONE, 0, 0);
 				if(rnode)
 					var = ((_object_t*)rnode->data)->data.variable;
 
 				if(proc_ref)
-					var->data->ref = true;
+					var->data->is_ref = true;
 			}
 
-			if(!pop_arg && var->data->type == _DT_STRING && !var->data->ref)
+			if(!pop_arg && var->data->type == _DT_STRING && !var->data->is_ref)
 				_mark_lazy_destroy_string(s, var->data->data.string);
 			result = _public_value_to_internal_object(&arg, var->data);
 
@@ -4885,7 +4885,7 @@ static int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int po
 		mb_unrefvar(row);
 		mb_unrefvar(col);
 
-		obj->source_pos = (char)pos;
+		obj->source_pos = (char)!!pos;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
 		node = _ls_pushback(ast, obj);
@@ -4984,7 +4984,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ARRAY) {
 			(*obj)->data.array = ((_object_t*)glbsyminscope->data)->data.array;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 			*delsym = true;
 		} else {
 			tmp.array = _create_array(s, sym, _DT_UNKNOWN);
@@ -4997,7 +4997,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.array = tmp.array;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 		}
 
 		break;
@@ -5006,7 +5006,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_CLASS) {
 			(*obj)->data.instance = ((_object_t*)glbsyminscope->data)->data.instance;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 			*delsym = true;
 			if(running != (*obj)->data.instance->scope &&
 				(context->class_state != _CLASS_STATE_NONE) &&
@@ -5031,7 +5031,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.instance = tmp.instance;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 		}
 
 		break;
@@ -5040,7 +5040,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
 			(*obj)->data.routine = ((_object_t*)glbsyminscope->data)->data.routine;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 			*delsym = true;
 			if(running != (*obj)->data.routine->func.basic.scope &&
 				context->routine_state &&
@@ -5063,7 +5063,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.routine = tmp.routine;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 
 #ifdef MB_ENABLE_CLASS
 			tmp.routine->instance = s->last_instance;
@@ -5081,13 +5081,13 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 #endif /* MB_ENABLE_CLASS */
 		if(!is_field && glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_VAR) {
 			(*obj)->data.variable = ((_object_t*)glbsyminscope->data)->data.variable;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 			*delsym = true;
 		} else {
 #ifdef MB_ENABLE_CLASS
 			if(strcmp(sym, _CLASS_ME) == 0) {
 				_handle_error_now(s, SE_RN_CANNOT_CHANGE_ME, s->source_file, MB_FUNC_ERR);
-				(*obj)->ref = true;
+				(*obj)->is_ref = true;
 				*delsym = true;
 
 				goto _exit;
@@ -5113,7 +5113,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.variable = tmp.var;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 		}
 
 		break;
@@ -5121,7 +5121,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		if(context->current_char == ':') {
 			if(mb_memtest(value, sizeof(_raw_t))) {
 				memcpy(&((*obj)->data.label), value, sizeof((*obj)->data.label));
-				(*obj)->ref = true;
+				(*obj)->is_ref = true;
 				*delsym = true;
 			} else {
 				tmp.label = (_label_t*)mb_malloc(sizeof(_label_t));
@@ -5136,7 +5136,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 				*obj = _create_object();
 				(*obj)->type = type;
 				(*obj)->data.label = tmp.label;
-				(*obj)->ref = true;
+				(*obj)->is_ref = true;
 			}
 		} else {
 			(*obj)->data.label = (_label_t*)mb_malloc(sizeof(_label_t));
@@ -5701,14 +5701,14 @@ static char* _prev_import(mb_interpreter_t* s, char* lf, int* pos, unsigned shor
 
 	obj = _create_object();
 	obj->type = _DT_EOS;
-	obj->ref = false;
+	obj->is_ref = false;
 	_ls_pushback(s->ast, obj);
 
 	info = (_import_info_t*)mb_malloc(sizeof(_import_info_t));
 	info->source_file = lf ? mb_strdup(lf, strlen(lf) + 1) : 0;
 	obj = _create_object();
 	obj->type = _DT_PREV_IMPORT;
-	obj->ref = false;
+	obj->is_ref = false;
 	obj->data.import_info = info;
 	_ls_pushback(s->ast, obj);
 
@@ -5748,7 +5748,7 @@ static char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned shor
 	info->source_file = lf ? mb_strdup(lf, strlen(lf) + 1) : 0;
 	obj = _create_object();
 	obj->type = _DT_POST_IMPORT;
-	obj->ref = false;
+	obj->is_ref = false;
 	obj->data.import_info = info;
 	_ls_pushback(s->ast, obj);
 
@@ -7587,7 +7587,7 @@ static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	me->data->type = _DT_CLASS;
 	me->data->data.instance = instance;
 	me->pathing = true;
-	me->isme = true;
+	me->is_me = true;
 	_ht_set_or_insert(instance->scope->var_dict, me->name, meobj);
 }
 
@@ -7769,7 +7769,7 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 		if(!_ht_find(instance->scope->var_dict, arr->name)) {
 			ret = _create_object();
 			ret->type = _DT_ARRAY;
-			ret->ref = false;
+			ret->is_ref = false;
 			_clone_object(instance->ref.s, obj, ret, false, false);
 
 			_ht_set_or_insert(instance->scope->var_dict, ret->data.array->name, ret);
@@ -7783,7 +7783,7 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 			ret = _create_object();
 			ret->type = _DT_ROUTINE;
 			ret->data.routine = routine;
-			ret->ref = false;
+			ret->is_ref = false;
 
 			_ht_set_or_insert(instance->scope->var_dict, obj->data.routine->name, ret);
 		}
@@ -7949,7 +7949,7 @@ static int _format_class_to_string(mb_interpreter_t* s, void** l, _class_t* inst
 			_public_value_to_internal_object(&s->running_context->intermediate_value, out);
 			if(out->type == _DT_STRING) {
 				out->data.string = mb_strdup(out->data.string, strlen(out->data.string) + 1);
-				out->ref = false;
+				out->is_ref = false;
 				mb_make_nil(s->running_context->intermediate_value);
 			} else {
 				_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -8287,7 +8287,7 @@ static void _try_mark_upvalue(mb_interpreter_t* s, _routine_t* r, _object_t* obj
 			inner = (_object_t*)node->data;
 			obj->type = _DT_VAR;
 			obj->data = inner->data;
-			obj->ref = true;
+			obj->is_ref = true;
 		} else {
 			/* Mark upvalues referencing outer scope chain */
 			_mark_upvalue(s, lambda, obj, obj->data.variable->name);
@@ -8374,8 +8374,8 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 			_clone_object(tuple->s, obj, var->data, true, true);
 			_REF(var->data)
 			if(_IS_ROUTINE(obj) && obj->data.routine->type != _IT_LAMBDA) {
-				ovar->ref = true;
-				var->data->ref = true;
+				ovar->is_ref = true;
+				var->data->is_ref = true;
 			}
 #ifdef MB_ENABLE_CLASS
 			if(obj->type == _DT_VAR)
@@ -8395,7 +8395,7 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 					if(!strcmp(aobj->data.variable->name, ovar->data.variable->name)) {
 						aobj->type = _DT_VAR;
 						aobj->data = ovar->data;
-						aobj->ref = true;
+						aobj->is_ref = true;
 					}
 
 					break;
@@ -8968,7 +8968,7 @@ static _var_t* _create_var(_object_t** oobj, const char* n, size_t ns, bool_t du
 	_MAKE_NIL(obj);
 	obj->type = _DT_VAR;
 	obj->data.variable = var;
-	obj->ref = false;
+	obj->is_ref = false;
 
 	if(oobj) *oobj = obj;
 
@@ -9124,7 +9124,7 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 
 		break;
 	}
-	tgt->ref = false;
+	tgt->is_ref = false;
 #ifdef MB_ENABLE_SOURCE_TRACE
 	tgt->source_pos = 0;
 	tgt->source_row = 0;
@@ -9149,7 +9149,7 @@ static int _dispose_object(_object_t* obj) {
 		goto _exit;
 	switch(obj->type) {
 	case _DT_VAR:
-		if(!obj->ref) {
+		if(!obj->is_ref) {
 			var = (_var_t*)obj->data.variable;
 			safe_free(var->name);
 			mb_assert(var->data->type != _DT_VAR);
@@ -9162,7 +9162,7 @@ static int _dispose_object(_object_t* obj) {
 
 		break;
 	case _DT_STRING:
-		if(!obj->ref) {
+		if(!obj->is_ref) {
 			if(obj->data.string) {
 				safe_free(obj->data.string);
 			}
@@ -9181,7 +9181,7 @@ static int _dispose_object(_object_t* obj) {
 	_UNREF_COLL_IT(obj)
 	_UNREF_ROUTINE(obj)
 	case _DT_LABEL:
-		if(!obj->ref) {
+		if(!obj->is_ref) {
 			safe_free(obj->data.label->name);
 			safe_free(obj->data.label);
 		}
@@ -9190,7 +9190,7 @@ static int _dispose_object(_object_t* obj) {
 #ifdef MB_ENABLE_SOURCE_TRACE
 	case _DT_PREV_IMPORT: /* Fall through */
 	case _DT_POST_IMPORT:
-		if(!obj->ref) {
+		if(!obj->is_ref) {
 			if(obj->data.import_info) {
 				if(obj->data.import_info->source_file) {
 					safe_free(obj->data.import_info->source_file);
@@ -9215,7 +9215,7 @@ static int _dispose_object(_object_t* obj) {
 
 		break;
 	}
-	obj->ref = false;
+	obj->is_ref = false;
 	obj->type = _DT_NIL;
 	memset(&obj->data, 0, sizeof(obj->data));
 #ifdef MB_ENABLE_SOURCE_TRACE
@@ -9522,7 +9522,7 @@ static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	case MB_DT_STRING:
 		itn->type = _DT_STRING;
 		itn->data.string = pbl->value.string;
-		itn->ref = true;
+		itn->is_ref = true;
 
 		break;
 	case MB_DT_TYPE:
@@ -9545,7 +9545,7 @@ static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	case MB_DT_ARRAY:
 		itn->type = _DT_ARRAY;
 		itn->data.array = (_array_t*)pbl->value.array;
-		itn->ref = false;
+		itn->is_ref = false;
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -9700,7 +9700,7 @@ static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t*
 	*itn = _create_object();
 	_public_value_to_internal_object(pbl, *itn);
 	if((*itn)->type == _DT_STRING) {
-		(*itn)->ref = false;
+		(*itn)->is_ref = false;
 		(*itn)->data.string = mb_strdup((*itn)->data.string, 0);
 	}
 
@@ -9779,7 +9779,7 @@ static void _mark_edge_destroy_string(mb_interpreter_t* s, char* ch) {
 
 	temp_obj = _create_object();
 	temp_obj->type = _DT_STRING;
-	temp_obj->ref = false;
+	temp_obj->is_ref = false;
 	temp_obj->data.string = ch;
 	_ls_pushback(s->edge_destroy_objects, temp_obj);
 }
@@ -9800,7 +9800,7 @@ static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
 
 	temp_obj = _create_object();
 	temp_obj->type = _DT_STRING;
-	temp_obj->ref = false;
+	temp_obj->is_ref = false;
 	temp_obj->data.string = ch;
 	_ls_pushback(s->lazy_destroy_objects, temp_obj);
 }
@@ -9962,7 +9962,7 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 		_public_value_to_internal_object(&s->running_context->intermediate_value, &tmp);
 		if(tmp.type == _DT_STRING) {
 			tmp.data.string = mb_strdup(tmp.data.string, strlen(tmp.data.string) + 1);
-			tmp.ref = false;
+			tmp.is_ref = false;
 			mb_make_nil(s->running_context->intermediate_value);
 		}
 		**val_ptr = tmp;
@@ -11536,7 +11536,7 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 #ifdef MB_ENABLE_USERTYPE_REF
 _got:
 #endif /* MB_ENABLE_USERTYPE_REF */
-	if(val_ptr->type == _DT_STRING && !val_ptr->ref) {
+	if(val_ptr->type == _DT_STRING && !val_ptr->is_ref) {
 		_destroy_edge_objects(s);
 		_mark_edge_destroy_string(s, val_ptr->data.string);
 	}
@@ -12502,7 +12502,7 @@ int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routi
 	obj = _create_object();
 	obj->type = _DT_ROUTINE;
 	obj->data.routine = routine;
-	obj->ref = false;
+	obj->is_ref = false;
 
 #ifdef MB_ENABLE_CLASS
 	routine->instance = s->last_instance;
@@ -13717,14 +13717,14 @@ _proc_extra_var:
 		if(val->type == _DT_ROUTINE) {
 #ifdef MB_ENABLE_LAMBDA
 			if(val->data.routine->type == _IT_LAMBDA)
-				var->data->ref = val->ref;
+				var->data->is_ref = val->is_ref;
 			else
-				var->data->ref = 1;
+				var->data->is_ref = true;
 #else /* MB_ENABLE_LAMBDA */
-			var->data->ref = 1;
+			var->data->is_ref = true;
 #endif /* MB_ENABLE_LAMBDA */
 		} else {
-			var->data->ref = val->ref;
+			var->data->is_ref = val->is_ref;
 		}
 #ifdef MB_ENABLE_CLASS
 		if(evar && evar->pathing) {
@@ -13749,7 +13749,7 @@ _proc_extra_var:
 #else /* MB_ENABLE_COLLECTION_LIB */
 			arr_obj->data = val->data;
 #endif /* MB_ENABLE_COLLECTION_LIB */
-			arr_obj->ref = val->ref;
+			arr_obj->is_ref = val->is_ref;
 		}
 	} else if(arr) {
 		mb_value_u _val;
@@ -13771,7 +13771,7 @@ _proc_extra_var:
 		result = _set_array_elem(s, ast, arr, arr_idx, &_val, &val->type);
 		if(result != MB_FUNC_OK)
 			goto _exit;
-		if(val->type == _DT_STRING && !val->ref) {
+		if(val->type == _DT_STRING && !val->is_ref) {
 			safe_free(val->data.string);
 		}
 	}
@@ -16295,7 +16295,7 @@ _print:
 #endif /* MB_MANUAL_REAL_FORMATTING */
 			} else if(val_ptr->type == _DT_STRING) {
 				_print_string(s, val_ptr);
-				if(!val_ptr->ref && val_ptr->data.string && !pathed_str) {
+				if(!val_ptr->is_ref && val_ptr->data.string && !pathed_str) {
 					safe_free(val_ptr->data.string);
 				}
 #ifdef MB_ENABLE_USERTYPE_REF

@@ -176,7 +176,7 @@ extern "C" {
 
 #ifndef __cplusplus
 #	ifndef true
-#		define true (!0)
+#		define true (1)
 #	endif /* true */
 #	ifndef false
 #		define false (0)
@@ -184,7 +184,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 #ifndef bool_t
-#	define bool_t char
+#	define bool_t unsigned char
 #endif /* bool_t */
 #ifndef int_t
 #	define int_t int
