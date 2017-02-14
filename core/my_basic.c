@@ -369,7 +369,7 @@ typedef struct _ref_t {
 	_ref_count_t* count;
 	_ref_count_t* weak_count;
 	_unref_func_t on_unref;
-	_data_e type;
+	_data_e type : 8;
 	struct mb_interpreter_t* s;
 } _ref_t;
 
@@ -1558,7 +1558,8 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 #ifdef MB_ENABLE_LAMBDA
 #	define _REF_ROUTINE(__o) \
 		case _DT_ROUTINE: \
-			_ref(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine); \
+			if(!(__o)->is_ref && (__o)->data.routine->type == _IT_LAMBDA) \
+				_ref(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine); \
 			break;
 #	define _UNREF_ROUTINE(__o) \
 		case _DT_ROUTINE: \
@@ -4132,6 +4133,8 @@ static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* r
 				if(var_args) {
 					_object_t* obj = _create_object();
 					result = _public_value_to_internal_object(&arg, obj);
+					if(obj->type == _DT_ROUTINE && obj->data.routine->type == _IT_SCRIPT)
+						obj->is_ref = true;
 					_ls_pushback(var_args, obj);
 				}
 

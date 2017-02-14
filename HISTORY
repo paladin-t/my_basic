@@ -1,3 +1,6 @@
+Feb. 14 2017
+Fixed a wrong routing unreferencing bug
+
 Feb. 10 2017
 Fixed a parameter lookup bug when calling a sub routine
 
