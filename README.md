@@ -135,7 +135,7 @@ For more details about using MY-BASIC when it has be integrated with a project, 
 
 It's necessary to know some principle of MY-BASIC before doing deep customization; nothing's better than a workflow diagram to get a first impression.
 
-![](https://github.com/paladin-t/my_basic/wiki/img/Interpreter-workflow-diagram.png)
+![](https://github.com/paladin-t/my_basic/wiki/img/workflow.png)
 
 More detail are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki) pages.
 
@@ -145,6 +145,7 @@ The [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) includes most o
 
 * Principles
  * [Language design](https://github.com/paladin-t/my_basic/wiki/Language-design)
+ * [How lambda works](https://github.com/paladin-t/my_basic/wiki/How-lambda-works)
  * [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
  * [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 * Code with MY-BASIC
