@@ -14000,8 +14000,10 @@ _exit:
 			int ret = MB_FUNC_OK;
 			if(skip)
 				ret = _skip_struct(s, &ast, _core_if, _core_endif);
-			if(result != MB_FUNC_END && result != MB_LOOP_BREAK && result != MB_LOOP_CONTINUE && result != MB_SUB_RETURN)
-				result = ret;
+			if(result != MB_FUNC_END && result != MB_LOOP_BREAK && result != MB_LOOP_CONTINUE && result != MB_SUB_RETURN) {
+				if(ret != MB_FUNC_OK)
+					result = ret;
+			}
 		}
 	}
 
