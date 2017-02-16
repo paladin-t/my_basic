@@ -4538,9 +4538,9 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 		_MAKE_NIL(&obj);
 		_public_value_to_internal_object(d, &obj);
 		if(t == MB_MF_COLL && obj.data.usertype_ref->coll_func)
-			return obj.data.usertype_ref->coll_func(s, l, f);
+			return obj.data.usertype_ref->coll_func(s, l, d, f);
 		else if(t == MB_MF_FUNC && obj.data.usertype_ref->generic_func)
-			return obj.data.usertype_ref->generic_func(s, l, f);
+			return obj.data.usertype_ref->generic_func(s, l, d, f);
 	}
 #endif /* MB_ENABLE_USERTYPE_REF */
 #ifdef MB_ENABLE_CLASS
