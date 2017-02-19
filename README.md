@@ -40,11 +40,7 @@ It fits well on a large scale of Workstation, PC, Tablet, Pad, Mobile Phone, PDA
 
 **For Arduino**
 
-Are you looking for an Arduino porting of the MY-BASIC interpreter, or for other embedded systems, with a totally rewritten shell and user manual? Please see [MY-BASIC ARDU](https://my-basic.github.io/my_basic_ardu/).
-
-<a href="https://my-basic.github.io/my_basic_ardu/">
-<img src="https://upload.wikimedia.org/wikipedia/commons/8/87/Arduino_Logo.svg" width="128">
-</a>
+There is an Arduino porting of the MY-BASIC interpreter, with a totally rewritten shell and user manual. Please see [MY-BASIC ARDU](https://my-basic.github.io/my_basic_ardu/).
 
 ## Main features
 
@@ -94,7 +90,7 @@ Read the [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) (especiall
 
 ## Related projects
 
-I've been making some other projects, which use MY-BASIC as dependence, or make MY-BASIC much completer.
+I've been making some other projects, which make use of MY-BASIC, and make more benefits.
 
 * [MY-BASIC Code Editor (Unity)](https://github.com/my-basic/my_basic_code_editor_unity)
  - A code editor for MY-BASIC powered by the Unity3D engine.
