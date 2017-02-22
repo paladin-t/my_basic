@@ -1,3 +1,7 @@
+Feb. 22 2017
+Improved API by replacing assertions with checking code
+Improved function calling of referenced usertype
+
 Feb. 16 2017
 Improved meta function
 
@@ -741,7 +745,7 @@ Added code line inserting/removing to interpreter shell
 Changed mb_dispose_value as public
 
 Apr. 23 2015 Version 1.1
-Added debug APIs
+Added debug API
 Added (nestable) multiple line IF statement support
 
 Apr. 15 2015

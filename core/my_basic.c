@@ -1659,6 +1659,7 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth);
 static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
 static void _destroy_usertype_ref(_usertype_ref_t* c);
 static void _unref_usertype_ref(_ref_t* ref, void* data);
+static bool_t _try_call_func_on_usertype_ref(mb_interpreter_t* s, _ls_node_t** ast, _object_t* obj, _ls_node_t* pathed, int* ret);
 #endif /* MB_ENABLE_USERTYPE_REF */
 
 static _array_t* _create_array(mb_interpreter_t* s, const char* n, _data_e t);
@@ -3842,12 +3843,23 @@ _routine:
 							0
 						);
 						if(cs) {
-							c = (_object_t*)cs->data;
-							if(c && c->type == _DT_VAR && c->data.variable->data->type == _DT_ROUTINE)
-								c = c->data.variable->data;
-							if(ast && ast && _IS_FUNC(ast->data, _core_open_bracket)) {
-								if(c && c->type == _DT_ROUTINE)
-									goto _routine;
+#ifdef MB_ENABLE_USERTYPE_REF
+							_ls_node_t* fn = ast;
+							if(fn) fn = fn->prev;
+							if(_try_call_func_on_usertype_ref(s, &fn, c, cs, 0)) {
+								ast = fn;
+							} else {
+#else /* MB_ENABLE_USERTYPE_REF */
+							{
+#endif /* MB_ENABLE_USERTYPE_REF */
+								c = (_object_t*)cs->data;
+								if(c && c->type == _DT_VAR && c->data.variable->data->type == _DT_ROUTINE) {
+									c = c->data.variable->data;
+								}
+								if(ast && ast && _IS_FUNC(ast->data, _core_open_bracket)) {
+									if(c && c->type == _DT_ROUTINE)
+										goto _routine;
+								}
 							}
 						}
 #ifdef MB_ENABLE_CLASS
@@ -6525,6 +6537,47 @@ static void _unref_usertype_ref(_ref_t* ref, void* data) {
 
 	if(*ref->count == _NONE_REF)
 		_destroy_usertype_ref((_usertype_ref_t*)data);
+}
+
+/* Try to call a registered function on a referenced usertype */
+static bool_t _try_call_func_on_usertype_ref(mb_interpreter_t* s, _ls_node_t** ast, _object_t* obj, _ls_node_t* pathed, int* ret) {
+	_object_t* tmp = (_object_t*)pathed->data;
+	if(tmp && tmp->type == _DT_VAR && tmp->data.variable->data->type == _DT_USERTYPE_REF) {
+		bool_t mod = false;
+		_ls_node_t* fn = 0;
+		mb_func_t func = 0;
+		char* r = strrchr(obj->data.variable->name, '.');
+		if(!r) return false;
+		++r;
+		fn = _find_func(s, r, &mod);
+		if(fn && fn->data) {
+#ifdef MB_ENABLE_MODULE
+			if(mod) {
+				_module_func_t* mp = (_module_func_t*)fn->data;
+				func = (mb_func_t)(intptr_t)mp->func;
+			} else {
+				func = (mb_func_t)(intptr_t)fn->data;
+			}
+#else /* MB_ENABLE_MODULE */
+			func = (mb_func_t)(intptr_t)fn->data;
+#endif /* MB_ENABLE_MODULE */
+			s->usertype_ref_ahead = (_object_t*)tmp->data.variable->data;
+#ifdef MB_ENABLE_STACK_TRACE
+			_ls_pushback(s->stack_frames, r);
+#endif /* MB_ENABLE_STACK_TRACE */
+			if(ret)
+				*ret = (func)(s, (void**)ast);
+			else
+				(func)(s, (void**)ast);
+#ifdef MB_ENABLE_STACK_TRACE
+			_ls_popback(s->stack_frames);
+#endif /* MB_ENABLE_STACK_TRACE */
+
+			return true;
+		}
+	}
+
+	return false;
 }
 #endif /* MB_ENABLE_USERTYPE_REF */
 
@@ -9768,7 +9821,7 @@ static void _destroy_var_arg(void* data, void* extra, _gc_t* gc) {
 
 /* Destroy edge destroying objects */
 static void _destroy_edge_objects(mb_interpreter_t* s) {
-	mb_assert(s);
+	if(!s) return;
 
 	_ls_foreach(s->edge_destroy_objects, _destroy_object);
 	_ls_clear(s->edge_destroy_objects);
@@ -10072,29 +10125,10 @@ _retry:
 				if(obj != (_object_t*)pathed->data) {
 					/* Found another node */
 #ifdef MB_ENABLE_USERTYPE_REF
-					_object_t* tmp = (_object_t*)pathed->data;
-					if(tmp && tmp->type == _DT_VAR && tmp->data.variable->data->type == _DT_USERTYPE_REF) {
-						bool_t mod = false;
-						_ls_node_t* fn = 0;
-						mb_func_t func = 0;
-						char* r = strrchr(obj->data.variable->name, '.');
-						if(r) ++r;
-						fn = _find_func(s, r, &mod);
-						if(fn && fn->data) {
-							func = (mb_func_t)(intptr_t)fn->data;
-							s->usertype_ref_ahead = (_object_t*)pathed->data;
-#ifdef MB_ENABLE_STACK_TRACE
-							_ls_pushback(s->stack_frames, r);
-#endif /* MB_ENABLE_STACK_TRACE */
-							result = (func)(s, (void**)&ast);
-#ifdef MB_ENABLE_STACK_TRACE
-							_ls_popback(s->stack_frames);
-#endif /* MB_ENABLE_STACK_TRACE */
-
-							break;
-						}
-					}
+					if(_try_call_func_on_usertype_ref(s, &ast, obj, pathed, &result))
+						break;
 #endif /* MB_ENABLE_USERTYPE_REF */
+
 					obj = (_object_t*)pathed->data;
 
 					goto _retry;
@@ -11221,21 +11255,21 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 
 /* Register an API function to a MY-BASIC environment */
 int mb_register_func(struct mb_interpreter_t* s, const char* n, mb_func_t f) {
-	mb_assert(s && n && f);
+	if(!s || !n || !f) return MB_FUNC_ERR;
 
 	return _register_func(s, (char*)n, f, false);
 }
 
 /* Remove an API function from a MY-BASIC environment */
 int mb_remove_func(struct mb_interpreter_t* s, const char* n) {
-	mb_assert(s && n);
+	if(!s || !n) return MB_FUNC_ERR;
 
 	return _remove_func(s, (char*)n, false);
 }
 
 /* Remove a reserved API from a MY-BASIC environment */
 int mb_remove_reserved_func(struct mb_interpreter_t* s, const char* n) {
-	mb_assert(s && n);
+	if(!s || !n) return MB_FUNC_ERR;
 
 	return _remove_func(s, (char*)n, true);
 }
@@ -11244,7 +11278,11 @@ int mb_remove_reserved_func(struct mb_interpreter_t* s, const char* n) {
 int mb_begin_module(struct mb_interpreter_t* s, const char* n) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && n);
+	if(!s || !n) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 #ifdef MB_ENABLE_MODULE
 	if(s->with_module) {
@@ -11264,7 +11302,11 @@ _exit:
 int mb_end_module(struct mb_interpreter_t* s) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 #ifdef MB_ENABLE_MODULE
 	if(s->with_module) {
@@ -11287,7 +11329,11 @@ int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	ast = (_ls_node_t*)*l;
 	obj = (_object_t*)ast->data;
@@ -11308,9 +11354,10 @@ _exit:
 int mb_attempt_func_end(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && l);
-
-	--s->no_eat_comma_mark;
+	if(!s || !l)
+		result = MB_FUNC_ERR;
+	else
+		--s->no_eat_comma_mark;
 
 	return result;
 }
@@ -11321,7 +11368,11 @@ int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	ast = (_ls_node_t*)*l;
 	ast = ast->next;
@@ -11343,7 +11394,11 @@ int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	ast = (_ls_node_t*)*l;
 	if(!ast) {
@@ -11367,7 +11422,8 @@ int mb_has_arg(struct mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l);
+	if(!s || !l)
+		goto _exit;
 
 	ast = (_ls_node_t*)*l;
 	if(ast) {
@@ -11376,6 +11432,7 @@ int mb_has_arg(struct mb_interpreter_t* s, void** l) {
 			result = obj->type != _DT_SEP && obj->type != _DT_EOS;
 	}
 
+_exit:
 	return result;
 }
 
@@ -11385,7 +11442,11 @@ int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val) {
 	mb_value_t arg;
 	int_t tmp = 0;
 
-	mb_assert(s && l && val);
+	if(!s || !l || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(arg);
 
@@ -11418,7 +11479,11 @@ int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val) {
 	mb_value_t arg;
 	real_t tmp = 0;
 
-	mb_assert(s && l && val);
+	if(!s || !l || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(arg);
 
@@ -11451,7 +11516,11 @@ int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val) {
 	mb_value_t arg;
 	char* tmp = 0;
 
-	mb_assert(s && l && val);
+	if(!s || !l || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(arg);
 
@@ -11480,7 +11549,11 @@ int mb_pop_usertype(struct mb_interpreter_t* s, void** l, void** val) {
 	mb_value_t arg;
 	void* tmp = 0;
 
-	mb_assert(s && l && val);
+	if(!s || !l || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(arg);
 
@@ -11512,7 +11585,11 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 	_running_context_t* running = 0;
 	int* inep = 0;
 
-	mb_assert(s && l && val);
+	if(!s || !l || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -11565,11 +11642,16 @@ int mb_push_int(struct mb_interpreter_t* s, void** l, int_t val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_int(arg, val);
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -11578,12 +11660,17 @@ int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_real(arg, val);
 	mb_convert_to_int_if_posible(arg);
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -11592,12 +11679,17 @@ int mb_push_string(struct mb_interpreter_t* s, void** l, char* val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_string(arg, val);
 	mb_check(mb_push_value(s, l, arg));
 	_mark_lazy_destroy_string(s, val);
 
+_exit:
 	return result;
 }
 
@@ -11606,11 +11698,16 @@ int mb_push_usertype(struct mb_interpreter_t* s, void** l, void* val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_usertype(arg, val);
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -11620,7 +11717,11 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	_running_context_t* running = 0;
 	_object_t obj;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 	_assign_public_value(&running->intermediate_value, &val);
@@ -11631,6 +11732,7 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 	_gc_try_trigger(s);
 
+_exit:
 	return result;
 }
 
@@ -11647,7 +11749,11 @@ int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 	_object_t mo;
 	_class_t* mi = 0;
 
-	mb_assert(s && l && n && out);
+	if(!s || !l || !n || !out) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -11693,6 +11799,11 @@ int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 
 	s->last_instance = instance;
 
+	if(out) {
+		out->type = MB_DT_CLASS;
+		out->value.instance = instance;
+	}
+
 _exit:
 	return result;
 #else /* MB_ENABLE_CLASS */
@@ -11712,12 +11823,17 @@ int mb_end_class(struct mb_interpreter_t* s, void** l) {
 #ifdef MB_ENABLE_CLASS
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_pop_scope(s, false);
 
 	s->last_instance = 0;
 
+_exit:
 	return result;
 #else /* MB_ENABLE_CLASS */
 	mb_unrefvar(s);
@@ -11732,7 +11848,11 @@ int mb_get_class_userdata(struct mb_interpreter_t* s, void** l, void** d) {
 #ifdef MB_ENABLE_CLASS
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && l && d);
+	if(!s || !l || !d) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(s && s->last_instance) {
 		if(d)
@@ -11762,7 +11882,11 @@ int mb_set_class_userdata(struct mb_interpreter_t* s, void** l, void* d) {
 #ifdef MB_ENABLE_CLASS
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && l && d);
+	if(!s || !l || !d) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(s && s->last_instance) {
 		s->last_instance->userdata = d;
@@ -11787,7 +11911,11 @@ int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb
 	_ls_node_t* tmp = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l && n);
+	if(!s || !l || !n) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(*val);
 
@@ -11797,6 +11925,7 @@ int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb
 		_internal_object_to_public_value(obj, val);
 	}
 
+_exit:
 	return result;
 }
 
@@ -11808,7 +11937,11 @@ int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t v
 	_var_t* var = 0;
 	_ls_node_t* tmp = 0;
 
-	mb_assert(s && l && n);
+	if(!s || !l || !n) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -11839,7 +11972,11 @@ int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(v) *v = 0;
 
@@ -11863,6 +12000,7 @@ int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
 
 	*l = ast;
 
+_exit:
 	return result;
 }
 
@@ -11871,7 +12009,11 @@ int mb_get_var_value(struct mb_interpreter_t* s, void* v, mb_value_t* val) {
 	int result = MB_FUNC_OK;
 	_object_t* obj = 0;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(!val || !v)
 		goto _exit;
@@ -11891,7 +12033,11 @@ int mb_set_var_value(struct mb_interpreter_t* s, void* v, mb_value_t val) {
 	int result = MB_FUNC_OK;
 	_object_t* obj = 0;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(!v)
 		goto _exit;
@@ -11914,7 +12060,11 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 	int n = 0;
 	mb_unrefvar(t);
 
-	mb_assert(s && l && d && a);
+	if(!s || !l || !d || !a) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	*a = 0;
 	if(c >= MB_MAX_DIMENSION_COUNT) {
@@ -11965,7 +12115,11 @@ int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* 
 	int result = MB_FUNC_OK;
 	_array_t* arr = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	arr = (_array_t*)a;
 	if(r < 0 || r >= arr->dimension_count) {
@@ -11985,7 +12139,11 @@ int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int
 	int index = 0;
 	_data_e type = _DT_NIL;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	arr = (_array_t*)a;
 	if(c < 0 || c > arr->dimension_count) {
@@ -12013,7 +12171,11 @@ int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int
 	int index = 0;
 	_data_e type = _DT_NIL;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	arr = (_array_t*)a;
 	if(c < 0 || c > arr->dimension_count) {
@@ -12036,7 +12198,11 @@ _exit:
 int mb_init_coll(struct mb_interpreter_t* s, void** l, mb_value_t* coll) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 	switch(coll->type) {
@@ -12070,9 +12236,13 @@ int mb_get_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 	int_t i = 0;
 	mb_value_t ret;
 
-	mb_assert(s);
-
 	mb_make_nil(ret);
+
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_MAKE_NIL(&ocoll);
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -12119,7 +12289,11 @@ int mb_set_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 	_object_t* oval = 0;
 	mb_value_t ret;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(ret);
 
@@ -12169,7 +12343,11 @@ int mb_remove_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_val
 	int_t i = 0;
 	mb_value_t ret;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(ret);
 
@@ -12218,7 +12396,11 @@ int mb_count_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, int* c)
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	int ret = 0;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_MAKE_NIL(&ocoll);
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -12256,7 +12438,11 @@ int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb
 	int result = MB_FUNC_OK;
 	_usertype_ref_t* ref = 0;
 
-	mb_assert(s && out);
+	if(!s || !out) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(out) {
 		ref = _create_usertype_ref(s, val, un, cl, hs, cp, ft);
@@ -12264,6 +12450,7 @@ int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb
 		out->value.usertype_ref = ref;
 	}
 
+_exit:
 	return result;
 #else /* MB_ENABLE_USERTYPE_REF */
 	mb_unrefvar(s);
@@ -12285,7 +12472,11 @@ int mb_get_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val, void*
 	int result = MB_FUNC_OK;
 	_usertype_ref_t* ref = 0;
 
-	mb_assert(s && out);
+	if(!s || !out) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(val.type != MB_DT_USERTYPE_REF) {
 		_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -12313,7 +12504,11 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
@@ -12342,7 +12537,11 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
@@ -12371,7 +12570,11 @@ int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_m
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 #ifdef MB_ENABLE_USERTYPE_REF
 	_MAKE_NIL(&obj);
@@ -12431,6 +12634,7 @@ int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_m
 	mb_unrefvar(f);
 #endif /* MB_ENABLE_USERTYPE_REF */
 
+_exit:
 	return result;
 }
 
@@ -12438,13 +12642,18 @@ int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_m
 int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(val.type == MB_DT_STRING)
 		safe_free(val.value.string);
 
 	_assign_public_value(&val, 0);
 
+_exit:
 	return result;
 }
 
@@ -12454,7 +12663,11 @@ int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 	_object_t* obj = 0;
 	_ls_node_t* scp = 0;
 
-	mb_assert(s && l && n && val);
+	if(!s || !l || !n || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(*val);
 
@@ -12483,7 +12696,11 @@ int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routi
 	_ls_node_t* tmp = 0;
 	_var_t* var = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -12527,6 +12744,12 @@ int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_val
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
 	if(val.type != MB_DT_ROUTINE) {
 		_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
@@ -12548,7 +12771,11 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 	char wrapped = _ZERO_CHAR;
 	_parsing_context_t* context = 0;
 
-	mb_assert(s);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(!s->parsing_context)
 		s->parsing_context = _reset_parsing_context(s->parsing_context);
@@ -12611,7 +12838,11 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 	char* buf = 0;
 	_parsing_context_t* context = 0;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	context = s->parsing_context;
 
@@ -12631,7 +12862,8 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 	}
 
 _exit:
-	context->parsing_state = _PS_NORMAL;
+	if(context)
+		context->parsing_state = _PS_NORMAL;
 
 	return result;
 }
@@ -12641,7 +12873,11 @@ int mb_run(struct mb_interpreter_t* s) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(s->parsing_context) {
 		if(s->parsing_context->routine_state) {
@@ -12714,11 +12950,16 @@ int mb_suspend(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 
-	mb_assert(s && l && *l);
+	if(!s || !l || !(*l)) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	ast = (_ls_node_t*)*l;
 	s->suspent_point = ast;
 
+_exit:
 	return result;
 }
 
@@ -12726,12 +12967,17 @@ int mb_suspend(struct mb_interpreter_t* s, void** l) {
 int mb_schedule_suspend(struct mb_interpreter_t* s, int t) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(t == MB_FUNC_OK)
 		t = MB_FUNC_SUSPEND;
 	s->schedule_suspend_tag = t;
 
+_exit:
 	return result;
 }
 
@@ -12743,7 +12989,11 @@ int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 	_object_t* obj = 0;
 	mb_value_t tmp;
 
-	mb_assert(s && n);
+	if(!s || !n) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -12773,7 +13023,11 @@ int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
 	_ls_node_t* v = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && n);
+	if(!s || !n) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -12798,7 +13052,11 @@ int mb_debug_get_stack_trace(struct mb_interpreter_t* s, void** l, char** fs, un
 	unsigned i = 0;
 	mb_unrefvar(l);
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(fs && fc) {
 		if(_ls_count(s->stack_frames) > fc)
@@ -12812,6 +13070,7 @@ int mb_debug_get_stack_trace(struct mb_interpreter_t* s, void** l, char** fs, un
 	while(i < fc)
 		fs[i++] = 0;
 
+_exit:
 	return result;
 #else /* MB_ENABLE_STACK_TRACE */
 	int result = MB_FUNC_OK;
@@ -12829,10 +13088,15 @@ _exit:
 int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t h) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	s->debug_stepped_handler = h;
 
+_exit:
 	return result;
 }
 
@@ -12890,7 +13154,11 @@ const char* mb_get_type_string(mb_data_e t) {
 int mb_raise_error(struct mb_interpreter_t* s, void** l, mb_error_e err, int ret) {
 	int result = MB_FUNC_ERR;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_handle_error_on_obj(s, err, s->source_file, DON2(l), ret, _exit, result);
 
@@ -12902,11 +13170,13 @@ _exit:
 mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
 	mb_error_e result = SE_NO_ERR;
 
-	mb_assert(s);
+	if(!s)
+		goto _exit;
 
 	result = s->last_error;
 	s->last_error = SE_NO_ERR; /* Clear error state */
 
+_exit:
 	return result;
 }
 
@@ -12922,10 +13192,15 @@ const char* mb_get_error_desc(mb_error_e err) {
 int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	s->error_handler = h;
 
+_exit:
 	return result;
 }
 
@@ -12933,10 +13208,15 @@ int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h) {
 int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	s->printer = p;
 
+_exit:
 	return result;
 }
 
@@ -12944,10 +13224,15 @@ int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p) {
 int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	s->inputer = p;
 
+_exit:
 	return result;
 }
 
@@ -12955,7 +13240,8 @@ int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 int mb_gc(struct mb_interpreter_t* s, int_t* collected) {
 	int_t diff = 0;
 
-	mb_assert(s);
+	if(!s)
+		return MB_FUNC_ERR;
 
 	diff = (int_t)_mb_allocated;
 	_gc_collect_garbage(s, 1);
@@ -12970,11 +13256,16 @@ int mb_gc(struct mb_interpreter_t* s, int_t* collected) {
 int mb_get_userdata(struct mb_interpreter_t* s, void** d) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && d);
+	if(!s || !d) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(s && d)
 		*d = s->userdata;
 
+_exit:
 	return result;
 }
 
@@ -12982,11 +13273,16 @@ int mb_get_userdata(struct mb_interpreter_t* s, void** d) {
 int mb_set_userdata(struct mb_interpreter_t* s, void* d) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(s)
 		s->userdata = d;
 
+_exit:
 	return result;
 }
 
@@ -12994,10 +13290,15 @@ int mb_set_userdata(struct mb_interpreter_t* s, void* d) {
 int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	s->import_handler = h;
 
+_exit:
 	return result;
 }
 
@@ -13005,15 +13306,17 @@ int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h) {
 int mb_gets(char* buf, int s) {
 	int result = 0;
 
-	if(fgets(buf, s, stdin) == 0) {
-		fprintf(stderr, "Error reading.\n");
+	if(buf && s) {
+		if(fgets(buf, s, stdin) == 0) {
+			fprintf(stderr, "Error reading.\n");
 
-		exit(1);
-	}
-	result = (int)strlen(buf);
-	if(buf[result - 1] == _NEWLINE_CHAR) {
-		buf[result - 1] = _ZERO_CHAR;
-		result--;
+			exit(1);
+		}
+		result = (int)strlen(buf);
+		if(buf[result - 1] == _NEWLINE_CHAR) {
+			buf[result - 1] = _ZERO_CHAR;
+			result--;
+		}
 	}
 
 	return result;

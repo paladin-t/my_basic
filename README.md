@@ -42,6 +42,10 @@ It fits well on a large scale of Workstation, PC, Tablet, Pad, Mobile Phone, PDA
 
 There is an Arduino porting of the MY-BASIC interpreter, with a totally rewritten shell and user manual. Please see [MY-BASIC ARDU](https://my-basic.github.io/my_basic_ardu/).
 
+<a href="https://my-basic.github.io/my_basic_ardu/">
+<img src="https://github.com/paladin-t/my_basic/wiki/img/logo_arduino.svg" width="64">
+</a>
+
 ## Main features
 
 MY-BASIC is a dynamic typed programming language with BASIC syntax and has a very dynamic nature; it makes it flexible and easy to use. MY-BASIC offers a wide range of features including:
@@ -194,3 +198,9 @@ The [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) includes most o
 ## Support MY-BASIC development/List of donors
 
 You can support MY-BASIC development with a [donation](http://paladin-t.github.io/my_basic/donate.html).
+
+<a href="http://paladin-t.github.io/my_basic/donate.html">
+<img src="https://github.com/paladin-t/my_basic/wiki/img/button_donate.png" width="128">
+</a>
+
+Or see the [list of donors](http://paladin-t.github.io/my_basic/donate.html).
