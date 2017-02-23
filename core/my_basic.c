@@ -3848,6 +3848,10 @@ _routine:
 							if(fn) fn = fn->prev;
 							if(_try_call_func_on_usertype_ref(s, &fn, c, cs, 0)) {
 								ast = fn;
+								c = _create_object();
+								_ls_pushback(garbage, c);
+								_public_value_to_internal_object(&running->intermediate_value, c);
+								_REF(c)
 							} else {
 #else /* MB_ENABLE_USERTYPE_REF */
 							{
