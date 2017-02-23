@@ -10,8 +10,6 @@
 
 [简体中文](https://github.com/paladin-t/my_basic/wiki/%E7%94%B1%E7%BA%AF-C-%E8%AF%AD%E8%A8%80%E7%BC%96%E5%86%99%E7%9A%84-BASIC-%E8%84%9A%E6%9C%AC%E8%A7%A3%E9%87%8A%E5%99%A8)
 
-Why are other script interpreters so complex? Why is it so difficult to integrate with them and use the API? Why not try MY-BASIC today! Script have never been so simple and enjoyable.
-
 [![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 
@@ -32,7 +30,7 @@ Why are other script interpreters so complex? Why is it so difficult to integrat
 
 MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with less than twenty thousand lines of source code. MY-BASIC is a dynamic typed programming language. It supports structured grammar, and implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm, furthermore it offers a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is very lightweight; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it extraordinarily tough. Anyone even C programming newbies could learn how to use it and add new scripting interfaces in five minutes. It's able to easily combine MY-BASIC with an existing project in C, C++, Java, Objective-C, Swift, C# and many other languages. Script driven can make your projects more powerful, elegant and neat. It's also able to learn how to build an interpreter from scratch with MY-BASIC, or build your own interpreter easily based on it.
 
-"MY-" in the name could be understood literally as "My" or "Make Your", depends on you.
+"MY-" in the name could be understood literally as "My" or "Make Your", it's up to you.
 
 ## Compatibility
 
@@ -40,7 +38,7 @@ It fits well on a large scale of Workstation, PC, Tablet, Pad, Mobile Phone, PDA
 
 **For Arduino**
 
-There is an Arduino porting of the MY-BASIC interpreter, with a totally rewritten shell and user manual. Please see [MY-BASIC ARDU](https://my-basic.github.io/my_basic_ardu/).
+There is a MY-BASIC interpreter porting of Arduino, with a totally rewritten shell and user manual. Please see [MY-BASIC ARDU](https://my-basic.github.io/my_basic_ardu/).
 
 <a href="https://my-basic.github.io/my_basic_ardu/">
 <img src="https://upload.wikimedia.org/wikipedia/commons/8/87/Arduino_Logo.svg" width="64">
@@ -74,7 +72,7 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * Powerful interactive ability to manipulate script facilities at native side; or to use native functionalities in script, and vice versa
 * More features under development
 
-You may wondering if it's possible to introduce another feature to MY-BASIC, well, you may would like to take a look at [this page](https://github.com/paladin-t/my_basic/wiki/Is-it-possible-to-introduce-another-feature). You may also would like to take a look at the [language design](https://github.com/paladin-t/my_basic/wiki/Language-design) to find some of my plan.
+You may wondering if it's possible to introduce another feature to MY-BASIC, you may would like to take a look at [this page](https://github.com/paladin-t/my_basic/wiki/Is-it-possible-to-introduce-another-feature). You may also would like to take a look at the [language design](https://github.com/paladin-t/my_basic/wiki/Language-design) to find some of my plan.
 
 ## Script at a glance
 
@@ -117,7 +115,7 @@ To compile an interpreter binary for your own platform manually, please follow t
 
 The standalone interpreter supports three running modes:
 
-* Execute the binary without arguments to enter MY-BASIC's interactive mode
+* Execute the binary without arguments to enter the interactive mode of MY-BASIC
 * Pass a file path to the binary to load and run that script file directly
 * Pass an argument `-e` followed by an expression to evaluate it and print the result, eg. `-e "2 * (3 + 4)"`
 
@@ -125,11 +123,11 @@ Type "HELP" and hint Enter under interactive mode to view full detail usage of t
 
 ### Combine with exist projects
 
-MY-BASIC is cleanly written in a single C source file and an associated header file. Just copy `my_basic.c` and `my_basic.h` to your project folder and add them to a build configuration.
+MY-BASIC is cleanly written in a single C source file and an associated header file. Just copy [`core/my_basic.c`](core/my_basic.c) and [`core/my_basic.h`](core/my_basic.h) to your project folder and add them to a build configuration.
 
 You can definitely [link with MY-BASIC as a lib](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC) as well.
 
-For more details about using MY-BASIC when it has be integrated with a project, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) or read the following Wiki pages.
+For more details about using MY-BASIC when it has be integrated with a project, please see [MY-BASIC Quick Reference](MY-BASIC%20Quick%20Reference.pdf) or read the [Wiki](#wiki) pages.
 
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
@@ -137,7 +135,7 @@ It's necessary to know some principle of MY-BASIC before doing deep customizatio
 
 ![](https://github.com/paladin-t/my_basic/wiki/img/workflow.png)
 
-More detail are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki) pages.
+More detail are issued in the [Wiki](#wiki) pages.
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
