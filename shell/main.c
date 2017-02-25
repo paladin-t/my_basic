@@ -1217,11 +1217,11 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 */
 
 #ifdef MB_OS_WIN
-#	define _OS "WIN"
+#	define _OS "WINDOWS"
 #elif defined MB_OS_IOS || MB_OS_IOS_SIM
 #	define _OS "IOS"
 #elif defined MB_OS_MAC
-#	define _OS "MAC"
+#	define _OS "MACOS"
 #elif defined MB_OS_UNIX
 #	define _OS "UNIX"
 #elif defined MB_OS_LINUX

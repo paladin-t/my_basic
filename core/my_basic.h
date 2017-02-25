@@ -71,11 +71,11 @@ extern "C" {
 #elif defined __APPLE__
 #	include <TargetConditionals.h>
 #	define MB_OS_APPLE
-#	ifdef TARGET_OS_IPHONE
+#	if defined TARGET_OS_IPHONE && TARGET_OS_IPHONE == 1
 #		define MB_OS_IOS
-#	elif defined TARGET_IPHONE_SIMULATOR
+#	elif defined TARGET_IPHONE_SIMULATOR && TARGET_IPHONE_SIMULATOR == 1
 #		define MB_OS_IOS_SIM
-#	elif defined TARGET_OS_MAC
+#	elif defined TARGET_OS_MAC && TARGET_OS_MAC == 1
 #		define MB_OS_MAC
 #	endif
 #elif defined __unix__
@@ -91,6 +91,10 @@ extern "C" {
 #ifndef MBAPI
 #	define MBAPI
 #endif /* MBAPI */
+
+#ifndef MBIMPL
+#	define MBIMPL
+#endif /* MBIMPL */
 
 #ifndef MBCONST
 #	define MBCONST

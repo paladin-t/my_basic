@@ -1,3 +1,7 @@
+Feb. 25 2017
+Added an MBIMPL macro
+Fixed some platform dependent macro issues for apple systems
+
 Feb. 22 2017
 Improved API by replacing assertions with checking code
 Improved function calling of referenced usertype
