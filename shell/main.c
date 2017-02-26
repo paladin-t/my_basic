@@ -441,6 +441,7 @@ static void _destroy_code(void) {
 		free(code->lines[i]);
 	free(code->lines);
 	free(code);
+	code = 0;
 }
 
 static void _clear_code(void) {
@@ -582,16 +583,15 @@ static void _destroy_importing_directories(void) {
 		free(importing_dirs->dirs[i]);
 	free(importing_dirs->dirs);
 	free(importing_dirs);
+	importing_dirs = 0;
 }
 
-static _importing_dirs_t* _set_importing_directories(char* dirs) {
+static _importing_dirs_t* _set_importing_directories(const char* dirs) {
 	_importing_dirs_t* result = 0;
-	char* end = 0;
 
 	if(!dirs)
 		return result;
 
-	end = dirs + strlen(dirs);
 	result = (_importing_dirs_t*)malloc(sizeof(_importing_dirs_t));
 	_CHECK_MEM(result);
 	result->count = 0;
@@ -599,23 +599,26 @@ static _importing_dirs_t* _set_importing_directories(char* dirs) {
 	result->dirs = (char**)malloc(sizeof(char*) * result->size);
 	_CHECK_MEM(result->dirs);
 
-	while(dirs && dirs < end && *dirs) {
+	while(dirs && *dirs) {
 		int l = 0;
 		char* buf = 0;
 		bool_t as = false;
-		strtok(dirs, ";");
-		if(!(*dirs))
-			continue;
-		if(*dirs == ';') { dirs++; continue; }
+		const char* p = dirs;
+		dirs = strchr(dirs, ';');
+		if(dirs) {
+			l = dirs - p;
+			if(*dirs == ';') ++dirs;
+		} else {
+			l = strlen(p);
+		}
 		if(result->count + 1 == result->size) {
 			result->size += _REALLOC_INC_STEP;
 			result->dirs = (char**)realloc(result->dirs, sizeof(char*) * result->size);
 		}
-		l = (int)strlen(dirs);
-		as = dirs[l - 1] != '/' && dirs[l - 1] != '\\';
+		as = p[l - 1] != '/' && p[l - 1] != '\\';
 		buf = (char*)malloc(l + (as ? 2 : 1));
 		_CHECK_MEM(buf);
-		memcpy(buf, dirs, l);
+		memcpy(buf, p, l);
 		if(as) {
 			buf[l] = '/';
 			buf[l + 1] = '\0';
@@ -627,7 +630,6 @@ static _importing_dirs_t* _set_importing_directories(char* dirs) {
 			if(*buf == '\\') *buf = '/';
 			buf++;
 		}
-		dirs += l + 1;
 	}
 
 	_destroy_importing_directories();

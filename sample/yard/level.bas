@@ -88,7 +88,7 @@ class level
 		c.name = "Therapist"
 		c.talk_handler = lambda (_)
 		(
-			print "- " + _.name + ": give you 23 HP";
+			print "- " + _.name + ": gives you 23 HP";
 			_.alive = false
 			role.hp = role.hp + 23
 		)

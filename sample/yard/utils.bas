@@ -4,7 +4,7 @@
 ' For more information about MY-BASIC, see https://github.com/paladin-t/my_basic/
 
 def cls()
-	if os() = "WIN" then
+	if os() = "WINDOWS" then
 		sys("cls")
 	else
 		sys("clear")
