@@ -600,7 +600,7 @@ static _importing_dirs_t* _set_importing_directories(const char* dirs) {
 	_CHECK_MEM(result->dirs);
 
 	while(dirs && *dirs) {
-		int l = 0;
+		size_t l = 0;
 		char* buf = 0;
 		bool_t as = false;
 		const char* p = dirs;
