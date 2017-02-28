@@ -12508,7 +12508,7 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
-	if(!s || !l) {
+	if(!s) {
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -12526,6 +12526,7 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 #ifdef MB_ENABLE_CLASS
 		obj.type != _DT_CLASS &&
 #endif /* MB_ENABLE_CLASS */
+		obj.type != _DT_ROUTINE &&
 		obj.type != _DT_ARRAY
 	) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_TYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -12541,7 +12542,7 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
-	if(!s || !l) {
+	if(!s) {
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -12559,6 +12560,7 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 #ifdef MB_ENABLE_CLASS
 		obj.type != _DT_CLASS &&
 #endif /* MB_ENABLE_CLASS */
+		obj.type != _DT_ROUTINE &&
 		obj.type != _DT_ARRAY
 	) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_TYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);

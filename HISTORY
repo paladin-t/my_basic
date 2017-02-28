@@ -1,3 +1,6 @@
+Feb. 28 2017
+Fixed an issue with reference count manipulation of a value
+
 Feb. 25 2017
 Added an MBIMPL macro
 Fixed some platform dependent macro issues for apple systems
