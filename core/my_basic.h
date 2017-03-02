@@ -78,12 +78,12 @@ extern "C" {
 #	elif defined TARGET_OS_MAC && TARGET_OS_MAC == 1
 #		define MB_OS_MAC
 #	endif
-#elif defined __unix__
-#	define MB_OS_UNIX
-#elif defined __linux__
-#	define MB_OS_LINUX
 #elif defined __ANDROID__
 #	define MB_OS_ANDROID
+#elif defined __linux__
+#	define MB_OS_LINUX
+#elif defined __unix__
+#	define MB_OS_UNIX
 #else
 #	define MB_OS_UNKNOWN
 #endif /* OS dependent macro */
