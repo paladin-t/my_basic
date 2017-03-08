@@ -10026,7 +10026,10 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 			mb_make_nil(s->running_context->intermediate_value);
 		}
 		**val_ptr = tmp;
-		if(*ast) *ast = (*ast)->prev;
+		if(obj->data.routine->type != _IT_NATIVE) {
+			if(*ast)
+				*ast = (*ast)->prev;
+		}
 
 		break;
 	case _DT_VAR:

@@ -1,3 +1,6 @@
+Mar. 8 2017
+Fixed a processing bug when printing with a native routine of a class instance
+
 Feb. 28 2017
 Fixed an issue with reference count manipulation of a value
 
@@ -13,7 +16,7 @@ Feb. 16 2017
 Improved meta function
 
 Feb. 14 2017
-Fixed a wrong routing unreferencing bug
+Fixed a wrong routine unreferencing bug
 
 Feb. 10 2017
 Fixed a parameter lookup bug when calling a sub routine
