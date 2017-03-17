@@ -1,3 +1,6 @@
+Mar. 17 2017
+Added storing of different types support for array
+
 Mar. 8 2017
 Fixed a processing bug when printing with a native routine of a class instance
 

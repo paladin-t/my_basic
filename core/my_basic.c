@@ -6897,14 +6897,19 @@ static void _clear_array(_array_t* arr) {
 #ifndef MB_SIMPLE_ARRAY
 		if(arr->type == _DT_REAL) {
 			for(ul = 0; ul < arr->count; ++ul) {
+				elemsize = _get_size_of(arr->type);
+				pos = (unsigned)(elemsize * ul);
+				rawptr = (void*)((intptr_t)arr->raw + pos);
 				if(arr->types[ul] == _DT_STRING) {
-					elemsize = _get_size_of(arr->type);
-					pos = (unsigned)(elemsize * ul);
-					rawptr = (void*)((intptr_t)arr->raw + pos);
 					str = *((char**)rawptr);
 					if(str) {
 						safe_free(str);
 					}
+				} else {
+					_object_t obj;
+					obj.type = arr->types[ul];
+					_COPY_BYTES(obj.data.bytes, rawptr);
+					_dispose_object(&obj);
 				}
 			}
 		}
@@ -14070,6 +14075,7 @@ _proc_extra_var:
 		mb_value_u _val;
 		switch(val->type) {
 		case _DT_NIL: /* Fall through */
+		case _DT_UNKNOWN: /* Fall through */
 		case _DT_INT: /* Fall through */
 		case _DT_REAL: /* Fall through */
 		case _DT_STRING: /* Fall through */
@@ -14077,6 +14083,29 @@ _proc_extra_var:
 			_COPY_BYTES(_val.bytes, val->data.bytes);
 
 			break;
+		case _DT_TYPE: /* Fall through */
+#ifdef MB_ENABLE_USERTYPE_REF
+		case _DT_USERTYPE_REF: /* Fall through */
+#endif /* MB_ENABLE_USERTYPE_REF */
+		case _DT_FUNC: /* Fall through */
+		case _DT_ARRAY: /* Fall through */
+#ifdef MB_ENABLE_COLLECTION_LIB
+		case _DT_LIST: /* Fall through */
+		case _DT_LIST_IT: /* Fall through */
+		case _DT_DICT: /* Fall through */
+		case _DT_DICT_IT: /* Fall through */
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+		case _DT_CLASS: /* Fall through */
+#endif /* MB_ENABLE_CLASS */
+		case _DT_ROUTINE:
+#ifdef MB_SIMPLE_ARRAY
+			/* Fall through */
+#else /* MB_SIMPLE_ARRAY */
+			_COPY_BYTES(_val.bytes, val->data.bytes);
+
+			break;
+#endif /* MB_SIMPLE_ARRAY */
 		default:
 			safe_free(val);
 			_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
