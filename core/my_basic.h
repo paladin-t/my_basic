@@ -120,6 +120,12 @@ extern "C" {
 #	define MB_ENABLE_USERTYPE_REF
 #endif /* MB_ENABLE_USERTYPE_REF */
 
+#ifdef MB_ENABLE_USERTYPE_REF
+#	ifndef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+#		define MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+#	endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
+#endif /* MB_ENABLE_USERTYPE_REF */
+
 #ifndef MB_ENABLE_CLASS
 #	define MB_ENABLE_CLASS
 #endif /* MB_ENABLE_CLASS */
@@ -451,6 +457,7 @@ typedef enum mb_error_e {
 	SE_RN_COLLECTION_OR_ITERATOR_OR_CLASS_EXPECTED,
 	SE_RN_INVALID_ITERATOR,
 	SE_RN_EMPTY_COLLECTION,
+	SE_RN_REFERENCED_USERTYPE_EXPECTED,
 	SE_RN_REFERENCED_TYPE_EXPECTED,
 	SE_RN_REFERENCE_COUNT_OVERFLOW,
 	SE_RN_WEAK_REFERENCE_COUNT_OVERFLOW,
@@ -555,6 +562,8 @@ typedef void* (* mb_clone_func_t)(struct mb_interpreter_t*, void*);
 typedef unsigned (* mb_hash_func_t)(struct mb_interpreter_t*, void*);
 typedef int (* mb_cmp_func_t)(struct mb_interpreter_t*, void*, void*);
 typedef int (* mb_fmt_func_t)(struct mb_interpreter_t*, void*, char*, unsigned);
+typedef void (* mb_alive_marker)(struct mb_interpreter_t*, void*, mb_value_t);
+typedef void (* mb_alive_checker)(struct mb_interpreter_t*, void*, mb_value_t, mb_alive_marker);
 typedef int (* mb_meta_operator_t)(struct mb_interpreter_t*, void**, mb_value_t*, mb_value_t*, mb_value_t*);
 typedef mb_meta_status_u (* mb_meta_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, const char*);
 typedef char* (* mb_memory_allocate_func_t)(unsigned);
@@ -614,6 +623,7 @@ MBAPI int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* o
 MBAPI int mb_get_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val, void** out);
 MBAPI int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 MBAPI int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
+MBAPI int mb_set_alive_checker_of_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_alive_checker f);
 MBAPI int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_u m, void* f);
 MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 

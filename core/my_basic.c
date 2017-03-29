@@ -299,6 +299,7 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Collection or iterator or class expected",
 	"Invalid iterator",
 	"Empty collection",
+	"Referenced usertype expected",
 	"Referenced type expected",
 	"Reference count overflow",
 	"Weak reference count overflow",
@@ -398,6 +399,9 @@ typedef struct _usertype_ref_t {
 	mb_hash_func_t hash;
 	mb_cmp_func_t cmp;
 	mb_fmt_func_t fmt;
+#ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+	mb_alive_checker alive_checker;
+#endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
 	_calculation_operator_info_t* calc_operators;
 	mb_meta_func_t coll_func;
 	mb_meta_func_t generic_func;
@@ -1638,6 +1642,7 @@ static void _gc_remove(_ref_t* ref, void* data, _gc_t* gc);
 static int _gc_add_reachable(void* data, void* extra, void* h);
 static int _gc_add_reachable_both(void* data, void* extra, void* h);
 static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht);
+static void _gc_alive_marker(mb_interpreter_t* s, void* h, mb_value_t val);
 static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc);
 static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc);
 #ifdef MB_ENABLE_CLASS
@@ -6123,6 +6128,14 @@ static int _gc_add_reachable(void* data, void* extra, void* h) {
 	case _DT_USERTYPE_REF:
 		if(!_ht_find(ht, &obj->data.usertype_ref->ref))
 			_ht_set_or_insert(ht, &obj->data.usertype_ref->ref, obj->data.usertype_ref);
+#ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+		if(obj->data.usertype_ref->alive_checker) {
+			mb_value_t val;
+			mb_make_nil(val);
+			_internal_object_to_public_value(obj, &val);
+			obj->data.usertype_ref->alive_checker(obj->data.usertype_ref->ref.s, h, val, _gc_alive_marker);
+		}
+#endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
 
 		break;
 #endif /* MB_ENABLE_USERTYPE_REF */
@@ -6217,6 +6230,18 @@ static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
 
 		running = running->prev;
 	}
+}
+
+/* Alive marker functor of a value */
+static void _gc_alive_marker(mb_interpreter_t* s, void* h, mb_value_t val) {
+	_ht_node_t* ht = 0;
+	_object_t obj;
+	mb_unrefvar(s);
+
+	ht = (_ht_node_t*)h;
+	_MAKE_NIL(&obj);
+	_public_value_to_internal_object(&val, &obj);
+	_gc_add_reachable(&obj, 0, h);
 }
 
 /* Destroy only the capsule (wrapper) of an object, leave the data behind, and add it to GC if possible */
@@ -12577,6 +12602,38 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 _exit:
 	return result;
+}
+
+/* Set the alive checker of a value */
+int mb_set_alive_checker_of_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_alive_checker f) {
+#ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+	int result = MB_FUNC_OK;
+	_object_t obj;
+
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
+	if(val.type != MB_DT_USERTYPE_REF) {
+		_handle_error_on_obj(s, SE_RN_REFERENCED_USERTYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+	}
+
+	_MAKE_NIL(&obj);
+	_public_value_to_internal_object(&val, &obj);
+	obj.data.usertype_ref->alive_checker = f;
+
+_exit:
+	return result;
+#else /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(val);
+	mb_unrefvar(f);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
 }
 
 /* Override a meta function of a value */
