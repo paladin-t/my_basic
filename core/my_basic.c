@@ -9103,6 +9103,9 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 			obj->data.usertype_ref->dtor, obj->data.usertype_ref->clone,
 			obj->data.usertype_ref->hash, obj->data.usertype_ref->cmp, obj->data.usertype_ref->fmt
 		);
+#ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+		tgt->data.usertype_ref->alive_checker = obj->data.usertype_ref->alive_checker;
+#endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
 		if(obj->data.usertype_ref->calc_operators) {
 			tgt->data.usertype_ref->calc_operators = (_calculation_operator_info_t*)mb_malloc(sizeof(_calculation_operator_info_t));
 			memcpy(tgt->data.usertype_ref->calc_operators, obj->data.usertype_ref->calc_operators, sizeof(_calculation_operator_info_t));
