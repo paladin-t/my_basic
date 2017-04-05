@@ -9404,7 +9404,7 @@ static int _do_nothing_on_object(void* data, void* extra) {
 	return result;
 }
 
-/* Lose an object of of scope */
+/* Lose an object in a scope */
 static int _lose_object(void* data, void* extra) {
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -9413,6 +9413,10 @@ static int _lose_object(void* data, void* extra) {
 	mb_assert(data && extra);
 
 	obj = (_object_t*)data;
+#ifdef MB_ENABLE_LAMBDA
+	if(obj->type == _DT_ROUTINE && obj->data.routine->type == _IT_LAMBDA)
+		obj->is_ref = false;
+#endif /* MB_ENABLE_LAMBDA */
 	switch(obj->type) {
 	case _DT_VAR:
 		_lose_object(obj->data.variable->data, extra);
