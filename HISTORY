@@ -1,5 +1,7 @@
 Apr. 5 2017
+Fixed an infinity loop bug with lambda
 Fixed a wrong hash bug with pointer, which may cause crash on some 64bit systems
+Fixed a source tracing issue with files imported by external import handler
 Fixed a memory leak with sub routine
 
 Mar. 29 2017

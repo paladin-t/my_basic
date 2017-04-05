@@ -4388,6 +4388,9 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 	}
 
 	running = _link_lambda_scope_chain(s, &r->func.lambda, true);
+	if(!running) {
+		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, s->source_file, DON2(l), MB_FUNC_ERR, _error, result);
+	}
 	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true, lastv);
 	ast = *l;
 	if(result != MB_FUNC_OK) {
@@ -5272,15 +5275,23 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			} else {
 				if(!_ls_find(context->imported, (void*)(sym + 1), (_ls_compare)_ht_cmp_string, 0)) {
 					if(s->import_handler) {
-						_object_t* sep = _create_object();
+						_object_t* sep = 0;
+						char* lf = 0;
+						int pos; unsigned short row, col;
+						sep = _create_object();
 						sep->type = _DT_SEP;
 						sep->data.separator = ':';
 						_ls_pushback(s->ast, sep);
-						if(s->import_handler(s, sym + 1) == MB_FUNC_OK) {
-							_ls_pushback(context->imported, mb_strdup(sym + 1, strlen(sym + 1) + 1));
-						} else {
+						_ls_pushback(context->imported, mb_strdup(sym + 1, strlen(sym + 1) + 1));
+						lf = (char*)(_ls_back(context->imported)->data);
+						lf = _prev_import(s, lf, &pos, &row, &col);
+						if(s->import_handler(s, sym + 1) != MB_FUNC_OK) {
+							_ls_node_t* last = _ls_back(context->imported);
+							_destroy_memory(last->data, last->extra);
+							_ls_popback(context->imported);
 							_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
 						}
+						_post_import(s, lf, &pos, &row, &col);
 					} else {
 						_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
 					}
@@ -8553,7 +8564,12 @@ static _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda
 	root = _get_root_scope(lambda->scope);
 
 	if(weak) {
-		_push_weak_scope_by_routine(s, root, 0);
+		_running_context_t* ret = _push_weak_scope_by_routine(s, root, 0);
+		if(ret != root) {
+			_destroy_scope(s, ret);
+
+			return 0;
+		}
 	} else {
 		root->prev = s->running_context;
 		s->running_context = lambda->scope;
