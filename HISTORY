@@ -1,3 +1,6 @@
+Apr. 5 2017
+Fixed a wrong hash bug with pointer, which may cause crash on some 64bit systems
+
 Mar. 29 2017
 Added an alive object checker of referenced usertype
 

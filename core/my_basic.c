@@ -2701,14 +2701,15 @@ static unsigned _ht_hash_string(void* ht, void* d) {
 static unsigned _ht_hash_intptr(void* ht, void* d) {
 	unsigned result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
-	intptr_t i = *(intptr_t*)d;
 
 	mb_assert(ht);
 
-	if(self->array_size == 1)
+	if(self->array_size == 1) {
 		result = 0;
-	else
-		result = (unsigned)(i % self->array_size);
+	} else {
+		uintptr_t u = (uintptr_t)d;
+		result = (unsigned)(u % self->array_size);
+	}
 
 	return result;
 }
@@ -2723,8 +2724,8 @@ static unsigned _ht_hash_ref(void* ht, void* d) {
 	if(self->array_size == 1) {
 		result = 0;
 	} else {
-		result = (unsigned)(intptr_t)ref;
-		result %= self->array_size;
+		uintptr_t u = (uintptr_t)ref;
+		result = (unsigned)(u % self->array_size);
 	}
 
 	return result;
@@ -2825,8 +2826,8 @@ static int _ht_cmp_string(void* d1, void* d2) {
 }
 
 static int _ht_cmp_intptr(void* d1, void* d2) {
-	intptr_t i1 = *(intptr_t*)d1;
-	intptr_t i2 = *(intptr_t*)d2;
+	intptr_t i1 = (intptr_t)d1;
+	intptr_t i2 = (intptr_t)d2;
 
 	if(i1 < i2)
 		return -1;
