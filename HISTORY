@@ -1,3 +1,6 @@
+Apr. 6 2017
+Added multi-line statement support
+
 Apr. 5 2017
 Fixed an infinity loop bug with lambda
 Fixed a wrong hash bug with pointer, which may cause crash on some 64bit systems

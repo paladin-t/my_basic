@@ -96,18 +96,18 @@ extern "C" {
 /** Macros */
 
 /* Version information */
-#define _VER_MAJOR 1
-#define _VER_MINOR 2
-#define _VER_REVISION 0
-#define _VER_SUFFIX
-#define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
-#define _MB_STRINGIZE(A) _MB_MAKE_STRINGIZE(A)
-#define _MB_MAKE_STRINGIZE(A) #A
-#if _VER_REVISION == 0
-#	define _MB_VERSION_STRING _MB_STRINGIZE(_VER_MAJOR._VER_MINOR _VER_SUFFIX)
-#else /* _VER_REVISION == 0 */
-#	define _MB_VERSION_STRING _MB_STRINGIZE(_VER_MAJOR._VER_MINOR._VER_REVISION _VER_SUFFIX)
-#endif /* _VER_REVISION == 0 */
+#define MB_VER_MAJOR 1
+#define MB_VER_MINOR 2
+#define MB_VER_REVISION 0
+#define MB_VER_SUFFIX
+#define MB_VERSION ((MB_VER_MAJOR * 0x01000000) + (MB_VER_MINOR * 0x00010000) + (MB_VER_REVISION))
+#define MB_MAKE_STRINGIZE(A) #A
+#define MB_STRINGIZE(A) MB_MAKE_STRINGIZE(A)
+#if MB_VER_REVISION == 0
+#	define MB_VERSION_STRING MB_STRINGIZE(MB_VER_MAJOR.MB_VER_MINOR MB_VER_SUFFIX)
+#else /* MB_VER_REVISION == 0 */
+#	define MB_VERSION_STRING MB_STRINGIZE(MB_VER_MAJOR.MB_VER_MINOR.MB_VER_REVISION MB_VER_SUFFIX)
+#endif /* MB_VER_REVISION == 0 */
 
 /* Define as 1 to create hash table nodes lazily, 0 obligingly */
 #define _LAZY_HASH_TABLE 1
@@ -117,6 +117,9 @@ extern "C" {
 
 /* Define as 1 to use a comma to PRINT a new line, 0 to use a semicolon */
 #define _COMMA_AS_NEWLINE 0
+
+/* Define as 1 to enable multiline statement */
+#define _MULTILINE_STATEMENT 1
 
 #define _NO_EAT_COMMA 2
 
@@ -846,6 +849,9 @@ typedef struct mb_interpreter_t {
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_node_t* stack_frames;
 #endif /* MB_ENABLE_STACK_TRACE */
+#ifdef _MULTILINE_STATEMENT
+	_ls_node_t* multiline_enabled;
+#endif /* _MULTILINE_STATEMENT */
 	/** Error handling */
 	bool_t handled_error;
 	mb_error_e last_error;
@@ -1841,6 +1847,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t);
 static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l);
 static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func);
+static bool_t _multiline_statement(mb_interpreter_t* s);
 
 static _running_context_t* _create_running_context(bool_t create_var_dict);
 static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context);
@@ -4068,6 +4075,16 @@ static int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigne
 	_ls_node_t* ast = *l;
 
 	mb_make_nil(*arg);
+#ifdef _MULTILINE_STATEMENT
+	if(_multiline_statement(s)) {
+		_object_t* obj = 0;
+		obj = (_object_t*)ast->data;
+		while(obj && obj->type == _DT_EOS) {
+			ast = ast->next;
+			obj = (_object_t*)ast->data;
+		}
+	}
+#endif /* _MULTILINE_STATEMENT */
 	if(ast && ast->data && _IS_FUNC(ast->data, _core_args)) {
 		if(args) {
 			_object_t* obj = (_object_t*)_ls_popfront(args);
@@ -10680,6 +10697,20 @@ _exit:
 	return result;
 }
 
+/* Check whether multiline statement is allowed */
+static bool_t _multiline_statement(mb_interpreter_t* s) {
+#ifdef _MULTILINE_STATEMENT
+	if(_ls_empty(s->multiline_enabled))
+		return false;
+
+	return (bool_t)(intptr_t)_ls_back(s->multiline_enabled)->data;
+#else /* _MULTILINE_STATEMENT */
+	mb_unrefvar(s);
+
+	return false;
+#endif /* _MULTILINE_STATEMENT */
+}
+
 /* Create a running context */
 static _running_context_t* _create_running_context(bool_t create_var_dict) {
 	_running_context_t* result = 0;
@@ -11059,12 +11090,12 @@ static int _close_coll_lib(mb_interpreter_t* s) {
 
 /* Get the version number of this MY-BASIC system */
 unsigned long mb_ver(void) {
-	return _MB_VERSION;
+	return MB_VERSION;
 }
 
 /* Get the version text of this MY-BASIC system */
 const char* mb_ver_string(void) {
-	return _MB_VERSION_STRING;
+	return MB_VERSION_STRING;
 }
 
 /* Initialize the MY-BASIC system */
@@ -11172,6 +11203,9 @@ int mb_open(struct mb_interpreter_t** s) {
 #ifdef MB_ENABLE_STACK_TRACE
 	(*s)->stack_frames = _ls_create();
 #endif /* MB_ENABLE_STACK_TRACE */
+#ifdef _MULTILINE_STATEMENT
+	(*s)->multiline_enabled = _ls_create();
+#endif /* _MULTILINE_STATEMENT */
 
 	(*s)->sub_stack = _ls_create();
 
@@ -11215,6 +11249,9 @@ int mb_close(struct mb_interpreter_t** s) {
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_destroy((*s)->stack_frames);
 #endif /* MB_ENABLE_STACK_TRACE */
+#ifdef _MULTILINE_STATEMENT
+	_ls_destroy((*s)->multiline_enabled);
+#endif /* _MULTILINE_STATEMENT */
 
 	_tidy_scope_chain(*s);
 	_dispose_scope_chain(*s);
@@ -11291,6 +11328,9 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_clear((*s)->stack_frames);
 #endif /* MB_ENABLE_STACK_TRACE */
+#ifdef _MULTILINE_STATEMENT
+	_ls_clear((*s)->multiline_enabled);
+#endif /* _MULTILINE_STATEMENT */
 
 	_clear_scope_chain(*s);
 
@@ -11396,6 +11436,9 @@ int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
 		goto _exit;
 	}
 
+#ifdef _MULTILINE_STATEMENT
+	_ls_pushback(s->multiline_enabled, (void*)(intptr_t)false);
+#endif /* _MULTILINE_STATEMENT */
 	ast = (_ls_node_t*)*l;
 	obj = (_object_t*)ast->data;
 	if(!(obj->type == _DT_FUNC)) {
@@ -11415,10 +11458,14 @@ _exit:
 int mb_attempt_func_end(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
-	if(!s || !l)
+	if(!s || !l) {
 		result = MB_FUNC_ERR;
-	else
+	} else {
+#ifdef _MULTILINE_STATEMENT
+		_ls_popback(s->multiline_enabled);
+#endif /* _MULTILINE_STATEMENT */
 		--s->no_eat_comma_mark;
+	}
 
 	return result;
 }
@@ -11436,8 +11483,16 @@ int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l) {
 	}
 
 	ast = (_ls_node_t*)*l;
+#ifdef _MULTILINE_STATEMENT
+	_ls_pushback(s->multiline_enabled, (void*)(intptr_t)true);
+	do {
+		ast = ast->next;
+		obj = (_object_t*)ast->data;
+	} while(obj && obj->type == _DT_EOS);
+#else /* _MULTILINE_STATEMENT */
 	ast = ast->next;
 	obj = (_object_t*)ast->data;
+#endif /* _MULTILINE_STATEMENT */
 	if(!_IS_FUNC(obj, _core_open_bracket)) {
 		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -11465,7 +11520,16 @@ int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
 	if(!ast) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
+#ifdef _MULTILINE_STATEMENT
+	_ls_popback(s->multiline_enabled);
 	obj = (_object_t*)ast->data;
+	while(obj && obj->type == _DT_EOS) {
+		ast = ast->next;
+		obj = (_object_t*)ast->data;
+	}
+#else /* _MULTILINE_STATEMENT */
+	obj = (_object_t*)ast->data;
+#endif /* _MULTILINE_STATEMENT */
 	if(!_IS_FUNC(obj, _core_close_bracket)) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -11488,7 +11552,19 @@ int mb_has_arg(struct mb_interpreter_t* s, void** l) {
 
 	ast = (_ls_node_t*)*l;
 	if(ast) {
+#ifdef _MULTILINE_STATEMENT
+		if(_multiline_statement(s)) {
+			obj = (_object_t*)ast->data;
+			while(obj && obj->type == _DT_EOS) {
+				ast = ast->next;
+				obj = (_object_t*)ast->data;
+			}
+		} else {
+			obj = (_object_t*)ast->data;
+		}
+#else /* _MULTILINE_STATEMENT */
 		obj = (_object_t*)ast->data;
+#endif /* _MULTILINE_STATEMENT */
 		if(!_IS_FUNC(obj, _core_close_bracket) && obj->type != _DT_EOS)
 			result = obj->type != _DT_SEP && obj->type != _DT_EOS;
 	}
@@ -11670,6 +11746,16 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 	}
 #endif /* MB_ENABLE_USERTYPE_REF */
 	ast = (_ls_node_t*)*l;
+#ifdef _MULTILINE_STATEMENT
+	if(_multiline_statement(s)) {
+		_object_t* obj = 0;
+		obj = (_object_t*)ast->data;
+		while(obj && obj->type == _DT_EOS) {
+			ast = ast->next;
+			obj = (_object_t*)ast->data;
+		}
+	}
+#endif /* _MULTILINE_STATEMENT */
 	result = _calc_expression(s, &ast, &val_ptr);
 	if(result != MB_FUNC_OK)
 		goto _exit;
@@ -13006,6 +13092,10 @@ int mb_run(struct mb_interpreter_t* s) {
 		s->calling = false;
 #endif /* MB_ENABLE_CLASS */
 		s->last_routine = 0;
+
+#ifdef _MULTILINE_STATEMENT
+		_ls_clear(s->multiline_enabled);
+#endif /* _MULTILINE_STATEMENT */
 
 		mb_assert(!s->no_eat_comma_mark);
 		while(s->running_context->prev)
