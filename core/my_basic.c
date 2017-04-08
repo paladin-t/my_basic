@@ -2022,7 +2022,7 @@ static int _coll_list(mb_interpreter_t* s, void** l);
 static int _coll_dict(mb_interpreter_t* s, void** l);
 static int _coll_push(mb_interpreter_t* s, void** l);
 static int _coll_pop(mb_interpreter_t* s, void** l);
-static int _coll_peek(mb_interpreter_t* s, void** l);
+static int _coll_back(mb_interpreter_t* s, void** l);
 static int _coll_insert(mb_interpreter_t* s, void** l);
 static int _coll_sort(mb_interpreter_t* s, void** l);
 static int _coll_exist(mb_interpreter_t* s, void** l);
@@ -2161,7 +2161,7 @@ MBCONST static const _func_t _std_libs[] = {
 #	define _COLL_ID_DICT "DICT"
 #	define _COLL_ID_PUSH "PUSH"
 #	define _COLL_ID_POP "POP"
-#	define _COLL_ID_PEEK "PEEK"
+#	define _COLL_ID_BACK "BACK"
 #	define _COLL_ID_INSERT "INSERT"
 #	define _COLL_ID_SORT "SORT"
 #	define _COLL_ID_EXIST "EXIST"
@@ -2178,7 +2178,7 @@ MBCONST static const _func_t _coll_libs[] = {
 	{ _COLL_ID_DICT, _coll_dict },
 	{ _COLL_ID_PUSH, _coll_push },
 	{ _COLL_ID_POP, _coll_pop },
-	{ _COLL_ID_PEEK, _coll_peek },
+	{ _COLL_ID_BACK, _coll_back },
 	{ _COLL_ID_INSERT, _coll_insert },
 	{ _COLL_ID_SORT, _coll_sort },
 	{ _COLL_ID_EXIST, _coll_exist },
@@ -17182,8 +17182,8 @@ _exit:
 	return result;
 }
 
-/* PEEK statement */
-static int _coll_peek(mb_interpreter_t* s, void** l) {
+/* BACK statement */
+static int _coll_back(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
 	mb_value_t val;
@@ -17200,7 +17200,7 @@ static int _coll_peek(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden(s, l, &coll, _COLL_ID_PEEK, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_BACK, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
 			_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
