@@ -12345,7 +12345,7 @@ _exit:
 int mb_init_coll(struct mb_interpreter_t* s, void** l, mb_value_t* coll) {
 	int result = MB_FUNC_OK;
 
-	if(!s) {
+	if(!s || !coll) {
 		result = MB_FUNC_ERR;
 
 		goto _exit;
