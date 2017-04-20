@@ -1,3 +1,6 @@
+Apr. 20 2017
+Fixed a referencing bug with collection iteration in a FOR loop
+
 Apr. 8 2017
 Renamed the PEEK statement to BACK
 

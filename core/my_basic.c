@@ -10546,6 +10546,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 		break;
 	}
 	to_node = ast;
+	switch(range_ptr->type) { _REF_COLL(range_ptr) default: /* Do nothing */ break; }
 
 _to:
 	ast = to_node;
