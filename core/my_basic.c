@@ -155,6 +155,14 @@ extern "C" {
 #	define toupper(__c) (islower(__c) ? ((__c) - 'a' + 'A') : (__c))
 #endif /* toupper */
 
+#ifdef MB_COMPACT_MODE
+#	define _PACK1 : 1
+#	define _PACK8 : 8
+#else /* MB_COMPACT_MODE */
+#	define _PACK1
+#	define _PACK8
+#endif /* MB_COMPACT_MODE */
+
 #ifndef _mb_unaligned
 #	if defined MB_CP_VC && defined MB_OS_WIN64
 #		define _mb_unaligned __unaligned
@@ -373,7 +381,7 @@ typedef struct _ref_t {
 	_ref_count_t* count;
 	_ref_count_t* weak_count;
 	_unref_func_t on_unref;
-	_data_e type : 8;
+	_data_e type _PACK8;
 	struct mb_interpreter_t* s;
 } _ref_t;
 
@@ -426,8 +434,8 @@ typedef struct _var_t {
 	char* name;
 	struct _object_t* data;
 #ifdef MB_ENABLE_CLASS
-	bool_t pathing : 1;
-	bool_t is_me : 1;
+	bool_t pathing _PACK1;
+	bool_t is_me _PACK1;
 #endif /* MB_ENABLE_CLASS */
 } _var_t;
 
@@ -468,7 +476,7 @@ typedef struct _list_t {
 typedef struct _list_it_t {
 	_ref_t weak_ref;
 	_list_t* list;
-	bool_t locking : 1;
+	bool_t locking _PACK1;
 	union {
 		_ls_node_t* node;
 		int_t ranging;
@@ -486,7 +494,7 @@ typedef struct _dict_t {
 typedef struct _dict_it_t {
 	_ref_t weak_ref;
 	_dict_t* dict;
-	bool_t locking : 1;
+	bool_t locking _PACK1;
 	unsigned curr_bucket;
 	_ls_node_t* curr_node;
 } _dict_it_t;
@@ -578,7 +586,7 @@ typedef struct _routine_t {
 #ifdef MB_ENABLE_CLASS
 	_class_t* instance;
 #endif /* MB_ENABLE_CLASS */
-	bool_t is_cloned : 1;
+	bool_t is_cloned _PACK1;
 	_invokable_e type;
 } _routine_t;
 
@@ -623,13 +631,13 @@ typedef struct _object_t {
 		void* pointer;
 		_raw_t raw;
 	} data;
-	bool_t is_ref : 1;
+	bool_t is_ref _PACK1;
 #ifdef MB_ENABLE_SOURCE_TRACE
 	int source_pos;
 	unsigned short source_row;
 	unsigned short source_col;
 #else /* MB_ENABLE_SOURCE_TRACE */
-	char source_pos : 1;
+	char source_pos _PACK1;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 } _object_t;
 
@@ -830,6 +838,7 @@ typedef struct mb_interpreter_t {
 	char* source_file;
 	_parsing_context_t* parsing_context;
 	_running_context_t* running_context;
+	bool_t has_run _PACK1;
 	_ls_node_t* var_args;
 #ifdef MB_ENABLE_USERTYPE_REF
 	_object_t* usertype_ref_ahead;
@@ -3792,6 +3801,8 @@ _routine:
 #endif /* MB_ENABLE_CLASS */
 					if(ast)
 						ast = ast->prev;
+					if(result == MB_FUNC_END)
+						goto _error;
 					if(result != MB_FUNC_OK) {
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 					}
@@ -11308,6 +11319,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	if(!s || !(*s))
 		return MB_FUNC_ERR;
 
+	(*s)->has_run = false;
 	(*s)->jump_set = _JMP_NIL;
 	(*s)->last_routine = 0;
 	(*s)->no_eat_comma_mark = 0;
@@ -13127,6 +13139,8 @@ int mb_run(struct mb_interpreter_t* s) {
 
 _exit:
 	_destroy_edge_objects(s);
+
+	s->has_run = true;
 
 	return result;
 }
@@ -15066,6 +15080,9 @@ static int _core_def(mb_interpreter_t* s, void** l) {
 
 	_using_jump_set_of_structured(s, ast, _exit, result);
 
+	if(s->has_run)
+		goto _skip;
+
 	obj = (_object_t*)ast->data;
 	if(!_IS_ROUTINE(obj)) {
 		_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -15106,6 +15123,7 @@ static int _core_def(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 	routine->func.basic.entry = ast;
 
+_skip:
 	_skip_to(s, &ast, _core_enddef, _DT_INVALID);
 
 	ast = ast->next;
@@ -15192,6 +15210,18 @@ static int _core_class(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 
 	_using_jump_set_of_structured(s, ast, _exit, result);
+
+	if(s->has_run) {
+		if(ast) {
+			_skip_to(s, &ast, _core_endclass, _DT_NIL);
+
+			ast = ast->next;
+		}
+
+		*l = ast;
+
+		return result;
+	}
 
 	obj = (_object_t*)ast->data;
 	obj = _GET_CLASS(obj);
@@ -16955,7 +16985,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		ast = ast->next;
 	} else if(obj->data.variable->data->type == _DT_STRING) {
 		size_t len = 0;
-		if(obj->data.variable->data->data.string) {
+		if(obj->data.variable->data->data.string && !obj->data.variable->data->is_ref) {
 			safe_free(obj->data.variable->data->data.string);
 		}
 		len = (size_t)_get_inputer(s)(line, sizeof(line));
@@ -16973,6 +17003,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 			}
 			_DISPOSE_BUF(wbuf);
 			obj->data.variable->data->data.string = _HEAP_CHAR_BUF(buf);
+			obj->data.variable->data->is_ref = false;
 		} while(0);
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 		obj->data.variable->data->data.string = mb_memdup(line, (unsigned)(len + 1));
