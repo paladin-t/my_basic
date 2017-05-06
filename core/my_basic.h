@@ -629,7 +629,7 @@ MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 
 MBAPI int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val);
 MBAPI int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routine_func_t f, bool_t force);
-MBAPI int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc);
+MBAPI int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc, mb_value_t* ret/* = NULL*/);
 
 MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset/* = true*/);
 MBAPI int mb_load_file(struct mb_interpreter_t* s, const char* f);

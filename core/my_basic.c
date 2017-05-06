@@ -1535,17 +1535,17 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 			break;
 #	define _UNREF_COLL_IT(__o) \
 		case _DT_LIST_IT: \
-			_destroy_list_it(obj->data.list_it); \
+			_destroy_list_it((__o)->data.list_it); \
 			break; \
 		case _DT_DICT_IT: \
-			_destroy_dict_it(obj->data.dict_it); \
+			_destroy_dict_it((__o)->data.dict_it); \
 			break;
 #	define _ADDGC_COLL_IT(__o, __g) \
 		case _DT_LIST_IT: \
-			_destroy_list_it(obj->data.list_it); \
+			_destroy_list_it((__o)->data.list_it); \
 			break; \
 		case _DT_DICT_IT: \
-			_destroy_dict_it(obj->data.dict_it); \
+			_destroy_dict_it((__o)->data.dict_it); \
 			break;
 #else /* MB_ENABLE_COLLECTION_LIB */
 #	define _REF_COLL(__o) { (void)(__o); }
@@ -12934,7 +12934,7 @@ _exit:
 }
 
 /* Evaluate a sub routine */
-int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc) {
+int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc, mb_value_t* ret) {
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
@@ -12951,6 +12951,14 @@ int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_val
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
 	result = _eval_routine(s, (_ls_node_t**)l, args, argc, obj.data.routine, _has_routine_fun_arg, _pop_routine_fun_arg);
+
+	if(ret) {
+		_running_context_t* running = s->running_context;
+		_assign_public_value(ret, &running->intermediate_value);
+		_MAKE_NIL(&obj);
+		_public_value_to_internal_object(ret, &obj);
+		_ADDGC(&obj, &s->gc);
+	}
 
 _exit:
 	return result;
