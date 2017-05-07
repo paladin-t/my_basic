@@ -12936,7 +12936,9 @@ _exit:
 /* Evaluate a sub routine */
 int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc, mb_value_t* ret) {
 	int result = MB_FUNC_OK;
+	_running_context_t* running = 0;
 	_object_t obj;
+	_ls_node_t* ast = 0;
 
 	if(!s || !l) {
 		result = MB_FUNC_ERR;
@@ -12944,16 +12946,18 @@ int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_val
 		goto _exit;
 	}
 
+	running = s->running_context;
+
 	if(val.type != MB_DT_ROUTINE) {
 		_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
-	result = _eval_routine(s, (_ls_node_t**)l, args, argc, obj.data.routine, _has_routine_fun_arg, _pop_routine_fun_arg);
+	ast = (_ls_node_t*)(*l);
+	result = _eval_routine(s, &ast, args, argc, obj.data.routine, _has_routine_fun_arg, _pop_routine_fun_arg);
 
 	if(ret) {
-		_running_context_t* running = s->running_context;
 		_assign_public_value(ret, &running->intermediate_value);
 		_MAKE_NIL(&obj);
 		_public_value_to_internal_object(ret, &obj);
