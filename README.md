@@ -8,12 +8,12 @@
 
 **Copyright (C) 2011 - 2017 [Wang Renxin](https://linkedin.com/in/wangrenxin). All rights reserved.**
 
+[![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
+[![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
+
 [简体中文](https://github.com/paladin-t/my_basic/wiki/%E7%94%B1%E7%BA%AF-C-%E8%AF%AD%E8%A8%80%E7%BC%96%E5%86%99%E7%9A%84-BASIC-%E8%84%9A%E6%9C%AC%E8%A7%A3%E9%87%8A%E5%99%A8)
 
 [开发日志](http://blog.sina.com.cn/s/articlelist_1584387113_12_1.html)
-
-[![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
-[![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 
 ## Contents
 
@@ -103,11 +103,11 @@ I've been making some other projects, which make use of MY-BASIC, and make more 
 
 ### Use standalone interpreter binary
 
-This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [macOS](output/my_basic_mac), it's efficient to download one of them and have a first impressive playground. Or you could make a build as follow:
+This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [macOS](output/my_basic_mac), it's easy to download one of them and have a first impressive playground. Or you could make a build as follow:
 
 * Open the Visual Studio solution `my_basic.sln` on Windows to build an executable
-* Open the Xcode solution `my_basic_mac.xcodeproj` on macOS to build an macOS executable
-* If you were using a *nix OS, then use the `makefile` with a "make" toolchain to build an interpreter binary according to your specific platform
+* Open the Xcode solution `my_basic_mac.xcodeproj` on macOS to build a macOS executable
+* If you were using other *nix OS, then use the `makefile` with a "make" toolchain to build an interpreter binary according to your specific platform
 
 To compile an interpreter binary for your own platform manually, please follow the steps:
 
@@ -133,11 +133,11 @@ For more details about using MY-BASIC when it has be integrated with a project, 
 
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
-It's necessary to know some principle of MY-BASIC before doing deep customization; nothing's better than a workflow diagram to get a first impression.
+It's necessary to know some principle of MY-BASIC before doing deep customization; nothing's better than a workflow diagram to get a first image.
 
 ![](https://github.com/paladin-t/my_basic/wiki/img/workflow.png)
 
-More detail are issued in the [Wiki](#wiki) pages.
+More detail are issued on the [Wiki](#wiki) pages.
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
