@@ -563,7 +563,8 @@ typedef unsigned (* mb_hash_func_t)(struct mb_interpreter_t*, void*);
 typedef int (* mb_cmp_func_t)(struct mb_interpreter_t*, void*, void*);
 typedef int (* mb_fmt_func_t)(struct mb_interpreter_t*, void*, char*, unsigned);
 typedef void (* mb_alive_marker)(struct mb_interpreter_t*, void*, mb_value_t);
-typedef void (* mb_alive_checker)(struct mb_interpreter_t*, void*, mb_value_t, mb_alive_marker);
+typedef void (* mb_alive_checker)(struct mb_interpreter_t*, void*, mb_alive_marker);
+typedef void (* mb_alive_value_checker)(struct mb_interpreter_t*, void*, mb_value_t, mb_alive_marker);
 typedef int (* mb_meta_operator_t)(struct mb_interpreter_t*, void**, mb_value_t*, mb_value_t*, mb_value_t*);
 typedef mb_meta_status_u (* mb_meta_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, const char*);
 typedef char* (* mb_memory_allocate_func_t)(unsigned);
@@ -623,7 +624,8 @@ MBAPI int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* o
 MBAPI int mb_get_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val, void** out);
 MBAPI int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 MBAPI int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
-MBAPI int mb_set_alive_checker_of_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_alive_checker f);
+MBAPI int mb_set_alive_checker(struct mb_interpreter_t* s, mb_alive_checker f);
+MBAPI int mb_set_alive_checker_of_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_alive_value_checker f);
 MBAPI int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_u m, void* f);
 MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 

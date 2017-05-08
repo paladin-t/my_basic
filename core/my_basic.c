@@ -411,7 +411,7 @@ typedef struct _usertype_ref_t {
 	mb_cmp_func_t cmp;
 	mb_fmt_func_t fmt;
 #ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
-	mb_alive_checker alive_checker;
+	mb_alive_value_checker alive_checker;
 #endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
 	_calculation_operator_info_t* calc_operators;
 	mb_meta_func_t coll_func;
@@ -869,6 +869,7 @@ typedef struct mb_interpreter_t {
 	unsigned short last_error_row;
 	unsigned short last_error_col;
 	/** Handlers */
+	mb_alive_checker alive_check_handler;
 	mb_debug_stepped_handler_t debug_stepped_handler;
 	mb_error_handler_t error_handler;
 	mb_print_func_t printer;
@@ -6537,6 +6538,8 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	if(depth != -1)
 		gc->valid_table = valid;
 	_gc_get_reachable(s, valid);
+	if(s->alive_check_handler)
+		s->alive_check_handler(s, valid, _gc_alive_marker);
 
 	/* Get unreachable information */
 	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, gc->table);
@@ -12727,8 +12730,20 @@ _exit:
 	return result;
 }
 
+/* Set the global alive checker */
+int mb_set_alive_checker(struct mb_interpreter_t* s, mb_alive_checker f) {
+	int result = MB_FUNC_OK;
+
+	if(!s)
+		result = MB_FUNC_ERR;
+	else
+		s->alive_check_handler = f;
+
+	return result;
+}
+
 /* Set the alive checker of a value */
-int mb_set_alive_checker_of_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_alive_checker f) {
+int mb_set_alive_checker_of_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_alive_value_checker f) {
 #ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
 	int result = MB_FUNC_OK;
 	_object_t obj;
@@ -17737,6 +17752,7 @@ static int _coll_move_next(mb_interpreter_t* s, void** l) {
 	mb_value_t it;
 	_object_t oit;
 	mb_value_t ret;
+	mb_meta_status_u os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -17746,42 +17762,46 @@ static int _coll_move_next(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &it));
+	os = _try_overridden(s, l, &it, _COLL_ID_MOVE_NEXT, MB_MF_COLL);
+	if((os & MB_MS_DONE) == MB_MS_NONE) {
+		_MAKE_NIL(&oit);
+		switch(it.type) {
+		case MB_DT_LIST_IT:
+			_public_value_to_internal_object(&it, &oit);
+			oit.data.list_it = _move_list_it_next(oit.data.list_it);
+			if(_invalid_list_it(oit.data.list_it)) {
+				_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			} else if(oit.data.list_it) {
+				mb_make_bool(ret, true);
+			} else {
+				mb_make_nil(ret);
+			}
+
+			break;
+		case MB_DT_DICT_IT:
+			_public_value_to_internal_object(&it, &oit);
+			oit.data.dict_it = _move_dict_it_next(oit.data.dict_it);
+			if(_invalid_dict_it(oit.data.dict_it)) {
+				_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			} else if(oit.data.dict_it) {
+				mb_make_bool(ret, true);
+			} else {
+				mb_make_nil(ret);
+			}
+
+			break;
+		default:
+			_handle_error_on_obj(s, SE_RN_ITERATOR_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+
+			break;
+		}
+	}
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	_MAKE_NIL(&oit);
-	switch(it.type) {
-	case MB_DT_LIST_IT:
-		_public_value_to_internal_object(&it, &oit);
-		oit.data.list_it = _move_list_it_next(oit.data.list_it);
-		if(_invalid_list_it(oit.data.list_it)) {
-			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
-		} else if(oit.data.list_it) {
-			mb_make_bool(ret, true);
-		} else {
-			mb_make_nil(ret);
-		}
-
-		break;
-	case MB_DT_DICT_IT:
-		_public_value_to_internal_object(&it, &oit);
-		oit.data.dict_it = _move_dict_it_next(oit.data.dict_it);
-		if(_invalid_dict_it(oit.data.dict_it)) {
-			_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
-		} else if(oit.data.dict_it) {
-			mb_make_bool(ret, true);
-		} else {
-			mb_make_nil(ret);
-		}
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_ITERATOR_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
-
-		break;
+	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
+		mb_check(mb_push_value(s, l, ret));
 	}
-
-	mb_check(mb_push_value(s, l, ret));
 
 _exit:
 	return result;
