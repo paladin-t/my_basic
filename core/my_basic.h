@@ -149,6 +149,10 @@ extern "C" {
 #	endif
 #endif /* MB_ENABLE_UNICODE_ID */
 
+#ifndef MB_ENABLE_FORK
+#	define MB_ENABLE_FORK
+#endif /* MB_ENABLE_FORK */
+
 #ifndef MB_GC_GARBAGE_THRESHOLD
 #	define MB_GC_GARBAGE_THRESHOLD 16
 #endif /* MB_GC_GARBAGE_THRESHOLD */
@@ -578,6 +582,10 @@ MBAPI int mb_dispose(void);
 MBAPI int mb_open(struct mb_interpreter_t** s);
 MBAPI int mb_close(struct mb_interpreter_t** s);
 MBAPI int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/);
+
+MBAPI int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r);
+MBAPI int mb_close_forked(struct mb_interpreter_t** s);
+MBAPI int mb_get_forked_from(struct mb_interpreter_t* s, struct mb_interpreter_t** src);
 
 MBAPI int mb_register_func(struct mb_interpreter_t* s, const char* n, mb_func_t f);
 MBAPI int mb_remove_func(struct mb_interpreter_t* s, const char* n);

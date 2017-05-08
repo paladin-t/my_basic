@@ -819,6 +819,10 @@ typedef struct _tuple3_t {
 
 typedef struct mb_interpreter_t {
 	/** Fundamental */
+#ifdef MB_ENABLE_FORK
+	struct mb_interpreter_t* from;
+	_running_context_t* forked_context;
+#endif /* MB_ENABLE_FORK */
 	bool_t valid;
 	void* userdata;
 	_ls_node_t* ast;
@@ -6079,8 +6083,17 @@ static bool_t _weak_unref(_ref_t* weak) {
 
 /* Create a reference stub, initialize the reference count with zero */
 static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpreter_t* s) {
+#ifdef MB_ENABLE_FORK
+	mb_interpreter_t* src = 0;
+#endif /* MB_ENABLE_FORK */
+
 	if(ref->count)
 		return;
+
+#ifdef MB_ENABLE_FORK
+	while(mb_get_forked_from(s, &src) == MB_FUNC_OK)
+		s = src;
+#endif /* MB_ENABLE_FORK */
 
 	ref->count = (_ref_count_t*)mb_malloc(sizeof(_ref_count_t));
 	*ref->count = _NONE_REF;
@@ -6294,7 +6307,7 @@ static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc) {
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	_ADDGC(obj, gc);
+	_ADDGC(obj, gc)
 	safe_free(obj);
 
 	return result;
@@ -6308,11 +6321,11 @@ static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc) {
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	_ADDGC(obj, gc);
+	_ADDGC(obj, gc)
 	safe_free(obj);
 
 	obj = (_object_t*)extra;
-	_ADDGC(obj, gc);
+	_ADDGC(obj, gc)
 	safe_free(obj);
 
 	return result;
@@ -6333,7 +6346,7 @@ static int _gc_destroy_garbage_in_class(void* data, void* extra, _gc_t* gc) {
 		safe_free(obj->data.variable->name);
 		safe_free(obj->data.variable);
 	} else {
-		_ADDGC(obj, gc);
+		_ADDGC(obj, gc)
 	}
 	safe_free(obj);
 
@@ -6364,7 +6377,7 @@ static int _gc_destroy_garbage_in_lambda(void* data, void* extra, _gc_t* gc) {
 		safe_free(obj->data.variable->name);
 		safe_free(obj->data.variable);
 	} else {
-		_ADDGC(obj, gc);
+		_ADDGC(obj, gc)
 	}
 	safe_free(obj);
 
@@ -9904,7 +9917,7 @@ static void _destroy_var_arg(void* data, void* extra, _gc_t* gc) {
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	_UNREF(obj);
+	_UNREF(obj)
 	safe_free(obj);
 }
 
@@ -11242,10 +11255,15 @@ int mb_open(struct mb_interpreter_t** s) {
 int mb_close(struct mb_interpreter_t** s) {
 	_ht_node_t* local_scope = 0;
 	_ht_node_t* global_scope = 0;
-	_ls_node_t* ast;
+	_ls_node_t* ast = 0;
 
 	if(!s || !(*s))
 		return MB_FUNC_ERR;
+
+#ifdef MB_ENABLE_FORK
+	if((*s)->from)
+		return mb_close_forked(s);
+#endif /* MB_ENABLE_FORK */
 
 	(*s)->valid = false;
 
@@ -11368,6 +11386,109 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	mb_assert(MB_FUNC_OK == result);
 
 	return result;
+}
+
+/* Fork a new MY-BASIC environment */
+int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r) {
+#ifdef MB_ENABLE_FORK
+	int result = MB_FUNC_OK;
+	_running_context_t* running = 0;
+
+	if(!s || !r)
+		return MB_FUNC_ERR;
+
+	*s = (mb_interpreter_t*)mb_malloc(sizeof(mb_interpreter_t));
+	memcpy(*s, r, sizeof(mb_interpreter_t));
+
+	(*s)->edge_destroy_objects = _ls_create();
+	(*s)->lazy_destroy_objects = _ls_create();
+
+	running = _create_running_context(true);
+	running->meta = _SCOPE_META_ROOT;
+	(*s)->forked_context = (*s)->running_context = running;
+	running->prev = r->running_context;
+
+	(*s)->var_args = 0;
+
+#ifdef MB_ENABLE_STACK_TRACE
+	(*s)->stack_frames = _ls_create();
+#endif /* MB_ENABLE_STACK_TRACE */
+#ifdef _MULTILINE_STATEMENT
+	(*s)->multiline_enabled = _ls_create();
+#endif /* _MULTILINE_STATEMENT */
+
+	(*s)->from = r;
+
+	mb_assert(MB_FUNC_OK == result);
+
+	return result;
+#else /* MB_ENABLE_FORK */
+	mb_unrefvar(s);
+	mb_unrefvar(r);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_FORK */
+}
+
+/* Close a forked MY-BASIC environment */
+int mb_close_forked(struct mb_interpreter_t** s) {
+#ifdef MB_ENABLE_FORK
+	int result = MB_FUNC_OK;
+	mb_interpreter_t* src = 0;
+
+	if(!s || !(*s) || !(*s)->from)
+		return MB_FUNC_ERR;
+
+	(*s)->valid = false;
+
+#ifdef MB_ENABLE_STACK_TRACE
+	_ls_destroy((*s)->stack_frames);
+#endif /* MB_ENABLE_STACK_TRACE */
+#ifdef _MULTILINE_STATEMENT
+	_ls_destroy((*s)->multiline_enabled);
+#endif /* _MULTILINE_STATEMENT */
+
+	src = *s;
+	while(mb_get_forked_from(src, &src) == MB_FUNC_OK) { }
+	if(!src->valid)
+		(*s)->running_context = (*s)->forked_context;
+	(*s)->running_context->prev = 0;
+	_dispose_scope_chain(*s);
+
+	_ls_foreach((*s)->edge_destroy_objects, _destroy_object);
+	_ls_destroy((*s)->edge_destroy_objects);
+	_ls_foreach((*s)->lazy_destroy_objects, _destroy_object);
+	_ls_destroy((*s)->lazy_destroy_objects);
+
+	safe_free(*s);
+
+	return result;
+#else /* MB_ENABLE_FORK */
+	mb_unrefvar(s);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_FORK */
+}
+
+/* Get the source MY-BASIC environment of a forked one */
+int mb_get_forked_from(struct mb_interpreter_t* s, struct mb_interpreter_t** src) {
+#ifdef MB_ENABLE_FORK
+	int result = MB_FUNC_OK;
+
+	if(!s || !src)
+		result = MB_FUNC_ERR;
+	else if(s->from == 0)
+		result = MB_FUNC_ERR;
+	else
+		*src = s->from;
+
+	return result;
+#else /* MB_ENABLE_FORK */
+	mb_unrefvar(s);
+	mb_unrefvar(src);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_FORK */
 }
 
 /* Register an API function to a MY-BASIC environment */
@@ -12690,7 +12811,7 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_TYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
-	_REF(&obj);
+	_REF(&obj)
 
 _exit:
 	return result;
@@ -12724,7 +12845,7 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_TYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
-	_UNREF(&obj);
+	_UNREF(&obj)
 
 _exit:
 	return result;
@@ -12976,7 +13097,7 @@ int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_val
 		_assign_public_value(ret, &running->intermediate_value);
 		_MAKE_NIL(&obj);
 		_public_value_to_internal_object(ret, &obj);
-		_ADDGC(&obj, &s->gc);
+		_ADDGC(&obj, &s->gc)
 	}
 
 _exit:
@@ -15202,7 +15323,7 @@ static int _core_args(mb_interpreter_t* s, void** l) {
 			mb_make_nil(arg);
 			_internal_object_to_public_value(obj, &arg);
 			mb_check(mb_push_value(s, l, arg));
-			_UNREF(obj);
+			_UNREF(obj)
 			pushed = true;
 			_destroy_object_capsule_only(obj, 0);
 		}
@@ -16849,8 +16970,8 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 		case _DT_FUNC: /* Fall through */
 		case _DT_ROUTINE:
 			result = _calc_expression(s, &ast, &val_ptr);
-			_REF(val_ptr);
-			_UNREF(val_ptr);
+			_REF(val_ptr)
+			_UNREF(val_ptr)
 _print:
 			if(val_ptr->type == _DT_NIL) {
 				_get_printer(s)(MB_NIL);
