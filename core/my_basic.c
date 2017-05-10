@@ -9946,7 +9946,7 @@ static void _mark_edge_destroy_string(mb_interpreter_t* s, char* ch) {
 static void _destroy_lazy_objects(mb_interpreter_t* s) {
 	mb_assert(s);
 
-	_ls_foreach(s->lazy_destroy_objects, _destroy_object);
+	_LS_FOREACH(s->lazy_destroy_objects, _destroy_object, _try_clear_intermediate_value, s);
 	_ls_clear(s->lazy_destroy_objects);
 }
 
@@ -11883,6 +11883,8 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 	}
 #endif /* MB_ENABLE_USERTYPE_REF */
 	ast = (_ls_node_t*)*l;
+	if(!ast)
+		goto _exit;
 #ifdef _MULTILINE_STATEMENT
 	if(_multiline_statement(s)) {
 		_object_t* obj = 0;
