@@ -256,6 +256,9 @@ extern "C" {
 #	define MB_NULL_STRING "(EMPTY)"
 #endif /* MB_NULL_STRING */
 
+#ifndef mb_min
+#	define mb_min(a, b) (((a) < (b)) ? (a) : (b))
+#endif /* mb_min */
 #ifndef mb_max
 #	define mb_max(a, b) (((a) > (b)) ? (a) : (b))
 #endif /* mb_max */
@@ -310,11 +313,9 @@ extern "C" {
 #ifndef mb_make_usertype
 #	define mb_make_usertype(__v, __d) do { (__v).value.usertype = (__d); (__v).type = MB_DT_USERTYPE; } while(0)
 #endif /* mb_make_usertype */
-#ifdef MB_ENABLE_USERTYPE_REF
-#	ifndef mb_make_usertype_ref
-#		define mb_make_usertype_ref(__v, __d) do { (__v).value.usertype_ref = (__d); (__v).type = MB_DT_USERTYPE_REF; } while(0)
-#	endif /* mb_make_usertype_ref */
-#endif /* MB_ENABLE_USERTYPE_REF */
+#ifndef mb_make_usertype_bytes
+#	define mb_make_usertype_bytes(__v, __d) do { mb_static_assert(sizeof(mb_val_bytes_t) >= sizeof(*__d)); memcpy(&(__v).value.bytes, (__d), mb_min(sizeof(mb_val_bytes_t), sizeof(*__d))); (__v).type = MB_DT_USERTYPE; } while(0)
+#endif /* mb_make_usertype_bytes */
 #ifndef mb_make_array
 #	define mb_make_array(__v, __d) do { (__v).value.array = (__d); (__v).type = MB_DT_ARRAY; } while(0)
 #endif /* mb_make_array */

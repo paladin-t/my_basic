@@ -1,3 +1,6 @@
+May. 10 2017
+Added an mb_make_usertype_bytes macro
+
 May. 8 2017
 Added fork functions
 Added a global alive object checker
