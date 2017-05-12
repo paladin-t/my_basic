@@ -11579,6 +11579,9 @@ int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
 	ast = (_ls_node_t*)*l;
 	obj = (_object_t*)ast->data;
 	if(!(obj->type == _DT_FUNC)) {
+#ifdef _MULTILINE_STATEMENT
+		_ls_popback(s->multiline_enabled);
+#endif /* _MULTILINE_STATEMENT */
 		_handle_error_on_obj(s, SE_RN_INCOMPLETE_STRUCTURE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
@@ -11631,6 +11634,9 @@ int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l) {
 	obj = (_object_t*)ast->data;
 #endif /* _MULTILINE_STATEMENT */
 	if(!_IS_FUNC(obj, _core_open_bracket)) {
+#ifdef _MULTILINE_STATEMENT
+		_ls_popback(s->multiline_enabled);
+#endif /* _MULTILINE_STATEMENT */
 		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;

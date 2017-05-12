@@ -1,3 +1,6 @@
+May. 12 2017
+Fixed a wrong multi-line enabled bug when met unexpected token
+
 May. 10 2017
 Added an mb_make_usertype_bytes macro
 Fixed a crash bug when there's no receiver of a returned string value, thanks to Beyond07 for pointing it out
