@@ -224,6 +224,7 @@ typedef struct _ht_node_t {
 
 /** Normal enum/struct/union/const, etc. */
 
+#ifdef MB_ENABLE_FULL_ERROR
 /* Error description text */
 MBCONST static const char* const _ERR_DESC[] = {
 	"No error",
@@ -321,6 +322,7 @@ MBCONST static const char* const _ERR_DESC[] = {
 };
 
 mb_static_assert(countof(_ERR_DESC) == SE_COUNT);
+#endif /* MB_ENABLE_FULL_ERROR */
 
 /* Data type */
 typedef enum _data_e {
@@ -13538,10 +13540,16 @@ _exit:
 
 /* Get the error description text */
 const char* mb_get_error_desc(mb_error_e err) {
+#ifdef MB_ENABLE_FULL_ERROR
 	if(err < countof(_ERR_DESC))
 		return _ERR_DESC[err];
 
-	return "";
+	return "Unknown error";
+#else /* MB_ENABLE_FULL_ERROR */
+	mb_unrefvar(err);
+
+	return "Error occurred";
+#endif /* MB_ENABLE_FULL_ERROR */
 }
 
 /* Set an error handler to a MY-BASIC environment */

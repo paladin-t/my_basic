@@ -1,3 +1,6 @@
+May. 13 2017
+Added an MB_ENABLE_FULL_ERROR macro
+
 May. 12 2017
 Fixed a wrong multi-line enabled bug when met unexpected token
 
