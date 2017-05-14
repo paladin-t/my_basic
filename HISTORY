@@ -1,3 +1,7 @@
+May. 14 2017
+Added a clear_parser parameter to the mb_run function
+Added an extra end of running checking after stepped
+
 May. 13 2017
 Added an MB_ENABLE_FULL_ERROR macro
 

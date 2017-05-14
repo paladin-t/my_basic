@@ -10180,6 +10180,7 @@ static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l, bool_t force_
 	_running_context_t* running = 0;
 	_ls_node_t* sub_stack = 0;
 	bool_t skip_to_eoi = true;
+	bool_t end_of_ast = false;
 
 	mb_assert(s && l);
 
@@ -10359,10 +10360,18 @@ _exit:
 
 	*l = ast;
 
+	if(!ast) {
+		ast = _ls_back(s->ast);
+		end_of_ast = true;
+	}
+
 	do {
 		int ret = _stepped(s, ast);
 		if(result == MB_FUNC_OK)
 			result = ret;
+
+		if(end_of_ast && ast && ast->next) /* May be changed when stepping */
+			*l = ast->next;
 	} while(0);
 
 	return result;
@@ -13221,7 +13230,7 @@ _exit:
 }
 
 /* Run the current AST */
-int mb_run(struct mb_interpreter_t* s) {
+int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 
@@ -13248,7 +13257,8 @@ int mb_run(struct mb_interpreter_t* s) {
 #endif /* MB_ENABLE_CLASS */
 	}
 
-	_destroy_parsing_context(&s->parsing_context);
+	if(clear_parser)
+		_destroy_parsing_context(&s->parsing_context);
 
 	s->handled_error = false;
 
