@@ -1052,7 +1052,7 @@ static int _do_line(void) {
 			result = mb_load_string(bas, _code()->lines[i], false);
 		}
 		if(result == MB_FUNC_OK)
-			result = mb_run(bas);
+			result = mb_run(bas, true);
 		_printf("\n");
 	} else if(_str_eq(line, "BYE")) {
 		result = MB_FUNC_BYE;
@@ -1109,7 +1109,7 @@ static int _do_line(void) {
 
 static void _run_file(char* path) {
 	if(mb_load_file(bas, path) == MB_FUNC_OK) {
-		mb_run(bas);
+		mb_run(bas, true);
 	} else {
 		_printf("Invalid file or wrong program.\n");
 	}
@@ -1147,7 +1147,7 @@ static void _evaluate_expression(char* p) {
 		p = e;
 	}
 	if(mb_load_string(bas, p, true) == MB_FUNC_OK) {
-		mb_run(bas);
+		mb_run(bas, true);
 	} else {
 		_printf("Invalid expression.\n");
 	}
