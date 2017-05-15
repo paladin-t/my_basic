@@ -393,7 +393,7 @@ typedef struct _gc_t {
 	_ht_node_t* collected_table;
 	_ht_node_t* valid_table;
 	unsigned char collecting;
-	bool_t enabled_collecting;
+	bool_t enabled_collecting _PACK1;
 } _gc_t;
 
 typedef struct _calculation_operator_info_t {
