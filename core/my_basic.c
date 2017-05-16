@@ -393,7 +393,7 @@ typedef struct _gc_t {
 	_ht_node_t* collected_table;
 	_ht_node_t* valid_table;
 	unsigned char collecting;
-	bool_t enabled_collecting _PACK1;
+	bool_t disabled _PACK1;
 } _gc_t;
 
 typedef struct _calculation_operator_info_t {
@@ -6545,7 +6545,7 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	gc = &s->gc;
 
 	/* Check whether it's paused */
-	if(!gc->enabled_collecting)
+	if(gc->disabled)
 		return;
 
 	/* Avoid infinity loop */
@@ -11305,7 +11305,7 @@ int mb_close(struct mb_interpreter_t** s) {
 	_tidy_scope_chain(*s);
 	_dispose_scope_chain(*s);
 
-	(*s)->gc.enabled_collecting = true;
+	(*s)->gc.disabled = false;
 	_gc_collect_garbage(*s, -1);
 	_ht_destroy((*s)->gc.table);
 	_ht_destroy((*s)->gc.recursive_table);
@@ -13620,14 +13620,14 @@ _exit:
 bool_t mb_get_gc_enabled(struct mb_interpreter_t* s) {
 	if(!s) return false;
 
-	return s->gc.enabled_collecting;
+	return !s->gc.disabled;
 }
 
 /* Sets whether GC is enabled */
 int mb_set_gc_enabled(struct mb_interpreter_t* s, bool_t gc) {
 	if(!s) return MB_FUNC_ERR;
 
-	s->gc.enabled_collecting = gc;
+	s->gc.disabled = !gc;
 
 	return MB_FUNC_OK;
 }
