@@ -154,6 +154,7 @@ The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Q
 	* [Module (namespace)](https://github.com/paladin-t/my_basic/wiki/Module-(namespace))
 	* [Sub routine](https://github.com/paladin-t/my_basic/wiki/Sub-routine)
 	* [Lambda abstraction](https://github.com/paladin-t/my_basic/wiki/Lambda-abstraction)
+	* [Structured exception handling](https://github.com/paladin-t/my_basic/wiki/Structured-exception-handling)
 	* [Multiple condition](https://github.com/paladin-t/my_basic/wiki/Multiple-condition)
 * Understanding data type system in MY-BASIC
 	* [Collection manipulation](https://github.com/paladin-t/my_basic/wiki/Collection-manipulation)
