@@ -11467,9 +11467,8 @@ int mb_close_forked(struct mb_interpreter_t** s) {
 
 	src = *s;
 	while(mb_get_forked_from(src, &src) == MB_FUNC_OK) { /* Do nothing */ }
-	if(!src->valid)
-		(*s)->running_context = (*s)->forked_context;
-	(*s)->running_context->prev = 0;
+	(*s)->forked_context->prev = 0;
+	(*s)->running_context = (*s)->forked_context;
 	_dispose_scope_chain(*s);
 
 	_ls_foreach((*s)->edge_destroy_objects, _destroy_object);

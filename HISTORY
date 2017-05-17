@@ -1,3 +1,6 @@
+May. 17 2017
+Fixed a forked structure disposing issue if error occurs
+
 May. 15 2017
 Added mb_get_gc_enabled and mb_set_gc_enabled functions
 
