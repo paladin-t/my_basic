@@ -352,7 +352,7 @@ extern "C" {
 #endif /* MB_CODES */
 
 #ifndef mb_check
-#	define mb_check(__r) do { int __hr = __r; if(__hr != MB_FUNC_OK) { return __hr; } } while(0)
+#	define mb_check(__expr) do { int __hr = (__expr); if((__hr) != MB_FUNC_OK) { return (__hr); } } while(0)
 #endif /* mb_check */
 
 #ifndef mb_reg_fun

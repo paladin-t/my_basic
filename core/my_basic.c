@@ -173,8 +173,12 @@ extern "C" {
 
 #define _COPY_BYTES(__l, __r) do { memcpy((__l), (__r), sizeof(mb_val_bytes_t)); } while(0)
 
-#define _mb_check(__expr, __exit) do { if((__expr) != MB_FUNC_OK) goto __exit; } while(0)
-#define _mb_check_mark(__expr, __result, __exit) do { __result = (__expr); if(__result != MB_FUNC_OK) goto __exit; } while(0)
+#ifndef _mb_check_exit
+#	define _mb_check_exit(__expr, __exit) do { if((__expr) != MB_FUNC_OK) goto __exit; } while(0)
+#endif /* _mb_check_exit */
+#ifndef _mb_check_mark_exit
+#	define _mb_check_mark_exit(__expr, __result, __exit) do { __result = (__expr); if(__result != MB_FUNC_OK) goto __exit; } while(0)
+#endif /* _mb_check_mark_exit */
 
 #define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
 #define DON2(__a) (((__a) && *(__a)) ? (_object_t*)((*((_ls_node_t**)(__a)))->data) : 0)
@@ -3916,11 +3920,11 @@ _var:
 
 										*l = ast->prev;
 
-										_mb_check(mb_attempt_open_bracket(s, (void**)l), _error);
+										_mb_check_exit(mb_attempt_open_bracket(s, (void**)l), _error);
 
 										switch(ocoll->type) {
 										case _DT_LIST:
-											_mb_check(mb_pop_int(s, (void**)l, &idx), _error);
+											_mb_check_exit(mb_pop_int(s, (void**)l, &idx), _error);
 											if(!_at_list(ocoll->data.list, idx, &ret)) {
 												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
 											}
@@ -3928,7 +3932,7 @@ _var:
 											break;
 										case _DT_DICT:
 											mb_make_nil(key);
-											_mb_check(mb_pop_value(s, (void**)l, &key), _error);
+											_mb_check_exit(mb_pop_value(s, (void**)l, &key), _error);
 											if(!_find_dict(ocoll->data.dict, &key, &ret)) {
 												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
 											}
@@ -3938,7 +3942,7 @@ _var:
 											break;
 										}
 
-										_mb_check(mb_attempt_close_bracket(s, (void**)l), _error);
+										_mb_check_exit(mb_attempt_close_bracket(s, (void**)l), _error);
 
 										c = _create_object();
 										_ls_pushback(garbage, c);
@@ -4316,7 +4320,7 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 	running = _pop_weak_scope(s, running);
 
 	if(!va) {
-		_mb_check_mark(mb_attempt_close_bracket(s, (void**)l), result, _error);
+		_mb_check_mark_exit(mb_attempt_close_bracket(s, (void**)l), result, _error);
 	}
 
 	ast = *l;
@@ -4437,7 +4441,7 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 	running = _unlink_lambda_scope_chain(s, &r->func.lambda, true);
 
 	if(!va) {
-		_mb_check_mark(mb_attempt_close_bracket(s, (void**)l), result, _error);
+		_mb_check_mark_exit(mb_attempt_close_bracket(s, (void**)l), result, _error);
 	}
 
 	ast = *l;
@@ -5614,11 +5618,11 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 #ifdef MB_ENABLE_UNICODE_ID
 		if(uc) {
 			if(context->symbol_state == _SS_IDENTIFIER) {
-				_mb_check(result = _append_uu_char_to_symbol(s, str, n), _exit);
+				_mb_check_exit(result = _append_uu_char_to_symbol(s, str, n), _exit);
 			} else if(context->symbol_state == _SS_OPERATOR) {
 				context->symbol_state = _SS_IDENTIFIER;
-				_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
-				_mb_check(result = _append_uu_char_to_symbol(s, str, n), _exit);
+				_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
+				_mb_check_exit(result = _append_uu_char_to_symbol(s, str, n), _exit);
 			}
 
 			break;
@@ -5627,36 +5631,36 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 
 		c = toupper(c);
 		if(_is_blank_char(c)) { /* \t space */
-			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
 		} else if(_is_newline_char(c)) { /* \r \n EOF */
-			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
-			_mb_check(result = _append_char_to_symbol(s, MB_EOS), _exit);
-			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check_exit(result = _append_char_to_symbol(s, MB_EOS), _exit);
+			_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
 		} else if(_is_separator_char(c) || _is_bracket_char(c)) { /* , ; : ( ) */
-			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
-			_mb_check(result = _append_char_to_symbol(s, c), _exit);
-			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check_exit(result = _append_char_to_symbol(s, c), _exit);
+			_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
 		} else if(_is_quotation_char(c)) { /* " */
-			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
-			_mb_check(result = _append_char_to_symbol(s, c), _exit);
+			_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check_exit(result = _append_char_to_symbol(s, c), _exit);
 			context->parsing_state = _PS_STRING;
 		} else if(_is_comment_char(c)) { /* ' */
-			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
-			_mb_check(result = _append_char_to_symbol(s, MB_EOS), _exit);
-			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check_exit(result = _append_char_to_symbol(s, MB_EOS), _exit);
+			_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
 			context->parsing_state = _PS_COMMENT;
 			context->multi_line_comment_count = 1;
 		} else {
 			if(context->symbol_state == _SS_IDENTIFIER) {
 				if(_is_identifier_char(c)) {
-					_mb_check(result = _append_char_to_symbol(s, c), _exit);
+					_mb_check_exit(result = _append_char_to_symbol(s, c), _exit);
 				} else if(_is_operator_char(c)) {
 					if(_is_exponent_prefix(context->current_symbol, 0, context->current_symbol_nonius - 2) && _is_exponential_char(last_char) && c == '-') {
-						_mb_check(result = _append_char_to_symbol(s, c), _exit);
+						_mb_check_exit(result = _append_char_to_symbol(s, c), _exit);
 					} else {
 						context->symbol_state = _SS_OPERATOR;
-						_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
-						_mb_check(result = _append_char_to_symbol(s, c), _exit);
+						_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
+						_mb_check_exit(result = _append_char_to_symbol(s, c), _exit);
 					}
 				} else {
 					_handle_error_at_pos(s, SE_PS_INVALID_CHAR, s->source_file, pos, row, col, MB_FUNC_ERR, _exit, result);
@@ -5664,12 +5668,12 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 			} else if(context->symbol_state == _SS_OPERATOR) {
 				if(_is_identifier_char(c)) {
 					context->symbol_state = _SS_IDENTIFIER;
-					_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
-					_mb_check(result = _append_char_to_symbol(s, c), _exit);
+					_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
+					_mb_check_exit(result = _append_char_to_symbol(s, c), _exit);
 				} else if(_is_operator_char(c)) {
 					if(c == '-')
-						_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
-					_mb_check(result = _append_char_to_symbol(s, c), _exit);
+						_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
+					_mb_check_exit(result = _append_char_to_symbol(s, c), _exit);
 				} else {
 					_handle_error_at_pos(s, SE_PS_INVALID_CHAR, s->source_file, pos, row, col, MB_FUNC_ERR, _exit, result);
 				}
@@ -5681,11 +5685,11 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 		break;
 	case _PS_STRING:
 		if(_is_quotation_char(c)) { /* " */
-			_mb_check(result = _append_char_to_symbol(s, c), _exit);
-			_mb_check(result = _cut_symbol(s, pos, row, col), _exit);
+			_mb_check_exit(result = _append_char_to_symbol(s, c), _exit);
+			_mb_check_exit(result = _cut_symbol(s, pos, row, col), _exit);
 			context->parsing_state = _PS_NORMAL;
 		} else {
-			_mb_check(result = _append_char_to_symbol(s, c), _exit);
+			_mb_check_exit(result = _append_char_to_symbol(s, c), _exit);
 		}
 
 		break;
@@ -11758,6 +11762,7 @@ int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val) {
 
 		break;
 	default:
+		_assign_public_value(&arg, 0);
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -11795,6 +11800,7 @@ int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val) {
 
 		break;
 	default:
+		_assign_public_value(&arg, 0);
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -11828,6 +11834,7 @@ int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val) {
 
 		break;
 	default:
+		_assign_public_value(&arg, 0);
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -11861,6 +11868,7 @@ int mb_pop_usertype(struct mb_interpreter_t* s, void** l, void** val) {
 
 		break;
 	default:
+		_assign_public_value(&arg, 0);
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -13948,9 +13956,9 @@ static int _core_neg(mb_interpreter_t* s, void** l) {
 		break;
 	}
 
+_exit:
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	running->calc_depth = calc_depth;
 
 	return result;
@@ -14173,6 +14181,7 @@ static int _core_not(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	mb_value_t arg;
+	mb_value_t ret;
 	_running_context_t* running = 0;
 	int calc_depth = 0;
 
@@ -14185,6 +14194,7 @@ static int _core_not(mb_interpreter_t* s, void** l) {
 	calc_depth = running->calc_depth;
 
 	mb_make_nil(arg);
+	mb_make_nil(ret);
 	if(ast && _IS_FUNC((_object_t*)ast->data, _core_open_bracket)) {
 		mb_check(mb_attempt_open_bracket(s, l));
 
@@ -14203,23 +14213,24 @@ static int _core_not(mb_interpreter_t* s, void** l) {
 
 	switch(arg.type) {
 	case MB_DT_NIL:
-		mb_make_bool(arg, true);
+		mb_make_bool(ret, true);
 
 		break;
 	case MB_DT_INT:
-		mb_make_bool(arg, !arg.value.integer);
+		mb_make_bool(ret, !arg.value.integer);
 
 		break;
 	case MB_DT_REAL:
-		mb_make_bool(arg, arg.value.float_point == (real_t)0);
+		mb_make_bool(ret, arg.value.float_point == (real_t)0);
 
 		break;
 	default:
-		mb_make_bool(arg, false);
+		mb_make_bool(ret, false);
 
 		break;
 	}
-	mb_check(mb_push_int(s, l, arg.value.integer));
+	_assign_public_value(&arg, 0);
+	mb_check(mb_push_int(s, l, ret.value.integer));
 
 	running->calc_depth = calc_depth;
 
@@ -15659,7 +15670,7 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 	running = _init_lambda(s, routine);
 
 	/* Parameter list */
-	_mb_check_mark(mb_attempt_open_bracket(s, l), result, _error);
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _error);
 
 	while(mb_has_arg(s, l)) {
 #ifdef MB_ENABLE_CLASS
@@ -15679,7 +15690,7 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 			break;
 		}
 
-		_mb_check_mark(mb_get_var(s, l, &v), result, _error);
+		_mb_check_mark_exit(mb_get_var(s, l, &v), result, _error);
 
 		if(!v || ((_object_t*)v)->type != _DT_VAR) {
 			_handle_error_on_obj(s, SE_RN_INVALID_LAMBDA, s->source_file, DON2(l), MB_FUNC_ERR, _error, result);
@@ -15705,7 +15716,7 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 		*l = ast;
 	}
 
-	_mb_check_mark(mb_attempt_close_bracket(s, l), result, _error);
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _error);
 
 	/* Lambda body */
 	ast = (_ls_node_t*)*l;
@@ -15714,7 +15725,7 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 		ast = ast->next;
 	*l = ast;
 
-	_mb_check_mark(mb_attempt_open_bracket(s, l), result, _error);
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _error);
 
 	ast = (_ls_node_t*)*l;
 	routine->func.lambda.entry = ast;
@@ -15737,7 +15748,7 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 	*l = ast;
 	routine->func.lambda.end = ast;
 
-	_mb_check_mark(mb_attempt_close_bracket(s, l), result, _error);
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _error);
 
 	_pop_scope(s, false);
 	popped = true;
@@ -15746,7 +15757,7 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 	ret.type = MB_DT_ROUTINE;
 	ret.value.routine = routine;
 
-	_mb_check_mark(mb_push_value(s, l, ret), result, _error);
+	_mb_check_mark_exit(mb_push_value(s, l, ret), result, _error);
 
 	/* Error processing */
 	while(0) {
@@ -15880,11 +15891,11 @@ static int _std_abs(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	switch(arg.type) {
 	case MB_DT_INT:
@@ -15901,9 +15912,9 @@ static int _std_abs(mb_interpreter_t* s, void** l) {
 		break;
 	}
 
+_exit:
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
@@ -15916,11 +15927,11 @@ static int _std_sgn(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	switch(arg.type) {
 	case MB_DT_INT:
@@ -15937,9 +15948,11 @@ static int _std_sgn(mb_interpreter_t* s, void** l) {
 
 		break;
 	}
-	mb_check(mb_push_int(s, l, arg.value.integer));
+	_mb_check_mark_exit(mb_push_int(s, l, arg.value.integer), result, _exit);
 
 _exit:
+	_assign_public_value(&arg, 0);
+
 	return result;
 }
 
@@ -15952,17 +15965,17 @@ static int _std_sqr(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_math_calculate_fun_real(s, l, arg, sqrt, _exit, result);
 
+_exit:
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
@@ -15975,11 +15988,11 @@ static int _std_floor(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	switch(arg.type) {
 	case MB_DT_INT: /* Do nothing */
@@ -15994,9 +16007,11 @@ static int _std_floor(mb_interpreter_t* s, void** l) {
 
 		break;
 	}
-	mb_check(mb_push_int(s, l, arg.value.integer));
+	_mb_check_mark_exit(mb_push_int(s, l, arg.value.integer), result, _exit);
 
 _exit:
+	_assign_public_value(&arg, 0);
+
 	return result;
 }
 
@@ -16009,11 +16024,11 @@ static int _std_ceil(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	switch(arg.type) {
 	case MB_DT_INT: /* Do nothing */
@@ -16028,9 +16043,11 @@ static int _std_ceil(mb_interpreter_t* s, void** l) {
 
 		break;
 	}
-	mb_check(mb_push_int(s, l, arg.value.integer));
+	_mb_check_mark_exit(mb_push_int(s, l, arg.value.integer), result, _exit);
 
 _exit:
+	_assign_public_value(&arg, 0);
+
 	return result;
 }
 
@@ -16043,11 +16060,11 @@ static int _std_fix(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	switch(arg.type) {
 	case MB_DT_INT: /* Do nothing */
@@ -16062,9 +16079,11 @@ static int _std_fix(mb_interpreter_t* s, void** l) {
 
 		break;
 	}
-	mb_check(mb_push_int(s, l, arg.value.integer));
+	_mb_check_mark_exit(mb_push_int(s, l, arg.value.integer), result, _exit);
 
 _exit:
+	_assign_public_value(&arg, 0);
+
 	return result;
 }
 
@@ -16077,11 +16096,11 @@ static int _std_round(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	switch(arg.type) {
 	case MB_DT_INT: /* Do nothing */
@@ -16096,9 +16115,11 @@ static int _std_round(mb_interpreter_t* s, void** l) {
 
 		break;
 	}
-	mb_check(mb_push_int(s, l, arg.value.integer));
+	_mb_check_mark_exit(mb_push_int(s, l, arg.value.integer), result, _exit);
 
 _exit:
+	_assign_public_value(&arg, 0);
+
 	return result;
 }
 
@@ -16176,17 +16197,17 @@ static int _std_sin(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_math_calculate_fun_real(s, l, arg, sin, _exit, result);
 
+_exit:
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
@@ -16199,17 +16220,17 @@ static int _std_cos(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_math_calculate_fun_real(s, l, arg, cos, _exit, result);
 
+_exit:
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
@@ -16222,17 +16243,17 @@ static int _std_tan(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_math_calculate_fun_real(s, l, arg, tan, _exit, result);
 
+_exit:
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
@@ -16245,17 +16266,17 @@ static int _std_asin(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_math_calculate_fun_real(s, l, arg, asin, _exit, result);
 
+_exit:
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
@@ -16268,17 +16289,17 @@ static int _std_acos(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_math_calculate_fun_real(s, l, arg, acos, _exit, result);
 
+_exit:
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
@@ -16291,17 +16312,17 @@ static int _std_atan(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_math_calculate_fun_real(s, l, arg, atan, _exit, result);
 
+_exit:
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
@@ -16314,17 +16335,17 @@ static int _std_exp(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_math_calculate_fun_real(s, l, arg, exp, _exit, result);
 
+_exit:
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
@@ -16337,17 +16358,17 @@ static int _std_log(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_math_calculate_fun_real(s, l, arg, log, _exit, result);
 
+_exit:
 	mb_check(mb_push_value(s, l, arg));
 
-_exit:
 	return result;
 }
 
@@ -16552,11 +16573,11 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 
 	_INIT_BUF(buf);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	switch(arg.type) {
 	case MB_DT_INT:
@@ -16608,6 +16629,8 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 	mb_check(mb_push_string(s, l, _HEAP_CHAR_BUF(buf)));
 
 _exit:
+	_assign_public_value(&arg, 0);
+
 	return result;
 }
 
@@ -16665,6 +16688,7 @@ static int _std_val(mb_interpreter_t* s, void** l) {
 			break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 		default:
+			_assign_public_value(&arg, 0);
 			_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 
 			break;
@@ -16698,46 +16722,46 @@ static int _std_len(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
 	ast = (_ls_node_t*)*l;
 	if(ast) obj = (_object_t*)ast->data;
 	if(obj && _IS_FUNC(obj, _core_args)) {
 		ast = ast->next;
 		*l = ast;
-		mb_check(mb_push_int(s, l, s->var_args ? (int_t)_ls_count(s->var_args) : 0));
+		_mb_check_mark_exit(mb_push_int(s, l, s->var_args ? (int_t)_ls_count(s->var_args) : 0), result, _exit);
 
-		mb_check(mb_attempt_close_bracket(s, l));
+		_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 		goto _exit;
 	}
-	mb_check(mb_pop_value(s, l, &arg));
+	_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 	os = _try_overridden(s, l, &arg, _STD_ID_LEN, MB_MF_FUNC);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		switch(arg.type) {
 		case MB_DT_STRING:
 #ifdef MB_ENABLE_UNICODE
-			mb_check(mb_push_int(s, l, (int_t)mb_uu_strlen(arg.value.string)));
+			_mb_check_mark_exit(mb_push_int(s, l, (int_t)mb_uu_strlen(arg.value.string)), result, _exit);
 #else /* MB_ENABLE_UNICODE */
-			mb_check(mb_push_int(s, l, (int_t)strlen(arg.value.string)));
+			_mb_check_mark_exit(mb_push_int(s, l, (int_t)strlen(arg.value.string)), result, _exit);
 #endif /* MB_ENABLE_UNICODE */
 
 			break;
 		case MB_DT_ARRAY:
 			arr = (_array_t*)arg.value.array;
-			mb_check(mb_push_int(s, l, (int_t)arr->count));
+			_mb_check_mark_exit(mb_push_int(s, l, (int_t)arr->count), result, _exit);
 
 			break;
 #ifdef MB_ENABLE_COLLECTION_LIB
 		case MB_DT_LIST:
 			lst = (_list_t*)arg.value.list;
-			mb_check(mb_push_int(s, l, (int_t)lst->count));
+			_mb_check_mark_exit(mb_push_int(s, l, (int_t)lst->count), result, _exit);
 			_assign_public_value(&arg, 0);
 
 			break;
 		case MB_DT_DICT:
 			dct = (_dict_t*)arg.value.dict;
-			mb_check(mb_push_int(s, l, (int_t)_ht_count(dct->dict)));
+			_mb_check_mark_exit(mb_push_int(s, l, (int_t)_ht_count(dct->dict)), result, _exit);
 			_assign_public_value(&arg, 0);
 
 			break;
@@ -16749,13 +16773,15 @@ static int _std_len(mb_interpreter_t* s, void** l) {
 		}
 	} else {
 		if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-			mb_check(mb_push_int(s, l, 0));
+			_mb_check_mark_exit(mb_push_int(s, l, 0), result, _exit);
 		}
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 _exit:
+	_assign_public_value(&arg, 0);
+
 	return result;
 }
 
@@ -16782,9 +16808,9 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 	mb_make_nil(arg);
 	mb_make_nil(ret);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &ov));
+	_mb_check_mark_exit(mb_pop_value(s, l, &ov), result, _exit);
 	os = _try_overridden(s, l, &ov, _STD_ID_GET, MB_MF_FUNC);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		_MAKE_NIL(&obj);
@@ -16792,7 +16818,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 		case MB_DT_LIST:
 			_public_value_to_internal_object(&ov, &obj);
-			mb_check(mb_pop_int(s, l, &index));
+			_mb_check_mark_exit(mb_pop_int(s, l, &index), result, _exit);
 			if(!_at_list(obj.data.list, index, &ret)) {
 				_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
@@ -16800,7 +16826,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 			break;
 		case MB_DT_DICT:
 			_public_value_to_internal_object(&ov, &obj);
-			mb_check(mb_pop_value(s, l, &arg));
+			_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 			if(!_find_dict(obj.data.dict, &arg, &ret)) {
 				_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
@@ -16830,7 +16856,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 #ifdef MB_ENABLE_CLASS
 		case MB_DT_CLASS:
 			_public_value_to_internal_object(&ov, &obj);
-			mb_check(mb_pop_string(s, l, &field));
+			_mb_check_mark_exit(mb_pop_string(s, l, &field), result, _exit);
 			field = mb_strupr(field);
 			fnode = _search_identifier_in_class(s, obj.data.instance, field, 0, 0);
 			if(fnode && fnode->data) {
@@ -16847,10 +16873,10 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 		}
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-		mb_check(mb_push_value(s, l, ret));
+		_mb_check_mark_exit(mb_push_value(s, l, ret), result, _exit);
 	}
 
 _exit:
@@ -16884,9 +16910,9 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 	mb_make_nil(key);
 	mb_make_nil(val);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &ov));
+	_mb_check_mark_exit(mb_pop_value(s, l, &ov), result, _exit);
 	os = _try_overridden(s, l, &ov, _STD_ID_SET, MB_MF_FUNC);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		_MAKE_NIL(&obj);
@@ -16896,8 +16922,8 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 			_public_value_to_internal_object(&ov, &obj);
 			while(mb_has_arg(s, l)) {
 				mb_make_nil(val);
-				mb_check(mb_pop_int(s, l, &idx));
-				mb_check(mb_pop_value(s, l, &val));
+				_mb_check_mark_exit(mb_pop_int(s, l, &idx), result, _exit);
+				_mb_check_mark_exit(mb_pop_value(s, l, &val), result, _exit);
 				if(!_set_list(obj.data.list, idx, &val, &oval)) {
 					_destroy_object(oval, 0);
 
@@ -16911,8 +16937,8 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 			while(mb_has_arg(s, l)) {
 				mb_make_nil(key);
 				mb_make_nil(val);
-				mb_check(mb_pop_value(s, l, &key));
-				mb_check(mb_pop_value(s, l, &val));
+				_mb_check_mark_exit(mb_pop_value(s, l, &key), result, _exit);
+				_mb_check_mark_exit(mb_pop_value(s, l, &val), result, _exit);
 				_set_dict(obj.data.dict, &key, &val, 0, 0);
 			}
 
@@ -16923,8 +16949,8 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 			mb_make_nil(nv);
 
 			_public_value_to_internal_object(&ov, &obj);
-			mb_check(mb_pop_string(s, l, &field));
-			mb_check(mb_pop_value(s, l, &nv));
+			_mb_check_mark_exit(mb_pop_string(s, l, &field), result, _exit);
+			_mb_check_mark_exit(mb_pop_value(s, l, &nv), result, _exit);
 			field = mb_strupr(field);
 			fnode = _search_identifier_in_class(s, obj.data.instance, field, 0, 0);
 			if(fnode && _IS_VAR(fnode->data)) {
@@ -16946,10 +16972,10 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 		}
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-		mb_check(mb_push_value(s, l, ov));
+		_mb_check_mark_exit(mb_push_value(s, l, ov), result, _exit);
 	}
 
 _exit:
@@ -17235,7 +17261,7 @@ static int _coll_list(mb_interpreter_t* s, void** l) {
 		_ls_node_t* ast = 0;
 		_object_t* obj = 0;
 		mb_make_nil(arg);
-		_mb_check_mark(mb_pop_value(s, l, &arg), result, _error);
+		_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _error);
 		ast = (_ls_node_t*)*l;
 		if(ast) obj = (_object_t*)ast->data;
 		if(arg.type == MB_DT_INT && obj && _IS_FUNC(obj, _core_to)) {
@@ -17244,7 +17270,7 @@ static int _coll_list(mb_interpreter_t* s, void** l) {
 			int_t end = 0;
 			int_t step = 0;
 			ast = ast->next;
-			_mb_check_mark(mb_pop_int(s, (void**)&ast, &end), result, _error);
+			_mb_check_mark_exit(mb_pop_int(s, (void**)&ast, &end), result, _error);
 			step = sgn(end - begin);
 			coll->range_begin = (int_t*)mb_malloc(sizeof(int_t));
 			*coll->range_begin = begin;
@@ -17256,17 +17282,17 @@ static int _coll_list(mb_interpreter_t* s, void** l) {
 			_push_list(coll, &arg, 0);
 			while(mb_has_arg(s, l)) {
 				mb_make_nil(arg);
-				_mb_check_mark(mb_pop_value(s, l, &arg), result, _error);
+				_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _error);
 				_push_list(coll, &arg, 0);
 			}
 		}
 	}
 
-	_mb_check_mark(mb_attempt_close_bracket(s, l), result, _error);
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _error);
 
 	arg.type = MB_DT_LIST;
 	arg.value.list = coll;
-	_mb_check_mark(mb_push_value(s, l, arg), result, _error);
+	_mb_check_mark_exit(mb_push_value(s, l, arg), result, _error);
 
 	while(0) {
 _error:
@@ -17294,16 +17320,16 @@ static int _coll_dict(mb_interpreter_t* s, void** l) {
 	while(mb_has_arg(s, l)) {
 		mb_make_nil(arg);
 		mb_make_nil(val);
-		_mb_check_mark(mb_pop_value(s, l, &arg), result, _error);
-		_mb_check_mark(mb_pop_value(s, l, &val), result, _error);
+		_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _error);
+		_mb_check_mark_exit(mb_pop_value(s, l, &val), result, _error);
 		_set_dict(coll, &arg, &val, 0, 0);
 	}
 
-	_mb_check_mark(mb_attempt_close_bracket(s, l), result, _error);
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _error);
 
 	arg.type = MB_DT_DICT;
 	arg.value.dict = coll;
-	_mb_check_mark(mb_push_value(s, l, arg), result, _error);
+	_mb_check_mark_exit(mb_push_value(s, l, arg), result, _error);
 
 	while(0) {
 _error:
@@ -17378,6 +17404,7 @@ static int _coll_pop(mb_interpreter_t* s, void** l) {
 	os = _try_overridden(s, l, &coll, _COLL_ID_POP, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
+			_assign_public_value(&coll, 0);
 			_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
@@ -17430,6 +17457,7 @@ static int _coll_back(mb_interpreter_t* s, void** l) {
 	os = _try_overridden(s, l, &coll, _COLL_ID_BACK, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
+			_assign_public_value(&coll, 0);
 			_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
@@ -17477,13 +17505,13 @@ static int _coll_insert(mb_interpreter_t* s, void** l) {
 	mb_make_nil(coll);
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &coll));
+	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
 	os = _try_overridden(s, l, &coll, _COLL_ID_INSERT, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
-		mb_check(mb_pop_int(s, l, &idx));
-		mb_check(mb_pop_value(s, l, &arg));
+		_mb_check_mark_exit(mb_pop_int(s, l, &idx), result, _exit);
+		_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
 		if(coll.type != MB_DT_LIST) {
 			_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -17497,14 +17525,14 @@ static int _coll_insert(mb_interpreter_t* s, void** l) {
 			_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
-		mb_check(mb_push_value(s, l, coll));
+		_mb_check_mark_exit(mb_push_value(s, l, coll), result, _exit);
 	} else {
 		if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-			mb_check(mb_push_value(s, l, coll));
+			_mb_check_mark_exit(mb_push_value(s, l, coll), result, _exit);
 		}
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 _exit:
 	_assign_public_value(&coll, 0);
@@ -17523,9 +17551,9 @@ static int _coll_sort(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(coll);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &coll));
+	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
 	os = _try_overridden(s, l, &coll, _COLL_ID_SORT, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
@@ -17537,10 +17565,10 @@ static int _coll_sort(mb_interpreter_t* s, void** l) {
 		_sort_list(olst.data.list);
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-		mb_check(mb_push_value(s, l, coll));
+		_mb_check_mark_exit(mb_push_value(s, l, coll), result, _exit);
 	}
 
 _exit:
@@ -17564,12 +17592,12 @@ static int _coll_exist(mb_interpreter_t* s, void** l){
 	mb_make_nil(arg);
 	mb_make_nil(ret);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &coll));
+	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
 	os = _try_overridden(s, l, &coll, _COLL_ID_EXIST, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
-		mb_check(mb_pop_value(s, l, &arg));
+		_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 
 		_MAKE_NIL(&ocoll);
 		switch(coll.type) {
@@ -17588,14 +17616,14 @@ static int _coll_exist(mb_interpreter_t* s, void** l){
 
 			break;
 		}
-		mb_check(mb_push_value(s, l, ret));
+		_mb_check_mark_exit(mb_push_value(s, l, ret), result, _exit);
 	} else {
 		if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-			mb_check(mb_push_value(s, l, coll));
+			_mb_check_mark_exit(mb_push_value(s, l, coll), result, _exit);
 		}
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 _exit:
 	_assign_public_value(&coll, 0);
@@ -17619,13 +17647,13 @@ static int _coll_index_of(mb_interpreter_t* s, void** l) {
 	mb_make_nil(val);
 	mb_make_nil(ret);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &coll));
+	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
 	os = _try_overridden(s, l, &coll, _COLL_ID_INDEX_OF, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		ret.type = MB_DT_UNKNOWN;
-		mb_check(mb_pop_value(s, l, &val));
+		_mb_check_mark_exit(mb_pop_value(s, l, &val), result, _exit);
 		_MAKE_NIL(&ocoll);
 		switch(coll.type) {
 		case MB_DT_LIST:
@@ -17642,10 +17670,10 @@ static int _coll_index_of(mb_interpreter_t* s, void** l) {
 		}
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-		mb_check(mb_push_value(s, l, ret));
+		_mb_check_mark_exit(mb_push_value(s, l, ret), result, _exit);
 	}
 
 _exit:
@@ -17668,9 +17696,9 @@ static int _coll_remove(mb_interpreter_t* s, void** l) {
 	mb_make_nil(coll);
 	mb_make_nil(key);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &coll));
+	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
 	os = _try_overridden(s, l, &coll, _COLL_ID_REMOVE, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		_MAKE_NIL(&ocoll);
@@ -17678,7 +17706,7 @@ static int _coll_remove(mb_interpreter_t* s, void** l) {
 		case MB_DT_LIST:
 			_public_value_to_internal_object(&coll, &ocoll);
 			while(mb_has_arg(s, l)) {
-				mb_check(mb_pop_int(s, l, &idx));
+				_mb_check_mark_exit(mb_pop_int(s, l, &idx), result, _exit);
 
 				if(!_remove_at_list(ocoll.data.list, idx)) {
 					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -17689,7 +17717,7 @@ static int _coll_remove(mb_interpreter_t* s, void** l) {
 		case MB_DT_DICT:
 			_public_value_to_internal_object(&coll, &ocoll);
 			while(mb_has_arg(s, l)) {
-				mb_check(mb_pop_value(s, l, &key));
+				_mb_check_mark_exit(mb_pop_value(s, l, &key), result, _exit);
 
 				if(!_remove_dict(ocoll.data.dict, &key)) {
 					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -17704,10 +17732,10 @@ static int _coll_remove(mb_interpreter_t* s, void** l) {
 		}
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-		mb_check(mb_push_value(s, l, coll));
+		_mb_check_mark_exit(mb_push_value(s, l, coll), result, _exit);
 	}
 
 _exit:
@@ -17727,9 +17755,9 @@ static int _coll_clear(mb_interpreter_t* s, void** l) {
 
 	mb_make_nil(coll);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &coll));
+	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
 	os = _try_overridden(s, l, &coll, _COLL_ID_CLEAR, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		_MAKE_NIL(&ocoll);
@@ -17751,10 +17779,10 @@ static int _coll_clear(mb_interpreter_t* s, void** l) {
 		}
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-		mb_check(mb_push_value(s, l, coll));
+		_mb_check_mark_exit(mb_push_value(s, l, coll), result, _exit);
 	}
 
 _exit:
@@ -17776,11 +17804,11 @@ static int _coll_clone(mb_interpreter_t* s, void** l) {
 	mb_make_nil(coll);
 	mb_make_nil(ret);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &coll));
+	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_MAKE_NIL(&ocoll);
 	_MAKE_NIL(&otgt);
@@ -17805,7 +17833,7 @@ static int _coll_clone(mb_interpreter_t* s, void** l) {
 		break;
 	}
 
-	mb_check(mb_push_value(s, l, ret));
+	_mb_check_mark_exit(mb_push_value(s, l, ret), result, _exit);
 
 _exit:
 	_assign_public_value(&coll, 0);
@@ -17827,11 +17855,11 @@ static int _coll_to_array(mb_interpreter_t* s, void** l) {
 	mb_make_nil(coll);
 	mb_make_nil(ret);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &coll));
+	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_MAKE_NIL(&ocoll);
 	switch(coll.type) {
@@ -17856,7 +17884,7 @@ static int _coll_to_array(mb_interpreter_t* s, void** l) {
 		break;
 	}
 
-	mb_check(mb_push_value(s, l, ret));
+	_mb_check_mark_exit(mb_push_value(s, l, ret), result, _exit);
 
 _exit:
 	_assign_public_value(&coll, 0);
@@ -17878,11 +17906,11 @@ static int _coll_iterator(mb_interpreter_t* s, void** l) {
 	mb_make_nil(coll);
 	mb_make_nil(ret);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &coll));
+	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	_MAKE_NIL(&ocoll);
 	switch(coll.type) {
@@ -17906,7 +17934,7 @@ static int _coll_iterator(mb_interpreter_t* s, void** l) {
 		break;
 	}
 
-	mb_check(mb_push_value(s, l, ret));
+	_mb_check_mark_exit(mb_push_value(s, l, ret), result, _exit);
 
 _exit:
 	_assign_public_value(&coll, 0);
@@ -17927,9 +17955,9 @@ static int _coll_move_next(mb_interpreter_t* s, void** l) {
 	mb_make_nil(it);
 	mb_make_nil(ret);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &it));
+	_mb_check_mark_exit(mb_pop_value(s, l, &it), result, _exit);
 	os = _try_overridden(s, l, &it, _COLL_ID_MOVE_NEXT, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		_MAKE_NIL(&oit);
@@ -17959,16 +17987,17 @@ static int _coll_move_next(mb_interpreter_t* s, void** l) {
 
 			break;
 		default:
+			_assign_public_value(&it, 0);
 			_handle_error_on_obj(s, SE_RN_ITERATOR_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 
 			break;
 		}
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-		mb_check(mb_push_value(s, l, ret));
+		_mb_check_mark_exit(mb_push_value(s, l, ret), result, _exit);
 	}
 
 _exit:
