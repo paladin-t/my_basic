@@ -1,3 +1,6 @@
+May. 20 2017
+Improved stability by preventing assigning builtin boolean
+
 May. 18 2017
 Fixed some memory potential leak when popped unexpected type of argument
 

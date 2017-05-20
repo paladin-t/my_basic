@@ -233,7 +233,6 @@ typedef struct _ht_node_t {
 MBCONST static const char* const _ERR_DESC[] = {
 	"No error",
 	/** Common */
-	"Open MY-BASIC failed",
 	"A function with the same name already exists",
 	"A function with the name does not exists",
 	"Not supported",
@@ -245,36 +244,40 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Empty program",
 	"Program too long",
 	"Syntax error",
+	"Out of memory",
 	"Invalid data type",
 	"Type does not match",
 	"Number overflow",
 	"Invalid string",
+	"Number expected",
+	"Integer expected",
+	"String expected",
 	"Index out of bound",
 	"Cannot find with given index",
 	"Illegal bound",
 	"Too many dimensions",
-	"Operation failed",
-	"Invalid operation usage",
 	"Dimension count out of bound",
 	"Rank out of bound",
 	"Complex array required",
+	"Array identifier expected",
+	"Array subscript expected",
+	"Variable expected",
+	"Variable or array expected",
+	"Invalid identifier usage",
+	"Duplicate identifier",
 	"Label does not exist",
 	"No return point",
 	"Colon expected",
 	"Comma expected",
 	"Comma or semicolon expected",
-	"Array identifier expected",
 	"Open bracket expected",
 	"Close bracket expected",
-	"Array subscript expected",
 	"Nested too deep",
 	"Incomplete structure",
-	"Function expected",
-	"Variable or array identifier expected",
+	"Operation failed",
+	"Operator expected",
+	"Invalid operation usage",
 	"Assign operator expected",
-	"String expected",
-	"Number expected",
-	"Integer expected",
 	"ELSE statement expected",
 	"ENDIF statement expected",
 	"TO statement expected",
@@ -282,15 +285,10 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"UNTIL statement expected",
 	"Loop variable expected",
 	"Jump label expected",
-	"Variable expected",
-	"Invalid identifier usage",
-	"Duplicate identifier",
-	"Operator expected",
 	"Calculation error",
+	"Invalid expression",
 	"Divide by zero",
 	"MOD by zero",
-	"Invalid expression",
-	"Out of memory",
 	"Module not match",
 	"Wrong function reached",
 	"Do not suspend in a routine",
@@ -308,13 +306,12 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"HASH and COMPARE must come together",
 	"Cannot change ME",
 	"Invalid lambda",
+	"Empty collection",
 	"List expected",
 	"Collection expected",
-	"Iterator expected",
-	"Collection or iterator expected",
 	"Collection or iterator or class expected",
+	"Iterator expected",
 	"Invalid iterator",
-	"Empty collection",
 	"Referenced usertype expected",
 	"Referenced type expected",
 	"Reference count overflow",
@@ -12399,7 +12396,7 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 	} else if(t == MB_DT_STRING) {
 		type = _DT_STRING;
 	} else {
-		_handle_error_on_obj(s, SE_RN_NEED_COMPLEX_ARRAY, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_COMPLEX_ARRAY_REQUIRED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 #else /* MB_SIMPLE_ARRAY */
 	type = _DT_REAL;
@@ -14341,6 +14338,9 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 			evar = obj->data.variable;
 			var = _search_var_in_scope_chain(s, obj->data.variable);
 			if(var == evar) evar = 0;
+			if(var == _OBJ_BOOL_TRUE->data.variable || var == _OBJ_BOOL_FALSE->data.variable) {
+				_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			}
 		}
 	} else {
 		_handle_error_on_obj(s, SE_RN_VAR_OR_ARRAY_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -16960,7 +16960,7 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 				_create_internal_object_from_public_value(&nv, &nobj);
 				fobj->data.variable->data = nobj;
 			} else {
-				_handle_error_on_obj(s, SE_RN_VARIABLE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+				_handle_error_on_obj(s, SE_RN_VAR_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
 
 			break;
@@ -17188,7 +17188,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		obj = (_object_t*)ast->data;
 	}
 	if(obj->type != _DT_VAR) {
-		_handle_error_on_obj(s, SE_RN_VARIABLE_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_VAR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	if(obj->data.variable->data->type == _DT_INT || obj->data.variable->data->type == _DT_REAL) {
 		_get_inputer(s)(line, sizeof(line));
