@@ -17354,9 +17354,9 @@ static int _coll_push(mb_interpreter_t* s, void** l) {
 	mb_make_nil(coll);
 	mb_make_nil(arg);
 
-	mb_check(mb_attempt_open_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
-	mb_check(mb_pop_value(s, l, &coll));
+	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
 	os = _try_overridden(s, l, &coll, _COLL_ID_PUSH, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
@@ -17367,15 +17367,15 @@ static int _coll_push(mb_interpreter_t* s, void** l) {
 
 		while(mb_has_arg(s, l)) {
 			mb_make_nil(arg);
-			mb_check(mb_pop_value(s, l, &arg));
+			_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 			_push_list(olst.data.list, &arg, 0);
 		}
 	}
 
-	mb_check(mb_attempt_close_bracket(s, l));
+	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
-		mb_check(mb_push_value(s, l, coll));
+		_mb_check_mark_exit(mb_push_value(s, l, coll), result, _exit);
 	}
 
 _exit:
