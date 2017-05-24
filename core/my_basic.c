@@ -6538,10 +6538,18 @@ static void _gc_try_trigger(mb_interpreter_t* s) {
 
 /* Collect all garbage */
 static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
+#ifdef MB_ENABLE_FORK
+	mb_interpreter_t* src = 0;
+#endif /* MB_ENABLE_FORK */
 	_ht_node_t* valid = 0;
 	_gc_t* gc = 0;
 
 	mb_assert(s);
+
+#ifdef MB_ENABLE_FORK
+	while(mb_get_forked_from(s, &src) == MB_FUNC_OK)
+		s = src;
+#endif /* MB_ENABLE_FORK */
 
 	gc = &s->gc;
 

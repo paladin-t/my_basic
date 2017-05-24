@@ -1,3 +1,6 @@
+May. 24 2017
+Fixed a memory leak when applying GC on a forked environment
+
 May. 20 2017
 Improved stability by preventing assigning builtin boolean
 
@@ -5,7 +8,7 @@ May. 18 2017
 Fixed some memory potential leak when popped unexpected type of argument
 
 May. 17 2017
-Fixed a forked structure disposing issue if error occurs
+Fixed a forked environment disposing issue if error occurs
 
 May. 15 2017
 Added mb_get_gc_enabled and mb_set_gc_enabled functions
