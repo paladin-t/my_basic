@@ -336,6 +336,10 @@ extern "C" {
 #	define mb_int_val(__v, __d) do { if((__v).type == MB_DT_INT) (__d) = (__v).value.integer; else if((__v).type == MB_DT_REAL) (__d) = (int_t)((__v).value.float_point); else (__d) = ~((int_t)0); } while(0)
 #endif /* mb_int_val */
 
+#ifndef mb_bytes_size
+#	define mb_bytes_size (mb_max(mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), sizeof(int_t)), sizeof(real_t)))
+#endif /* mb_bytes_size */
+
 #ifndef MB_CODES
 #	define MB_CODES
 #	define MB_FUNC_OK 0
@@ -520,7 +524,7 @@ typedef enum mb_meta_status_u {
 	MB_MS_RETURNED = 1 << 1
 } mb_meta_status_u;
 
-typedef unsigned char mb_val_bytes_t[mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), mb_max(sizeof(int_t), sizeof(real_t)))];
+typedef unsigned char mb_val_bytes_t[mb_bytes_size];
 
 typedef union mb_value_u {
 	int_t integer;
