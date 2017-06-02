@@ -502,6 +502,12 @@ typedef struct _dict_it_t {
 	unsigned curr_bucket;
 	_ls_node_t* curr_node;
 } _dict_it_t;
+
+typedef struct _keys_helper_t {
+	mb_value_t* keys;
+	int size;
+	int index;
+} _keys_helper_t;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 typedef struct _label_t {
@@ -1742,6 +1748,7 @@ static bool_t _assign_with_it(_object_t* tgt, _object_t* src);
 static int _clone_to_list(void* data, void* extra, _list_t* coll);
 static int _clone_to_dict(void* data, void* extra, _dict_t* coll);
 static int _copy_list_to_array(void* data, void* extra, _array_helper_t* h);
+static int _copy_keys_to_value_array(void* data, void* extra, _keys_helper_t* h);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 #ifdef MB_ENABLE_CLASS
@@ -7724,6 +7731,25 @@ static int _copy_list_to_array(void* data, void* extra, _array_helper_t* h) {
 
 	return 1;
 }
+
+/* Copy all keys of a dictionary to a value array */
+static int _copy_keys_to_value_array(void* data, void* extra, _keys_helper_t* h) {
+	_object_t* obj = 0;
+	mb_value_t val;
+	mb_unrefvar(data);
+
+	mb_assert(extra && h);
+
+	if(h->index >= h->size)
+		return 1;
+
+	obj = (_object_t*)extra;
+	mb_make_nil(val);
+	_internal_object_to_public_value(obj, &val);
+	h->keys[h->index++] = val;
+
+	return 1;
+}
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 #ifdef MB_ENABLE_CLASS
@@ -9875,7 +9901,7 @@ static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t*
 	_public_value_to_internal_object(pbl, *itn);
 	if((*itn)->type == _DT_STRING) {
 		(*itn)->is_ref = false;
-		(*itn)->data.string = mb_strdup((*itn)->data.string, 0);
+		(*itn)->data.string = mb_strdup((*itn)->data.string, strlen((*itn)->data.string) + 1);
 	}
 
 	return result;
@@ -12750,6 +12776,58 @@ int mb_count_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, int* c)
 _exit:
 	if(c) *c = ret;
 
+	return result;
+}
+
+/* Get all keys of a collection */
+int mb_keys_of_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_t* keys, int c) {
+	int result = MB_FUNC_OK;
+	_object_t ocoll;
+#ifdef MB_ENABLE_COLLECTION_LIB
+	_list_t* lst = 0;
+	_dict_t* dct = 0;
+	int i = 0;
+	_keys_helper_t helper;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
+	_MAKE_NIL(&ocoll);
+#ifdef MB_ENABLE_COLLECTION_LIB
+	switch(coll.type) {
+	case MB_DT_LIST:
+		lst = (_list_t*)coll.value.list;
+		for(i = 0; i < c && i < (int)lst->count; ++i) {
+			mb_make_int(keys[i], i);
+		}
+
+		break;
+	case MB_DT_DICT:
+		dct = (_dict_t*)coll.value.dict;
+		helper.keys = keys;
+		helper.size = c;
+		helper.index = 0;
+		_HT_FOREACH(dct->dict, _do_nothing_on_object, _copy_keys_to_value_array, &helper);
+
+		break;
+	default:
+		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+
+		break;
+	}
+#else /* MB_ENABLE_COLLECTION_LIB */
+	mb_unrefvar(coll);
+	mb_unrefvar(keys);
+	mb_unrefvar(c);
+
+	_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
+_exit:
 	return result;
 }
 

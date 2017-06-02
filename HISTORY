@@ -1,3 +1,6 @@
+Jun. 2 2017
+Added an mb_keys_of_coll function
+
 May. 24 2017
 Fixed a memory leak when applying GC on a forked environment
 
