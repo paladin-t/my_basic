@@ -297,7 +297,7 @@ extern "C" {
 #endif /* mb_unrefvar */
 
 #ifndef mb_make_nil
-#	define mb_make_nil(__v) do { (__v).value.integer = 0; (__v).type = MB_DT_NIL; } while(0)
+#	define mb_make_nil(__v) do { memset(&(__v).value.bytes, 0, sizeof(mb_val_bytes_t)); (__v).type = MB_DT_NIL; } while(0)
 #endif /* mb_make_nil */
 #ifndef mb_make_type
 #	define mb_make_type(__v, __d) do { (__v).value.type = (__d); (__v).type = MB_DT_TYPE; } while(0)
@@ -315,7 +315,7 @@ extern "C" {
 #	define mb_make_string(__v, __d) do { (__v).value.string = (__d); (__v).type = MB_DT_STRING; } while(0)
 #endif /* mb_make_string */
 #ifndef mb_make_usertype
-#	define mb_make_usertype(__v, __d) do { (__v).value.usertype = (__d); (__v).type = MB_DT_USERTYPE; } while(0)
+#	define mb_make_usertype(__v, __d) do { memset(&(__v).value.bytes, 0, sizeof(mb_val_bytes_t)); (__v).value.usertype = (__d); (__v).type = MB_DT_USERTYPE; } while(0)
 #endif /* mb_make_usertype */
 #ifndef mb_make_usertype_bytes
 #	define mb_make_usertype_bytes(__v, __d) do { mb_static_assert(sizeof(mb_val_bytes_t) >= sizeof(*__d)); memcpy(&(__v).value.bytes, (__d), mb_min(sizeof(mb_val_bytes_t), sizeof(*__d))); (__v).type = MB_DT_USERTYPE; } while(0)

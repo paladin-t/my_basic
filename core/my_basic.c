@@ -9732,7 +9732,7 @@ static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 		break;
 	case MB_DT_USERTYPE:
 		itn->type = _DT_USERTYPE;
-		memcpy(itn->data.raw, pbl->value.bytes, sizeof(mb_val_bytes_t));
+		memcpy(itn->data.bytes, pbl->value.bytes, sizeof(mb_val_bytes_t));
 
 		break;
 #ifdef MB_ENABLE_USERTYPE_REF
@@ -9833,7 +9833,7 @@ static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 		break;
 	case _DT_USERTYPE:
 		pbl->type = MB_DT_USERTYPE;
-		memcpy(pbl->value.bytes, itn->data.raw, sizeof(mb_val_bytes_t));
+		memcpy(pbl->value.bytes, itn->data.bytes, sizeof(mb_val_bytes_t));
 
 		break;
 #ifdef MB_ENABLE_USERTYPE_REF
@@ -9914,10 +9914,78 @@ static int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t*
 
 	mb_make_nil(tmp);
 	_internal_object_to_public_value(itn, &tmp);
-	if(pbl->type != tmp.type)
+	if(pbl->type != tmp.type) {
 		result = pbl->type - tmp.type;
-	else
-		result = mb_memcmp(pbl->value.bytes, tmp.value.bytes, sizeof(mb_val_bytes_t));
+	} else {
+		switch(pbl->type) {
+		case MB_DT_NIL:
+			result = 0;
+
+			break;
+		case MB_DT_INT:
+			result = mb_memcmp(&pbl->value.integer, &tmp.value.integer, sizeof(int_t));
+
+			break;
+		case MB_DT_REAL:
+			result = mb_memcmp(&pbl->value.float_point, &tmp.value.float_point, sizeof(real_t));
+
+			break;
+		case MB_DT_STRING:
+			result = mb_memcmp(&pbl->value.string, &tmp.value.string, sizeof(char*));
+
+			break;
+		case MB_DT_TYPE:
+			result = mb_memcmp(&pbl->value.type, &tmp.value.type, sizeof(mb_data_e));
+
+			break;
+		case MB_DT_USERTYPE:
+			result = mb_memcmp(&pbl->value.bytes, &tmp.value.bytes, sizeof(mb_val_bytes_t));
+
+			break;
+#ifdef MB_ENABLE_USERTYPE_REF
+		case MB_DT_USERTYPE_REF:
+			result = mb_memcmp(&pbl->value.usertype_ref, &tmp.value.usertype_ref, sizeof(void*));
+
+			break;
+#endif /* MB_ENABLE_USERTYPE_REF */
+		case MB_DT_ARRAY:
+			result = mb_memcmp(&pbl->value.array, &tmp.value.array, sizeof(void*));
+
+			break;
+#ifdef MB_ENABLE_COLLECTION_LIB
+		case MB_DT_LIST:
+			result = mb_memcmp(&pbl->value.list, &tmp.value.list, sizeof(void*));
+
+			break;
+		case MB_DT_LIST_IT:
+			result = mb_memcmp(&pbl->value.list_it, &tmp.value.list_it, sizeof(void*));
+
+			break;
+		case MB_DT_DICT:
+			result = mb_memcmp(&pbl->value.dict, &tmp.value.dict, sizeof(void*));
+
+			break;
+		case MB_DT_DICT_IT:
+			result = mb_memcmp(&pbl->value.dict_it, &tmp.value.dict_it, sizeof(void*));
+
+			break;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+		case MB_DT_CLASS:
+			result = mb_memcmp(&pbl->value.instance, &tmp.value.instance, sizeof(void*));
+
+			break;
+#endif /* MB_ENABLE_CLASS */
+		case MB_DT_ROUTINE:
+			result = mb_memcmp(&pbl->value.routine, &tmp.value.routine, sizeof(void*));
+
+			break;
+		default:
+			result = mb_memcmp(pbl->value.bytes, tmp.value.bytes, sizeof(mb_val_bytes_t));
+
+			break;
+		}
+	}
 
 	return result;
 }
