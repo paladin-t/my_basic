@@ -540,14 +540,6 @@ typedef struct _class_t {
 } _class_t;
 #endif /* MB_ENABLE_CLASS */
 
-typedef enum _invokable_e {
-	_IT_SCRIPT = 1,
-#ifdef MB_ENABLE_LAMBDA
-	_IT_LAMBDA,
-#endif /* MB_ENABLE_LAMBDA */
-	_IT_NATIVE
-} _invokable_e;
-
 #ifdef MB_ENABLE_LAMBDA
 typedef struct _running_context_ref_t {
 	_ref_t ref;
@@ -599,7 +591,7 @@ typedef struct _routine_t {
 	_class_t* instance;
 #endif /* MB_ENABLE_CLASS */
 	bool_t is_cloned _PACK1;
-	_invokable_e type;
+	mb_routine_type_e type;
 } _routine_t;
 
 #ifdef MB_ENABLE_SOURCE_TRACE
@@ -1358,7 +1350,7 @@ static int _pop_routine_lex_arg(mb_interpreter_t* s, void** l, mb_value_t* va, u
 static int _has_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r);
 static int _pop_routine_fun_arg(mb_interpreter_t* s, void** l, mb_value_t* va, unsigned ca, unsigned* ia, void* r, mb_value_t* val);
 static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj);
-static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_t* d, const char* f, mb_meta_func_u t);
+static mb_meta_status_e _try_overridden(mb_interpreter_t* s, void** l, mb_value_t* d, const char* f, mb_meta_func_e t);
 
 /** Handlers */
 
@@ -1594,21 +1586,21 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 #ifdef MB_ENABLE_LAMBDA
 #	define _REF_ROUTINE(__o) \
 		case _DT_ROUTINE: \
-			if(!(__o)->is_ref && (__o)->data.routine->type == _IT_LAMBDA) \
+			if(!(__o)->is_ref && (__o)->data.routine->type == MB_RT_LAMBDA) \
 				_ref(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine); \
 			break;
 #	define _UNREF_ROUTINE(__o) \
 		case _DT_ROUTINE: \
-			if(!(__o)->is_ref && (__o)->data.routine->type == _IT_LAMBDA) \
+			if(!(__o)->is_ref && (__o)->data.routine->type == MB_RT_LAMBDA) \
 				_unref(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine); \
-			else if(!(__o)->is_ref && (__o)->data.routine->type != _IT_LAMBDA) \
+			else if(!(__o)->is_ref && (__o)->data.routine->type != MB_RT_LAMBDA) \
 				_destroy_routine(0, (__o)->data.routine); \
 			break;
 #	define _ADDGC_ROUTINE(__o, __g) \
 		case _DT_ROUTINE: \
-			if(!(__o)->is_ref && (__o)->data.routine->type == _IT_LAMBDA) \
+			if(!(__o)->is_ref && (__o)->data.routine->type == MB_RT_LAMBDA) \
 				_gc_add(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine, (__g)); \
-			else if(!(__o)->is_ref && (__o)->data.routine->type != _IT_LAMBDA) \
+			else if(!(__o)->is_ref && (__o)->data.routine->type != MB_RT_LAMBDA) \
 				_dispose_object(__o); \
 			break;
 #else /* MB_ENABLE_LAMBDA */
@@ -4145,7 +4137,7 @@ static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* r
 
 	parameters = r->func.basic.parameters;
 #ifdef MB_ENABLE_LAMBDA
-	if(r->type == _IT_LAMBDA)
+	if(r->type == MB_RT_LAMBDA)
 		parameters = r->func.lambda.parameters;
 #endif /* MB_ENABLE_LAMBDA */
 
@@ -4201,7 +4193,7 @@ static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* r
 				if(var_args) {
 					_object_t* obj = _create_object();
 					result = _public_value_to_internal_object(&arg, obj);
-					if(obj->type == _DT_ROUTINE && obj->data.routine->type == _IT_SCRIPT)
+					if(obj->type == _DT_ROUTINE && obj->data.routine->type == MB_RT_SCRIPT)
 						obj->is_ref = true;
 					_ls_pushback(var_args, obj);
 				}
@@ -4243,10 +4235,10 @@ static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	s->source_file = r->source_file;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
-	if(r->type == _IT_SCRIPT && r->func.basic.entry) {
+	if(r->type == MB_RT_SCRIPT && r->func.basic.entry) {
 		result = _eval_script_routine(s, l, va, ca, r, has_arg, pop_arg);
 #ifdef MB_ENABLE_LAMBDA
-	} else if(r->type == _IT_LAMBDA && r->func.lambda.entry) {
+	} else if(r->type == MB_RT_LAMBDA && r->func.lambda.entry) {
 #	ifdef MB_ENABLE_STACK_TRACE
 		_ls_node_t* top = _ls_back(s->stack_frames);
 		if(top) {
@@ -4256,7 +4248,7 @@ static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 #	endif /* MB_ENABLE_STACK_TRACE */
 		result = _eval_lambda_routine(s, l, va, ca, r, has_arg, pop_arg);
 #endif /* MB_ENABLE_LAMBDA */
-	} else if(r->type == _IT_NATIVE && r->func.native.entry) {
+	} else if(r->type == MB_RT_NATIVE && r->func.native.entry) {
 		result = _eval_native_routine(s, l, va, ca, r, has_arg, pop_arg);
 	} else {
 		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -4600,7 +4592,7 @@ static bool_t _is_print_terminal(mb_interpreter_t* s, _object_t* obj) {
 }
 
 /* Try to call overridden function */
-static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_t* d, const char* f, mb_meta_func_u t) {
+static mb_meta_status_e _try_overridden(mb_interpreter_t* s, void** l, mb_value_t* d, const char* f, mb_meta_func_e t) {
 	mb_assert(s && l && d && f);
 
 #ifdef MB_ENABLE_USERTYPE_REF
@@ -4632,7 +4624,7 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 				if(ast)
 					*l = ast->prev;
 
-				return (mb_meta_status_u)(MB_MS_DONE | MB_MS_RETURNED);
+				return (mb_meta_status_e)(MB_MS_DONE | MB_MS_RETURNED);
 			}
 		}
 	}
@@ -6254,7 +6246,7 @@ static int _gc_add_reachable(void* data, void* extra, void* h) {
 #endif /* MB_ENABLE_CLASS */
 #ifdef MB_ENABLE_LAMBDA
 	case _DT_ROUTINE:
-		if(obj->data.routine->type == _IT_LAMBDA) {
+		if(obj->data.routine->type == MB_RT_LAMBDA) {
 			if(!_ht_find(ht, &obj->data.routine->func.lambda.ref))
 				_ht_set_or_insert(ht, &obj->data.routine->func.lambda.ref, obj->data.routine);
 		}
@@ -6448,7 +6440,7 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 #ifdef MB_ENABLE_LAMBDA
 	case _DT_ROUTINE:
 		routine = (_routine_t*)data;
-		if(routine->type == _IT_LAMBDA) {
+		if(routine->type == MB_RT_LAMBDA) {
 			_HT_FOREACH(routine->func.lambda.scope->var_dict, _do_nothing_on_object, _gc_destroy_garbage_in_lambda, gc);
 			_ht_clear(routine->func.lambda.scope->var_dict);
 			if(routine->func.lambda.outer_scope && !_ht_find(gc->collected_table, &routine->func.lambda.outer_scope->ref))
@@ -8208,27 +8200,27 @@ static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_
 	routine->name = n;
 
 	if(n && f)
-		routine->type = _IT_NATIVE;
+		routine->type = MB_RT_NATIVE;
 	else if(n && !f)
-		routine->type = _IT_SCRIPT;
+		routine->type = MB_RT_SCRIPT;
 #ifdef MB_ENABLE_LAMBDA
 	else if(!n && !f)
-		routine->type = _IT_LAMBDA;
+		routine->type = MB_RT_LAMBDA;
 #endif /* MB_ENABLE_LAMBDA */
 
 	switch(routine->type) {
-	case _IT_SCRIPT:
+	case MB_RT_SCRIPT:
 		routine->func.basic.scope = _create_running_context(true);
 
 		break;
 #ifdef MB_ENABLE_LAMBDA
-	case _IT_LAMBDA:
+	case MB_RT_LAMBDA:
 		_create_ref(&routine->func.lambda.ref, _unref_routine, _DT_ROUTINE, s);
 		_ref(&routine->func.lambda.ref, routine);
 
 		break;
 #endif /* MB_ENABLE_LAMBDA */
-	case _IT_NATIVE:
+	case MB_RT_NATIVE:
 		routine->func.native.entry = f;
 
 		break;
@@ -8339,7 +8331,7 @@ static _routine_t* _clone_routine(_routine_t* sub, void* c, bool_t toupval) {
 	mb_assert(sub);
 
 #ifdef MB_ENABLE_LAMBDA
-	if(toupval || sub->type == _IT_LAMBDA)
+	if(toupval || sub->type == MB_RT_LAMBDA)
 		result = sub;
 #else /* MB_ENABLE_LAMBDA */
 	mb_unrefvar(toupval);
@@ -8372,7 +8364,7 @@ static _running_context_t* _init_lambda(mb_interpreter_t* s, _routine_t* routine
 	mb_assert(s && routine);
 
 	_init_routine(s, routine, 0, 0);
-	mb_assert(routine->type == _IT_LAMBDA);
+	mb_assert(routine->type == MB_RT_LAMBDA);
 	lambda = &routine->func.lambda;
 	lambda->scope = _create_running_context(true);
 	result = _push_scope_by_routine(s, lambda->scope);
@@ -8405,7 +8397,7 @@ static void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 		}
 #endif /* MB_ENABLE_SOURCE_TRACE */
 		switch(r->type) {
-		case _IT_SCRIPT:
+		case MB_RT_SCRIPT:
 			if(r->func.basic.scope) {
 				_destroy_scope(s, r->func.basic.scope);
 				r->func.basic.scope = 0;
@@ -8414,7 +8406,7 @@ static void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 				_ls_destroy(r->func.basic.parameters);
 
 			break;
-		case _IT_LAMBDA:
+		case MB_RT_LAMBDA:
 			_destroy_ref(&r->func.lambda.ref);
 			if(r->func.lambda.scope->var_dict) {
 				_ht_foreach(r->func.lambda.scope->var_dict, _destroy_object);
@@ -8429,7 +8421,7 @@ static void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 				_ht_destroy(r->func.lambda.upvalues);
 
 			break;
-		case _IT_NATIVE: /* Do nothing */
+		case MB_RT_NATIVE: /* Do nothing */
 			break;
 		}
 	}
@@ -8465,7 +8457,7 @@ static void _try_mark_upvalue(mb_interpreter_t* s, _routine_t* r, _object_t* obj
 	_object_t* inner = 0;
 
 	mb_assert(s && r && obj);
-	mb_assert(r->type == _IT_LAMBDA);
+	mb_assert(r->type == MB_RT_LAMBDA);
 
 	lambda = &r->func.lambda;
 
@@ -8563,7 +8555,7 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 			obj = (_object_t*)nori->data;
 			_clone_object(tuple->s, obj, var->data, true, true);
 			_REF(var->data)
-			if(_IS_ROUTINE(obj) && obj->data.routine->type != _IT_LAMBDA) {
+			if(_IS_ROUTINE(obj) && obj->data.routine->type != MB_RT_LAMBDA) {
 				ovar->is_ref = true;
 				var->data->is_ref = true;
 			}
@@ -9518,7 +9510,7 @@ static int _lose_object(void* data, void* extra) {
 
 	obj = (_object_t*)data;
 #ifdef MB_ENABLE_LAMBDA
-	if(obj->type == _DT_ROUTINE && obj->data.routine->type == _IT_LAMBDA)
+	if(obj->type == _DT_ROUTINE && obj->data.routine->type == MB_RT_LAMBDA)
 		obj->is_ref = false;
 #endif /* MB_ENABLE_LAMBDA */
 	switch(obj->type) {
@@ -10236,7 +10228,7 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 			mb_make_nil(s->running_context->intermediate_value);
 		}
 		**val_ptr = tmp;
-		if(obj->data.routine->type != _IT_NATIVE) {
+		if(obj->data.routine->type != MB_RT_NATIVE) {
 			if(*ast)
 				*ast = (*ast)->prev;
 		}
@@ -10441,7 +10433,7 @@ _retry:
 		} else if(_IS_FUNC(obj, _core_enddef) && result != MB_SUB_RETURN) {
 			ast = (_ls_node_t*)_ls_popback(sub_stack);
 #ifdef MB_ENABLE_LAMBDA
-		} else if(obj && _IS_FUNC(obj, _core_close_bracket) && s->last_routine && s->last_routine->type == _IT_LAMBDA) {
+		} else if(obj && _IS_FUNC(obj, _core_close_bracket) && s->last_routine && s->last_routine->type == MB_RT_LAMBDA) {
 			/* Do nothing */
 #endif /* MB_ENABLE_LAMBDA */
 		} else if(obj && obj->type == _DT_FUNC && (_is_operator(obj->data.func->pointer) || _is_flow(obj->data.func->pointer))) {
@@ -11383,7 +11375,7 @@ int mb_close(struct mb_interpreter_t** s) {
 
 #ifdef MB_ENABLE_FORK
 	if((*s)->from)
-		return mb_close_forked(s);
+		return mb_join(s);
 #endif /* MB_ENABLE_FORK */
 
 	(*s)->valid = false;
@@ -11552,8 +11544,8 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r) {
 #endif /* MB_ENABLE_FORK */
 }
 
-/* Close a forked MY-BASIC environment */
-int mb_close_forked(struct mb_interpreter_t** s) {
+/* Join a forked MY-BASIC environment */
+int mb_join(struct mb_interpreter_t** s) {
 #ifdef MB_ENABLE_FORK
 	int result = MB_FUNC_OK;
 	mb_interpreter_t* src = 0;
@@ -13081,7 +13073,7 @@ _exit:
 }
 
 /* Override a meta function of a value */
-int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_u m, void* f) {
+int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_e m, void* f) {
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
@@ -13284,6 +13276,32 @@ int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_val
 		_public_value_to_internal_object(ret, &obj);
 		_ADDGC(&obj, &s->gc)
 	}
+
+_exit:
+	return result;
+}
+
+/* Get the type of a routine */
+int mb_get_routine_type(struct mb_interpreter_t* s, mb_value_t val, mb_routine_type_e* y) {
+	int result = MB_FUNC_OK;
+	_object_t obj;
+	mb_unrefvar(s);
+
+	if(!y) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
+	if(val.type != MB_DT_ROUTINE) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
+	_MAKE_NIL(&obj);
+	_public_value_to_internal_object(&val, &obj);
+	*y = obj.data.routine->type;
 
 _exit:
 	return result;
@@ -14021,7 +14039,7 @@ static int _core_close_bracket(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
 #ifdef MB_ENABLE_LAMBDA
-	if(s->last_routine && s->last_routine->type == _IT_LAMBDA) {
+	if(s->last_routine && s->last_routine->type == MB_RT_LAMBDA) {
 		result = _core_return(s, l);
 
 		goto _exit;
@@ -14584,7 +14602,7 @@ _proc_extra_var:
 #endif /* MB_ENABLE_COLLECTION_LIB */
 		if(val->type == _DT_ROUTINE) {
 #ifdef MB_ENABLE_LAMBDA
-			if(val->data.routine->type == _IT_LAMBDA)
+			if(val->data.routine->type == MB_RT_LAMBDA)
 				var->data->is_ref = val->is_ref;
 			else
 				var->data->is_ref = true;
@@ -15372,7 +15390,7 @@ _retry:
 		routine = obj->data.routine;
 #ifdef MB_ENABLE_CLASS
 #	ifdef MB_ENABLE_LAMBDA
-		if(routine->type != _IT_LAMBDA) {
+		if(routine->type != MB_RT_LAMBDA) {
 #	else /* MB_ENABLE_LAMBDA */
 		{
 #	endif /* MB_ENABLE_LAMBDA */
@@ -15950,7 +15968,7 @@ static int _core_type(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
 	int i = 0;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -16799,7 +16817,7 @@ static int _std_val(mb_interpreter_t* s, void** l) {
 	_object_t ocoi;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	mb_value_t ret;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -16872,7 +16890,7 @@ static int _std_len(mb_interpreter_t* s, void** l) {
 	_list_t* lst = 0;
 	_dict_t* dct = 0;
 #endif /* MB_ENABLE_COLLECTION_LIB */
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -16956,7 +16974,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 	_object_t* fobj = 0;
 #endif /* MB_ENABLE_CLASS */
 	mb_value_t ret;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -17058,7 +17076,7 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 	_object_t* fobj = 0;
 	mb_value_t nv;
 #endif /* MB_ENABLE_CLASS */
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -17503,7 +17521,7 @@ static int _coll_push(mb_interpreter_t* s, void** l) {
 	mb_value_t coll;
 	mb_value_t arg;
 	_object_t olst;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -17547,7 +17565,7 @@ static int _coll_pop(mb_interpreter_t* s, void** l) {
 	mb_value_t val;
 	_object_t olst;
 	_object_t ocoll;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -17600,7 +17618,7 @@ static int _coll_back(mb_interpreter_t* s, void** l) {
 	_object_t olst;
 	_object_t* oval = 0;
 	_ls_node_t* node = 0;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -17654,7 +17672,7 @@ static int _coll_insert(mb_interpreter_t* s, void** l) {
 	mb_value_t arg;
 	_object_t olst;
 	_object_t* oval = 0;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -17701,7 +17719,7 @@ static int _coll_sort(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
 	_object_t olst;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -17740,7 +17758,7 @@ static int _coll_exist(mb_interpreter_t* s, void** l){
 	mb_value_t arg;
 	_object_t ocoll;
 	mb_value_t ret;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -17795,7 +17813,7 @@ static int _coll_index_of(mb_interpreter_t* s, void** l) {
 	_object_t ocoll;
 	mb_value_t val;
 	mb_value_t ret;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -17845,7 +17863,7 @@ static int _coll_remove(mb_interpreter_t* s, void** l) {
 	int_t idx = 0;
 	mb_value_t key;
 	_object_t ocoll;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -17905,7 +17923,7 @@ static int _coll_clear(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
 	_object_t ocoll;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -18104,7 +18122,7 @@ static int _coll_move_next(mb_interpreter_t* s, void** l) {
 	mb_value_t it;
 	_object_t oit;
 	mb_value_t ret;
-	mb_meta_status_u os = MB_MS_NONE;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 

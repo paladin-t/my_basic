@@ -506,7 +506,7 @@ typedef enum mb_data_e {
 	MB_DT_ROUTINE = 1 << 13
 } mb_data_e;
 
-typedef enum mb_meta_func_u {
+typedef enum mb_meta_func_e {
 	MB_MF_IS = 1 << 0,
 	MB_MF_ADD = 1 << 1,
 	MB_MF_SUB = 1 << 2,
@@ -516,13 +516,20 @@ typedef enum mb_meta_func_u {
 	MB_MF_CALC = MB_MF_IS | MB_MF_ADD | MB_MF_SUB | MB_MF_MUL | MB_MF_DIV | MB_MF_NEG,
 	MB_MF_COLL = 1 << 6,
 	MB_MF_FUNC = 1 << 7
-} mb_meta_func_u;
+} mb_meta_func_e;
 
-typedef enum mb_meta_status_u {
+typedef enum mb_meta_status_e {
 	MB_MS_NONE = 0,
 	MB_MS_DONE = 1 << 0,
 	MB_MS_RETURNED = 1 << 1
-} mb_meta_status_u;
+} mb_meta_status_e;
+
+typedef enum mb_routine_type_e {
+	MB_RT_NONE,
+	MB_RT_SCRIPT,
+	MB_RT_LAMBDA,
+	MB_RT_NATIVE
+} mb_routine_type_e;
 
 typedef unsigned char mb_val_bytes_t[mb_bytes_size];
 
@@ -576,7 +583,7 @@ typedef void (* mb_alive_marker)(struct mb_interpreter_t*, void*, mb_value_t);
 typedef void (* mb_alive_checker)(struct mb_interpreter_t*, void*, mb_alive_marker);
 typedef void (* mb_alive_value_checker)(struct mb_interpreter_t*, void*, mb_value_t, mb_alive_marker);
 typedef int (* mb_meta_operator_t)(struct mb_interpreter_t*, void**, mb_value_t*, mb_value_t*, mb_value_t*);
-typedef mb_meta_status_u (* mb_meta_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, const char*);
+typedef mb_meta_status_e (* mb_meta_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, const char*);
 typedef char* (* mb_memory_allocate_func_t)(unsigned);
 typedef void (* mb_memory_free_func_t)(char*);
 
@@ -590,7 +597,7 @@ MBAPI int mb_close(struct mb_interpreter_t** s);
 MBAPI int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/);
 
 MBAPI int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r);
-MBAPI int mb_close_forked(struct mb_interpreter_t** s);
+MBAPI int mb_join(struct mb_interpreter_t** s);
 MBAPI int mb_get_forked_from(struct mb_interpreter_t* s, struct mb_interpreter_t** src);
 
 MBAPI int mb_register_func(struct mb_interpreter_t* s, const char* n, mb_func_t f);
@@ -641,12 +648,13 @@ MBAPI int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 MBAPI int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 MBAPI int mb_set_alive_checker(struct mb_interpreter_t* s, mb_alive_checker f);
 MBAPI int mb_set_alive_checker_of_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_alive_value_checker f);
-MBAPI int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_u m, void* f);
+MBAPI int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_e m, void* f);
 MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 
 MBAPI int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val);
 MBAPI int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routine_func_t f, bool_t force);
 MBAPI int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc, mb_value_t* ret/* = NULL*/);
+MBAPI int mb_get_routine_type(struct mb_interpreter_t* s, mb_value_t val, mb_routine_type_e* y);
 
 MBAPI int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset/* = true*/);
 MBAPI int mb_load_file(struct mb_interpreter_t* s, const char* f);
