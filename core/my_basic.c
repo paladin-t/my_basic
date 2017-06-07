@@ -128,7 +128,9 @@ extern "C" {
 #define _HT_ARRAY_SIZE_SMALL 193
 #define _HT_ARRAY_SIZE_MID 1543
 #define _HT_ARRAY_SIZE_BIG 12289
-#define _HT_ARRAY_SIZE_DEFAULT _HT_ARRAY_SIZE_SMALL
+#ifndef _HT_ARRAY_SIZE_DEFAULT
+#	define _HT_ARRAY_SIZE_DEFAULT _HT_ARRAY_SIZE_SMALL
+#endif /* _HT_ARRAY_SIZE_DEFAULT */
 
 /* Max length of a single symbol */
 #define _SINGLE_SYMBOL_MAX_LENGTH 128
