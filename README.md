@@ -10,6 +10,8 @@
 
 [![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
+[![Star MY-BASIC](http://githubbadges.com/star.svg?user=paladin-t&repo=my_basic&style=flat)](https://github.com/paladin-t/my_basic)
+[![Fork MY-BASIC](http://githubbadges.com/fork.svg?user=paladin-t&repo=my_basic&style=flat)](https://github.com/paladin-t/my_basic/fork)
 
 [简体中文](https://github.com/paladin-t/my_basic/wiki/%E7%94%B1%E7%BA%AF-C-%E8%AF%AD%E8%A8%80%E7%BC%96%E5%86%99%E7%9A%84-BASIC-%E8%84%9A%E6%9C%AC%E8%A7%A3%E9%87%8A%E5%99%A8)
 
@@ -32,7 +34,7 @@
 
 MY-BASIC is a lightweight cross-platform easy extendable BASIC interpreter written in pure C with about twenty thousand lines of source code. MY-BASIC is a dynamic typed programming language. It supports structured grammar, and implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm, furthermore it offers a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). It is aimed to be either an embeddable scripting language or a standalone interpreter. The core is very lightweight; all in a C source file and an associated header file; simpleness of source file layout and tightness dependency make it extraordinarily tough. Anyone even C programming newbies could learn how to use it and add new scripting interfaces in five minutes. It's able to easily combine MY-BASIC with an existing project in C, C++, Java, Objective-C, Swift, C# and many other languages. Script driven can make your projects more powerful, elegant and neat. It's also possible to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect easily based on it.
 
-"MY-" in the name could be understood literally as "My" or "Make Your", it's up to you.
+The prefix "MY-" in the name means either literally "My" or "Make Your", it's up to you.
 
 ## Compatibility
 
@@ -58,13 +60,13 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * [Unicode support](https://github.com/paladin-t/my_basic/wiki/Support-for-Unicode)
 * **[Prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm, with reflection support
 * **[Lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function)** enhanced functional programming
-* **Dynamic typed** integer, real, string, boolean, usertype, etc. with array support
+* Customizable referenced usertype support
+* Collection construction and manipulation functions for **`LIST`** and **`DICT`**
+* Automatic releasing of referenced objects (prototype, lambda, referenced usertype, list, dictionary, etc.) benefited from **Reference Counting** and **Garbage Collection**
+* **Dynamic typed** integer, real, string, boolean, usertype, and other advanced types etc. with array support
 * Standard numeric functions, and standard string functions
-* Referenced usertype support
-* Collection implementation and manipulation functions for **`LIST`** and **`DICT`**
-* Automatic releasing of referenced objects (list, dictionary, referenced usertype, prototype, lambda, etc.) benefited from **Reference Counting** and **Garbage Collection**
 * Multiple source file support by `IMPORT` statement
-* Structured user customizable **sub routine** definition by **`DEF/ENDDEF`** support, including tail recursion optimization
+* Structured user customizable **sub routine** definition by **`DEF/ENDDEF`** support, with tail recursion optimization
 * Structured `IF/THEN/ELSEIF/ELSE/ENDIF` support
 * Structured `FOR/TO/STEP/NEXT`, `FOR/IN/NEXT`, `WHILE/WEND`, `DO/UNTIL` support
 * Reserved retro `GOTO`, `GOSUB/RETURN` support
@@ -109,7 +111,7 @@ This repository contains precompiled binaries for [Windows](output/my_basic.exe)
 * Open the Xcode solution `my_basic_mac.xcodeproj` on macOS to build a macOS executable
 * If you were using other *nix OS, then use the `makefile` with a "make" toolchain to build an interpreter binary according to your specific platform
 
-To compile an interpreter binary for your own platform manually, please follow the steps:
+To compile an interpreter binary for your own platform manually, please follow these steps:
 
 1. Retrieve at least [`core`](core) and [`shell`](shell) folders for a minimum build
 2. Setup your compile toolchain configuration
@@ -119,7 +121,7 @@ The standalone interpreter supports three running modes:
 
 * Execute the binary without arguments to enter the interactive mode of MY-BASIC
 * Pass a file path to the binary to load and run that script file directly
-* Pass an argument `-e` followed by an expression to evaluate it and print the result, eg. `-e "2 * (3 + 4)"`
+* Pass an argument `-e` followed by an expression to evaluate it and print the result, as a simple calculator, eg. `-e "2 * (3 + 4)"`
 
 Type "HELP" and hint Enter under interactive mode to view full detail usage of the interpreter.
 
@@ -141,7 +143,7 @@ More detail are issued on the [Wiki](#wiki) pages.
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
-The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Quick%20Reference.pdf) includes most of the fundamental topics, however, it hasn't covered everything, such as the design principle, machinism behind MY-BASIC, effective practice, etc; all of them are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki):
+The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Quick%20Reference.pdf) includes most of the fundamental topics, however, it hasn't covered everything, such as the design principle, machinism behind MY-BASIC, effective practice, etc; these topics are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki):
 
 * Principles
 	* [Language design](https://github.com/paladin-t/my_basic/wiki/Language-design)
