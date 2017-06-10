@@ -1,3 +1,7 @@
+Jun. 10 2017
+Fixed a processing bug with the ELSE statement, thanks to yukini3 for pointing it out
+Avoided warnings with some compilers
+
 Jun. 7 2017
 Added an mb_get_routine_type function
 Renamed mb_close_forked to mb_join

@@ -8224,6 +8224,8 @@ static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_
 		routine->func.native.entry = f;
 
 		break;
+	default: /* Do nothing */
+		break;
 	}
 
 #ifdef MB_ENABLE_SOURCE_TRACE
@@ -8422,6 +8424,8 @@ static void _destroy_routine(mb_interpreter_t* s, _routine_t* r) {
 
 			break;
 		case MB_RT_NATIVE: /* Do nothing */
+			break;
+		default: /* Do nothing */
 			break;
 		}
 	}
@@ -14815,7 +14819,7 @@ _elseif:
 
 				break;
 			}
-			if(multi_line && ast && _IS_FUNC(ast->data, _core_elseif))
+			if(multi_line && ast && (_IS_FUNC(ast->data, _core_else) || _IS_FUNC(ast->data, _core_elseif)))
 				break;
 			result = _execute_statement(s, &ast, true);
 			if(result != MB_FUNC_OK)
