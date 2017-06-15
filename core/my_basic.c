@@ -3253,7 +3253,7 @@ static int mb_uu_getbom(const char** ch) {
 }
 
 #ifdef MB_ENABLE_UNICODE
-/* Determine whether a buffer is a UTF8 encoded character, and return taken bytes */
+/* Determine whether a buffer starts with a UTF8 encoded character, and return taken byte count */
 static int mb_uu_ischar(const char* ch) {
 	/* Copyright 2008, 2009 Bjoern Hoehrmann, http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ */
 #	define _TAKE(__ch, __c, __r) do { __c = *__ch++; __r++; } while(0)
@@ -4827,7 +4827,7 @@ static bool_t _is_operator_char(char c) {
 	);
 }
 
-/* Determine whether a character is a exponential char */
+/* Determine whether a character is exponential char */
 static bool_t _is_exponential_char(char c) {
 	return (c == 'e') || (c == 'E');
 }
@@ -7383,9 +7383,9 @@ static _ls_node_t* _node_at_list(_list_t* coll, int index) {
 	_fill_ranged(coll);
 
 	if(index >= 0 && index < (int)coll->count) {
-		/* Layout: HEAD ... LEFT ... PIVOT ... RIGHT ... TAIL
+		/* Position: HEAD ... LEFT ... PIVOT ... RIGHT ... TAIL
+			PIVOT is a cached node and,
 			LEN(HEAD to LEFT) == LEN(LEFT to PIVOT) && LEN(PIVOT to RIGHT) == LEN(RIGHT to TAIL)
-			PIVOT is a cached node
 		 */
 		int head = 0,
 			left = coll->cached_index / 2,
@@ -12261,7 +12261,7 @@ int mb_get_class_userdata(struct mb_interpreter_t* s, void** l, void** d) {
 #ifdef MB_ENABLE_CLASS
 	int result = MB_FUNC_OK;
 
-	if(!s || !l || !d) {
+	if(!s || !d) {
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -12295,7 +12295,7 @@ int mb_set_class_userdata(struct mb_interpreter_t* s, void** l, void* d) {
 #ifdef MB_ENABLE_CLASS
 	int result = MB_FUNC_OK;
 
-	if(!s || !l || !d) {
+	if(!s || !d) {
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -12323,8 +12323,9 @@ int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb
 	int result = MB_FUNC_OK;
 	_ls_node_t* tmp = 0;
 	_object_t* obj = 0;
+	mb_unrefvar(l);
 
-	if(!s || !l || !n) {
+	if(!s || !n) {
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -12350,7 +12351,7 @@ int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t v
 	_var_t* var = 0;
 	_ls_node_t* tmp = 0;
 
-	if(!s || !l || !n) {
+	if(!s || !n) {
 		result = MB_FUNC_ERR;
 
 		goto _exit;

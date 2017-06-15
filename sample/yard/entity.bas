@@ -3,7 +3,7 @@
 ' Copyright (C) 2011 - 2017 Wang Renxin. All rights reserved.
 ' For more information about MY-BASIC, see https://github.com/paladin-t/my_basic/
 
-Class entity
+class entity
 	var name = ""
 
 	var alive = true

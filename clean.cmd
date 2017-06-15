@@ -13,6 +13,7 @@ del /f /s /q *.obj
 del /f /s /q *.pdb
 del /f /s /q *.sdf
 del /f /s /q *.suo
+del /f /s /q *.user
 del /f /s /q *.vc.db
 
 del /f /s /q output\*.dep

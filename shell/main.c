@@ -101,9 +101,9 @@ extern "C" {
 
 static struct mb_interpreter_t* bas = 0;
 
-static jmp_buf _mem_failure_point;
+static jmp_buf mem_failure_point;
 
-#define _CHECK_MEM(__p) do { if(!(__p)) { longjmp(_mem_failure_point, 1); } } while(0)
+#define _CHECK_MEM(__p) do { if(!(__p)) { longjmp(mem_failure_point, 1); } } while(0)
 
 /* ========================================================} */
 
@@ -185,8 +185,8 @@ static long alloc_bytes = 0;
 static long in_pool_count = 0;
 static long in_pool_bytes = 0;
 
-static long _POOL_THRESHOLD_COUNT = 0;
-static long _POOL_THRESHOLD_BYTES = 1024 * 1024 * 32;
+static long POOL_THRESHOLD_COUNT = 0;
+static long POOL_THRESHOLD_BYTES = 1024 * 1024 * 32;
 
 #define _POOL_NODE_ALLOC(size) (((char*)malloc(sizeof(_pool_tag_t) + size)) + sizeof(_pool_tag_t))
 #define _POOL_NODE_PTR(s) (s - sizeof(_pool_tag_t))
@@ -211,10 +211,10 @@ static void _tidy_mem_pool(bool_t force) {
 	char* s = 0;
 
 	if(!force) {
-		if(_POOL_THRESHOLD_COUNT > 0 && in_pool_count < _POOL_THRESHOLD_COUNT)
+		if(POOL_THRESHOLD_COUNT > 0 && in_pool_count < POOL_THRESHOLD_COUNT)
 			return;
 
-		if(_POOL_THRESHOLD_BYTES > 0 && in_pool_bytes < _POOL_THRESHOLD_BYTES)
+		if(POOL_THRESHOLD_BYTES > 0 && in_pool_bytes < POOL_THRESHOLD_BYTES)
 			return;
 	}
 
@@ -1193,7 +1193,7 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 
 #if _USE_MEM_POOL
 	if(memp)
-		_POOL_THRESHOLD_BYTES = atoi(memp);
+		POOL_THRESHOLD_BYTES = atoi(memp);
 #else /* _USE_MEM_POOL */
 	mb_unrefvar(memp);
 #endif /* _USE_MEM_POOL */
@@ -1224,12 +1224,12 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 #	define _OS "IOS"
 #elif defined MB_OS_MAC
 #	define _OS "MACOS"
-#elif defined MB_OS_UNIX
-#	define _OS "UNIX"
-#elif defined MB_OS_LINUX
-#	define _OS "LINUX"
 #elif defined MB_OS_ANDROID
 #	define _OS "ANDROID"
+#elif defined MB_OS_LINUX
+#	define _OS "LINUX"
+#elif defined MB_OS_UNIX
+#	define _OS "UNIX"
 #else
 #	define _OS "UNKNOWN"
 #endif /* MB_OS_WIN */
@@ -1569,7 +1569,7 @@ int main(int argc, char* argv[]) {
 
 	atexit(_on_exit);
 
-	if(setjmp(_mem_failure_point)) {
+	if(setjmp(mem_failure_point)) {
 		_printf("Error: out of memory.\n");
 
 		exit(1);

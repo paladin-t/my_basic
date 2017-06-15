@@ -92,7 +92,7 @@ enddef
 
 ' This is a brainfuck interpreter written with MY-BASIC
 input "Input: ", cmd$
-' Use a sample code?
+' Input "hello" to use hello-world
 if cmd$ = "hello" then
 	cmd$ = "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."
 endif

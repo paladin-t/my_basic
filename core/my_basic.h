@@ -352,7 +352,7 @@ extern "C" {
 #	define MB_LOOP_BREAK 101
 #	define MB_LOOP_CONTINUE 102
 #	define MB_SUB_RETURN 103
-#	define MB_EXTENDED_ABORT 1001
+#	define MB_EXTENDED_ABORT 201
 #endif /* MB_CODES */
 
 #ifndef mb_check
@@ -570,7 +570,7 @@ typedef int (* mb_has_routine_arg_func_t)(struct mb_interpreter_t*, void**, mb_v
 typedef int (* mb_pop_routine_arg_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, void*, mb_value_t*);
 typedef int (* mb_routine_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, void*, mb_has_routine_arg_func_t, mb_pop_routine_arg_func_t);
 typedef int (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, void**, char*, int, unsigned short, unsigned short);
-typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, char*, int, unsigned short, unsigned short, int);
+typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, mb_error_e, char*, char*, int, unsigned short, unsigned short, int);
 typedef int (* mb_print_func_t)(const char*, ...);
 typedef int (* mb_input_func_t)(char*, int);
 typedef int (* mb_import_handler_t)(struct mb_interpreter_t*, const char*);
