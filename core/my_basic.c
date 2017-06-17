@@ -2124,6 +2124,9 @@ MBCONST static const _func_t _core_libs[] = {
 
 #ifdef MB_ENABLE_LAMBDA
 	{ "LAMBDA", _core_lambda },
+#	ifdef MB_ANOTHER_LAMBDA
+	{ MB_ANOTHER_LAMBDA, _core_lambda },
+#	endif /* MB_ANOTHER_LAMBDA */
 #endif /* MB_ENABLE_LAMBDA */
 
 #ifdef MB_ENABLE_ALLOC_STAT
@@ -4808,6 +4811,14 @@ static bool_t _is_numeric_char(char c) {
 
 /* Determine whether a character is identifier char */
 static bool_t _is_identifier_char(char c) {
+#if defined MB_ENABLE_LAMBDA && defined MB_ANOTHER_LAMBDA
+	char* p = MB_ANOTHER_LAMBDA;
+	while(*p) {
+		if(c == *p) return true;
+		++p;
+	}
+#endif /* MB_ENABLE_LAMBDA && MB_ANOTHER_LAMBDA */
+
 	return (
 		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 		(c == '_') ||
