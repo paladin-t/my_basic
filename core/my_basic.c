@@ -1516,9 +1516,13 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 				_gc_add(&(__o)->data.array->ref, (__o)->data.array, (__g)); \
 			break;
 #else /* MB_ENABLE_ARRAY_REF */
-#	define _REF_ARRAY(__o) { (void)(__o); }
-#	define _UNREF_ARRAY(__o) { (void)(__o); }
-#	define _ADDGC_ARRAY(__o, __g) { (void)(__o); (void)(__g); }
+#	define _REF_ARRAY(__o) case _DT_ARRAY: { (void)(__o); } break;
+#	define _UNREF_ARRAY(__o) \
+		case _DT_ARRAY: \
+			if(!(__o)->is_ref) \
+				_destroy_array((__o)->data.array); \
+			break;
+#	define _ADDGC_ARRAY(__o, __g) case _DT_ARRAY: { (void)(__o); (void)(__g); } break;
 #endif /* MB_ENABLE_ARRAY_REF */
 #ifdef MB_ENABLE_COLLECTION_LIB
 #	define _REF_COLL(__o) \
@@ -1604,8 +1608,8 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 				_dispose_object(__o); \
 			break;
 #else /* MB_ENABLE_LAMBDA */
-#	define _REF_ROUTINE(__o) { (void)(__o); }
-#	define _UNREF_ROUTINE(__o) { (void)(__o); }
+#	define _REF_ROUTINE(__o) case _DT_ROUTINE: { (void)(__o); } break;
+#	define _UNREF_ROUTINE(__o) case _DT_ROUTINE: { (void)(__o); } break;
 #	define _ADDGC_ROUTINE(__o, __g) \
 		case _DT_ROUTINE: \
 			((void)(__g)); \
@@ -1692,9 +1696,7 @@ static bool_t _try_call_func_on_usertype_ref(mb_interpreter_t* s, _ls_node_t** a
 #endif /* MB_ENABLE_USERTYPE_REF */
 
 static _array_t* _create_array(mb_interpreter_t* s, const char* n, _data_e t);
-#ifdef MB_ENABLE_ARRAY_REF
 static void _destroy_array(_array_t* arr);
-#endif /* MB_ENABLE_ARRAY_REF */
 static void _init_array(_array_t* arr);
 static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr);
 static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c);
@@ -6714,7 +6716,6 @@ static _array_t* _create_array(mb_interpreter_t* s, const char* n, _data_e t) {
 	return result;
 }
 
-#ifdef MB_ENABLE_ARRAY_REF
 /* Destroy an array */
 static void _destroy_array(_array_t* arr) {
 	mb_assert(arr);
@@ -6733,7 +6734,6 @@ static void _destroy_array(_array_t* arr) {
 #endif /* MB_ENABLE_ARRAY_REF */
 	safe_free(arr);
 }
-#endif /* MB_ENABLE_ARRAY_REF */
 
 /* Initialize an array */
 static void _init_array(_array_t* arr) {
@@ -14625,6 +14625,10 @@ _proc_extra_var:
 #else /* MB_ENABLE_LAMBDA */
 			var->data->is_ref = true;
 #endif /* MB_ENABLE_LAMBDA */
+#ifndef MB_ENABLE_ARRAY_REF
+		} else if(val->type == _DT_ARRAY) {
+			var->data->is_ref = true;
+#endif /* MB_ENABLE_ARRAY_REF */
 		} else {
 			var->data->is_ref = val->is_ref;
 		}

@@ -1,3 +1,6 @@
+Jul. 3 2017
+Fixed a disposing bug with non-referenced array
+
 Jun. 17 2017
 Added a customizable identifier alias macro for lambda
 
