@@ -10661,7 +10661,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 	_object_t* old_val = 0;
 	_object_t range;
 	_ls_node_t* to_node = 0;
-	_object_t* range_ptr;
+	_object_t* range_ptr = 0;
 	_list_it_t* lit = 0;
 	_dict_it_t* dit = 0;
 	_list_it_t* tlit = 0;
@@ -18094,6 +18094,7 @@ static int _coll_iterator(mb_interpreter_t* s, void** l) {
 	_list_it_t* lit = 0;
 	_dict_it_t* dit = 0;
 	mb_value_t ret;
+	mb_meta_status_e os = MB_MS_NONE;
 
 	mb_assert(s && l);
 
@@ -18103,32 +18104,36 @@ static int _coll_iterator(mb_interpreter_t* s, void** l) {
 	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
 	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
+	os = _try_overridden(s, l, &coll, _COLL_ID_ITERATOR, MB_MF_COLL);
+	if((os & MB_MS_DONE) == MB_MS_NONE) {
+		_MAKE_NIL(&ocoll);
+		switch(coll.type) {
+		case MB_DT_LIST:
+			_public_value_to_internal_object(&coll, &ocoll);
+			lit = _create_list_it(ocoll.data.list, false);
+			ret.type = MB_DT_LIST_IT;
+			ret.value.list_it = lit;
+
+			break;
+		case MB_DT_DICT:
+			_public_value_to_internal_object(&coll, &ocoll);
+			dit = _create_dict_it(ocoll.data.dict, false);
+			ret.type = MB_DT_DICT_IT;
+			ret.value.list_it = dit;
+
+			break;
+		default:
+			_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+
+			break;
+		}
+	}
 
 	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
-	_MAKE_NIL(&ocoll);
-	switch(coll.type) {
-	case MB_DT_LIST:
-		_public_value_to_internal_object(&coll, &ocoll);
-		lit = _create_list_it(ocoll.data.list, false);
-		ret.type = MB_DT_LIST_IT;
-		ret.value.list_it = lit;
-
-		break;
-	case MB_DT_DICT:
-		_public_value_to_internal_object(&coll, &ocoll);
-		dit = _create_dict_it(ocoll.data.dict, false);
-		ret.type = MB_DT_DICT_IT;
-		ret.value.list_it = dit;
-
-		break;
-	default:
-		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
-
-		break;
+	if((os & MB_MS_RETURNED) == MB_MS_NONE) {
+		_mb_check_mark_exit(mb_push_value(s, l, ret), result, _exit);
 	}
-
-	_mb_check_mark_exit(mb_push_value(s, l, ret), result, _exit);
 
 _exit:
 	_assign_public_value(&coll, 0);

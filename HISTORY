@@ -1,3 +1,6 @@
+Jul. 4 2017
+Added function overriding support of the ITERATOR statement
+
 Jul. 3 2017
 Fixed a disposing bug with non-referenced array
 
