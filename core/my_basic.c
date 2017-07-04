@@ -10658,20 +10658,29 @@ _exit:
 static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop) {
 	int result = MB_FUNC_ERR;
 	_ls_node_t* ast = 0;
+	_running_context_t* running = 0;
 	_object_t* old_val = 0;
-	_object_t range;
 	_ls_node_t* to_node = 0;
+	_object_t range;
 	_object_t* range_ptr = 0;
 	_list_it_t* lit = 0;
 	_dict_it_t* dit = 0;
 	_list_it_t* tlit = 0;
 	_dict_it_t* tdit = 0;
+	mb_value_t ref_val;
+	mb_value_t ref_it;
+#ifdef MB_ENABLE_USERTYPE_REF
+	mb_meta_status_e os = MB_MS_NONE;
+#endif /* MB_ENABLE_USERTYPE_REF */
 
 	mb_assert(s && l && var_loop);
 
+	running = s->running_context;
 	old_val = var_loop->data;
 	range_ptr = &range;
 	_MAKE_NIL(range_ptr);
+	mb_make_nil(ref_val);
+	mb_make_nil(ref_it);
 
 	ast = *l;
 	ast = ast->next;
@@ -10687,6 +10696,15 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 
 	/* Create iterator */
 	switch(range_ptr->type) {
+#ifdef MB_ENABLE_USERTYPE_REF
+	case _DT_USERTYPE_REF:
+		_internal_object_to_public_value(range_ptr, &ref_val);
+		os = _try_overridden(s, l, &ref_val, _COLL_ID_ITERATOR, MB_MF_COLL);
+		if((os & MB_MS_DONE) != MB_MS_NONE && (os & MB_MS_RETURNED) != MB_MS_NONE)
+			_swap_public_value(&ref_it, &running->intermediate_value);
+
+		break;
+#endif /* MB_ENABLE_USERTYPE_REF */
 	case _DT_LIST:
 		tlit = lit = _create_list_it(range_ptr->data.list, true);
 
@@ -10701,12 +10719,56 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 		break;
 	}
 	to_node = ast;
-	switch(range_ptr->type) { _REF_COLL(range_ptr) default: /* Do nothing */ break; }
+	switch(range_ptr->type) { _REF_COLL(range_ptr) _REF_USERTYPE_REF(range_ptr) default: /* Do nothing */ break; }
 
 _to:
 	ast = to_node;
 
 	/* Move next */
+#ifdef MB_ENABLE_USERTYPE_REF
+	if(ref_it.type != MB_DT_NIL) {
+		mb_value_t moved_next;
+		mb_value_t curr_val;
+		_object_t curr_obj;
+
+		mb_make_nil(moved_next);
+		mb_make_nil(curr_val);
+		_MAKE_NIL(&curr_obj);
+
+		/* Move next */
+		os = _try_overridden(s, l, &ref_it, _COLL_ID_MOVE_NEXT, MB_MF_COLL);
+		if((os & MB_MS_DONE) != MB_MS_NONE && (os & MB_MS_RETURNED) != MB_MS_NONE)
+			_swap_public_value(&moved_next, &running->intermediate_value);
+
+		if(moved_next.type == MB_DT_INT && moved_next.value.integer) {
+			/* Get current value */
+			os = _try_overridden(s, l, &ref_it, _STD_ID_GET, MB_MF_FUNC);
+			if((os & MB_MS_DONE) != MB_MS_NONE && (os & MB_MS_RETURNED) != MB_MS_NONE)
+				_swap_public_value(&curr_val, &running->intermediate_value);
+
+			/* Assign loop variable */
+			_public_value_to_internal_object(&curr_val, &curr_obj);
+			var_loop->data = &curr_obj;
+			/* Keep looping */
+			result = _common_keep_looping(s, &ast, var_loop);
+			_UNREF(&curr_obj)
+			if(result == MB_LOOP_BREAK) {
+				result = MB_FUNC_OK;
+
+				goto _exit;
+			} else if(result != MB_FUNC_OK || result == MB_SUB_RETURN) {
+				goto _exit;
+			}
+
+			goto _to;
+		} else {
+			/* End looping */
+			result = _common_end_looping(s, &ast);
+
+			goto _exit;
+		}
+	}
+#endif /* MB_ENABLE_USERTYPE_REF */
 	if(lit) lit = _move_list_it_next(lit);
 	else if(dit) dit = _move_dict_it_next(dit);
 	if((lit && _invalid_list_it(lit)) || (dit && _invalid_dict_it(dit))) {
@@ -10741,9 +10803,18 @@ _to:
 	}
 
 _exit:
+#ifdef MB_ENABLE_USERTYPE_REF
+	if(ref_it.type != MB_DT_NIL) {
+		_object_t it_obj;
+		_MAKE_NIL(&it_obj);
+
+		_public_value_to_internal_object(&ref_it, &it_obj);
+		_UNREF(&it_obj)
+	}
+#endif /* MB_ENABLE_USERTYPE_REF */
 	if(tlit) _destroy_list_it(tlit);
 	else if(tdit) _destroy_dict_it(tdit);
-	switch(range_ptr->type) { _UNREF_COLL(range_ptr) default: /* Do nothing */ break; }
+	switch(range_ptr->type) { _UNREF_COLL(range_ptr) _UNREF_USERTYPE_REF(range_ptr) default: /* Do nothing */ break; }
 
 	*l = ast;
 
