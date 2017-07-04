@@ -314,7 +314,6 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Collection or iterator expected",
 	"Iterator expected",
 	"Invalid iterator",
-	"Invalid iterator usage",
 	"Iterable expected",
 	"Referenced usertype expected",
 	"Referenced type expected",
@@ -3938,11 +3937,6 @@ _var:
 										case _DT_DICT:
 											mb_make_nil(key);
 											_mb_check_exit(mb_pop_value(s, (void**)l, &key), _error);
-#ifdef MB_ENABLE_COLLECTION_LIB
-											if(key.type == MB_DT_LIST_IT || key.type == MB_DT_DICT_IT) {
-												_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR_USAGE, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
-											}
-#endif /* MB_ENABLE_COLLECTION_LIB */
 											if(!_find_dict(ocoll->data.dict, &key, &ret)) {
 												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
 											}
@@ -7603,6 +7597,8 @@ static bool_t _find_dict(_dict_t* coll, mb_value_t* val, mb_value_t* oval) {
 
 	mb_assert(coll && val);
 
+	if(val->type == MB_DT_LIST_IT || val->type == MB_DT_DICT_IT)
+		return false;
 	_create_internal_object_from_public_value(val, &oarg);
 	result = _ht_find(coll->dict, oarg);
 	_destroy_object(oarg, 0);
