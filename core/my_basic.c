@@ -311,9 +311,11 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Empty collection",
 	"List expected",
 	"Collection expected",
-	"Collection or iterator or class expected",
+	"Collection or iterator expected",
 	"Iterator expected",
 	"Invalid iterator",
+	"Invalid iterator usage",
+	"Iterable expected",
 	"Referenced usertype expected",
 	"Referenced type expected",
 	"Reference count overflow",
@@ -3936,6 +3938,11 @@ _var:
 										case _DT_DICT:
 											mb_make_nil(key);
 											_mb_check_exit(mb_pop_value(s, (void**)l, &key), _error);
+#ifdef MB_ENABLE_COLLECTION_LIB
+											if(key.type == MB_DT_LIST_IT || key.type == MB_DT_DICT_IT) {
+												_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR_USAGE, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
+											}
+#endif /* MB_ENABLE_COLLECTION_LIB */
 											if(!_find_dict(ocoll->data.dict, &key, &ret)) {
 												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
 											}
@@ -10714,7 +10721,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 
 		break;
 	default:
-		_handle_error_on_obj(s, SE_RN_COLLECTION_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_ITERABLE_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 
 		break;
 	}
@@ -17110,7 +17117,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 			break;
 		case MB_DT_DICT_IT:
 			_public_value_to_internal_object(&ov, &obj);
-			if(obj.data.dict_it && obj.data.dict_it->curr_node && obj.data.dict_it->curr_node->extra) {
+			if(obj.data.dict_it && obj.data.dict_it->curr_node && obj.data.dict_it->curr_node != _INVALID_DICT_IT && obj.data.dict_it->curr_node->extra) {
 				_internal_object_to_public_value((_object_t*)obj.data.dict_it->curr_node->extra, &ret);
 			} else {
 				_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -17132,7 +17139,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 			break;
 #endif /* MB_ENABLE_CLASS */
 		default:
-			_handle_error_on_obj(s, SE_RN_COLLECTION_OR_ITERATOR_OR_CLASS_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_COLLECTION_OR_ITERATOR_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 
 			break;
 		}
