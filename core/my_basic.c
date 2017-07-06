@@ -10702,7 +10702,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 #ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
 		_internal_object_to_public_value(range_ptr, &ref_val);
-		os = _try_overridden(s, l, &ref_val, _COLL_ID_ITERATOR, MB_MF_COLL);
+		os = _try_overridden(s, (void**)l, &ref_val, _COLL_ID_ITERATOR, MB_MF_COLL);
 		if((os & MB_MS_DONE) != MB_MS_NONE && (os & MB_MS_RETURNED) != MB_MS_NONE)
 			_swap_public_value(&ref_it, &running->intermediate_value);
 
@@ -10739,13 +10739,13 @@ _to:
 		_MAKE_NIL(&curr_obj);
 
 		/* Move next */
-		os = _try_overridden(s, l, &ref_it, _COLL_ID_MOVE_NEXT, MB_MF_COLL);
+		os = _try_overridden(s, (void**)l, &ref_it, _COLL_ID_MOVE_NEXT, MB_MF_COLL);
 		if((os & MB_MS_DONE) != MB_MS_NONE && (os & MB_MS_RETURNED) != MB_MS_NONE)
 			_swap_public_value(&moved_next, &running->intermediate_value);
 
 		if(moved_next.type == MB_DT_INT && moved_next.value.integer) {
 			/* Get current value */
-			os = _try_overridden(s, l, &ref_it, _STD_ID_GET, MB_MF_FUNC);
+			os = _try_overridden(s, (void**)l, &ref_it, _STD_ID_GET, MB_MF_FUNC);
 			if((os & MB_MS_DONE) != MB_MS_NONE && (os & MB_MS_RETURNED) != MB_MS_NONE)
 				_swap_public_value(&curr_val, &running->intermediate_value);
 
