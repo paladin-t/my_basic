@@ -168,6 +168,7 @@ The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Q
 	* [Meta methods](https://github.com/paladin-t/my_basic/wiki/Meta-methods)
 	* [Override operators](https://github.com/paladin-t/my_basic/wiki/Override-operators)
 	* [Override functions](https://github.com/paladin-t/my_basic/wiki/Override-functions)
+	* [Use iterators](https://github.com/paladin-t/my_basic/wiki/Use-iterators)
 * Standalone shell
 	* [Extra functions](https://github.com/paladin-t/my_basic/wiki/Extra-functions)
 * Integration
