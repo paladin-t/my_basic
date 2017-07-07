@@ -10672,9 +10672,9 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 	_dict_it_t* tdit = 0;
 	mb_value_t ref_val;
 	mb_value_t ref_it;
-#ifdef MB_ENABLE_USERTYPE_REF
+#if defined MB_ENABLE_USERTYPE_REF || defined MB_ENABLE_CLASS
 	mb_meta_status_e os = MB_MS_NONE;
-#endif /* MB_ENABLE_USERTYPE_REF */
+#endif /* MB_ENABLE_USERTYPE_REF || MB_ENABLE_CLASS */
 
 	mb_assert(s && l && var_loop);
 
@@ -10702,7 +10702,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 #ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
 		_internal_object_to_public_value(range_ptr, &ref_val);
-		os = _try_overridden(s, (void**)l, &ref_val, _COLL_ID_ITERATOR, MB_MF_COLL);
+		os = _try_overridden(s, &ast, &ref_val, _COLL_ID_ITERATOR, MB_MF_COLL);
 		if((os & MB_MS_DONE) != MB_MS_NONE && (os & MB_MS_RETURNED) != MB_MS_NONE)
 			_swap_public_value(&ref_it, &running->intermediate_value);
 
@@ -10716,6 +10716,15 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 		tdit = dit = _create_dict_it(range_ptr->data.dict, true);
 
 		break;
+#ifdef MB_ENABLE_CLASS
+	case _DT_CLASS:
+		_internal_object_to_public_value(range_ptr, &ref_val);
+		os = _try_overridden(s, &ast, &ref_val, _COLL_ID_ITERATOR, MB_MF_COLL);
+		if((os & MB_MS_DONE) != MB_MS_NONE && (os & MB_MS_RETURNED) != MB_MS_NONE)
+			_swap_public_value(&ref_it, &running->intermediate_value);
+
+		break;
+#endif /* MB_ENABLE_CLASS */
 	default:
 		_handle_error_on_obj(s, SE_RN_ITERABLE_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 
@@ -10739,13 +10748,13 @@ _to:
 		_MAKE_NIL(&curr_obj);
 
 		/* Move next */
-		os = _try_overridden(s, (void**)l, &ref_it, _COLL_ID_MOVE_NEXT, MB_MF_COLL);
+		os = _try_overridden(s, &ast, &ref_it, _COLL_ID_MOVE_NEXT, MB_MF_COLL);
 		if((os & MB_MS_DONE) != MB_MS_NONE && (os & MB_MS_RETURNED) != MB_MS_NONE)
 			_swap_public_value(&moved_next, &running->intermediate_value);
 
 		if(moved_next.type == MB_DT_INT && moved_next.value.integer) {
 			/* Get current value */
-			os = _try_overridden(s, (void**)l, &ref_it, _STD_ID_GET, MB_MF_FUNC);
+			os = _try_overridden(s, &ast, &ref_it, _STD_ID_GET, MB_MF_FUNC);
 			if((os & MB_MS_DONE) != MB_MS_NONE && (os & MB_MS_RETURNED) != MB_MS_NONE)
 				_swap_public_value(&curr_val, &running->intermediate_value);
 
@@ -10787,6 +10796,7 @@ _to:
 		if(lit && !lit->list->range_begin && lit->curr.node && lit->curr.node->data) {
 			var_loop->data = (_object_t*)lit->curr.node->data;
 		} else if(lit && lit->list->range_begin) {
+			_dispose_object(var_loop->data);
 			var_loop->data->type = _DT_INT;
 			var_loop->data->data.integer = lit->curr.ranging;
 		} else if(dit && dit->curr_node && dit->curr_node->extra) {
