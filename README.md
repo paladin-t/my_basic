@@ -1,10 +1,9 @@
-	 __   __  __   __         _______  _______  _______  ___   _______ 
-	|  |_|  ||  | |  |       |  _    ||   _   ||       ||   | |       |
-	|       ||  |_|  | ____  | |_|   ||  |_|  ||  _____||   | |       |
-	|       ||       ||____| |       ||       || |_____ |   | |       |
-	|       ||_     _|       |  _   | |       ||_____  ||   | |      _|
-	| ||_|| |  |   |         | |_|   ||   _   | _____| ||   | |     |_ 
-	|_|   |_|  |___|         |_______||__| |__||_______||___| |_______|
+~~~~~~~~~~
+ _____ __ __     _____ _____ _____ _____ _____ 
+|     |  |  |___| __  |  _  |   __|     |     |
+| | | |_   _|___| __ -|     |__   |-   -|   --|
+|_|_|_| |_|     |_____|__|__|_____|_____|_____|
+~~~~~~~~~~
 
 **Copyright (C) 2011 - 2017 [Wang Renxin](https://linkedin.com/in/wangrenxin). All rights reserved.**
 
@@ -76,7 +75,7 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * Powerful interactive ability to manipulate script facilities at native side; or to use native functionalities in script, and vice versa
 * More features under development
 
-You may wondering if it's possible to introduce another feature to MY-BASIC, you may would like to take a look at [this page](https://github.com/paladin-t/my_basic/wiki/Is-it-possible-to-introduce-another-feature). You may also would like to take a look at the [language design](https://github.com/paladin-t/my_basic/wiki/Language-design) to find some of my plan.
+You may wondering if it's possible to introduce another feature to MY-BASIC, then take a look at [this page](https://github.com/paladin-t/my_basic/wiki/Is-it-possible-to-introduce-another-feature). You may also would like to take a look at the [language design](https://github.com/paladin-t/my_basic/wiki/Language-design) to find some of my plan.
 
 ## Script at a glance
 
@@ -202,10 +201,12 @@ The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Q
 
 ## Support MY-BASIC development/List of donors
 
-You can support MY-BASIC development with a [donation](http://paladin-t.github.io/my_basic/donate.html).
+Please consider supporting MY-BASIC development with a [donation](http://paladin-t.github.io/my_basic/donate.html).
+
+One-off [donation](http://paladin-t.github.io/my_basic/donate.html) via PayPal.
 
 <a href="http://paladin-t.github.io/my_basic/donate.html">
 <img src="https://github.com/paladin-t/my_basic/wiki/img/button_donate.png" width="128">
 </a>
 
-Or see the [list of donors](http://paladin-t.github.io/my_basic/donate.html).
+[List of donors](http://paladin-t.github.io/my_basic/donate.html).
