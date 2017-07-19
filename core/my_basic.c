@@ -11705,21 +11705,21 @@ int mb_get_forked_from(struct mb_interpreter_t* s, struct mb_interpreter_t** src
 
 /* Register an API function to a MY-BASIC environment */
 int mb_register_func(struct mb_interpreter_t* s, const char* n, mb_func_t f) {
-	if(!s || !n || !f) return MB_FUNC_ERR;
+	if(!s || !n || !f) return 0;
 
 	return _register_func(s, (char*)n, f, false);
 }
 
 /* Remove an API function from a MY-BASIC environment */
 int mb_remove_func(struct mb_interpreter_t* s, const char* n) {
-	if(!s || !n) return MB_FUNC_ERR;
+	if(!s || !n) return 0;
 
 	return _remove_func(s, (char*)n, false);
 }
 
 /* Remove a reserved API from a MY-BASIC environment */
 int mb_remove_reserved_func(struct mb_interpreter_t* s, const char* n) {
-	if(!s || !n) return MB_FUNC_ERR;
+	if(!s || !n) return 0;
 
 	return _remove_func(s, (char*)n, true);
 }
