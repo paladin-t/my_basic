@@ -12513,6 +12513,32 @@ _exit:
 	return result;
 }
 
+/* Get the name of a variable */
+int mb_get_var_name(struct mb_interpreter_t* s, void* v, char** n) {
+	int result = MB_FUNC_OK;
+	_object_t* obj = 0;
+
+	if(n) *n = 0;
+
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
+	if(!n || !v)
+		goto _exit;
+
+	obj = (_object_t*)v;
+	if(obj->type != _DT_VAR)
+		goto _exit;
+
+	if(n) *n = obj->data.variable->name;
+
+_exit:
+	return result;
+}
+
 /* Get the value of a variable */
 int mb_get_var_value(struct mb_interpreter_t* s, void* v, mb_value_t* val) {
 	int result = MB_FUNC_OK;

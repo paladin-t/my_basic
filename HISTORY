@@ -1,3 +1,6 @@
+Jul. 24 2017
+Added an mb_get_var_name function
+
 Jul. 7 2017
 Added support to apply the FOR statement to an iterable class instance
 
