@@ -1311,7 +1311,7 @@ static int now(struct mb_interpreter_t* s, void** l) {
 	time(&ct);
 	timeinfo = localtime(&ct);
 	if(arg) {
-		strftime(buf, countof(buf), arg, timeinfo);
+		strftime(buf, sizeof(buf), arg, timeinfo);
 		mb_check(mb_push_string(s, l, mb_memdup(buf, (unsigned)(strlen(buf) + 1))));
 	} else {
 		arg = asctime(timeinfo);
@@ -1360,7 +1360,7 @@ static int trace(struct mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	memset(frames, 0, countof(frames));
+	memset(frames, 0, sizeof(frames));
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
