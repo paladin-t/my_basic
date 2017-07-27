@@ -202,7 +202,7 @@ The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Q
 
 ## Support MY-BASIC development/List of donors
 
-I need your supports to keep this project alive. Please consider supporting MY-BASIC development with a donation, if it's useful for you.
+I need your supports to keep this project alive. Consider supporting MY-BASIC development with a donation, if it's useful for you.
 
 One-off [donation](http://paladin-t.github.io/my_basic/donate.html) via PayPal.
 

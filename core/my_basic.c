@@ -11932,7 +11932,8 @@ _exit:
 int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
-	int_t tmp = 0;
+
+	if(val) *val = 0;
 
 	if(!s || !l || !val) {
 		result = MB_FUNC_ERR;
@@ -11946,11 +11947,11 @@ int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val) {
 
 	switch(arg.type) {
 	case MB_DT_INT:
-		tmp = arg.value.integer;
+		*val = arg.value.integer;
 
 		break;
 	case MB_DT_REAL:
-		tmp = (int_t)(arg.value.float_point);
+		*val = (int_t)(arg.value.float_point);
 
 		break;
 	default:
@@ -11959,8 +11960,6 @@ int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val) {
 
 		goto _exit;
 	}
-
-	*val = tmp;
 
 _exit:
 	return result;
@@ -11970,7 +11969,8 @@ _exit:
 int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
-	real_t tmp = 0;
+
+	if(val) *val = 0;
 
 	if(!s || !l || !val) {
 		result = MB_FUNC_ERR;
@@ -11984,11 +11984,11 @@ int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val) {
 
 	switch(arg.type) {
 	case MB_DT_INT:
-		tmp = (real_t)(arg.value.integer);
+		*val = (real_t)(arg.value.integer);
 
 		break;
 	case MB_DT_REAL:
-		tmp = arg.value.float_point;
+		*val = arg.value.float_point;
 
 		break;
 	default:
@@ -11998,8 +11998,6 @@ int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val) {
 		goto _exit;
 	}
 
-	*val = tmp;
-
 _exit:
 	return result;
 }
@@ -12008,7 +12006,8 @@ _exit:
 int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
-	char* tmp = 0;
+
+	if(val) *val = 0;
 
 	if(!s || !l || !val) {
 		result = MB_FUNC_ERR;
@@ -12022,7 +12021,7 @@ int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val) {
 
 	switch(arg.type) {
 	case MB_DT_STRING:
-		tmp = arg.value.string;
+		*val = arg.value.string;
 
 		break;
 	default:
@@ -12032,8 +12031,6 @@ int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val) {
 		goto _exit;
 	}
 
-	*val = tmp;
-
 _exit:
 	return result;
 }
@@ -12042,7 +12039,8 @@ _exit:
 int mb_pop_usertype(struct mb_interpreter_t* s, void** l, void** val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
-	void* tmp = 0;
+
+	if(val) *val = 0;
 
 	if(!s || !l || !val) {
 		result = MB_FUNC_ERR;
@@ -12056,7 +12054,7 @@ int mb_pop_usertype(struct mb_interpreter_t* s, void** l, void** val) {
 
 	switch(arg.type) {
 	case MB_DT_USERTYPE:
-		tmp = arg.value.usertype;
+		*val = arg.value.usertype;
 
 		break;
 	default:
@@ -12065,8 +12063,6 @@ int mb_pop_usertype(struct mb_interpreter_t* s, void** l, void** val) {
 
 		goto _exit;
 	}
-
-	*val = tmp;
 
 _exit:
 	return result;
