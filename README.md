@@ -35,13 +35,13 @@ The prefix "MY-" in the name means either literally "My" or "Make Your", it's up
 
 ## Compatibility
 
-It fits well on a large scale of Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Console, Raspberry Pi, Intel Edison, Arduino and even MCU; totally portable to Windows, macOS, Unix, Linux, iOS, Android, RTOS, etc.
+It fits well on a large scale of Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Video Game Console, Raspberry Pi, Arduino and even MCU; totally portable to Windows, macOS, Unix, Linux, iOS, Android, RTOS, etc.
 
 May be used as an alternative of something like Lua.
 
 **For Arduino**
 
-There is a MY-BASIC interpreter porting of Arduino, with a totally rewritten shell and user manual. Please see [MY-BASIC ARDU](https://my-basic.github.io/ardu/).
+There is an Arduino porting of MY-BASIC interpreter, with a totally rewritten shell and a user manual. See [MY-BASIC ARDU](https://my-basic.github.io/ardu/) for details.
 
 <a href="https://my-basic.github.io/ardu/">
 <img src="https://upload.wikimedia.org/wikipedia/commons/8/87/Arduino_Logo.svg" width="64">
@@ -75,20 +75,20 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * Powerful interactive ability to manipulate script facilities at native side; or to use native functionalities in script, and vice versa
 * More features under development
 
-You may wondering if it's possible to introduce another feature to MY-BASIC, then take a look at [this page](https://github.com/paladin-t/my_basic/wiki/Is-it-possible-to-introduce-another-feature). You may also would like to take a look at the [language design](https://github.com/paladin-t/my_basic/wiki/Language-design) to find some of my plan.
+You may wondering if it's possible to introduce another feature to MY-BASIC, then take a look at [this page](https://github.com/paladin-t/my_basic/wiki/Is-it-possible-to-introduce-another-feature). I also write some of my plans on the [language design](https://github.com/paladin-t/my_basic/wiki/Language-design) page.
 
 ## Script at a glance
 
-Come along with a traditional "Hello World" script in MY-BASIC:
+Come along with a usual "Hello World" code in MY-BASIC:
 
 ~~~~~~~~~~bas
 input "What is your name: ", n$
 
-def foo(a, b)
+def greeting(a, b)
 	return a + " " + b + " by " + n$ + "."
 enddef
 
-print foo("Hello", "world");
+print greeting("Hello", "world");
 ~~~~~~~~~~
 
 Read the [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Quick%20Reference.pdf) (especially the "**Programming with BASIC**" section) to get more details about how to program in MY-BASIC.
@@ -98,6 +98,8 @@ Read the [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASI
 See the list for some user creations.
 
 * [Showcase of projects powered by MY-BASIC](https://my-basic.github.io/showcase/)
+
+Don't forget to share with us about your creativity!
 
 ## Installation
 
@@ -111,9 +113,9 @@ This repository contains precompiled binaries for [Windows](output/my_basic.exe)
 
 To compile an interpreter binary for your own platform manually, please follow these steps:
 
-1. Retrieve at least [`core`](core) and [`shell`](shell) folders for a minimum build
+1. Retrieve everything under [`core`](core) and [`shell`](shell) folders for a minimum build
 2. Setup your compile toolchain configuration
-3. Compile [`core/my_basic.c`](core/my_basic.c) and [`shell/main.c`](shell/main.c), they both require [`core/my_basic.h`](core/my_basic.h); then link up your own executable
+3. Compile [`core/my_basic.c`](core/my_basic.c) and [`shell/main.c`](shell/main.c), they both require [`core/my_basic.h`](core/my_basic.h); then link up an executable
 
 The standalone interpreter supports three running modes:
 
@@ -121,7 +123,7 @@ The standalone interpreter supports three running modes:
 * Pass a file path to the binary to load and run that script file directly
 * Pass an argument `-e` followed by an expression to evaluate it and print the result, as a simple calculator, eg. `-e "2 * (3 + 4)"`
 
-Type "HELP" and hint Enter under interactive mode to view full detail usage of the interpreter.
+Type "HELP" and hint Enter under interactive mode to view full detail usages of the interpreter.
 
 ### Combine with exist projects
 
@@ -129,7 +131,7 @@ MY-BASIC is cleanly written in a single C source file and an associated header f
 
 You can definitely [link with MY-BASIC as a lib](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC) as well.
 
-For more details about using MY-BASIC when it has be integrated with a project, please see [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Quick%20Reference.pdf) or read the [Wiki](#wiki) pages.
+For more details about using MY-BASIC when it has been integrated with a project, please see [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Quick%20Reference.pdf) or read the [Wiki](#wiki) pages.
 
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
@@ -137,11 +139,11 @@ It's necessary to know some principle of MY-BASIC before doing deep customizatio
 
 ![](https://github.com/paladin-t/my_basic/wiki/img/workflow.png)
 
-More detail are issued on the [Wiki](#wiki) pages.
+More details are issued on the [Wiki](#wiki) pages below.
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
-The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Quick%20Reference.pdf) includes most of the fundamental topics, however, it hasn't covered everything, such as the design principle, machinism behind MY-BASIC, effective practice, etc; these topics are issued in the [Wiki](https://github.com/paladin-t/my_basic/wiki):
+The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Quick%20Reference.pdf) includes most of the fundamental topics, however, it hasn't covered everything, such as the design principle, machinism behind MY-BASIC, effective practice, etc; these topics are issued on the [Wiki](https://github.com/paladin-t/my_basic/wiki):
 
 * Principles
 	* [Language design](https://github.com/paladin-t/my_basic/wiki/Language-design)
@@ -200,7 +202,7 @@ The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Q
 
 ## Support MY-BASIC development/List of donors
 
-Please consider supporting MY-BASIC development with a donation.
+I need your supports to keep this project alive. Please consider supporting MY-BASIC development with a donation, if it's useful for you.
 
 One-off [donation](http://paladin-t.github.io/my_basic/donate.html) via PayPal.
 
