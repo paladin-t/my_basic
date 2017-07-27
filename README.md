@@ -97,7 +97,7 @@ Read the [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASI
 
 See the list for some user creations.
 
-* [Showcase of projects powered by MY-BASIC](https://github.com/my-basic/showcase/)
+* [Showcase of projects powered by MY-BASIC](https://my-basic.github.io/showcase/)
 
 ## Installation
 
@@ -200,7 +200,7 @@ The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Q
 
 ## Support MY-BASIC development/List of donors
 
-Please consider supporting MY-BASIC development with a [donation](http://paladin-t.github.io/my_basic/donate.html).
+Please consider supporting MY-BASIC development with a donation.
 
 One-off [donation](http://paladin-t.github.io/my_basic/donate.html) via PayPal.
 
