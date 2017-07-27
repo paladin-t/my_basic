@@ -5,7 +5,7 @@
 |_|_|_| |_|     |_____|__|__|_____|_____|_____|
 ~~~~~~~~~~
 
-**Copyright (C) 2011 - 2017 [Wang Renxin](https://linkedin.com/in/wangrenxin). All rights reserved.**
+**Copyright (C) 2011 - 2017 Wang Renxin. All rights reserved.**
 
 [![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
@@ -20,7 +20,7 @@
 * [Compatibility](#compatibility)
 * [Main features](#main-features)
 * [Script at a glance](#script-at-a-glance)
-* [Related projects](#related-projects)
+* [Showcase](#showcase)
 * [Installation](#installation)
 * [Interpreter workflow diagram](#interpreter-workflow-diagram)
 * [Wiki](#wiki)
@@ -41,9 +41,9 @@ May be used as an alternative of something like Lua.
 
 **For Arduino**
 
-There is a MY-BASIC interpreter porting of Arduino, with a totally rewritten shell and user manual. Please see [MY-BASIC ARDU](https://my-basic.github.io/my_basic_ardu/).
+There is a MY-BASIC interpreter porting of Arduino, with a totally rewritten shell and user manual. Please see [MY-BASIC ARDU](https://my-basic.github.io/ardu/).
 
-<a href="https://my-basic.github.io/my_basic_ardu/">
+<a href="https://my-basic.github.io/ardu/">
 <img src="https://upload.wikimedia.org/wikipedia/commons/8/87/Arduino_Logo.svg" width="64">
 </a>
 
@@ -93,12 +93,11 @@ print foo("Hello", "world");
 
 Read the [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Quick%20Reference.pdf) (especially the "**Programming with BASIC**" section) to get more details about how to program in MY-BASIC.
 
-## Related projects
+## Showcase
 
-I've been making some other projects, which make use of MY-BASIC, and make more benefits.
+See the list for some user creations.
 
-* [MY-BASIC Code Editor (Unity)](https://github.com/my-basic/my_basic_code_editor_unity)
-	- A code editor for MY-BASIC powered by the Unity3D engine.
+* [Showcase of projects powered by MY-BASIC](https://github.com/my-basic/showcase/)
 
 ## Installation
 
