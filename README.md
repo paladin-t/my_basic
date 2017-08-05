@@ -139,6 +139,28 @@ It's necessary to know some principle of MY-BASIC before doing deep customizatio
 
 ![](https://github.com/paladin-t/my_basic/wiki/img/workflow.png)
 
+A simplest setup as follow:
+
+~~~~~~~~~~c
+int main() {
+	struct mb_interpreter_t* bas = NULL;
+
+	mb_init();
+
+	mb_open(&bas);
+
+	mb_load_string(bas, "print 22 / 7;", true);
+
+	mb_run(bas, true);
+
+	mb_close(&bas);
+
+	mb_dispose();
+
+	return 0;
+}
+~~~~~~~~~~
+
 More details are issued on the [Wiki](#wiki) pages below.
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
