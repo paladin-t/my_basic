@@ -825,7 +825,7 @@ typedef struct _tuple3_t {
 typedef struct mb_interpreter_t {
 	/** Fundamental */
 #ifdef MB_ENABLE_FORK
-	struct mb_interpreter_t* from;
+	struct mb_interpreter_t* forked_from;
 	_running_context_t* forked_context;
 #endif /* MB_ENABLE_FORK */
 	bool_t valid;
@@ -11473,7 +11473,7 @@ int mb_close(struct mb_interpreter_t** s) {
 		return MB_FUNC_ERR;
 
 #ifdef MB_ENABLE_FORK
-	if((*s)->from)
+	if((*s)->forked_from)
 		return mb_join(s);
 #endif /* MB_ENABLE_FORK */
 
@@ -11630,7 +11630,7 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r) {
 	(*s)->multiline_enabled = _ls_create();
 #endif /* _MULTILINE_STATEMENT */
 
-	(*s)->from = r;
+	(*s)->forked_from = r;
 
 	mb_assert(MB_FUNC_OK == result);
 
@@ -11649,7 +11649,7 @@ int mb_join(struct mb_interpreter_t** s) {
 	int result = MB_FUNC_OK;
 	mb_interpreter_t* src = 0;
 
-	if(!s || !(*s) || !(*s)->from)
+	if(!s || !(*s) || !(*s)->forked_from)
 		return MB_FUNC_ERR;
 
 	(*s)->valid = false;
@@ -11689,10 +11689,10 @@ int mb_get_forked_from(struct mb_interpreter_t* s, struct mb_interpreter_t** src
 
 	if(!s || !src)
 		result = MB_FUNC_ERR;
-	else if(s->from == 0)
+	else if(s->forked_from == 0)
 		result = MB_FUNC_ERR;
 	else
-		*src = s->from;
+		*src = s->forked_from;
 
 	return result;
 #else /* MB_ENABLE_FORK */
