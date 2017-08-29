@@ -14005,8 +14005,9 @@ _exit:
 }
 
 /* Safe stdin reader function */
-int mb_gets(char* buf, int s) {
+int mb_gets(const char* pmt, char* buf, int s) {
 	int result = 0;
+	mb_unrefvar(pmt);
 
 	if(buf && s) {
 		if(fgets(buf, s, stdin) == 0) {
@@ -17464,6 +17465,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 	_object_t* obj = 0;
 	char line[_INPUT_MAX_LENGTH];
 	char* conv_suc = 0;
+	const char* pmt = 0;
 
 	mb_assert(s && l);
 
@@ -17478,12 +17480,13 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 #ifdef MB_CP_VC
 		getch();
 #else /* MB_CP_VC */
-		_get_inputer(s)(line, sizeof(line));
+		_get_inputer(s)(pmt, line, sizeof(line));
 #endif /* MB_CP_VC */
 
 		goto _exit;
 	}
 	if(obj->type == _DT_STRING) {
+		pmt = obj->data.string;
 		_print_string(s, obj);
 		ast = ast->next;
 		obj = (_object_t*)ast->data;
@@ -17497,7 +17500,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		_handle_error_on_obj(s, SE_RN_VAR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	if(obj->data.variable->data->type == _DT_INT || obj->data.variable->data->type == _DT_REAL) {
-		_get_inputer(s)(line, sizeof(line));
+		_get_inputer(s)(pmt, line, sizeof(line));
 		obj->data.variable->data->type = _DT_INT;
 		obj->data.variable->data->data.integer = (int_t)mb_strtol(line, &conv_suc, 0);
 		if(*conv_suc != _ZERO_CHAR) {
@@ -17515,7 +17518,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		if(obj->data.variable->data->data.string && !obj->data.variable->data->is_ref) {
 			safe_free(obj->data.variable->data->data.string);
 		}
-		len = (size_t)_get_inputer(s)(line, sizeof(line));
+		len = (size_t)_get_inputer(s)(pmt, line, sizeof(line));
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 		do {
 			_dynamic_buffer_t buf;
