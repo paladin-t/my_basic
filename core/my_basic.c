@@ -11411,8 +11411,6 @@ int mb_open(struct mb_interpreter_t** s) {
 	memset(*s, 0, sizeof(mb_interpreter_t));
 	(*s)->valid = true;
 
-	(*s)->in_neg_expr = _ls_create();
-
 	local_scope = _ht_create(0, _ht_cmp_string, _ht_hash_string, _ls_free_extra);
 	(*s)->local_func_dict = local_scope;
 
@@ -11440,14 +11438,16 @@ int mb_open(struct mb_interpreter_t** s) {
 	running->meta = _SCOPE_META_ROOT;
 	(*s)->running_context = running;
 
+	(*s)->sub_stack = _ls_create();
+
+	(*s)->in_neg_expr = _ls_create();
+
 #ifdef MB_ENABLE_STACK_TRACE
 	(*s)->stack_frames = _ls_create();
 #endif /* MB_ENABLE_STACK_TRACE */
 #ifdef _MULTILINE_STATEMENT
 	(*s)->multiline_enabled = _ls_create();
 #endif /* _MULTILINE_STATEMENT */
-
-	(*s)->sub_stack = _ls_create();
 
 	(*s)->ast = _ls_create();
 
@@ -11491,6 +11491,8 @@ int mb_close(struct mb_interpreter_t** s) {
 
 	_ls_destroy((*s)->sub_stack);
 
+	_ls_destroy((*s)->in_neg_expr);
+
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_destroy((*s)->stack_frames);
 #endif /* MB_ENABLE_STACK_TRACE */
@@ -11533,8 +11535,6 @@ int mb_close(struct mb_interpreter_t** s) {
 	_ht_foreach(local_scope, _ls_free_extra);
 	_ht_destroy(local_scope);
 
-	_ls_destroy((*s)->in_neg_expr);
-
 	_close_constant(*s);
 
 	safe_free(*s);
@@ -11561,7 +11561,6 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	(*s)->last_error_file = 0;
 
 	running = (*s)->running_context;
-	_ls_clear((*s)->sub_stack);
 	(*s)->suspent_point = 0;
 	running->next_loop_var = 0;
 	memset(&(running->intermediate_value), 0, sizeof(mb_value_t));
@@ -11571,6 +11570,8 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	ast = (*s)->ast;
 	_ls_foreach(ast, _destroy_object);
 	_ls_clear(ast);
+
+	_ls_clear((*s)->sub_stack);
 
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_clear((*s)->stack_frames);
@@ -11623,6 +11624,10 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r) {
 
 	(*s)->var_args = 0;
 
+	(*s)->sub_stack = _ls_create();
+
+	(*s)->in_neg_expr = _ls_create();
+
 #ifdef MB_ENABLE_STACK_TRACE
 	(*s)->stack_frames = _ls_create();
 #endif /* MB_ENABLE_STACK_TRACE */
@@ -11647,12 +11652,15 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r) {
 int mb_join(struct mb_interpreter_t** s) {
 #ifdef MB_ENABLE_FORK
 	int result = MB_FUNC_OK;
-	mb_interpreter_t* src = 0;
 
 	if(!s || !(*s) || !(*s)->forked_from)
 		return MB_FUNC_ERR;
 
 	(*s)->valid = false;
+
+	_ls_destroy((*s)->sub_stack);
+
+	_ls_destroy((*s)->in_neg_expr);
 
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_destroy((*s)->stack_frames);
@@ -11661,8 +11669,6 @@ int mb_join(struct mb_interpreter_t** s) {
 	_ls_destroy((*s)->multiline_enabled);
 #endif /* _MULTILINE_STATEMENT */
 
-	src = *s;
-	while(mb_get_forked_from(src, &src) == MB_FUNC_OK) { /* Do nothing */ }
 	(*s)->forked_context->prev = 0;
 	(*s)->running_context = (*s)->forked_context;
 	_dispose_scope_chain(*s);
