@@ -30,34 +30,34 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#if defined _MSC_VER
-#	define MB_CP_VC _MSC_VER
+#if defined ARDUINO
+#	define MB_CP_ARDUINO
+#elif defined __BORLANDC__
+#	define MB_CP_BORLANDC
 #elif defined __clang__
 #	define MB_CP_CLANG
 #elif defined __CYGWIN__
 #	define MB_CP_CYGWIN
-#elif defined __MINGW32__
-#	define MB_CP_MINGW32
-#elif defined __BORLANDC__
-#	define MB_CP_BORLANDC
-#elif defined __POCC__
-#	define MB_CP_PELLESC
-#elif defined __TINYC__
-#	define MB_CP_TCC
 #elif defined __GNUC__ || defined __GNUG__
 #	define MB_CP_GCC
-#elif defined __ICC || defined __INTEL_COMPILER
-#	define MB_CP_ICC
 #elif defined __HP_cc || defined __HP_aCC
 #	define MB_CP_HPC
 #elif defined __IBMC__ || defined __IBMCPP__
 #	define MB_CP_IBMC
+#elif defined __ICC || defined __INTEL_COMPILER
+#	define MB_CP_ICC
+#elif defined __MINGW32__
+#	define MB_CP_MINGW32
+#elif defined __POCC__
+#	define MB_CP_PELLESC
 #elif defined __PGI
 #	define MB_CP_PGCC
-#elif defined __SUNPRO_C || defined__SUNPRO_CC
+#elif defined __SUNPRO_C || defined __SUNPRO_CC
 #	define MB_CP_SOLARISC
-#elif defined ARDUINO
-#	define MB_CP_ARDUINO
+#elif defined __TINYC__
+#	define MB_CP_TCC
+#elif defined _MSC_VER
+#	define MB_CP_VC _MSC_VER
 #else
 #	define MB_CP_UNKNOWN
 #endif /* Compiler dependent macro */
