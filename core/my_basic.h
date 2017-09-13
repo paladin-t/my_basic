@@ -30,7 +30,9 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#if defined __BORLANDC__
+#if defined ARDUINO
+#	define MB_CP_ARDUINO
+#elif defined __BORLANDC__
 #	define MB_CP_BORLANDC
 #elif defined __clang__
 #	define MB_CP_CLANG

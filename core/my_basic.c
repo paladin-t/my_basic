@@ -32,13 +32,15 @@
 #include "my_basic.h"
 #if defined ARDUINO && !defined MB_CP_ARDUINO
 #	define MB_CP_ARDUINO
+#endif /* ARDUINO && !MB_CP_ARDUINO */
+#ifdef MB_CP_ARDUINO
 #	ifndef MB_DISABLE_LOAD_FILE
 #		define MB_DISABLE_LOAD_FILE
 #	endif /* MB_DISABLE_LOAD_FILE */
 #	ifndef MB_MANUAL_REAL_FORMATTING
 #		define MB_MANUAL_REAL_FORMATTING
 #	endif /* MB_MANUAL_REAL_FORMATTING */
-#endif /* ARDUINO && !MB_CP_ARDUINO */
+#endif /* MB_CP_ARDUINO */
 #ifdef MB_CP_VC
 #	include <conio.h>
 #	include <locale.h>
@@ -9212,6 +9214,12 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 		break;
 #ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
+		if(!obj->data.usertype_ref->clone) {
+			tgt->type = MB_DT_NIL;
+			tgt->data.integer = 0;
+
+			break;
+		}
 		tgt->data.usertype_ref = _create_usertype_ref(
 			obj->data.usertype_ref->ref.s,
 			obj->data.usertype_ref->clone(obj->data.usertype_ref->ref.s, obj->data.usertype_ref->usertype),
