@@ -9199,7 +9199,6 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 	mb_assert(obj && tgt);
 
 	_MAKE_NIL(tgt);
-	tgt->type = _DT_NIL;
 	if(_is_internal_object(obj))
 		goto _exit;
 	tgt->type = obj->type;
@@ -9215,8 +9214,7 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 #ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
 		if(!obj->data.usertype_ref->clone) {
-			tgt->type = MB_DT_NIL;
-			tgt->data.integer = 0;
+			_MAKE_NIL(tgt);
 
 			break;
 		}
