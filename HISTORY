@@ -1,3 +1,6 @@
+Sep. 22 2017
+Added a _SIMPLE_ARG_ERROR macro
+
 Sep. 13 2017
 Fixed a referenced usertype cloning issue
 

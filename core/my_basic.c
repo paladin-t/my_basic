@@ -117,6 +117,9 @@ extern "C" {
 /* Define as 1 to treat warning as error, 0 just leave it */
 #define _WARNING_AS_ERROR 0
 
+/* Define as 1 to automatically raise error during popping argument, 0 just return an error result */
+#define _SIMPLE_ARG_ERROR 0
+
 /* Define as 1 to use a comma to PRINT a new line, 0 to use a semicolon */
 #define _COMMA_AS_NEWLINE 0
 
@@ -869,7 +872,7 @@ typedef struct mb_interpreter_t {
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_node_t* stack_frames;
 #endif /* MB_ENABLE_STACK_TRACE */
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	_ls_node_t* multiline_enabled;
 #endif /* _MULTILINE_STATEMENT */
 	/** Error handling */
@@ -4104,7 +4107,7 @@ static int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigne
 	_ls_node_t* ast = *l;
 
 	mb_make_nil(*arg);
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	if(_multiline_statement(s)) {
 		_object_t* obj = 0;
 		obj = (_object_t*)ast->data;
@@ -10945,7 +10948,7 @@ _exit:
 
 /* Check whether multiline statement is allowed */
 static bool_t _multiline_statement(mb_interpreter_t* s) {
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	if(_ls_empty(s->multiline_enabled))
 		return false;
 
@@ -11451,7 +11454,7 @@ int mb_open(struct mb_interpreter_t** s) {
 #ifdef MB_ENABLE_STACK_TRACE
 	(*s)->stack_frames = _ls_create();
 #endif /* MB_ENABLE_STACK_TRACE */
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	(*s)->multiline_enabled = _ls_create();
 #endif /* _MULTILINE_STATEMENT */
 
@@ -11502,7 +11505,7 @@ int mb_close(struct mb_interpreter_t** s) {
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_destroy((*s)->stack_frames);
 #endif /* MB_ENABLE_STACK_TRACE */
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	_ls_destroy((*s)->multiline_enabled);
 #endif /* _MULTILINE_STATEMENT */
 
@@ -11582,7 +11585,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_clear((*s)->stack_frames);
 #endif /* MB_ENABLE_STACK_TRACE */
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	_ls_clear((*s)->multiline_enabled);
 #endif /* _MULTILINE_STATEMENT */
 
@@ -11637,7 +11640,7 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r) {
 #ifdef MB_ENABLE_STACK_TRACE
 	(*s)->stack_frames = _ls_create();
 #endif /* MB_ENABLE_STACK_TRACE */
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	(*s)->multiline_enabled = _ls_create();
 #endif /* _MULTILINE_STATEMENT */
 
@@ -11671,7 +11674,7 @@ int mb_join(struct mb_interpreter_t** s) {
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_destroy((*s)->stack_frames);
 #endif /* MB_ENABLE_STACK_TRACE */
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	_ls_destroy((*s)->multiline_enabled);
 #endif /* _MULTILINE_STATEMENT */
 
@@ -11797,13 +11800,13 @@ int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
 		goto _exit;
 	}
 
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	_ls_pushback(s->multiline_enabled, (void*)(intptr_t)false);
 #endif /* _MULTILINE_STATEMENT */
 	ast = (_ls_node_t*)*l;
 	obj = (_object_t*)ast->data;
 	if(!(obj->type == _DT_FUNC)) {
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 		_ls_popback(s->multiline_enabled);
 #endif /* _MULTILINE_STATEMENT */
 		_handle_error_on_obj(s, SE_RN_INCOMPLETE_STRUCTURE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -11825,7 +11828,7 @@ int mb_attempt_func_end(struct mb_interpreter_t* s, void** l) {
 	if(!s || !l) {
 		result = MB_FUNC_ERR;
 	} else {
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 		_ls_popback(s->multiline_enabled);
 #endif /* _MULTILINE_STATEMENT */
 		--s->no_eat_comma_mark;
@@ -11847,7 +11850,7 @@ int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l) {
 	}
 
 	ast = (_ls_node_t*)*l;
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	_ls_pushback(s->multiline_enabled, (void*)(intptr_t)true);
 	do {
 		ast = ast->next;
@@ -11858,7 +11861,7 @@ int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l) {
 	obj = (_object_t*)ast->data;
 #endif /* _MULTILINE_STATEMENT */
 	if(!_IS_FUNC(obj, _core_open_bracket)) {
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 		_ls_popback(s->multiline_enabled);
 #endif /* _MULTILINE_STATEMENT */
 		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -11887,7 +11890,7 @@ int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
 	if(!ast) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	_ls_popback(s->multiline_enabled);
 	obj = (_object_t*)ast->data;
 	while(obj && obj->type == _DT_EOS) {
@@ -11919,7 +11922,7 @@ int mb_has_arg(struct mb_interpreter_t* s, void** l) {
 
 	ast = (_ls_node_t*)*l;
 	if(ast) {
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 		if(_multiline_statement(s)) {
 			obj = (_object_t*)ast->data;
 			while(obj && obj->type == _DT_EOS) {
@@ -11968,7 +11971,11 @@ int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val) {
 		break;
 	default:
 		_assign_public_value(&arg, 0);
+#if _SIMPLE_ARG_ERROR
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+#else /* _SIMPLE_ARG_ERROR */
 		result = MB_FUNC_ERR;
+#endif /* _SIMPLE_ARG_ERROR */
 
 		goto _exit;
 	}
@@ -12005,7 +12012,11 @@ int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val) {
 		break;
 	default:
 		_assign_public_value(&arg, 0);
+#if _SIMPLE_ARG_ERROR
+		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+#else /* _SIMPLE_ARG_ERROR */
 		result = MB_FUNC_ERR;
+#endif /* _SIMPLE_ARG_ERROR */
 
 		goto _exit;
 	}
@@ -12038,7 +12049,11 @@ int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val) {
 		break;
 	default:
 		_assign_public_value(&arg, 0);
+#if _SIMPLE_ARG_ERROR
+		_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+#else /* _SIMPLE_ARG_ERROR */
 		result = MB_FUNC_ERR;
+#endif /* _SIMPLE_ARG_ERROR */
 
 		goto _exit;
 	}
@@ -12115,7 +12130,7 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 	ast = (_ls_node_t*)*l;
 	if(!ast)
 		goto _exit;
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 	if(_multiline_statement(s)) {
 		_object_t* obj = 0;
 		obj = (_object_t*)ast->data;
@@ -13592,7 +13607,7 @@ int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 #endif /* MB_ENABLE_CLASS */
 		s->last_routine = 0;
 
-#ifdef _MULTILINE_STATEMENT
+#if _MULTILINE_STATEMENT
 		_ls_clear(s->multiline_enabled);
 #endif /* _MULTILINE_STATEMENT */
 
