@@ -833,7 +833,7 @@ typedef struct mb_interpreter_t {
 	struct mb_interpreter_t* forked_from;
 	_running_context_t* forked_context;
 #endif /* MB_ENABLE_FORK */
-	bool_t valid;
+	bool_t valid _PACK1;
 	void* userdata;
 	_ls_node_t* ast;
 	/** Memory management */
@@ -852,6 +852,7 @@ typedef struct mb_interpreter_t {
 	char* source_file;
 	_parsing_context_t* parsing_context;
 	_running_context_t* running_context;
+	int run_count;
 	bool_t has_run _PACK1;
 	_ls_node_t* var_args;
 #ifdef MB_ENABLE_USERTYPE_REF
@@ -860,7 +861,7 @@ typedef struct mb_interpreter_t {
 	unsigned char jump_set;
 #ifdef MB_ENABLE_CLASS
 	_class_t* last_instance;
-	bool_t calling;
+	bool_t calling _PACK1;
 #endif /* MB_ENABLE_CLASS */
 	_routine_t* last_routine;
 	_ls_node_t* sub_stack;
@@ -876,7 +877,7 @@ typedef struct mb_interpreter_t {
 	_ls_node_t* multiline_enabled;
 #endif /* _MULTILINE_STATEMENT */
 	/** Error handling */
-	bool_t handled_error;
+	bool_t handled_error _PACK1;
 	mb_error_e last_error;
 	char* last_error_file;
 	int last_error_pos;
@@ -1369,9 +1370,9 @@ static mb_meta_status_e _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 			(__s)->handled_error = true; \
 			((__s)->error_handler)((__s), (__s)->last_error, (char*)mb_get_error_desc((__s)->last_error), \
 				(__s)->last_error_file, \
-				(__s)->parsing_context ? (__s)->parsing_context->parsing_pos : (__s)->last_error_pos, \
-				(__s)->parsing_context ? (__s)->parsing_context->parsing_row : (__s)->last_error_row, \
-				(__s)->parsing_context ? (__s)->parsing_context->parsing_col : (__s)->last_error_col, \
+				(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_pos : (__s)->last_error_pos, \
+				(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_row : (__s)->last_error_row, \
+				(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_col : (__s)->last_error_col, \
 				(__result)); \
 		} \
 	} while(0)
@@ -4360,12 +4361,12 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 
 			break;
 		}
-		if(result == MB_FUNC_SUSPEND && s->error_handler) {
+		if(result == MB_FUNC_SUSPEND) {
 			_handle_error_now(s, SE_RN_DO_NOT_SUSPEND_IN_A_ROUTINE, s->last_error_file, result);
 
 			goto _exit;
 		}
-		if(result != MB_FUNC_OK && s->error_handler) {
+		if(result != MB_FUNC_OK) {
 			if(result >= MB_EXTENDED_ABORT)
 				s->last_error = SE_EA_EXTENDED_ABORT;
 			_handle_error_now(s, s->last_error, s->last_error_file, result);
@@ -4471,12 +4472,12 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 
 			break;
 		}
-		if(result == MB_FUNC_SUSPEND && s->error_handler) {
+		if(result == MB_FUNC_SUSPEND) {
 			_handle_error_now(s, SE_RN_DO_NOT_SUSPEND_IN_A_ROUTINE, s->last_error_file, result);
 
 			goto _exit;
 		}
-		if(result != MB_FUNC_OK && s->error_handler) {
+		if(result != MB_FUNC_OK) {
 			if(result >= MB_EXTENDED_ABORT)
 				s->last_error = SE_EA_EXTENDED_ABORT;
 			_handle_error_now(s, s->last_error, s->last_error_file, result);
@@ -11562,6 +11563,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	if(!s || !(*s))
 		return MB_FUNC_ERR;
 
+	(*s)->run_count = 0;
 	(*s)->has_run = false;
 	(*s)->jump_set = _JMP_NIL;
 	(*s)->last_routine = 0;
@@ -13471,6 +13473,8 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 		goto _exit;
 	}
 
+	s->run_count = 0;
+
 	if(!s->parsing_context)
 		s->parsing_context = _reset_parsing_context(s->parsing_context);
 
@@ -13573,6 +13577,8 @@ int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 		goto _exit;
 	}
 
+	++s->run_count;
+
 	if(s->parsing_context) {
 		if(s->parsing_context->routine_state) {
 			result = MB_FUNC_ERR;
@@ -13628,7 +13634,7 @@ int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 	do {
 		result = _execute_statement(s, &ast, true);
 		if(result != MB_FUNC_OK && result != MB_SUB_RETURN) {
-			if(result != MB_FUNC_SUSPEND && s->error_handler) {
+			if(result != MB_FUNC_SUSPEND) {
 				if(result >= MB_EXTENDED_ABORT)
 					s->last_error = SE_EA_EXTENDED_ABORT;
 				_handle_error_now(s, s->last_error, s->last_error_file, result);
@@ -15801,7 +15807,7 @@ static int _core_class(mb_interpreter_t* s, void** l) {
 	running = _push_scope_by_class(s, instance->scope);
 	do {
 		result = _execute_statement(s, (_ls_node_t**)l, true);
-		if(result != MB_FUNC_OK && s->error_handler) {
+		if(result != MB_FUNC_OK) {
 			if(result >= MB_EXTENDED_ABORT)
 				s->last_error = SE_EA_EXTENDED_ABORT;
 			_handle_error_now(s, s->last_error, s->last_error_file, result);

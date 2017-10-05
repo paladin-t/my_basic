@@ -1,3 +1,7 @@
+Oct. 5 2017
+Fixed an infinity loop bug with error handling, thanks to Saar for pointing it out
+Fixed a wrong error locating bug, thanks to Saar for pointing it out
+
 Sep. 22 2017
 Added a _SIMPLE_ARG_ERROR macro
 
