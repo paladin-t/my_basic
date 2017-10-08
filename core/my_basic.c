@@ -3645,9 +3645,10 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 
 	running = s->running_context;
 	ast = *l;
-	garbage = _ls_create();
 	optr = _ls_create();
 	opnd = _ls_create();
+
+#define _LAZY_INIT_GLIST do { if(!garbage) { garbage = _ls_create(); } } while(0)
 
 	inep = (int*)mb_malloc(sizeof(int));
 	*inep = 0;
@@ -3737,6 +3738,7 @@ _array:
 						ast = ast->next;
 						_get_array_elem(s, c->data.array, arr_idx, &arr_val, &arr_type);
 						arr_elem = _create_object();
+						_LAZY_INIT_GLIST;
 						_ls_pushback(garbage, arr_elem);
 						arr_elem->type = arr_type;
 						arr_elem->is_ref = true;
@@ -3773,6 +3775,7 @@ _array:
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 					}
 					c = _create_object();
+					_LAZY_INIT_GLIST;
 					_ls_pushback(garbage, c);
 					result = _public_value_to_internal_object(&running->intermediate_value, c);
 					if(c->type == _DT_STRING)
@@ -3829,6 +3832,7 @@ _routine:
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 					}
 					c = _create_object();
+					_LAZY_INIT_GLIST;
 					_ls_pushback(garbage, c);
 					result = _public_value_to_internal_object(&running->intermediate_value, c);
 					if(result != MB_FUNC_OK)
@@ -3857,6 +3861,7 @@ _routine:
 						ast = ast->next;
 						_get_array_elem(s, c->data.variable->data->data.array, arr_idx, &arr_val, &arr_type);
 						arr_elem = _create_object();
+						_LAZY_INIT_GLIST;
 						_ls_pushback(garbage, arr_elem);
 						arr_elem->type = arr_type;
 						arr_elem->is_ref = true;
@@ -3895,6 +3900,7 @@ _routine:
 							if(_try_call_func_on_usertype_ref(s, &fn, c, cs, 0)) {
 								ast = fn;
 								c = _create_object();
+								_LAZY_INIT_GLIST;
 								_ls_pushback(garbage, c);
 								_public_value_to_internal_object(&running->intermediate_value, c);
 								_REF(c)
@@ -3955,6 +3961,7 @@ _var:
 										_mb_check_exit(mb_attempt_close_bracket(s, (void**)l), _error);
 
 										c = _create_object();
+										_LAZY_INIT_GLIST;
 										_ls_pushback(garbage, c);
 										_public_value_to_internal_object(&ret, c);
 
@@ -4016,6 +4023,7 @@ _var:
 					_handle_error_on_obj(s, SE_RN_OPERATION_FAILED, s->source_file, errn ? DON(errn) : DON(ast), MB_FUNC_ERR, _error, result);
 				}
 				_ls_pushback(opnd, r);
+				_LAZY_INIT_GLIST;
 				_ls_pushback(garbage, r);
 				if(_IS_FUNC(c, _core_close_bracket))
 					hack = true;
@@ -4055,7 +4063,7 @@ _var:
 			(*val)->data = c->data;
 		}
 	}
-	if(guard_val != c && _ls_try_remove(garbage, c, _ls_cmp_data, 0)) {
+	if(guard_val != c && garbage && _ls_try_remove(garbage, c, _ls_cmp_data, 0)) {
 		_try_clear_intermediate_value(c, 0, s);
 
 		if(_is_referenced_calc_type(s, c))
@@ -4066,12 +4074,16 @@ _var:
 
 	while(0) {
 _error:
-		_LS_FOREACH(garbage, _do_nothing_on_object, _remove_if_exist, opnd);
+		if(garbage) {
+			_LS_FOREACH(garbage, _do_nothing_on_object, _remove_if_exist, opnd);
+		}
 	}
 
 _exit:
-	_LS_FOREACH(garbage, _destroy_object, _try_clear_intermediate_value, s);
-	_ls_destroy(garbage);
+	if(garbage) {
+		_LS_FOREACH(garbage, _destroy_object, _try_clear_intermediate_value, s);
+		_ls_destroy(garbage);
+	}
 	_ls_foreach(optr, _destroy_object_not_compile_time);
 	_ls_foreach(opnd, _destroy_object_not_compile_time);
 	_ls_destroy(optr);
@@ -4080,6 +4092,7 @@ _exit:
 	mb_free(_ls_popback(s->in_neg_expr));
 
 	return result;
+#undef _LAZY_INIT_GLIST
 }
 
 /* Push current variable argument list */
