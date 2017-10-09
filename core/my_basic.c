@@ -642,6 +642,9 @@ typedef struct _object_t {
 		_raw_t raw;
 	} data;
 	bool_t is_ref _PACK1;
+#ifdef MB_PREFER_SPEED
+	bool_t is_const _PACK1;
+#endif /* MB_PREFER_SPEED */
 #ifdef MB_ENABLE_SOURCE_TRACE
 	int source_pos;
 	unsigned short source_row;
@@ -3645,6 +3648,16 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 
 	running = s->running_context;
 	ast = *l;
+
+	c = (_object_t*)ast->data;
+#ifdef MB_PREFER_SPEED
+	if(c->is_const) {
+		ast = ast->next;
+
+		goto _fast;
+	}
+#endif /* MB_PREFER_SPEED */
+
 	optr = _ls_create();
 	opnd = _ls_create();
 
@@ -3654,7 +3667,6 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 	*inep = 0;
 	_ls_pushback(s->in_neg_expr, inep);
 
-	c = (_object_t*)ast->data;
 	do {
 		if(c->type == _DT_STRING) {
 			if(ast->next) {
@@ -4045,6 +4057,22 @@ _var:
 	if(_is_unexpected_calc_type(s, c)) {
 		_handle_error_on_obj(s, SE_RN_INVALID_DATA_TYPE, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 	}
+#ifdef MB_PREFER_SPEED
+	if(ast && ast->prev == *l) {
+		_object_t* obj = (_object_t*)(*l)->data;
+		switch(obj->type) {
+		case _DT_NIL: /* Fall through */
+		case _DT_INT: /* Fall through */
+		case _DT_REAL:
+			obj->is_const = true;
+
+			break;
+		default: /* Do nothing */
+			break;
+		}
+	}
+#endif /* MB_PREFER_SPEED */
+_fast:
 	if(c->type == _DT_VAR) {
 		(*val)->type = c->data.variable->data->type;
 		(*val)->data = c->data.variable->data->data;
@@ -4084,12 +4112,18 @@ _exit:
 		_LS_FOREACH(garbage, _destroy_object, _try_clear_intermediate_value, s);
 		_ls_destroy(garbage);
 	}
-	_ls_foreach(optr, _destroy_object_not_compile_time);
-	_ls_foreach(opnd, _destroy_object_not_compile_time);
-	_ls_destroy(optr);
-	_ls_destroy(opnd);
+	if(optr) {
+		_ls_foreach(optr, _destroy_object_not_compile_time);
+		_ls_destroy(optr);
+	}
+	if(opnd) {
+		_ls_foreach(opnd, _destroy_object_not_compile_time);
+		_ls_destroy(opnd);
+	}
+	if(inep) {
+		mb_free(_ls_popback(s->in_neg_expr));
+	}
 	*l = ast;
-	mb_free(_ls_popback(s->in_neg_expr));
 
 	return result;
 #undef _LAZY_INIT_GLIST
