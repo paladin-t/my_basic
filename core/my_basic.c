@@ -3661,7 +3661,7 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 	optr = _ls_create();
 	opnd = _ls_create();
 
-#define _LAZY_INIT_GLIST do { if(!garbage) { garbage = _ls_create(); } } while(0)
+#define _LAZY_INIT_GLIST do { if(!garbage) garbage = _ls_create(); } while(0)
 
 	inep = (int*)mb_malloc(sizeof(int));
 	*inep = 0;
@@ -4071,8 +4071,8 @@ _var:
 			break;
 		}
 	}
-#endif /* MB_PREFER_SPEED */
 _fast:
+#endif /* MB_PREFER_SPEED */
 	if(c->type == _DT_VAR) {
 		(*val)->type = c->data.variable->data->type;
 		(*val)->data = c->data.variable->data->data;
