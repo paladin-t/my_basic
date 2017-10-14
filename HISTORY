@@ -1,5 +1,6 @@
 Oct. 14 2017
 Fixed a multiple disposing bug with the PRINT statement
+Fixed an error prompting bug with the INPUT statement
 
 Oct. 9 2017
 Improved expression evaluation speed

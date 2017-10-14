@@ -17589,9 +17589,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 			obj->data.variable->data->type = _DT_REAL;
 			obj->data.variable->data->data.float_point = (real_t)mb_strtod(line, &conv_suc);
 			if(*conv_suc != _ZERO_CHAR) {
-				result = MB_FUNC_ERR;
-
-				goto _exit;
+				_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
 		}
 		ast = ast->next;
@@ -17622,9 +17620,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 		ast = ast->next;
 	} else {
-		result = MB_FUNC_ERR;
-
-		goto _exit;
+		_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 
 _exit:
