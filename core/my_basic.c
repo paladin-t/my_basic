@@ -17424,6 +17424,14 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 		case _DT_FUNC: /* Fall through */
 		case _DT_ROUTINE:
 			result = _calc_expression(s, &ast, &val_ptr);
+			if(val_ptr->type == _DT_ROUTINE) {
+#ifdef MB_ENABLE_LAMBDA
+				if(val_ptr->data.routine->type != MB_RT_LAMBDA)
+					val_ptr->is_ref = true;
+#else /* MB_ENABLE_LAMBDA */
+				val_ptr->is_ref = true;
+#endif /* MB_ENABLE_LAMBDA */
+			}
 			_REF(val_ptr)
 			_UNREF(val_ptr)
 _print:
