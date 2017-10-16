@@ -4161,7 +4161,7 @@ static int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigne
 		obj = (_object_t*)ast->data;
 		while(obj && obj->type == _DT_EOS) {
 			ast = ast->next;
-			obj = (_object_t*)ast->data;
+			obj = ast ? (_object_t*)ast->data : 0;
 		}
 	}
 #endif /* _MULTILINE_STATEMENT */
@@ -11903,19 +11903,19 @@ int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l) {
 	_ls_pushback(s->multiline_enabled, (void*)(intptr_t)true);
 	do {
 		ast = ast->next;
-		obj = (_object_t*)ast->data;
+		obj = ast ? (_object_t*)ast->data : 0;
 	} while(obj && obj->type == _DT_EOS);
 #else /* _MULTILINE_STATEMENT */
 	ast = ast->next;
-	obj = (_object_t*)ast->data;
+	obj = ast ? (_object_t*)ast->data : 0;
 #endif /* _MULTILINE_STATEMENT */
-	if(!_IS_FUNC(obj, _core_open_bracket)) {
+	if(!obj || !_IS_FUNC(obj, _core_open_bracket)) {
 #if _MULTILINE_STATEMENT
 		_ls_popback(s->multiline_enabled);
 #endif /* _MULTILINE_STATEMENT */
-		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, s->source_file, ast ? DON(ast) : DON2(l), MB_FUNC_ERR, _exit, result);
 	}
-	ast = ast->next;
+	if(ast) ast = ast->next;
 
 _exit:
 	*l = ast;
@@ -11944,15 +11944,15 @@ int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
 	obj = (_object_t*)ast->data;
 	while(obj && obj->type == _DT_EOS) {
 		ast = ast->next;
-		obj = (_object_t*)ast->data;
+		obj = ast ? (_object_t*)ast->data : 0;
 	}
 #else /* _MULTILINE_STATEMENT */
-	obj = (_object_t*)ast->data;
+	obj = ast ? (_object_t*)ast->data : 0;
 #endif /* _MULTILINE_STATEMENT */
-	if(!_IS_FUNC(obj, _core_close_bracket)) {
-		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+	if(!obj || !_IS_FUNC(obj, _core_close_bracket)) {
+		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, s->source_file, ast ? DON(ast) : DON2(l), MB_FUNC_ERR, _exit, result);
 	}
-	ast = ast->next;
+	if(ast) ast = ast->next;
 
 _exit:
 	*l = ast;
@@ -11976,15 +11976,15 @@ int mb_has_arg(struct mb_interpreter_t* s, void** l) {
 			obj = (_object_t*)ast->data;
 			while(obj && obj->type == _DT_EOS) {
 				ast = ast->next;
-				obj = (_object_t*)ast->data;
+				obj = ast ? (_object_t*)ast->data : 0;
 			}
 		} else {
 			obj = (_object_t*)ast->data;
 		}
 #else /* _MULTILINE_STATEMENT */
-		obj = (_object_t*)ast->data;
+		obj = ast ? (_object_t*)ast->data : 0;
 #endif /* _MULTILINE_STATEMENT */
-		if(!_IS_FUNC(obj, _core_close_bracket) && obj->type != _DT_EOS)
+		if(obj && !_IS_FUNC(obj, _core_close_bracket) && obj->type != _DT_EOS)
 			result = obj->type != _DT_SEP && obj->type != _DT_EOS;
 	}
 
@@ -12185,7 +12185,7 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 		obj = (_object_t*)ast->data;
 		while(obj && obj->type == _DT_EOS) {
 			ast = ast->next;
-			obj = (_object_t*)ast->data;
+			obj = ast ? (_object_t*)ast->data : 0;
 		}
 	}
 #endif /* _MULTILINE_STATEMENT */
@@ -12566,9 +12566,9 @@ int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
 		obj = (_object_t*)ast->data;
 		if(_IS_SEP(obj, ',')) {
 			ast = ast->next;
-			obj = (_object_t*)ast->data;
+			obj = ast ? (_object_t*)ast->data : 0;
 		}
-		ast = ast->next;
+		if(ast) ast = ast->next;
 	}
 
 	if(obj && obj->type == _DT_VAR) {
@@ -17556,7 +17556,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_func_end(s, l));
 
 	ast = (_ls_node_t*)*l;
-	obj = (_object_t*)ast->data;
+	obj = ast ? (_object_t*)ast->data : 0;
 
 	if(!obj || obj->type == _DT_EOS) {
 #ifdef MB_CP_VC
