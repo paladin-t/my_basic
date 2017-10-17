@@ -1,3 +1,8 @@
+Oct. 17 2017
+Added comparison between string and nil
+Fixed a multiple disposing bug with retrieved routine object
+Fixed a bug with uncleared parsing context
+
 Oct. 14 2017
 Fixed a multiple disposing bug with the PRINT statement
 Fixed an error prompting bug with the INPUT statement
@@ -110,7 +115,7 @@ Mar. 17 2017
 Added storing of different types support for array
 
 Mar. 8 2017
-Fixed a processing bug when printing with a native routine of a class instance
+Fixed a processing bug when printing with native routine of a class instance
 
 Feb. 28 2017
 Fixed an issue with reference count manipulation of a value
@@ -362,7 +367,7 @@ Refactored platform dependent macros
 
 Feb. 29 2016
 Added multi-line comment support
-Fixed a crash bug with an invalid expression
+Fixed a crash bug with invalid expression
 
 Feb. 26 2016
 Added a ME keyword to represent a class instance itself
@@ -452,7 +457,7 @@ Added an mb_gc function
 Added a SET_IMPORTING_DIRS statement to the shell
 Added friendly error prompting when memory overflow
 Added source file information to stepped handler
-Fixed a wrong argument processing bug with a variable argument list
+Fixed a wrong argument processing bug with variable argument list
 Fixed a wrong hash bug with string object
 Fixed a memory corruption bug with importing directory setting
 Optimized cached list accessing
@@ -647,7 +652,7 @@ Developing class, added accessing by identifier
 Developing class, added a VAR statement to declare a member variable
 Developing class, added routine evaluation in a class
 Developing class, added reference count for class
-Fixed a crash bug when exiting with a parsing error
+Fixed a crash bug when exiting with parsing error
 Fixed a multiple disposing bug when doing GC
 
 Dec. 8 2015
@@ -835,7 +840,7 @@ Added referencable data type size constants
 
 Aug. 11 2015
 Fixed a wrong IF trunk processing bug, thanks to irony for pointing it out
-Fixed a crash bug with an invalid IF statement
+Fixed a crash bug with invalid IF statement
 
 Jul. 27 2015
 Fixed a memory leak with mb_pop_xxx, thanks to Daniel Haensse for pointing it out
@@ -888,7 +893,7 @@ Apr. 10 2015
 Improved compatibility with PellesC
 Fixed a double precision float parsing bug on all 32bit systems, thanks to Pito for pointing it out
 Fixed an exponential number parsing bug, thanks to Pito for pointing it out
-Fixed a crash bug when a script begins with a meaningless negtive number
+Fixed a crash bug when a script begins with meaningless negtive number
 
 Mar. 25 2015
 Changed _strupr macro to mb_strupr function

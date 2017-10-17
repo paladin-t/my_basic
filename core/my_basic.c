@@ -1469,6 +1469,7 @@ static char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned shor
 static int_t _get_size_of(_data_e type);
 static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected);
 
+static bool_t _is_nil(void* obj);
 static bool_t _is_number(void* obj);
 static bool_t _is_string(void* obj);
 static char* _extract_string(_object_t* obj);
@@ -3671,7 +3672,7 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 		if(c->type == _DT_STRING) {
 			if(ast->next) {
 				_object_t* _fsn = (_object_t*)ast->next->data;
-				if(_IS_FUNC(_fsn, _core_add) || _IS_FUNC(_fsn, _core_and) || _IS_FUNC(_fsn, _core_or) || _IS_FUNC(_fsn, _core_is))
+				if(_IS_FUNC(_fsn, _core_add) || _IS_FUNC(_fsn, _core_equal) || _IS_FUNC(_fsn, _core_not_equal) || _IS_FUNC(_fsn, _core_and) || _IS_FUNC(_fsn, _core_or) || _IS_FUNC(_fsn, _core_is))
 					break;
 			}
 
@@ -3790,8 +3791,15 @@ _array:
 					_LAZY_INIT_GLIST;
 					_ls_pushback(garbage, c);
 					result = _public_value_to_internal_object(&running->intermediate_value, c);
-					if(c->type == _DT_STRING)
+					switch(c->type) {
+					case _DT_ROUTINE:
+						if(c->data.routine->type != MB_RT_SCRIPT)
+							break;
+						mb_make_nil(running->intermediate_value);
+						/* Fall through */
+					case _DT_STRING:
 						c->is_ref = true;
+					}
 					if(result != MB_FUNC_OK)
 						goto _error;
 					if(f) {
@@ -5945,6 +5953,22 @@ static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected) 
 	} else if(obj->type == _DT_VAR) {
 		result = _try_get_value(obj->data.variable->data, val, expected);
 	}
+
+	return result;
+}
+
+/* Determine if an object is a nil */
+static bool_t _is_nil(void* obj) {
+	bool_t result = false;
+	_object_t* o = 0;
+
+	mb_assert(obj);
+
+	o = (_object_t*)obj;
+	if(o->type == _DT_NIL)
+		result = true;
+	else if(o->type == _DT_VAR)
+		result = o->data.variable->data->type == _DT_NIL;
 
 	return result;
 }
@@ -13628,6 +13652,7 @@ int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 
 	if(s->parsing_context) {
 		if(s->parsing_context->routine_state) {
+			s->parsing_context->routine_state = 0;
 			result = MB_FUNC_ERR;
 			_handle_error_now(s, SE_RN_INCOMPLETE_ROUTINE, s->source_file, result);
 
@@ -13635,6 +13660,7 @@ int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 		}
 #ifdef MB_ENABLE_CLASS
 		if(s->parsing_context->class_state != _CLASS_STATE_NONE) {
+			s->parsing_context->class_state = _CLASS_STATE_NONE;
 			result = MB_FUNC_ERR;
 			_handle_error_now(s, SE_RN_INCOMPLETE_CLASS, s->source_file, result);
 
@@ -13692,9 +13718,14 @@ int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 	} while(ast);
 
 _exit:
-	_destroy_edge_objects(s);
+	if(s) {
+		if(clear_parser)
+			_destroy_parsing_context(&s->parsing_context);
 
-	s->has_run = true;
+		_destroy_edge_objects(s);
+
+		s->has_run = true;
+	}
 
 	return result;
 }
@@ -14348,6 +14379,10 @@ static int _core_equal(mb_interpreter_t* s, void** l) {
 	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
 		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
 			_instruct_compare_strings(==, l);
+		} else if(_is_nil(((_tuple3_t*)*l)->e1) || _is_nil(((_tuple3_t*)*l)->e2)) {
+			tpr = (_tuple3_t*)*l;
+			((_object_t*)tpr->e3)->type = _DT_INT;
+			((_object_t*)tpr->e3)->data.integer = false;
 		} else {
 			_set_tuple3_result(l, 0);
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, s->source_file, TON(l), MB_FUNC_WARNING, _exit, result);
@@ -14509,6 +14544,10 @@ static int _core_not_equal(mb_interpreter_t* s, void** l) {
 	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
 		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
 			_instruct_compare_strings(!=, l);
+		} else if(_is_nil(((_tuple3_t*)*l)->e1) || _is_nil(((_tuple3_t*)*l)->e2)) {
+			tpr = (_tuple3_t*)*l;
+			((_object_t*)tpr->e3)->type = _DT_INT;
+			((_object_t*)tpr->e3)->data.integer = true;
 		} else {
 			_set_tuple3_result(l, 1);
 			_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, s->source_file, TON(l), MB_FUNC_WARNING, _exit, result);
@@ -15009,10 +15048,12 @@ _elseif:
 			_handle_error_on_obj(s, SE_RN_INTEGER_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 
-		if(ast && ast->next && _IS_EOS(ast->next->data))
+		if(ast && ast->next && _IS_EOS(ast->next->data)) {
 			multi_line = true;
-		else
-			s->skip_to_eoi = _ls_back(s->sub_stack);
+		} else {
+			if(!s->jump_set || (s->jump_set & _JMP_INS))
+				s->skip_to_eoi = _ls_back(s->sub_stack);
+		}
 		do {
 			ast = ast->next;
 			while(ast && _IS_EOS(ast->data))
