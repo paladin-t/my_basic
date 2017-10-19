@@ -8166,31 +8166,36 @@ static int _reflect_class_field(void* data, void* extra, void* d) {
 	_var_t* var = 0;
 	_routine_t* sub = 0;
 	_dict_t* coll = (_dict_t*)d;
+	_object_t tmp;
 	mb_unrefvar(extra);
 
 	mb_assert(data && d);
 
+	_MAKE_NIL(&tmp);
+	tmp.type = _DT_STRING;
 	obj = (_object_t*)data;
 	if(_is_internal_object(obj))
 		goto _exit;
 	switch(obj->type) {
 	case _DT_VAR:
 		var = (_var_t*)obj->data.variable;
-		if(!_ht_find(coll->dict, var->name)) {
-			mb_value_t kv, vv;
-			mb_make_string(kv, var->name);
-			_internal_object_to_public_value(obj, &vv);
-			_set_dict(coll, &kv, &vv, 0, 0);
+		tmp.data.string = var->name;
+		if(!_ht_find(coll->dict, &tmp)) {
+			mb_value_t key, val;
+			mb_make_string(key, var->name);
+			_internal_object_to_public_value(obj, &val);
+			_set_dict(coll, &key, &val, 0, 0);
 		}
 
 		break;
 	case _DT_ROUTINE:
 		sub = (_routine_t*)obj->data.routine;
-		if(!_ht_find(coll->dict, sub->name)) {
-			mb_value_t kv, vv;
-			mb_make_string(kv, sub->name);
-			mb_make_type(vv, _internal_type_to_public_type(obj->type));
-			_set_dict(coll, &kv, &vv, 0, 0);
+		tmp.data.string = sub->name;
+		if(!_ht_find(coll->dict, &tmp)) {
+			mb_value_t key, val;
+			mb_make_string(key, sub->name);
+			mb_make_type(val, _internal_type_to_public_type(obj->type));
+			_set_dict(coll, &key, &val, 0, 0);
 		}
 
 		break;
