@@ -112,38 +112,54 @@ extern "C" {
 #endif /* MB_VER_REVISION == 0 */
 
 /* Define as 1 to create hash table nodes lazily, 0 obligingly */
-#define _LAZY_HASH_TABLE 1
+#ifndef _LAZY_HASH_TABLE
+#	define _LAZY_HASH_TABLE 1
+#endif /* _LAZY_HASH_TABLE */
 
 /* Define as 1 to treat warning as error, 0 just leave it */
-#define _WARNING_AS_ERROR 0
+#ifndef _WARNING_AS_ERROR
+#	define _WARNING_AS_ERROR 0
+#endif /* _WARNING_AS_ERROR */
 
 /* Define as 1 to automatically raise error during popping argument, 0 just return an error result */
-#define _SIMPLE_ARG_ERROR 0
+#ifndef _SIMPLE_ARG_ERROR
+#	define _SIMPLE_ARG_ERROR 0
+#endif /* _SIMPLE_ARG_ERROR */
 
 /* Define as 1 to use a comma to PRINT a new line, 0 to use a semicolon */
-#define _COMMA_AS_NEWLINE 0
+#ifndef _COMMA_AS_NEWLINE
+#	define _COMMA_AS_NEWLINE 0
+#endif /* _COMMA_AS_NEWLINE */
 
 /* Define as 1 to enable multiline statement */
-#define _MULTILINE_STATEMENT 1
-
-#define _NO_EAT_COMMA 2
+#ifndef _MULTILINE_STATEMENT
+#	define _MULTILINE_STATEMENT 1
+#endif /* _MULTILINE_STATEMENT */
 
 /* Hash table size */
-#define _HT_ARRAY_SIZE_TINY 1
-#define _HT_ARRAY_SIZE_SMALL 193
-#define _HT_ARRAY_SIZE_MID 1543
-#define _HT_ARRAY_SIZE_BIG 12289
 #ifndef _HT_ARRAY_SIZE_DEFAULT
+#	define _HT_ARRAY_SIZE_TINY 1
+#	define _HT_ARRAY_SIZE_SMALL 193
+#	define _HT_ARRAY_SIZE_MID 1543
+#	define _HT_ARRAY_SIZE_BIG 12289
 #	define _HT_ARRAY_SIZE_DEFAULT _HT_ARRAY_SIZE_SMALL
 #endif /* _HT_ARRAY_SIZE_DEFAULT */
 
 /* Max length of a single symbol */
-#define _SINGLE_SYMBOL_MAX_LENGTH 128
+#ifndef _SINGLE_SYMBOL_MAX_LENGTH
+#	define _SINGLE_SYMBOL_MAX_LENGTH 128
+#endif /* _SINGLE_SYMBOL_MAX_LENGTH */
 
 /* Buffer length of some string operations */
-#define _INPUT_MAX_LENGTH 256
-#define _TEMP_FORMAT_MAX_LENGTH 32
-#define _LAMBDA_NAME_MAX_LENGTH 32
+#ifndef _INPUT_MAX_LENGTH
+#	define _INPUT_MAX_LENGTH 256
+#endif /* _INPUT_MAX_LENGTH */
+#ifndef _TEMP_FORMAT_MAX_LENGTH
+#	define _TEMP_FORMAT_MAX_LENGTH 32
+#endif /* _TEMP_FORMAT_MAX_LENGTH */
+#ifndef _LAMBDA_NAME_MAX_LENGTH
+#	define _LAMBDA_NAME_MAX_LENGTH 32
+#endif /* _LAMBDA_NAME_MAX_LENGTH */
 
 /* Helper */
 #ifndef sgn
@@ -190,6 +206,8 @@ extern "C" {
 #define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
 #define DON2(__a) (((__a) && *(__a)) ? (_object_t*)((*((_ls_node_t**)(__a)))->data) : 0)
 #define TON(__t) (((__t) && *(__t)) ? (_object_t*)(((_tuple3_t*)(*(__t)))->e1) : 0)
+
+#define _NO_EAT_COMMA 2
 
 #define _IS_VAR_ARGS(__v) ((__v) == &_VAR_ARGS)
 
