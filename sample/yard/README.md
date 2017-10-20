@@ -2,7 +2,7 @@
 
 **Copyright (C) 2011 - 2017 Wang Renxin. All rights reserved.**
 
-"Yet Another RPG Dungeon" is a text based game. It's a simple comprehensive example and a tutorial which demonstrates lots of concepts of MY-BASIC.
+"Yet Another RPG Dungeon" is a text based game. It's a simple comprehensive example and a tutorial which demonstrates lots of aspects of MY-BASIC.
 
 ### Usage
 
