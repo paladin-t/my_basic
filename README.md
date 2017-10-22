@@ -125,7 +125,7 @@ The standalone interpreter supports three running modes:
 
 Type "HELP" and hint Enter under interactive mode to view full detail usages of the interpreter.
 
-### Combine with exist projects
+### Combine with existing projects
 
 MY-BASIC is cleanly written in a single C source file and an associated header file. Just copy [`core/my_basic.c`](core/my_basic.c) and [`core/my_basic.h`](core/my_basic.h) to your project folder and add them to a build configuration.
 
