@@ -1275,7 +1275,7 @@ static unsigned _ht_foreach(_ht_node_t* ht, _ht_operation op);
 static unsigned _ht_count(_ht_node_t* ht);
 static void _ht_clear(_ht_node_t* ht);
 static void _ht_destroy(_ht_node_t* ht);
-static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht);
+static int _ht_remove_existing(void* data, void* extra, _ht_node_t* ht);
 #define _HT_FOREACH(H, O, P, E) \
 	do { \
 		_ls_node_t* __bucket = 0; \
@@ -1870,7 +1870,7 @@ static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl);
 static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t** itn);
 static int _compare_public_value_and_internal_object(mb_value_t* pbl, _object_t* itn);
 static void _try_clear_intermediate_value(void* data, void* extra, mb_interpreter_t* s);
-static void _remove_if_exist(void* data, void* extra, _ls_node_t* ls);
+static void _remove_if_exists(void* data, void* extra, _ls_node_t* ls);
 static void _destroy_var_arg(void* data, void* extra, _gc_t* gc);
 static void _destroy_edge_objects(mb_interpreter_t* s);
 static void _mark_edge_destroy_string(mb_interpreter_t* s, char* ch);
@@ -2075,7 +2075,7 @@ static int _coll_pop(mb_interpreter_t* s, void** l);
 static int _coll_back(mb_interpreter_t* s, void** l);
 static int _coll_insert(mb_interpreter_t* s, void** l);
 static int _coll_sort(mb_interpreter_t* s, void** l);
-static int _coll_exist(mb_interpreter_t* s, void** l);
+static int _coll_exists(mb_interpreter_t* s, void** l);
 static int _coll_index_of(mb_interpreter_t* s, void** l);
 static int _coll_remove(mb_interpreter_t* s, void** l);
 static int _coll_clear(mb_interpreter_t* s, void** l);
@@ -2217,7 +2217,7 @@ MBCONST static const _func_t _std_libs[] = {
 #	define _COLL_ID_BACK "BACK"
 #	define _COLL_ID_INSERT "INSERT"
 #	define _COLL_ID_SORT "SORT"
-#	define _COLL_ID_EXIST "EXIST"
+#	define _COLL_ID_EXISTS "EXISTS"
 #	define _COLL_ID_INDEX_OF "INDEX_OF"
 #	define _COLL_ID_REMOVE "REMOVE"
 #	define _COLL_ID_CLEAR "CLEAR"
@@ -2234,7 +2234,7 @@ MBCONST static const _func_t _coll_libs[] = {
 	{ _COLL_ID_BACK, _coll_back },
 	{ _COLL_ID_INSERT, _coll_insert },
 	{ _COLL_ID_SORT, _coll_sort },
-	{ _COLL_ID_EXIST, _coll_exist },
+	{ _COLL_ID_EXISTS, _coll_exists },
 	{ _COLL_ID_INDEX_OF, _coll_index_of },
 	{ _COLL_ID_REMOVE, _coll_remove },
 	{ _COLL_ID_CLEAR, _coll_clear },
@@ -3071,7 +3071,7 @@ static void _ht_destroy(_ht_node_t* ht) {
 	safe_free(ht);
 }
 
-static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht) {
+static int _ht_remove_existing(void* data, void* extra, _ht_node_t* ht) {
 	int result = _OP_RESULT_NORMAL;
 	mb_unrefvar(data);
 
@@ -3817,6 +3817,8 @@ _array:
 						/* Fall through */
 					case _DT_STRING:
 						c->is_ref = true;
+					default: /* Do nothing */
+						break;
 					}
 					if(result != MB_FUNC_OK)
 						goto _error;
@@ -4129,7 +4131,7 @@ _fast:
 	while(0) {
 _error:
 		if(garbage) {
-			_LS_FOREACH(garbage, _do_nothing_on_object, _remove_if_exist, opnd);
+			_LS_FOREACH(garbage, _do_nothing_on_object, _remove_if_exists, opnd);
 		}
 	}
 
@@ -6681,7 +6683,7 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 		s->alive_check_handler(s, valid, _gc_alive_marker);
 
 	/* Get unreachable information */
-	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_exist, gc->table);
+	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_existing, gc->table);
 
 	/* Collect garbage */
 	do {
@@ -7646,7 +7648,7 @@ static void _fill_ranged(_list_t* coll) {
 
 /* Set an element to a dictionary with a key-value pair */
 static void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object_t* okey, _object_t* oval) {
-	_ls_node_t* exist = 0;
+	_ls_node_t* exists = 0;
 
 	mb_assert(coll && (key || okey) && (val || oval));
 
@@ -7654,8 +7656,8 @@ static void _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object_t
 		_create_internal_object_from_public_value(key, &okey);
 	if(val && !oval)
 		_create_internal_object_from_public_value(val, &oval);
-	exist = _ht_find(coll->dict, okey);
-	if(exist)
+	exists = _ht_find(coll->dict, okey);
+	if(exists)
 		_ht_remove(coll->dict, okey, _ls_cmp_extra_object);
 	_ht_set_or_insert(coll->dict, okey, oval);
 
@@ -8712,7 +8714,7 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 
 /* Remove filled upvalues */
 static int _remove_filled_upvalue(void* data, void* extra, _ht_node_t* ht) {
-	_ht_remove_exist(data, extra, ht);
+	_ht_remove_existing(data, extra, ht);
 
 	return _OP_RESULT_NORMAL;
 }
@@ -8817,7 +8819,7 @@ static bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda,
 #endif /* MB_ENABLE_LAMBDA */
 
 #ifdef MB_ENABLE_CLASS
-/* Create a scope reference to an exist one by a class */
+/* Create a scope reference to an existing one by a class */
 static _running_context_t* _reference_scope_by_class(mb_interpreter_t* s, _running_context_t* p, _class_t* c) {
 	_running_context_t* result = 0;
 	mb_unrefvar(c);
@@ -8875,7 +8877,7 @@ static _ls_node_t* _search_identifier_in_class(mb_interpreter_t* s, _class_t* in
 }
 #endif /* MB_ENABLE_CLASS */
 
-/* Create a scope reference to an exist one by a routine */
+/* Create a scope reference to an existing one by a routine */
 static _running_context_t* _reference_scope_by_routine(mb_interpreter_t* s, _running_context_t* p, _routine_t* r) {
 	_running_context_t* result = 0;
 
@@ -10125,8 +10127,8 @@ static void _try_clear_intermediate_value(void* data, void* extra, mb_interprete
 	}
 }
 
-/* Remove from another list if exist */
-static void _remove_if_exist(void* data, void* extra, _ls_node_t* ls) {
+/* Remove from another list if exists */
+static void _remove_if_exists(void* data, void* extra, _ls_node_t* ls) {
 	_object_t* obj = 0;
 	mb_unrefvar(extra);
 
@@ -13953,7 +13955,7 @@ const char* mb_get_type_string(mb_data_e t) {
 #endif /* MB_ENABLE_CLASS */
 	case MB_DT_ROUTINE:
 		return "ROUTINE";
-	default: /* Return a not exist string */
+	default: /* Return a not existing string */
 		return "";
 	}
 }
@@ -18028,8 +18030,8 @@ _exit:
 	return result;
 }
 
-/* EXIST statement */
-static int _coll_exist(mb_interpreter_t* s, void** l){
+/* EXISTS statement */
+static int _coll_exists(mb_interpreter_t* s, void** l){
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
 	mb_value_t arg;
@@ -18046,7 +18048,7 @@ static int _coll_exist(mb_interpreter_t* s, void** l){
 	_mb_check_mark_exit(mb_attempt_open_bracket(s, l), result, _exit);
 
 	_mb_check_mark_exit(mb_pop_value(s, l, &coll), result, _exit);
-	os = _try_overridden(s, l, &coll, _COLL_ID_EXIST, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_EXISTS, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 

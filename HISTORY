@@ -1,3 +1,6 @@
+Oct. 22 2017
+Renamed the EXIST statement to EXISTS
+
 Oct. 19 2017
 Fixed a wrong comparison bug of member names with the REFLECT statement
 

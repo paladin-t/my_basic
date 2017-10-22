@@ -32,7 +32,7 @@ class map_node
 	enddef
 
 	def add_entity(ent)
-		if exist(entities, ent) then
+		if exists(entities, ent) then
 			log.w("Already added " + ent.name)
 
 			return false
