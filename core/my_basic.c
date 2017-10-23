@@ -423,6 +423,7 @@ typedef struct _gc_t {
 	bool_t disabled _PACK1;
 } _gc_t;
 
+#ifdef MB_ENABLE_USERTYPE_REF
 typedef struct _calculation_operator_info_t {
 	mb_meta_operator_t is;
 	mb_meta_operator_t add;
@@ -447,6 +448,7 @@ typedef struct _usertype_ref_t {
 	mb_meta_func_t coll_func;
 	mb_meta_func_t generic_func;
 } _usertype_ref_t;
+#endif /* MB_ENABLE_USERTYPE_REF */
 
 typedef struct _func_t {
 	char* name;
@@ -636,7 +638,9 @@ typedef struct _object_t {
 		char* string;
 		mb_data_e type;
 		void* usertype;
+#ifdef MB_ENABLE_USERTYPE_REF
 		_usertype_ref_t* usertype_ref;
+#endif /* MB_ENABLE_USERTYPE_REF */
 		_func_t* func;
 		_var_t* variable;
 		_array_t* array;
@@ -1721,6 +1725,7 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth);
 static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
 static void _destroy_usertype_ref(_usertype_ref_t* c);
 static void _unref_usertype_ref(_ref_t* ref, void* data);
+static void _clone_usertype_ref(_usertype_ref_t* src, _object_t* tgt);
 static bool_t _try_call_func_on_usertype_ref(mb_interpreter_t* s, _ls_node_t** ast, _object_t* obj, _ls_node_t* pathed, int* ret);
 #endif /* MB_ENABLE_USERTYPE_REF */
 
@@ -6752,6 +6757,36 @@ static void _unref_usertype_ref(_ref_t* ref, void* data) {
 		_destroy_usertype_ref((_usertype_ref_t*)data);
 }
 
+/* Clone a referenced usertype to a target object */
+static void _clone_usertype_ref(_usertype_ref_t* src, _object_t* tgt) {
+	void* cpy = 0;
+
+	assert(src && tgt);
+
+	_MAKE_NIL(tgt);
+
+	if(!src->clone)
+		return;
+	cpy = src->clone(src->ref.s, src->usertype);
+	if(!cpy)
+		return;
+	tgt->type = _DT_USERTYPE_REF;
+	tgt->data.usertype_ref = _create_usertype_ref(
+		src->ref.s, cpy,
+		src->dtor, src->clone, src->hash, src->cmp, src->fmt
+	);
+#ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+	tgt->data.usertype_ref->alive_checker = src->alive_checker;
+#endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
+	if(src->calc_operators) {
+		tgt->data.usertype_ref->calc_operators = (_calculation_operator_info_t*)mb_malloc(sizeof(_calculation_operator_info_t));
+		memcpy(tgt->data.usertype_ref->calc_operators, src->calc_operators, sizeof(_calculation_operator_info_t));
+	}
+	tgt->data.usertype_ref->coll_func = src->coll_func;
+	tgt->data.usertype_ref->generic_func = src->generic_func;
+	_ref(&tgt->data.usertype_ref->ref, tgt->data.usertype_ref);
+}
+
 /* Try to call a registered function on a referenced usertype */
 static bool_t _try_call_func_on_usertype_ref(mb_interpreter_t* s, _ls_node_t** ast, _object_t* obj, _ls_node_t* pathed, int* ret) {
 	_object_t* tmp = (_object_t*)pathed->data;
@@ -9313,27 +9348,7 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 		break;
 #ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
-		if(!obj->data.usertype_ref->clone) {
-			_MAKE_NIL(tgt);
-
-			break;
-		}
-		tgt->data.usertype_ref = _create_usertype_ref(
-			obj->data.usertype_ref->ref.s,
-			obj->data.usertype_ref->clone(obj->data.usertype_ref->ref.s, obj->data.usertype_ref->usertype),
-			obj->data.usertype_ref->dtor, obj->data.usertype_ref->clone,
-			obj->data.usertype_ref->hash, obj->data.usertype_ref->cmp, obj->data.usertype_ref->fmt
-		);
-#ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
-		tgt->data.usertype_ref->alive_checker = obj->data.usertype_ref->alive_checker;
-#endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
-		if(obj->data.usertype_ref->calc_operators) {
-			tgt->data.usertype_ref->calc_operators = (_calculation_operator_info_t*)mb_malloc(sizeof(_calculation_operator_info_t));
-			memcpy(tgt->data.usertype_ref->calc_operators, obj->data.usertype_ref->calc_operators, sizeof(_calculation_operator_info_t));
-		}
-		tgt->data.usertype_ref->coll_func = obj->data.usertype_ref->coll_func;
-		tgt->data.usertype_ref->generic_func = obj->data.usertype_ref->generic_func;
-		_ref(&tgt->data.usertype_ref->ref, tgt->data.usertype_ref);
+		_clone_usertype_ref(obj->data.usertype_ref, tgt);
 
 		break;
 #endif /* MB_ENABLE_USERTYPE_REF */
@@ -18266,6 +18281,14 @@ static int _coll_clone(mb_interpreter_t* s, void** l) {
 	_MAKE_NIL(&ocoll);
 	_MAKE_NIL(&otgt);
 	switch(coll.type) {
+#ifdef MB_ENABLE_USERTYPE_REF
+	case MB_DT_USERTYPE_REF:
+		_public_value_to_internal_object(&coll, &ocoll);
+		_clone_usertype_ref(ocoll.data.usertype_ref, &otgt);
+		_internal_object_to_public_value(&otgt, &ret);
+
+		break;
+#endif /* MB_ENABLE_USERTYPE_REF */
 	case MB_DT_LIST:
 		_public_value_to_internal_object(&coll, &ocoll);
 		_clone_object(s, &ocoll, &otgt, false, true);
