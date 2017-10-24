@@ -1,3 +1,6 @@
+Oct. 24 2017
+Fixed a memory leak with a hanged value
+
 Oct. 23 2017
 Added support to apply the CLONE statement to a referenced usertype
 
