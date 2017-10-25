@@ -1,3 +1,6 @@
+Oct. 25 2017
+Fixed a memory leak with an unexpected value
+
 Oct. 24 2017
 Fixed a memory leak with a hanged value
 

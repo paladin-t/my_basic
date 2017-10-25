@@ -1776,6 +1776,7 @@ static void _clear_dict(_dict_t* coll);
 static bool_t _invalid_list_it(_list_it_t* it);
 static bool_t _invalid_dict_it(_dict_it_t* it);
 static bool_t _assign_with_it(_object_t* tgt, _object_t* src);
+static bool_t _try_purge_it(mb_interpreter_t* s, mb_value_t* val, _object_t* obj);
 static int _clone_to_list(void* data, void* extra, _list_t* coll);
 static int _clone_to_dict(void* data, void* extra, _dict_t* coll);
 static int _copy_list_to_array(void* data, void* extra, _array_helper_t* h);
@@ -1882,7 +1883,7 @@ static void _destroy_edge_objects(mb_interpreter_t* s);
 static void _mark_edge_destroy_string(mb_interpreter_t* s, char* ch);
 static void _destroy_lazy_objects(mb_interpreter_t* s);
 static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch);
-static void _assign_public_value(mb_value_t* tgt, mb_value_t* src);
+static void _assign_public_value(mb_interpreter_t* s, mb_value_t* tgt, mb_value_t* src, bool_t pit);
 static void _swap_public_value(mb_value_t* tgt, mb_value_t* src);
 static int _clear_scope_chain(mb_interpreter_t* s);
 static int _dispose_scope_chain(mb_interpreter_t* s);
@@ -4252,6 +4253,11 @@ static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* r
 
 			if(pop_arg) {
 				mb_check(_pop_arg(s, l, va, ca, &ia, r, pop_arg, args, &arg));
+#ifdef MB_ENABLE_COLLECTION_LIB
+				if(_try_purge_it(s, &arg, 0)) {
+					_handle_error_on_obj(s, SE_RN_INVALID_ITERATOR_USAGE, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+				}
+#endif /* MB_ENABLE_COLLECTION_LIB */
 			}
 
 			if(running->meta == _SCOPE_META_REF) {
@@ -4312,6 +4318,9 @@ static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* r
 		}
 	}
 
+#ifdef MB_ENABLE_COLLECTION_LIB
+_exit :
+#endif /* MB_ENABLE_COLLECTION_LIB */
 	return result;
 }
 
@@ -4492,7 +4501,7 @@ _exit:
 #endif /* MB_ENABLE_CLASS */
 
 	if(succ)
-		_assign_public_value(&s->running_context->intermediate_value, &inte);
+		_assign_public_value(s, &s->running_context->intermediate_value, &inte, false);
 
 _error:
 	s->last_routine = lastr;
@@ -4584,7 +4593,7 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 
 	running = _unlink_lambda_scope_chain(s, &r->func.lambda, false);
 
-	_assign_public_value(&s->running_context->intermediate_value, &inte);
+	_assign_public_value(s, &s->running_context->intermediate_value, &inte, false);
 
 _exit:
 	if(result != MB_FUNC_OK)
@@ -7409,6 +7418,9 @@ static void _unref_dict(_ref_t* ref, void* data) {
 static bool_t _push_list(_list_t* coll, mb_value_t* val, _object_t* oarg) {
 	mb_assert(coll && (val || oarg));
 
+	if(_try_purge_it(coll->ref.s, val, oarg))
+		return false;
+
 	_fill_ranged(coll);
 
 	if(val && !oarg)
@@ -7456,6 +7468,9 @@ static bool_t _insert_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t*
 
 	mb_assert(coll && val);
 
+	if(_try_purge_it(coll->ref.s, val, oval ? *oval : 0))
+		return false;
+
 	_fill_ranged(coll);
 
 	_create_internal_object_from_public_value(val, &oarg);
@@ -7479,6 +7494,9 @@ static bool_t _set_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** o
 	_object_t* oarg = 0;
 
 	mb_assert(coll && (val || (oval && *oval)));
+
+	if(_try_purge_it(coll->ref.s, val, oval ? *oval : 0))
+		return false;
 
 	_fill_ranged(coll);
 
@@ -7698,6 +7716,11 @@ static bool_t _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object
 
 	mb_assert(coll && (key || okey) && (val || oval));
 
+	if(_try_purge_it(coll->ref.s, key, okey))
+		return false;
+	if(_try_purge_it(coll->ref.s, val, oval))
+		return false;
+
 	if(key && !okey)
 		_create_internal_object_from_public_value(key, &okey);
 	if(val && !oval)
@@ -7822,6 +7845,49 @@ static bool_t _assign_with_it(_object_t* tgt, _object_t* src) {
 	}
 
 	return true;
+}
+
+/* Try to purege an iterator */
+static bool_t _try_purge_it(mb_interpreter_t* s, mb_value_t* val, _object_t* obj) {
+	bool_t result = false;
+	_object_t tmp;
+
+	mb_assert(s && (val || obj));
+
+	_MAKE_NIL(&tmp);
+#ifdef MB_ENABLE_COLLECTION_LIB
+	if(val) {
+		switch(val->type) {
+		case MB_DT_LIST_IT: /* Fall through */
+		case MB_DT_DICT_IT:
+			_public_value_to_internal_object(val, &tmp);
+			obj = &tmp;
+
+			break;
+		default: /* Do nothing */
+			break;
+		}
+	}
+	if(obj) {
+		if(obj->type == _DT_LIST_IT) {
+			result = true;
+			if(obj->data.list_it->locking)
+				return result;
+
+			_destroy_list_it(obj->data.list_it); /* Process hanged value */
+		} else if(obj->type == _DT_DICT_IT) {
+			result = true;
+			if(obj->data.dict_it->locking)
+				return result;
+
+			_destroy_dict_it(obj->data.dict_it); /* Process hanged value */
+		} else {
+			return result;
+		}
+	}
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
+	return result;
 }
 
 /* Clone an object to a list */
@@ -10238,11 +10304,19 @@ static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
 }
 
 /* Assign a value with another */
-static void _assign_public_value(mb_value_t* tgt, mb_value_t* src) {
+static void _assign_public_value(mb_interpreter_t* s, mb_value_t* tgt, mb_value_t* src, bool_t pit) {
 	_object_t obj;
 	mb_value_t nil;
 
 	mb_assert(tgt);
+
+#ifdef MB_ENABLE_COLLECTION_LIB
+	if(pit && _try_purge_it(s, tgt, 0))
+		return;
+#else /* MB_ENABLE_COLLECTION_LIB */
+	mb_unrefvar(s);
+	mb_unrefvar(pit);
+#endif /* MB_ENABLE_COLLECTION_LIB */
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(tgt, &obj);
@@ -12149,7 +12223,7 @@ int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val) {
 
 		break;
 	default:
-		_assign_public_value(&arg, 0);
+		_assign_public_value(s, &arg, 0, false);
 #if _SIMPLE_ARG_ERROR
 		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #else /* _SIMPLE_ARG_ERROR */
@@ -12190,7 +12264,7 @@ int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val) {
 
 		break;
 	default:
-		_assign_public_value(&arg, 0);
+		_assign_public_value(s, &arg, 0, false);
 #if _SIMPLE_ARG_ERROR
 		_handle_error_on_obj(s, SE_RN_NUMBER_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #else /* _SIMPLE_ARG_ERROR */
@@ -12227,7 +12301,7 @@ int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val) {
 
 		break;
 	default:
-		_assign_public_value(&arg, 0);
+		_assign_public_value(s, &arg, 0, false);
 #if _SIMPLE_ARG_ERROR
 		_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 #else /* _SIMPLE_ARG_ERROR */
@@ -12264,7 +12338,7 @@ int mb_pop_usertype(struct mb_interpreter_t* s, void** l, void** val) {
 
 		break;
 	default:
-		_assign_public_value(&arg, 0);
+		_assign_public_value(s, &arg, 0, false);
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -12434,7 +12508,7 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	}
 
 	running = s->running_context;
-	_assign_public_value(&running->intermediate_value, &val);
+	_assign_public_value(s, &running->intermediate_value, &val, false);
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&running->intermediate_value, &obj);
@@ -13299,6 +13373,11 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 		goto _exit;
 	}
 
+#ifdef MB_ENABLE_COLLECTION_LIB
+	if(val.type == MB_DT_LIST_IT || val.type == MB_DT_DICT_IT)
+		goto _exit;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
 	if(
@@ -13332,6 +13411,11 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 		goto _exit;
 	}
+
+#ifdef MB_ENABLE_COLLECTION_LIB
+	if(_try_purge_it(s, &val, 0))
+		goto _exit;
+#endif /* MB_ENABLE_COLLECTION_LIB */
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
@@ -13486,7 +13570,7 @@ int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val) {
 	if(val.type == MB_DT_STRING)
 		safe_free(val.value.string);
 
-	_assign_public_value(&val, 0);
+	_assign_public_value(s, &val, 0, false);
 
 _exit:
 	return result;
@@ -13599,7 +13683,7 @@ int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_val
 	result = _eval_routine(s, &ast, args, argc, obj.data.routine, _has_routine_fun_arg, _pop_routine_fun_arg);
 
 	if(ret) {
-		_assign_public_value(ret, &running->intermediate_value);
+		_assign_public_value(s, ret, &running->intermediate_value, false);
 		_MAKE_NIL(&obj);
 		_public_value_to_internal_object(ret, &obj);
 		_ADDGC(&obj, &s->gc)
@@ -14748,7 +14832,7 @@ static int _core_not(mb_interpreter_t* s, void** l) {
 
 		break;
 	}
-	_assign_public_value(&arg, 0);
+	_assign_public_value(s, &arg, 0, true);
 	mb_check(mb_push_int(s, l, ret.value.integer));
 
 	running->calc_depth = calc_depth;
@@ -16096,10 +16180,10 @@ _default:
 	}
 
 	mb_check(mb_push_value(s, l, ret));
-	_assign_public_value(&ret, 0);
+	_assign_public_value(s, &ret, 0, false);
 
 _exit:
-	_assign_public_value(&arg, 0);
+	_assign_public_value(s, &arg, 0, true);
 
 	return result;
 }
@@ -16169,7 +16253,7 @@ _default:
 	mb_check(mb_push_value(s, l, ret));
 
 _exit:
-	_assign_public_value(&arg, 0);
+	_assign_public_value(s, &arg, 0, true);
 
 	return result;
 #else /* MB_ENABLE_COLLECTION_LIB */
@@ -16483,7 +16567,7 @@ static int _std_sgn(mb_interpreter_t* s, void** l) {
 	_mb_check_mark_exit(mb_push_int(s, l, arg.value.integer), result, _exit);
 
 _exit:
-	_assign_public_value(&arg, 0);
+	_assign_public_value(s, &arg, 0, true);
 
 	return result;
 }
@@ -16542,7 +16626,7 @@ static int _std_floor(mb_interpreter_t* s, void** l) {
 	_mb_check_mark_exit(mb_push_int(s, l, arg.value.integer), result, _exit);
 
 _exit:
-	_assign_public_value(&arg, 0);
+	_assign_public_value(s, &arg, 0, true);
 
 	return result;
 }
@@ -16578,7 +16662,7 @@ static int _std_ceil(mb_interpreter_t* s, void** l) {
 	_mb_check_mark_exit(mb_push_int(s, l, arg.value.integer), result, _exit);
 
 _exit:
-	_assign_public_value(&arg, 0);
+	_assign_public_value(s, &arg, 0, true);
 
 	return result;
 }
@@ -16614,7 +16698,7 @@ static int _std_fix(mb_interpreter_t* s, void** l) {
 	_mb_check_mark_exit(mb_push_int(s, l, arg.value.integer), result, _exit);
 
 _exit:
-	_assign_public_value(&arg, 0);
+	_assign_public_value(s, &arg, 0, true);
 
 	return result;
 }
@@ -16650,7 +16734,7 @@ static int _std_round(mb_interpreter_t* s, void** l) {
 	_mb_check_mark_exit(mb_push_int(s, l, arg.value.integer), result, _exit);
 
 _exit:
-	_assign_public_value(&arg, 0);
+	_assign_public_value(s, &arg, 0, true);
 
 	return result;
 }
@@ -17161,7 +17245,7 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 	mb_check(mb_push_string(s, l, _HEAP_CHAR_BUF(buf)));
 
 _exit:
-	_assign_public_value(&arg, 0);
+	_assign_public_value(s, &arg, 0, true);
 
 	return result;
 }
@@ -17235,7 +17319,7 @@ static int _std_val(mb_interpreter_t* s, void** l) {
 			break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
 		default:
-			_assign_public_value(&arg, 0);
+			_assign_public_value(s, &arg, 0, true);
 			_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 
 			break;
@@ -17303,13 +17387,13 @@ static int _std_len(mb_interpreter_t* s, void** l) {
 		case MB_DT_LIST:
 			lst = (_list_t*)arg.value.list;
 			_mb_check_mark_exit(mb_push_int(s, l, (int_t)lst->count), result, _exit);
-			_assign_public_value(&arg, 0);
+			_assign_public_value(s, &arg, 0, true);
 
 			break;
 		case MB_DT_DICT:
 			dct = (_dict_t*)arg.value.dict;
 			_mb_check_mark_exit(mb_push_int(s, l, (int_t)_ht_count(dct->dict)), result, _exit);
-			_assign_public_value(&arg, 0);
+			_assign_public_value(s, &arg, 0, true);
 
 			break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
@@ -17327,7 +17411,7 @@ static int _std_len(mb_interpreter_t* s, void** l) {
 	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 _exit:
-	_assign_public_value(&arg, 0);
+	_assign_public_value(s, &arg, 0, true);
 
 	return result;
 }
@@ -17427,7 +17511,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 	}
 
 _exit:
-	_assign_public_value(&ov, 0);
+	_assign_public_value(s, &ov, 0, true);
 
 	return result;
 }
@@ -17528,7 +17612,7 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 	}
 
 _exit:
-	_assign_public_value(&ov, 0);
+	_assign_public_value(s, &ov, 0, true);
 
 	return result;
 }
@@ -17942,7 +18026,7 @@ static int _coll_push(mb_interpreter_t* s, void** l) {
 	}
 
 _exit:
-	_assign_public_value(&coll, 0);
+	_assign_public_value(s, &coll, 0, true);
 
 	return result;
 }
@@ -17967,7 +18051,7 @@ static int _coll_pop(mb_interpreter_t* s, void** l) {
 	os = _try_overridden(s, l, &coll, _COLL_ID_POP, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
-			_assign_public_value(&coll, 0);
+			_assign_public_value(s, &coll, 0, true);
 			_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
@@ -17979,11 +18063,11 @@ static int _coll_pop(mb_interpreter_t* s, void** l) {
 			_public_value_to_internal_object(&val, &ocoll);
 			_UNREF(&ocoll)
 
-			_assign_public_value(&coll, 0);
+			_assign_public_value(s, &coll, 0, true);
 		} else {
 			mb_check(mb_push_value(s, l, val));
 
-			_assign_public_value(&coll, 0);
+			_assign_public_value(s, &coll, 0, true);
 
 			_handle_error_on_obj(s, SE_RN_EMPTY_COLLECTION, s->source_file, DON2(l), MB_FUNC_WARNING, _exit, result);
 		}
@@ -18020,7 +18104,7 @@ static int _coll_back(mb_interpreter_t* s, void** l) {
 	os = _try_overridden(s, l, &coll, _COLL_ID_BACK, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
-			_assign_public_value(&coll, 0);
+			_assign_public_value(s, &coll, 0, true);
 			_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
@@ -18033,11 +18117,11 @@ static int _coll_back(mb_interpreter_t* s, void** l) {
 
 			mb_check(mb_push_value(s, l, val));
 
-			_assign_public_value(&coll, 0);
+			_assign_public_value(s, &coll, 0, true);
 		} else {
 			mb_check(mb_push_value(s, l, val));
 
-			_assign_public_value(&coll, 0);
+			_assign_public_value(s, &coll, 0, true);
 
 			_handle_error_on_obj(s, SE_RN_EMPTY_COLLECTION, s->source_file, DON2(l), MB_FUNC_WARNING, _exit, result);
 		}
@@ -18099,7 +18183,7 @@ static int _coll_insert(mb_interpreter_t* s, void** l) {
 	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 _exit:
-	_assign_public_value(&coll, 0);
+	_assign_public_value(s, &coll, 0, true);
 
 	return result;
 }
@@ -18136,7 +18220,7 @@ static int _coll_sort(mb_interpreter_t* s, void** l) {
 	}
 
 _exit:
-	_assign_public_value(&coll, 0);
+	_assign_public_value(s, &coll, 0, true);
 
 	return result;
 }
@@ -18190,7 +18274,7 @@ static int _coll_exists(mb_interpreter_t* s, void** l){
 	_mb_check_mark_exit(mb_attempt_close_bracket(s, l), result, _exit);
 
 _exit:
-	_assign_public_value(&coll, 0);
+	_assign_public_value(s, &coll, 0, true);
 
 	return result;
 }
@@ -18241,7 +18325,7 @@ static int _coll_index_of(mb_interpreter_t* s, void** l) {
 	}
 
 _exit:
-	_assign_public_value(&coll, 0);
+	_assign_public_value(s, &coll, 0, true);
 
 	return result;
 }
@@ -18303,7 +18387,7 @@ static int _coll_remove(mb_interpreter_t* s, void** l) {
 	}
 
 _exit:
-	_assign_public_value(&coll, 0);
+	_assign_public_value(s, &coll, 0, true);
 
 	return result;
 }
@@ -18350,7 +18434,7 @@ static int _coll_clear(mb_interpreter_t* s, void** l) {
 	}
 
 _exit:
-	_assign_public_value(&coll, 0);
+	_assign_public_value(s, &coll, 0, true);
 
 	return result;
 }
@@ -18408,7 +18492,7 @@ static int _coll_clone(mb_interpreter_t* s, void** l) {
 	_mb_check_mark_exit(mb_push_value(s, l, ret), result, _exit);
 
 _exit:
-	_assign_public_value(&coll, 0);
+	_assign_public_value(s, &coll, 0, true);
 
 	return result;
 }
@@ -18459,7 +18543,7 @@ static int _coll_to_array(mb_interpreter_t* s, void** l) {
 	_mb_check_mark_exit(mb_push_value(s, l, ret), result, _exit);
 
 _exit:
-	_assign_public_value(&coll, 0);
+	_assign_public_value(s, &coll, 0, true);
 
 	return result;
 }
@@ -18514,7 +18598,7 @@ static int _coll_iterator(mb_interpreter_t* s, void** l) {
 	}
 
 _exit:
-	_assign_public_value(&coll, 0);
+	_assign_public_value(s, &coll, 0, true);
 
 	return result;
 }
@@ -18572,7 +18656,7 @@ static int _coll_move_next(mb_interpreter_t* s, void** l) {
 
 			break;
 		default:
-			_assign_public_value(&it, 0);
+			_assign_public_value(s, &it, 0, true);
 			_handle_error_on_obj(s, SE_RN_ITERATOR_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 
 			break;
