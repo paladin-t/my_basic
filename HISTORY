@@ -1,3 +1,6 @@
+Oct. 29 2017
+Fixed a crash bug when access an unnamed array
+
 Oct. 25 2017
 Fixed a memory leak with an unexpected value
 

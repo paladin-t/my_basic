@@ -9258,7 +9258,8 @@ static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, 
 	mb_assert(s && i);
 
 	result = i;
-	scp = _search_identifier_in_scope_chain(s, 0, result->name, _PATHING_NONE, 0, 0);
+	if(result->name)
+		scp = _search_identifier_in_scope_chain(s, 0, result->name, _PATHING_NONE, 0, 0);
 	if(scp) {
 		obj = (_object_t*)scp->data;
 		if(obj && obj->type == _DT_ARRAY) {
