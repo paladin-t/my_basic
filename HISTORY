@@ -1,3 +1,7 @@
+Oct. 30 2017
+Added support to apply the STR statement to a type value
+Fixed a referencing bug with an unnamed array
+
 Oct. 29 2017
 Fixed a crash bug when access an unnamed array
 

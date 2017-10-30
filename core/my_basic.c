@@ -1551,12 +1551,12 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 			break;
 #else /* MB_ENABLE_ARRAY_REF */
 #	define _REF_ARRAY(__o) case _DT_ARRAY: { (void)(__o); } break;
-#	define _UNREF_ARRAY(__o) \
-		case _DT_ARRAY: \
-			if(!(__o)->is_ref) \
-				_destroy_array((__o)->data.array); \
-			break;
+#	define _UNREF_ARRAY(__o) case _DT_ARRAY: { (void)(__o); } break;
 #	define _ADDGC_ARRAY(__o, __g) case _DT_ARRAY: { (void)(__o); (void)(__g); } break;
+#	define _DESTROY_ARRAY(__o) \
+		case _DT_ARRAY: \
+			_destroy_array((__o)->data.array); \
+			break;
 #endif /* MB_ENABLE_ARRAY_REF */
 #ifdef MB_ENABLE_COLLECTION_LIB
 #	define _REF_COLL(__o) \
@@ -4124,9 +4124,6 @@ _fast:
 			char* _str = _extract_string(c);
 			(*val)->data.string = mb_strdup(_str, strlen(_str) + 1);
 			(*val)->is_ref = false;
-		} else if(c->type == _DT_ARRAY) {
-			(*val)->data = c->data;
-			c->type = _DT_NIL;
 		} else {
 			(*val)->data = c->data;
 		}
@@ -9584,7 +9581,11 @@ static int _dispose_object(_object_t* obj) {
 
 		break;
 	_UNREF_USERTYPE_REF(obj)
+#ifdef MB_ENABLE_ARRAY_REF
 	_UNREF_ARRAY(obj)
+#else /* MB_ENABLE_ARRAY_REF */
+	_DESTROY_ARRAY(obj)
+#endif /* MB_ENABLE_ARRAY_REF */
 	_UNREF_COLL(obj)
 	_UNREF_COLL_IT(obj)
 	_UNREF_CLASS(obj)
@@ -12870,7 +12871,6 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 	_data_e type = _DT_NIL;
 	int j = 0;
 	int n = 0;
-	mb_unrefvar(t);
 
 	if(!s || !l || !d || !a) {
 		result = MB_FUNC_ERR;
@@ -12879,7 +12879,7 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 	}
 
 	*a = 0;
-	if(c >= MB_MAX_DIMENSION_COUNT) {
+	if(c > MB_MAX_DIMENSION_COUNT) {
 		_handle_error_on_obj(s, SE_RN_TOO_MANY_DIMENSIONS, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 	for(j = 0; j < c; j++) {
@@ -12898,6 +12898,7 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 		_handle_error_on_obj(s, SE_RN_COMPLEX_ARRAY_REQUIRED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 #else /* MB_SIMPLE_ARRAY */
+	mb_unrefvar(t);
 	type = _DT_REAL;
 #endif /* MB_SIMPLE_ARRAY */
 
@@ -15064,6 +15065,10 @@ _proc_extra_var:
 #endif /* MB_ENABLE_CLASS */
 	} else if(arr && literally) {
 		if(val->type != _DT_UNKNOWN) {
+			if(arr->name) {
+				_destroy_object(val, 0);
+				_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			}
 #ifdef MB_ENABLE_ARRAY_REF
 			_unref(&arr_obj->data.array->ref, arr_obj->data.array);
 #endif /* MB_ENABLE_ARRAY_REF */
@@ -17217,6 +17222,13 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 #endif /* MB_MANUAL_REAL_FORMATTING */
 
 		break;
+	case MB_DT_TYPE: {
+			const char* sp = mb_get_type_string(arg.value.type);
+			char* ret = mb_strdup(sp, strlen(sp) + 1);
+			mb_check(mb_push_string(s, l, ret));
+
+			goto _exit;
+		}
 #ifdef MB_ENABLE_CLASS
 	case MB_DT_CLASS: {
 			bool_t got_tostr = false;
