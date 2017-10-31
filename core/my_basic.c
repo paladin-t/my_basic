@@ -1555,7 +1555,8 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 #	define _ADDGC_ARRAY(__o, __g) case _DT_ARRAY: { (void)(__o); (void)(__g); } break;
 #	define _DESTROY_ARRAY(__o) \
 		case _DT_ARRAY: \
-			_destroy_array((__o)->data.array); \
+			if(!(__o)->is_ref) \
+				_destroy_array((__o)->data.array); \
 			break;
 #endif /* MB_ENABLE_ARRAY_REF */
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -3926,7 +3927,11 @@ _routine:
 						} else if(arr_type == _DT_USERTYPE) {
 							arr_elem->data.usertype = arr_val.usertype;
 						} else {
+#ifdef MB_SIMPLE_ARRAY
 							mb_assert(0 && "Unsupported.");
+#else /* MB_SIMPLE_ARRAY */
+							_COPY_BYTES(arr_elem->data.bytes, arr_val.bytes);
+#endif /* MB_SIMPLE_ARRAY */
 						}
 						if(f) {
 							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
@@ -7097,6 +7102,10 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 		*((real_t*)rawptr) = (real_t)val->integer;
 
 		break;
+	case _DT_REAL:
+		*((real_t*)rawptr) = val->float_point;
+
+		break;
 	case _DT_STRING: {
 			size_t _sl = 0;
 			if(arr->type != _DT_STRING) {
@@ -7109,7 +7118,7 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 
 		break;
 	default:
-		_COPY_BYTES(*((mb_val_bytes_t*)rawptr), val->bytes);
+		result = MB_FUNC_ERR;
 
 		break;
 	}
@@ -15086,39 +15095,37 @@ _proc_extra_var:
 	} else if(arr) {
 		mb_value_u _val;
 		switch(val->type) {
+#ifdef MB_SIMPLE_ARRAY
+		case _DT_INT:
+			if(arr->type == _DT_STRING) goto _default;
+			_val.integer = val->data.integer;
+
+			break;
+		case _DT_REAL:
+			if(arr->type == _DT_STRING) goto _default;
+			_val.float_point = val->data.float_point;
+
+			break;
+		case _DT_STRING:
+			if(arr->type != _DT_STRING) goto _default;
+			_val.string = val->data.string;
+
+			break;
+_default:
+#else /* MB_SIMPLE_ARRAY */
 		case _DT_NIL: /* Fall through */
 		case _DT_UNKNOWN: /* Fall through */
 		case _DT_INT: /* Fall through */
 		case _DT_REAL: /* Fall through */
 		case _DT_STRING: /* Fall through */
-		case _DT_USERTYPE:
-			_COPY_BYTES(_val.bytes, val->data.bytes);
-
-			break;
 		case _DT_TYPE: /* Fall through */
-#ifdef MB_ENABLE_USERTYPE_REF
-		case _DT_USERTYPE_REF: /* Fall through */
-#endif /* MB_ENABLE_USERTYPE_REF */
-		case _DT_FUNC: /* Fall through */
-		case _DT_ARRAY: /* Fall through */
-#ifdef MB_ENABLE_COLLECTION_LIB
-		case _DT_LIST: /* Fall through */
-		case _DT_LIST_IT: /* Fall through */
-		case _DT_DICT: /* Fall through */
-		case _DT_DICT_IT: /* Fall through */
-#endif /* MB_ENABLE_COLLECTION_LIB */
-#ifdef MB_ENABLE_CLASS
-		case _DT_CLASS: /* Fall through */
-#endif /* MB_ENABLE_CLASS */
-		case _DT_ROUTINE:
-#ifdef MB_SIMPLE_ARRAY
-			/* Fall through */
-#else /* MB_SIMPLE_ARRAY */
+		case _DT_USERTYPE:
 			_COPY_BYTES(_val.bytes, val->data.bytes);
 
 			break;
 #endif /* MB_SIMPLE_ARRAY */
 		default:
+			_dispose_object(val);
 			safe_free(val);
 			_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 
