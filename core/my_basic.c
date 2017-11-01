@@ -14153,7 +14153,7 @@ _exit:
 }
 
 /* Get the last error information */
-mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
+mb_error_e mb_get_last_error(struct mb_interpreter_t* s, const char** file, int* pos, unsigned short* row, unsigned short* col) {
 	mb_error_e result = SE_NO_ERR;
 
 	if(!s)
@@ -14161,6 +14161,10 @@ mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
 
 	result = s->last_error;
 	s->last_error = SE_NO_ERR; /* Clear error state */
+	if(file) *file = s->last_error_file;
+	if(pos) *pos = s->last_error_pos;
+	if(row) *row = s->last_error_row;
+	if(col) *col = s->last_error_col;
 
 _exit:
 	return result;
@@ -15332,7 +15336,7 @@ _elseif:
 					if(ast) la = ast;
 				}
 				if(!ast) {
-					mb_get_last_error(s);
+					mb_get_last_error(s, 0, 0, 0, 0);
 					_handle_error_on_obj(s, SE_RN_ENDIF_EXPECTED, s->source_file, DON(la), MB_FUNC_ERR, _exit, result);
 				}
 				if(ast && _IS_FUNC(ast->data, _core_endif)) {

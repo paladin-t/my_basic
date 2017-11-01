@@ -677,7 +677,7 @@ MBAPI int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_step
 MBAPI const char* mb_get_type_string(mb_data_e t);
 
 MBAPI int mb_raise_error(struct mb_interpreter_t* s, void** l, mb_error_e err, int ret);
-MBAPI mb_error_e mb_get_last_error(struct mb_interpreter_t* s);
+MBAPI mb_error_e mb_get_last_error(struct mb_interpreter_t* s, const char** file, int* pos, unsigned short* row, unsigned short* col);
 MBAPI const char* mb_get_error_desc(mb_error_e err);
 MBAPI int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h);
 
