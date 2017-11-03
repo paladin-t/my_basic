@@ -5449,8 +5449,6 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 								context->parsing_pos = pos;
 								context->parsing_row = row;
 								context->parsing_col = col;
-								if(last->prev && last->prev != context->imported) s->source_file = (char*)last->prev->data;
-								else s->source_file = 0;
 								_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
 							}
 							_destroy_memory(last->data, last->extra);
