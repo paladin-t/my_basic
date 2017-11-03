@@ -1448,7 +1448,7 @@ static void _print_string(mb_interpreter_t* s, _object_t* obj);
 
 /** Parsing helpers */
 
-static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix);
+static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix, bool_t importing);
 static void _end_of_file(_parsing_context_t* context);
 
 #define _ZERO_CHAR '\0'
@@ -4811,7 +4811,7 @@ static void _print_string(mb_interpreter_t* s, _object_t* obj) {
 /** Parsing helpers */
 
 /* Read all content of a file into a buffer */
-static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
+static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix, bool_t importing) {
 #ifndef MB_DISABLE_LOAD_FILE
 	FILE* fp = 0;
 	char* buf = 0;
@@ -4829,9 +4829,11 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) 
 	} else {
 		fp = fopen(f, "rb");
 		if(fp) {
-			buf = mb_strdup(f, strlen(f) + 1);
-			_ls_pushback(context->imported, buf);
-			buf = 0;
+			if(importing) {
+				buf = mb_strdup(f, strlen(f) + 1);
+				_ls_pushback(context->imported, buf);
+				buf = 0;
+			}
 
 			curpos = ftell(fp);
 			fseek(fp, 0L, SEEK_END);
@@ -5418,7 +5420,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 #endif /* MB_ENABLE_MODULE */
 			}
 			/* Import another file */
-			buf = _load_file(s, sym + 1, ":");
+			buf = _load_file(s, sym + 1, ":", true);
 			if(buf) {
 				if(buf != sym + 1) {
 					char* lf = (char*)(_ls_back(context->imported)->data);
@@ -5443,9 +5445,16 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 						lf = _prev_import(s, lf, &pos, &row, &col);
 						if(s->import_handler(s, sym + 1) != MB_FUNC_OK) {
 							_ls_node_t* last = _ls_back(context->imported);
+							if(s->last_error == SE_NO_ERR) {
+								context->parsing_pos = pos;
+								context->parsing_row = row;
+								context->parsing_col = col;
+								if(last->prev && last->prev != context->imported) s->source_file = (char*)last->prev->data;
+								else s->source_file = 0;
+								_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
+							}
 							_destroy_memory(last->data, last->extra);
 							_ls_popback(context->imported);
-							_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
 						}
 						_post_import(s, lf, &pos, &row, &col);
 					} else {
@@ -11246,8 +11255,12 @@ static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
 		imp = context->imported;
 	memset(context, 0, sizeof(_parsing_context_t));
 	context->parsing_row = 1;
-	if(!imp)
+	if(!imp) {
 		imp = _ls_create();
+	} else {
+		_ls_foreach(imp, _destroy_memory);
+		_ls_clear(imp);
+	}
 	context->imported = imp;
 	_end_of_file(context);
 
@@ -11830,6 +11843,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	(*s)->jump_set = _JMP_NIL;
 	(*s)->last_routine = 0;
 	(*s)->no_eat_comma_mark = 0;
+	(*s)->handled_error = false;
 	(*s)->last_error = SE_NO_ERR;
 	(*s)->last_error_file = 0;
 
@@ -13814,11 +13828,9 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 		goto _exit;
 	}
 
-	context = s->parsing_context;
-
 	s->parsing_context = context = _reset_parsing_context(s->parsing_context);
 
-	buf = _load_file(s, f, 0);
+	buf = _load_file(s, f, 0, false);
 	if(buf) {
 		result = mb_load_string(s, buf, true);
 		safe_free(buf);
@@ -14165,6 +14177,7 @@ mb_error_e mb_get_last_error(struct mb_interpreter_t* s, const char** file, int*
 	if(pos) *pos = s->last_error_pos;
 	if(row) *row = s->last_error_row;
 	if(col) *col = s->last_error_col;
+	s->last_error_file = 0;
 
 _exit:
 	return result;
