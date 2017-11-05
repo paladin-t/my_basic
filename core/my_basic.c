@@ -1456,6 +1456,8 @@ static void _end_of_file(_parsing_context_t* context);
 #define _RETURN_CHAR '\r'
 #define _STRING_POSTFIX_CHAR '$'
 #define _DUMMY_ASSIGN_CHAR "#"
+#define _INVALID_CLASS_CHAR 0x18
+#define _INVALID_ROUTINE_CHAR 0x1B
 
 #define _REMARK_STR "REM"
 
@@ -5189,6 +5191,8 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		break;
 #ifdef MB_ENABLE_CLASS
 	case _DT_CLASS:
+		if(!_is_identifier_char(*sym))
+			*sym = _INVALID_CLASS_CHAR;
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_CLASS) {
 			(*obj)->data.instance = ((_object_t*)glbsyminscope->data)->data.instance;
@@ -5200,14 +5204,10 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 				_push_scope_by_class(s, (*obj)->data.instance->scope);
 			}
 		} else {
-			_var_t* var = 0;
-
 			tmp.instance = (_class_t*)mb_malloc(sizeof(_class_t));
 			_init_class(s, tmp.instance, sym);
 			_push_scope_by_class(s, tmp.instance->scope);
 			s->last_instance = tmp.instance;
-
-			mb_unrefvar(var);
 
 			(*obj)->data.instance = tmp.instance;
 
@@ -5223,6 +5223,8 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		break;
 #endif /* MB_ENABLE_CLASS */
 	case _DT_ROUTINE:
+		if(!_is_identifier_char(*sym))
+			*sym = _INVALID_ROUTINE_CHAR;
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
 			(*obj)->data.routine = ((_object_t*)glbsyminscope->data)->data.routine;
@@ -5514,6 +5516,8 @@ _end_import:
 #ifdef MB_ENABLE_CLASS
 	if(context->last_symbol) {
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
+		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE)
+			goto _routine;
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_CLASS) {
 			if(_IS_FUNC(context->last_symbol, _core_class)) {
 				_handle_error_now(s, SE_RN_DUPLICATE_CLASS, s->source_file, MB_FUNC_ERR);
@@ -5558,6 +5562,7 @@ _end_import:
 				_pop_scope(s, false);
 		}
 	}
+_routine:
 #endif /* MB_ENABLE_CLASS */
 	/* _routine_t */
 	if(context->last_symbol && !_is_bracket_char(sym[0])) {
@@ -5709,7 +5714,7 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
 	char last_char = _ZERO_CHAR;
-	char c = '\0';
+	char c = _ZERO_CHAR;
 #ifdef MB_ENABLE_UNICODE_ID
 	unsigned uc = 0;
 #else /* MB_ENABLE_UNICODE_ID */
@@ -6102,7 +6107,7 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint) {
 		if(--afterpoint == 0)
 			break;
 	}
-	str[pos] = '\0';
+	str[pos] = _ZERO_CHAR;
 }
 #endif /* MB_MANUAL_REAL_FORMATTING */
 
@@ -10425,17 +10430,27 @@ static void _tidy_scope_chain(mb_interpreter_t* s) {
 	mb_assert(s);
 
 	context = s->parsing_context;
-	if(!context)
+	if(!context) {
+		while(s->running_context->prev)
+			_pop_scope(s, false);
+
 		return;
+	}
 
 	while(context->routine_state && s->running_context->meta != _SCOPE_META_ROOT) {
-		if(_end_routine(s))
+		if(_end_routine(s)) {
+			if(!s->running_context->prev)
+				break;
 			_pop_scope(s, false);
+		}
 	}
 #ifdef MB_ENABLE_CLASS
 	while(context->class_state != _CLASS_STATE_NONE) {
-		if(_end_class(s))
+		if(_end_class(s)) {
+			if(!s->running_context->prev)
+				break;
 			_pop_scope(s, false);
+		}
 	}
 #endif /* MB_ENABLE_CLASS */
 }
@@ -11830,7 +11845,6 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	int result = MB_FUNC_OK;
 	_ht_node_t* global_scope = 0;
 	_ls_node_t* ast;
-	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
 
 	if(!s || !(*s))
@@ -11839,6 +11853,10 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	(*s)->run_count = 0;
 	(*s)->has_run = false;
 	(*s)->jump_set = _JMP_NIL;
+#ifdef MB_ENABLE_CLASS
+	(*s)->last_instance = 0;
+	(*s)->calling = false;
+#endif /* MB_ENABLE_CLASS */
 	(*s)->last_routine = 0;
 	(*s)->no_eat_comma_mark = 0;
 	(*s)->handled_error = false;
@@ -11849,8 +11867,6 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	(*s)->suspent_point = 0;
 	running->next_loop_var = 0;
 	memset(&(running->intermediate_value), 0, sizeof(mb_value_t));
-
-	(*s)->parsing_context = context = _reset_parsing_context((*s)->parsing_context);
 
 	ast = (*s)->ast;
 	_ls_foreach(ast, _destroy_object);
@@ -11865,7 +11881,10 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	_ls_clear((*s)->multiline_enabled);
 #endif /* _MULTILINE_STATEMENT */
 
+	_tidy_scope_chain(*s);
 	_clear_scope_chain(*s);
+
+	(*s)->parsing_context = _reset_parsing_context((*s)->parsing_context);
 
 	if(clrf) {
 #ifdef MB_ENABLE_MODULE
@@ -13866,6 +13885,7 @@ int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 			s->parsing_context->routine_state = 0;
 			result = MB_FUNC_ERR;
 			_handle_error_now(s, SE_RN_INCOMPLETE_ROUTINE, s->source_file, result);
+			_tidy_scope_chain(s);
 
 			goto _exit;
 		}
@@ -13874,6 +13894,7 @@ int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 			s->parsing_context->class_state = _CLASS_STATE_NONE;
 			result = MB_FUNC_ERR;
 			_handle_error_now(s, SE_RN_INCOMPLETE_CLASS, s->source_file, result);
+			_tidy_scope_chain(s);
 
 			goto _exit;
 		}
@@ -13930,6 +13951,8 @@ int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 
 _exit:
 	if(s) {
+		if(!s->suspent_point)
+			s->source_file = 0;
 		if(clear_parser)
 			_destroy_parsing_context(&s->parsing_context);
 
