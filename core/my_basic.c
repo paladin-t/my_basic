@@ -1637,19 +1637,20 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 			else if(!(__o)->is_ref && (__o)->data.routine->type != MB_RT_LAMBDA) \
 				_destroy_routine(0, (__o)->data.routine); \
 			break;
-#	define _ADDGC_ROUTINE(__o, __g) \
+#	define _ADDGC_ROUTINE(__o, __g, __r) \
 		case _DT_ROUTINE: \
 			if(!(__o)->is_ref && (__o)->data.routine->type == MB_RT_LAMBDA) \
 				_gc_add(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine, (__g)); \
-			else if(!(__o)->is_ref && (__o)->data.routine->type != MB_RT_LAMBDA) \
+			else if((__r) && !(__o)->is_ref && (__o)->data.routine->type != MB_RT_LAMBDA) \
 				_dispose_object(__o); \
 			break;
 #else /* MB_ENABLE_LAMBDA */
 #	define _REF_ROUTINE(__o) case _DT_ROUTINE: { (void)(__o); } break;
 #	define _UNREF_ROUTINE(__o) case _DT_ROUTINE: { (void)(__o); } break;
-#	define _ADDGC_ROUTINE(__o, __g) \
+#	define _ADDGC_ROUTINE(__o, __g, __r) \
 		case _DT_ROUTINE: \
 			((void)(__g)); \
+			((void)(__r)); \
 			_dispose_object(__o); \
 			break;
 #endif /* MB_ENABLE_LAMBDA */
@@ -1675,7 +1676,7 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 	_UNREF_ROUTINE(__o) \
 	default: break; \
 	}
-#define _ADDGC(__o, __g) \
+#define _ADDGC(__o, __g, __r) \
 	if(!(__o)->data.pointer || !_ht_find((__g)->collected_table, (__o)->data.pointer)) { \
 		switch((__o)->type) { \
 		_ADDGC_USERTYPE_REF(__o, __g) \
@@ -1683,7 +1684,7 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 		_ADDGC_COLL(__o, __g) \
 		_ADDGC_COLL_IT(__o, __g) \
 		_ADDGC_CLASS(__o, __g) \
-		_ADDGC_ROUTINE(__o, __g) \
+		_ADDGC_ROUTINE(__o, __g, __r) \
 		_ADDGC_STRING(__o) \
 		default: break; \
 		} \
@@ -6462,7 +6463,7 @@ static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc) {
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	_ADDGC(obj, gc)
+	_ADDGC(obj, gc, false)
 	safe_free(obj);
 
 	return result;
@@ -6476,11 +6477,11 @@ static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc) {
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	_ADDGC(obj, gc)
+	_ADDGC(obj, gc, false)
 	safe_free(obj);
 
 	obj = (_object_t*)extra;
-	_ADDGC(obj, gc)
+	_ADDGC(obj, gc, false)
 	safe_free(obj);
 
 	return result;
@@ -6501,7 +6502,7 @@ static int _gc_destroy_garbage_in_class(void* data, void* extra, _gc_t* gc) {
 		safe_free(obj->data.variable->name);
 		safe_free(obj->data.variable);
 	} else {
-		_ADDGC(obj, gc)
+		_ADDGC(obj, gc, true)
 	}
 	safe_free(obj);
 
@@ -6532,7 +6533,7 @@ static int _gc_destroy_garbage_in_lambda(void* data, void* extra, _gc_t* gc) {
 		safe_free(obj->data.variable->name);
 		safe_free(obj->data.variable);
 	} else {
-		_ADDGC(obj, gc)
+		_ADDGC(obj, gc, false)
 	}
 	safe_free(obj);
 
@@ -10516,7 +10517,7 @@ static void _mark_hanged_intermediate_value(mb_interpreter_t* s, _running_contex
 			else if(tmp.type == _DT_DICT_IT && tmp.data.dict_it->locking)
 				break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
-			_ADDGC(&tmp, &s->gc)  /* Process hanged value */
+			_ADDGC(&tmp, &s->gc, false) /* Process hanged value */
 		}
 
 		break;
@@ -13732,7 +13733,7 @@ int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_val
 		_assign_public_value(s, ret, &running->intermediate_value, false);
 		_MAKE_NIL(&obj);
 		_public_value_to_internal_object(ret, &obj);
-		_ADDGC(&obj, &s->gc)
+		_ADDGC(&obj, &s->gc, false)
 	}
 
 _exit:
@@ -15946,7 +15947,7 @@ static int _core_def(mb_interpreter_t* s, void** l) {
 	_running_context_t* running = 0;
 	_object_t* obj = 0;
 	_var_t* var = 0;
-	_ls_node_t*  rnode = 0;
+	_ls_node_t* rnode = 0;
 	_routine_t* routine = 0;
 
 	mb_assert(s && l);
