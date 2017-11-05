@@ -6393,8 +6393,12 @@ static int _gc_add_reachable(void* data, void* extra, void* h) {
 #ifdef MB_ENABLE_LAMBDA
 	case _DT_ROUTINE:
 		if(obj->data.routine->type == MB_RT_LAMBDA) {
-			if(!_ht_find(ht, &obj->data.routine->func.lambda.ref))
+			if(!_ht_find(ht, &obj->data.routine->func.lambda.ref)) {
 				_ht_set_or_insert(ht, &obj->data.routine->func.lambda.ref, obj->data.routine);
+				if(obj->data.routine->func.lambda.outer_scope) {
+					_HT_FOREACH(obj->data.routine->func.lambda.outer_scope->scope->var_dict, _do_nothing_on_object, _gc_add_reachable, ht);
+				}
+			}
 		}
 
 		break;
