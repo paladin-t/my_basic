@@ -1,6 +1,7 @@
 Nov. 5 2017
 Fixed a GC bug with upvalues in a closure
 Fixed a GC bug with retrieved routine
+Fixed a GC bug with routine in a collection
 Fixed a crash bug with conflicting routine and class identifier
 Fixed a dangling pointer bug with incomplete structures
 Fixed a memory leak with wrong routine or class identifier

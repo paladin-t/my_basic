@@ -1644,6 +1644,11 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 			else if((__r) && !(__o)->is_ref && (__o)->data.routine->type != MB_RT_LAMBDA) \
 				_dispose_object(__o); \
 			break;
+#	define _COLL_ROUTINE(__o) \
+		do { \
+			if((__o)->type == _DT_ROUTINE && (__o)->data.routine->type != MB_RT_LAMBDA) \
+				(__o)->is_ref = true; \
+		} while(0)
 #else /* MB_ENABLE_LAMBDA */
 #	define _REF_ROUTINE(__o) case _DT_ROUTINE: { (void)(__o); } break;
 #	define _UNREF_ROUTINE(__o) case _DT_ROUTINE: { (void)(__o); } break;
@@ -1653,6 +1658,11 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 			((void)(__r)); \
 			_dispose_object(__o); \
 			break;
+#	define _COLL_ROUTINE(__o) \
+		do { \
+			if((__o)->type == _DT_ROUTINE) \
+				(__o)->is_ref = true; \
+		} while(0)
 #endif /* MB_ENABLE_LAMBDA */
 #define _ADDGC_STRING(__o) \
 	case _DT_STRING: \
@@ -7448,6 +7458,7 @@ static bool_t _push_list(_list_t* coll, mb_value_t* val, _object_t* oarg) {
 
 	if(val && !oarg)
 		_create_internal_object_from_public_value(val, &oarg);
+	_COLL_ROUTINE(oarg);
 	_ls_pushback(coll->list, oarg);
 	coll->count++;
 
@@ -7497,6 +7508,7 @@ static bool_t _insert_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t*
 	_fill_ranged(coll);
 
 	_create_internal_object_from_public_value(val, &oarg);
+	_COLL_ROUTINE(oarg);
 	if(oval)
 		*oval = oarg;
 
@@ -7529,6 +7541,7 @@ static bool_t _set_list(_list_t* coll, int_t idx, mb_value_t* val, _object_t** o
 			_destroy_object(result->data, 0);
 		if(val) {
 			_create_internal_object_from_public_value(val, &oarg);
+			_COLL_ROUTINE(oarg);
 			if(oval)
 				*oval = oarg;
 		} else {
@@ -7751,6 +7764,8 @@ static bool_t _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object
 	exists = _ht_find(coll->dict, okey);
 	if(exists)
 		_ht_remove(coll->dict, okey, _ls_cmp_extra_object);
+	_COLL_ROUTINE(okey);
+	_COLL_ROUTINE(oval);
 	_ht_set_or_insert(coll->dict, okey, oval);
 
 	_write_on_ref_object(&coll->lock, &coll->ref, coll);
