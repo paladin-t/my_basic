@@ -300,6 +300,14 @@ extern "C" {
 #	define mb_unrefvar(__v) ((void)(__v))
 #endif /* mb_unrefvar */
 
+#ifndef mb_mem_tag_t
+	typedef unsigned short mb_mem_tag_t;
+#endif /* mb_mem_tag_t */
+
+#ifndef mb_bytes_size
+#	define mb_bytes_size (mb_max(mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), sizeof(int_t)), sizeof(real_t)))
+#endif /* mb_bytes_size */
+
 #ifndef mb_make_nil
 #	define mb_make_nil(__v) do { memset(&(__v).value.bytes, 0, sizeof(mb_val_bytes_t)); (__v).type = MB_DT_NIL; } while(0)
 #endif /* mb_make_nil */
@@ -339,10 +347,6 @@ extern "C" {
 #ifndef mb_int_val
 #	define mb_int_val(__v, __d) do { if((__v).type == MB_DT_INT) (__d) = (__v).value.integer; else if((__v).type == MB_DT_REAL) (__d) = (int_t)((__v).value.float_point); else (__d) = ~((int_t)0); } while(0)
 #endif /* mb_int_val */
-
-#ifndef mb_bytes_size
-#	define mb_bytes_size (mb_max(mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), sizeof(int_t)), sizeof(real_t)))
-#endif /* mb_bytes_size */
 
 #ifndef MB_CODES
 #	define MB_CODES
@@ -568,8 +572,6 @@ typedef struct mb_value_t {
 	mb_data_e type;
 	mb_value_u value;
 } mb_value_t;
-
-typedef unsigned short mb_mem_tag_t;
 
 typedef int (* mb_func_t)(struct mb_interpreter_t*, void**);
 typedef int (* mb_has_routine_arg_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, void*);

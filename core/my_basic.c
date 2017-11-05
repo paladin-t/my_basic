@@ -1314,7 +1314,7 @@ static void _resize_dynamic_buffer(_dynamic_buffer_t* buf, size_t es, size_t c);
 #define _WCHAR_BUF_PTR(b) ((b).pointer.wcharp)
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 
-#define _MB_CHECK_MEM_TAG_SIZE(y, s) ((mb_mem_tag_t)(s) == (s))
+#define _MB_CHECK_MEM_TAG_SIZE(y, s) ((y)(mb_mem_tag_t)(s) == (s))
 #define _MB_WRITE_MEM_TAG_SIZE(t, s) (*((mb_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)) = (mb_mem_tag_t)(s))
 #define _MB_READ_MEM_TAG_SIZE(t) (*((mb_mem_tag_t*)((char*)(t) - _MB_MEM_TAG_SIZE)))
 
@@ -14352,7 +14352,8 @@ char* mb_memdup(const char* val, unsigned size) {
 
 	if(val != 0) {
 		result = (char*)mb_malloc(size);
-		memcpy(result, val, size);
+		if(result)
+			memcpy(result, val, size);
 	}
 
 	return result;
