@@ -17825,7 +17825,6 @@ _print:
 				} else {
 					_get_printer(s)(mb_get_type_string(_internal_type_to_public_type(val_ptr->type)));
 				}
-				_unref(&val_ptr->data.usertype_ref->ref, val_ptr->data.usertype_ref);
 #endif /* MB_ENABLE_USERTYPE_REF */
 			} else if(val_ptr->type == _DT_TYPE) {
 				_get_printer(s)(mb_get_type_string(val_ptr->data.type));
