@@ -1917,6 +1917,7 @@ static int _execute_normal_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop);
 #endif /* MB_ENABLE_COLLECTION_LIB */
 static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t);
+static bool_t _skip_single_line_struct(_ls_node_t** ast, mb_func_t func);
 static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l);
 static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t post_open_func, mb_func_t close_func);
 static bool_t _multiline_statement(mb_interpreter_t* s);
@@ -11178,6 +11179,20 @@ _exit:
 	return result;
 }
 
+/* Skip single line structure */
+static bool_t _skip_single_line_struct(_ls_node_t** ast, mb_func_t func) {
+	_ls_node_t* post = *ast;
+	while(post && !_IS_EOS(post->data))
+		post = post->next;
+	if(post && post->prev && !_IS_FUNC(post->prev->data, func)) {
+		*ast = post;
+
+		return true;
+	}
+
+	return false;
+}
+
 /* Skip current IF execution flow to next chunk */
 static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 	int result = MB_FUNC_OK;
@@ -11200,6 +11215,8 @@ static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 		*l = ast;
 		ast = ast->next;
 		if(ast && _IS_FUNC((_object_t*)ast->data, _core_if)) {
+			if(_skip_single_line_struct(&ast, _core_then))
+				continue;
 			if(++nested > sizeof(mask) * 8) {
 				_handle_error_on_obj(s, SE_RN_NESTED_TOO_DEEP, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
@@ -11243,14 +11260,8 @@ static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func
 		obj = (_object_t*)ast->data;
 		if(_IS_FUNC(obj, open_func)) {
 			if(post_open_func) {
-				_ls_node_t* post = ast;
-				while(post && !_IS_EOS(post->data))
-					post = post->next;
-				if(post && post->prev && !_IS_FUNC(post->prev->data, post_open_func)) {
-					ast = post;
-
+				if(_skip_single_line_struct(&ast, post_open_func))
 					continue;
-				}
 			}
 			++count;
 		} else if(_IS_FUNC(obj, close_func) && _IS_EOS(obj_prev)) {
