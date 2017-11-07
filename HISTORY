@@ -1,3 +1,6 @@
+Nov. 7 2017
+Fixed a bug with single-line nested IF statement
+
 Nov. 5 2017
 Fixed a GC bug with upvalues in a closure
 Fixed a GC bug with retrieved routine

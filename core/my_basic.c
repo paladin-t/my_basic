@@ -1918,7 +1918,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 #endif /* MB_ENABLE_COLLECTION_LIB */
 static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t);
 static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l);
-static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func);
+static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t post_open_func, mb_func_t close_func);
 static bool_t _multiline_statement(mb_interpreter_t* s);
 
 static _running_context_t* _create_running_context(bool_t create_var_dict);
@@ -10819,7 +10819,7 @@ static int _common_end_looping(mb_interpreter_t* s, _ls_node_t** l) {
 
 	mb_assert(s && l);
 
-	result = _skip_struct(s, l, _core_for, _core_next);
+	result = _skip_struct(s, l, _core_for, 0, _core_next);
 	if(result == MB_FUNC_OK)
 		result = _skip_to(s, l, 0, _DT_EOS);
 
@@ -10848,14 +10848,14 @@ static int _common_keep_looping(mb_interpreter_t* s, _ls_node_t** l, _var_t* var
 
 				break;
 			} else { /* Not this loop */
-				if(_skip_struct(s, &ast, _core_for, _core_next) != MB_FUNC_OK)
+				if(_skip_struct(s, &ast, _core_for, 0, _core_next) != MB_FUNC_OK)
 					goto _exit;
 				_skip_to(s, &ast, 0, _DT_EOS);
 
 				goto _exit;
 			}
 		} else if(result == MB_LOOP_BREAK) { /* EXIT */
-			if(_skip_struct(s, &ast, _core_for, _core_next) != MB_FUNC_OK)
+			if(_skip_struct(s, &ast, _core_for, 0, _core_next) != MB_FUNC_OK)
 				goto _exit;
 			_skip_to(s, &ast, 0, _DT_EOS);
 
@@ -11222,7 +11222,7 @@ _exit:
 }
 
 /* Skip current structure */
-static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func) {
+static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t post_open_func, mb_func_t close_func) {
 	int result = MB_FUNC_OK;
 	int count = 0;
 	_ls_node_t* ast = 0;
@@ -11241,10 +11241,21 @@ static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func
 		obj_prev = (_object_t*)ast->data;
 		ast = ast->next;
 		obj = (_object_t*)ast->data;
-		if(_IS_FUNC(obj, open_func))
+		if(_IS_FUNC(obj, open_func)) {
+			if(post_open_func) {
+				_ls_node_t* post = ast;
+				while(post && !_IS_EOS(post->data))
+					post = post->next;
+				if(post && post->prev && !_IS_FUNC(post->prev->data, post_open_func)) {
+					ast = post;
+
+					continue;
+				}
+			}
 			++count;
-		else if(_IS_FUNC(obj, close_func) && _IS_EOS(obj_prev))
+		} else if(_IS_FUNC(obj, close_func) && _IS_EOS(obj_prev)) {
 			--count;
+		}
 	} while(count);
 
 _exit:
@@ -15422,7 +15433,7 @@ _exit:
 		if(multi_line) {
 			int ret = MB_FUNC_OK;
 			if(skip)
-				ret = _skip_struct(s, &ast, _core_if, _core_endif);
+				ret = _skip_struct(s, &ast, _core_if, _core_then, _core_endif);
 			if(result != MB_FUNC_END && result != MB_LOOP_BREAK && result != MB_LOOP_CONTINUE && result != MB_SUB_RETURN) {
 				if(ret != MB_FUNC_OK)
 					result = ret;
@@ -15598,7 +15609,7 @@ _loop_begin:
 		while(!_IS_FUNC(obj, _core_wend)) {
 			result = _execute_statement(s, &ast, true);
 			if(result == MB_LOOP_BREAK) { /* EXIT */
-				if(_skip_struct(s, &ast, _core_while, _core_wend) != MB_FUNC_OK)
+				if(_skip_struct(s, &ast, _core_while, 0, _core_wend) != MB_FUNC_OK)
 					goto _exit;
 				_skip_to(s, &ast, 0, _DT_EOS);
 				result = MB_FUNC_OK;
@@ -15622,7 +15633,7 @@ _loop_begin:
 		goto _loop_begin;
 	} else {
 		/* End looping */
-		if(_skip_struct(s, &ast, _core_while, _core_wend) != MB_FUNC_OK)
+		if(_skip_struct(s, &ast, _core_while, 0, _core_wend) != MB_FUNC_OK)
 			goto _exit;
 		_skip_to(s, &ast, 0, _DT_EOS);
 
@@ -15677,7 +15688,7 @@ _loop_begin:
 	while(!_IS_FUNC(obj, _core_until)) {
 		result = _execute_statement(s, &ast, true);
 		if(result == MB_LOOP_BREAK) { /* EXIT */
-			if(_skip_struct(s, &ast, _core_do, _core_until) != MB_FUNC_OK)
+			if(_skip_struct(s, &ast, _core_do, 0, _core_until) != MB_FUNC_OK)
 				goto _exit;
 			_skip_to(s, &ast, 0, _DT_EOS);
 			result = MB_FUNC_OK;
