@@ -9,7 +9,7 @@ import "utils.bas"
 class player(entity)
 	var pos = new(point)
 
-	def tostring()
+	def to_string()
 		return "Player [" + name + "]"
 	enddef
 endclass

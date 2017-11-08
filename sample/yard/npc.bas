@@ -8,7 +8,7 @@ import "entity.bas"
 class npc(entity)
 	var talk_handler = nil
 
-	def tostring()
+	def to_string()
 		return "NPC [" + name + "]"
 	enddef
 

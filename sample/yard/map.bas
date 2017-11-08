@@ -18,8 +18,8 @@ class map_node
 	var valid_dirs = dirs.none_dir
 	var entities = list()
 
-	def tostring()
-		s = pos.tostring()
+	def to_string()
+		s = pos.to_string()
 		return "Map Node " + s
 	enddef
 
@@ -63,7 +63,7 @@ class map
 
 	var nodes = dict()
 
-	def tostring()
+	def to_string()
 		return "Map"
 	enddef
 

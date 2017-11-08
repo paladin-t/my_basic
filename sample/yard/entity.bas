@@ -14,7 +14,7 @@ class entity
 
 	var dead_handler = nil
 
-	def tostring()
+	def to_string()
 		return "Entity [" + name + "]"
 	enddef
 

@@ -322,7 +322,7 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Incomplete routine",
 	"Routine expected",
 	"Duplicate routine",
-	"To many routines",
+	"Too many routines",
 	"Invalid class",
 	"Incomplete class",
 	"Class expected",
@@ -551,7 +551,7 @@ typedef struct _label_t {
 
 #define _CLASS_HASH_FUNC "HASH"
 #define _CLASS_COMPARE_FUNC "COMPARE"
-#define _CLASS_TOSTRING_FUNC "TOSTRING"
+#define _CLASS_TO_STRING_FUNC "TO_STRING"
 
 #define _CLASS_OVERRIDE_FMT "_%s"
 
@@ -8390,7 +8390,7 @@ static int _format_class_to_string(mb_interpreter_t* s, void** l, _class_t* inst
 
 	mb_assert(s && l && instance && out);
 
-	tsn = _search_identifier_in_class(s, instance, _CLASS_TOSTRING_FUNC, 0, 0);
+	tsn = _search_identifier_in_class(s, instance, _CLASS_TO_STRING_FUNC, 0, 0);
 	if(got_tostr) *got_tostr = false;
 	if(tsn) {
 		_object_t* tso = (_object_t*)tsn->data;

@@ -8,7 +8,7 @@ import "entity.bas"
 class goal(entity)
 	var take_handler = nil
 
-	def tostring()
+	def to_string()
 		return "Goal [" + name + "]"
 	enddef
 

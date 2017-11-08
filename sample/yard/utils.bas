@@ -72,7 +72,7 @@ class point
 	var x = 0
 	var y = 0
 
-	def tostring()
+	def to_string()
 		return "[" + str(x) + ", " + str(y) + "]"
 	enddef
 endclass

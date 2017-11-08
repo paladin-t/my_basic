@@ -6,7 +6,7 @@
 import "entity.bas"
 
 class monster(entity)
-	def tostring()
+	def to_string()
 		return "Monster [" + name + "]"
 	enddef
 endclass
