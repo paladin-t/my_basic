@@ -590,6 +590,7 @@ typedef struct _lambda_t {
 	struct _running_context_t* scope;
 	_ls_node_t* parameters;
 	struct _running_context_ref_t* outer_scope;
+	bool_t overlapped _PACK1;
 	_ht_node_t* upvalues;
 	_ls_node_t* entry;
 	_ls_node_t* end;
@@ -2178,9 +2179,9 @@ MBCONST static const _func_t _core_libs[] = {
 
 #ifdef MB_ENABLE_LAMBDA
 	{ "LAMBDA", _core_lambda },
-#	ifdef MB_LAMBDA_ALIAS
+#ifdef MB_LAMBDA_ALIAS
 	{ MB_LAMBDA_ALIAS, _core_lambda },
-#	endif /* MB_LAMBDA_ALIAS */
+#endif /* MB_LAMBDA_ALIAS */
 #endif /* MB_ENABLE_LAMBDA */
 
 #ifdef MB_ENABLE_ALLOC_STAT
@@ -3313,10 +3314,10 @@ static int mb_uu_getbom(const char** ch) {
 /* Determine whether a buffer starts with a UTF8 encoded character, and return taken byte count */
 static int mb_uu_ischar(const char* ch) {
 	/* Copyright 2008, 2009 Bjoern Hoehrmann, http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ */
-#	define _TAKE(__ch, __c, __r) do { __c = *__ch++; __r++; } while(0)
-#	define _COPY(__ch, __c, __r, __cp) do { _TAKE(__ch, __c, __r); __cp = (__cp << 6) | ((unsigned char)__c & 0x3Fu); } while(0)
-#	define _TRANS(__m, __cp, __g) do { __cp &= ((__g[(unsigned char)c] & __m) != 0); } while(0)
-#	define _TAIL(__ch, __c, __r, __cp, __g) do { _COPY(__ch, __c, __r, __cp); _TRANS(0x70, __cp, __g); } while(0)
+#define _TAKE(__ch, __c, __r) do { __c = *__ch++; __r++; } while(0)
+#define _COPY(__ch, __c, __r, __cp) do { _TAKE(__ch, __c, __r); __cp = (__cp << 6) | ((unsigned char)__c & 0x3Fu); } while(0)
+#define _TRANS(__m, __cp, __g) do { __cp &= ((__g[(unsigned char)c] & __m) != 0); } while(0)
+#define _TAIL(__ch, __c, __r, __cp, __g) do { _COPY(__ch, __c, __r, __cp); _TRANS(0x70, __cp, __g); } while(0)
 
 	MBCONST static const unsigned char range[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3360,10 +3361,10 @@ static int mb_uu_ischar(const char* ch) {
 	default: return 0;
 	}
 
-#	undef _TAKE
-#	undef _COPY
-#	undef _TRANS
-#	undef _TAIL
+#undef _TAKE
+#undef _COPY
+#undef _TRANS
+#undef _TAIL
 }
 
 /* Tell how many UTF8 character are there in a string */
@@ -4363,13 +4364,13 @@ static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 		result = _eval_script_routine(s, l, va, ca, r, has_arg, pop_arg);
 #ifdef MB_ENABLE_LAMBDA
 	} else if(r->type == MB_RT_LAMBDA && r->func.lambda.entry) {
-#	ifdef MB_ENABLE_STACK_TRACE
+#ifdef MB_ENABLE_STACK_TRACE
 		_ls_node_t* top = _ls_back(s->stack_frames);
 		if(top) {
 			sprintf(ln, "LAMBDA_0x%p", &r->func.lambda.ref);
 			top->data = ln;
 		}
-#	endif /* MB_ENABLE_STACK_TRACE */
+#endif /* MB_ENABLE_STACK_TRACE */
 		result = _eval_lambda_routine(s, l, va, ca, r, has_arg, pop_arg);
 #endif /* MB_ENABLE_LAMBDA */
 	} else if(r->type == MB_RT_NATIVE && r->func.native.entry) {
@@ -5545,11 +5546,11 @@ _end_import:
 				goto _exit;
 			}
 			_begin_class(s);
-#	ifdef MB_ENABLE_UNICODE_ID
+#ifdef MB_ENABLE_UNICODE_ID
 			if(!_is_identifier_char(sym[0]) && !mb_uu_ischar(sym)) {
-#	else /* MB_ENABLE_UNICODE_ID */
+#else /* MB_ENABLE_UNICODE_ID */
 			if(!_is_identifier_char(sym[0])) {
-#	endif /* MB_ENABLE_UNICODE_ID */
+#endif /* MB_ENABLE_UNICODE_ID */
 				result = _DT_NIL;
 
 				goto _exit;
@@ -8913,6 +8914,11 @@ static _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda
 
 	if(lambda->outer_scope) {
 		lambda->scope->prev = lambda->outer_scope->scope;
+		if(_find_scope(s, lambda->scope->prev)) {
+			lambda->overlapped = true;
+
+			return lambda->scope;
+		}
 		root_ref = _get_root_ref_scope(lambda->outer_scope);
 		root_ref->scope->prev = 0;
 	}
@@ -8939,6 +8945,13 @@ static _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lamb
 	_running_context_t* root = 0;
 
 	if(lambda->outer_scope) {
+		if(lambda->overlapped) {
+			lambda->overlapped = false;
+
+			lambda->scope->prev = 0;
+
+			return lambda->scope;
+		}
 		root_ref = _get_root_ref_scope(lambda->outer_scope);
 		root = root_ref->scope;
 	} else {
@@ -9134,11 +9147,11 @@ static void _out_of_scope(mb_interpreter_t* s, _running_context_t* running, void
 #ifdef MB_ENABLE_LAMBDA
 	if(running->refered_lambdas) {
 		tuple.s = s;
-#	ifdef MB_ENABLE_CLASS
+#ifdef MB_ENABLE_CLASS
 		tuple.instance = (_class_t*)instance;
-#	else /* MB_ENABLE_CLASS */
+#else /* MB_ENABLE_CLASS */
 		mb_unrefvar(instance);
-#	endif /* MB_ENABLE_CLASS */
+#endif /* MB_ENABLE_CLASS */
 		tuple.scope = running;
 		tuple.outer_scope = _create_outer_scope(s);
 		tuple.lambda = 0;
@@ -15910,6 +15923,20 @@ _retry:
 
 		break;
 	case _DT_VAR:
+#ifdef MB_ENABLE_LAMBDA
+		if(obj->data.variable->data->type == _DT_ROUTINE && obj->data.variable->data->data.routine->type == MB_RT_LAMBDA) {
+#ifdef MB_ENABLE_CLASS
+			int pathing = _PN(obj->data.variable->pathing);
+#else /* MB_ENABLE_CLASS */
+			int pathing = _PATHING_NORMAL;
+#endif /* MB_ENABLE_CLASS */
+			pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, pathing, 0, 0);
+			if(pathed && pathed->data)
+				obj = (_object_t*)pathed->data;
+			if(obj->type != _DT_VAR)
+				goto _retry;
+		}
+#endif /* MB_ENABLE_LAMBDA */
 		if(obj->data.variable->data->type == _DT_ROUTINE) {
 			obj = obj->data.variable->data;
 
@@ -15927,11 +15954,11 @@ _retry:
 		obj = _GET_ROUTINE(obj);
 		routine = obj->data.routine;
 #ifdef MB_ENABLE_CLASS
-#	ifdef MB_ENABLE_LAMBDA
+#ifdef MB_ENABLE_LAMBDA
 		if(routine->type != MB_RT_LAMBDA) {
-#	else /* MB_ENABLE_LAMBDA */
+#else /* MB_ENABLE_LAMBDA */
 		{
-#	endif /* MB_ENABLE_LAMBDA */
+#endif /* MB_ENABLE_LAMBDA */
 			bool_t is_a0 = false;
 			bool_t is_a1 = false;
 			if(s->last_instance && routine->instance) {

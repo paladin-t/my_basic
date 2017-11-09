@@ -1,3 +1,7 @@
+Nov. 10 2017
+Fixed a bug with overlapped lambda scopes
+Fixed a bug with lambda lookup
+
 Nov. 8 2017
 Renamed the TOSTRING symbol to TO_STRING
 
