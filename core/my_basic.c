@@ -580,7 +580,7 @@ typedef struct _upvalue_scope_tuple_t {
 	_class_t* instance;
 #endif /* MB_ENABLE_CLASS */
 	struct _running_context_t* scope;
-	struct _running_context_ref_t* outer_scope;
+	_running_context_ref_t* outer_scope;
 	struct _lambda_t* lambda;
 	_ht_node_t* filled;
 } _upvalue_scope_tuple_t;
@@ -589,8 +589,8 @@ typedef struct _lambda_t {
 	_ref_t ref;
 	struct _running_context_t* scope;
 	_ls_node_t* parameters;
-	struct _running_context_ref_t* outer_scope;
-	bool_t overlapped _PACK1;
+	_running_context_ref_t* outer_scope;
+	struct _running_context_t* overlapped;
 	_ht_node_t* upvalues;
 	_ls_node_t* entry;
 	_ls_node_t* end;
@@ -6389,7 +6389,7 @@ static int _gc_add_reachable(void* data, void* extra, void* h) {
 	case _DT_DICT_IT:
 		if(!_ht_find(ht, &obj->data.dict_it->dict->ref)) {
 			_ht_set_or_insert(ht, &obj->data.dict_it->dict->ref, obj->data.dict_it->dict);
-			_HT_FOREACH(obj->data.dict_it->dict->dict, _do_nothing_on_object, _gc_add_reachable, ht);
+			_HT_FOREACH(obj->data.dict_it->dict->dict, _do_nothing_on_object, _gc_add_reachable_both, ht);
 		}
 
 		break;
@@ -6738,6 +6738,7 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 
 	/* Get unreachable information */
 	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_existing, gc->table);
+	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_existing, gc->recursive_table);
 
 	/* Collect garbage */
 	do {
@@ -7781,23 +7782,21 @@ static bool_t _set_dict(_dict_t* coll, mb_value_t* key, mb_value_t* val, _object
 static bool_t _remove_dict(_dict_t* coll, mb_value_t* key) {
 	_ls_node_t* result = 0;
 	_object_t* okey = 0;
-	void* data = 0;
-	void* extra = 0;
 
 	mb_assert(coll && key);
 
 	_create_internal_object_from_public_value(key, &okey);
 	result = _ht_find(coll->dict, okey);
 	if(result && result->data) {
-		data = result->data;
-		extra = result->extra;
 		_ht_remove(coll->dict, okey, _ls_cmp_extra_object);
 		_destroy_object(okey, 0);
 
 		_write_on_ref_object(&coll->lock, &coll->ref, coll);
+
+		return true;
 	}
 
-	return !!(result && result->data);
+	return false;
 }
 
 /* Find a key in a dictionary */
@@ -8915,7 +8914,9 @@ static _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda
 	if(lambda->outer_scope) {
 		lambda->scope->prev = lambda->outer_scope->scope;
 		if(_find_scope(s, lambda->scope->prev)) {
-			lambda->overlapped = true;
+			lambda->overlapped = s->running_context;
+			if(!weak)
+				s->running_context = lambda->scope;
 
 			return lambda->scope;
 		}
@@ -8946,8 +8947,9 @@ static _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lamb
 
 	if(lambda->outer_scope) {
 		if(lambda->overlapped) {
-			lambda->overlapped = false;
-
+			if(!weak)
+				s->running_context = lambda->overlapped;
+			lambda->overlapped = 0;
 			lambda->scope->prev = 0;
 
 			return lambda->scope;
@@ -18710,7 +18712,7 @@ static int _coll_iterator(mb_interpreter_t* s, void** l) {
 			_public_value_to_internal_object(&coll, &ocoll);
 			dit = _create_dict_it(ocoll.data.dict, false);
 			ret.type = MB_DT_DICT_IT;
-			ret.value.list_it = dit;
+			ret.value.dict_it = dit;
 
 			break;
 		default:

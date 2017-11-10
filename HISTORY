@@ -1,4 +1,5 @@
 Nov. 10 2017
+Fixed a GC bug with dictionary
 Fixed a bug with overlapped lambda scopes
 Fixed a bug with lambda lookup
 
