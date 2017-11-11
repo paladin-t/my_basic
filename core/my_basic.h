@@ -301,7 +301,7 @@ extern "C" {
 #endif /* mb_unrefvar */
 
 #ifndef mb_mem_tag_t
-	typedef unsigned short mb_mem_tag_t;
+typedef unsigned short mb_mem_tag_t;
 #endif /* mb_mem_tag_t */
 
 #ifndef mb_bytes_size

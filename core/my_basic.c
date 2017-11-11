@@ -404,7 +404,9 @@ typedef void (* _unref_func_t)(struct _ref_t*, void*);
 
 #define _NONE_REF 1
 
+#ifndef _ref_count_t
 typedef unsigned _ref_count_t;
+#endif /* _ref_count_t */
 
 /* The reference structure should be always at the head of an object */
 typedef struct _ref_t {
