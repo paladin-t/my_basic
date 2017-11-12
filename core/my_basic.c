@@ -11985,7 +11985,7 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r) {
 	running = _create_running_context(true);
 	running->meta = _SCOPE_META_ROOT;
 	(*s)->forked_context = (*s)->running_context = running;
-	running->prev = r->running_context;
+	running->prev = _get_root_scope(r->running_context);
 
 	(*s)->var_args = 0;
 
