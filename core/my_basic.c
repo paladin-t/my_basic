@@ -8731,7 +8731,6 @@ static void _mark_upvalue(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj
 static void _try_mark_upvalue(mb_interpreter_t* s, _routine_t* r, _object_t* obj) {
 	_lambda_t* lambda = 0;
 	_ls_node_t* node = 0;
-	_object_t* inner = 0;
 
 	mb_assert(s && r && obj);
 	mb_assert(r->type == MB_RT_LAMBDA);
@@ -8741,13 +8740,7 @@ static void _try_mark_upvalue(mb_interpreter_t* s, _routine_t* r, _object_t* obj
 	switch(obj->type) {
 	case _DT_VAR:
 		node = _ht_find(lambda->scope->var_dict, obj->data.variable->name);
-		if(node && node->data) {
-			/* Use variables in the inner scope */
-			inner = (_object_t*)node->data;
-			obj->type = _DT_VAR;
-			obj->data = inner->data;
-			obj->is_ref = true;
-		} else {
+		if(!node || !node->data) {
 			/* Mark upvalues referencing outer scope chain */
 			_mark_upvalue(s, lambda, obj, obj->data.variable->name);
 		}
@@ -8852,9 +8845,7 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 				switch(aobj->type) {
 				case _DT_VAR:
 					if(!strcmp(aobj->data.variable->name, ovar->data.variable->name)) {
-						aobj->type = _DT_VAR;
-						aobj->data = ovar->data;
-						aobj->is_ref = true;
+						aobj->data.variable->pathing = true;
 					}
 
 					break;
@@ -15165,6 +15156,8 @@ _proc_extra_var:
 		}
 #ifdef MB_ENABLE_CLASS
 		if(evar && evar->pathing) {
+			if(var->data->type == _DT_STRING)
+				var->data->is_ref = true;
 			var = evar;
 			evar = 0;
 			refc++;

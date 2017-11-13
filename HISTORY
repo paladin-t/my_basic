@@ -1,3 +1,6 @@
+Nov. 13 2017
+Fixed an accessing issue with upvalues
+
 Nov. 10 2017
 Fixed a GC bug with dictionary
 Fixed a bug with overlapped lambda scopes
