@@ -1419,9 +1419,9 @@ static mb_meta_status_e _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 		do { \
 			if(_set_current_error((__s), (__err), (__f))) { \
 				_set_error_pos((__s), (__pos), (__row), (__col)); \
-			} \
-			if((__ret) != MB_FUNC_WARNING) { \
-				__result = (__ret); \
+				if((__ret) != MB_FUNC_WARNING) { \
+					__result = (__ret); \
+				} \
 			} \
 			goto __exit; \
 		} while(0)
@@ -1735,6 +1735,9 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc);
 #ifdef MB_ENABLE_CLASS
 static int _gc_destroy_garbage_class(void* data, void* extra, _gc_t* gc);
 #endif /* MB_ENABLE_CLASS */
+#ifdef MB_ENABLE_CLASS
+static int _gc_destroy_garbage_outer_scope(void* data, void* extra, _gc_t* gc);
+#endif /* MB_ENABLE_CLASS */
 static void _gc_swap_tables(mb_interpreter_t* s);
 static void _gc_try_trigger(mb_interpreter_t* s);
 static void _gc_collect_garbage(mb_interpreter_t* s, int depth);
@@ -1846,6 +1849,7 @@ static int _do_nothing_on_ht_for_lambda(void* data, void* extra);
 static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* tuple);
 static int _remove_filled_upvalue(void* data, void* extra, _ht_node_t* ht);
 static int _fill_outer_scope(void* data, void* extra, _upvalue_scope_tuple_t* tuple);
+static int _remove_this_lambda_from_upvalue(void* data, void* extra, _routine_t* routine);
 static _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak);
 static _running_context_t* _unlink_lambda_scope_chain(mb_interpreter_t* s, _lambda_t* lambda, bool_t weak);
 static bool_t _is_valid_lambda_body_node(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj);
@@ -4414,7 +4418,7 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 		_skip_to(s, &ast, 0, _DT_EOS);
 		if(ast && ((_object_t*)ast->data)->type == _DT_EOS)
 			ast = ast->next;
-		if(_IS_FUNC((_object_t*)ast->data, _core_enddef)) { /* Tail recursion optimization */
+		if(ast && _IS_FUNC((_object_t*)ast->data, _core_enddef)) { /* Tail recursion optimization */
 			*l = r->func.basic.entry;
 			if(*l)
 				*l = (*l)->next;
@@ -6411,7 +6415,9 @@ static int _gc_add_reachable(void* data, void* extra, void* h) {
 			if(!_ht_find(ht, &obj->data.routine->func.lambda.ref)) {
 				_running_context_ref_t* outs = obj->data.routine->func.lambda.outer_scope;
 				_ht_set_or_insert(ht, &obj->data.routine->func.lambda.ref, obj->data.routine);
+				_HT_FOREACH(obj->data.routine->func.lambda.scope->var_dict, _do_nothing_on_object, _gc_add_reachable, ht);
 				while(outs) {
+					_ht_set_or_insert(ht, &outs->ref, outs);
 					_HT_FOREACH(outs->scope->var_dict, _do_nothing_on_object, _gc_add_reachable, ht);
 					outs = outs->prev;
 				}
@@ -6567,7 +6573,7 @@ static void _gc_destroy_garbage_in_outer_scope(_running_context_ref_t* p, _gc_t*
 }
 #endif /* MB_ENABLE_LAMBDA */
 
-/* Destroy a garbage */
+/* Collect a garbage */
 static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 	int result = _OP_RESULT_NORMAL;
 	_ref_t* ref = 0;
@@ -6578,6 +6584,7 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_LAMBDA
 	_routine_t* routine = 0;
+	_running_context_ref_t* outs = 0;
 #endif /* MB_ENABLE_LAMBDA */
 
 	mb_assert(data && extra);
@@ -6610,14 +6617,21 @@ static int _gc_destroy_garbage(void* data, void* extra, _gc_t* gc) {
 		if(routine->type == MB_RT_LAMBDA) {
 			_HT_FOREACH(routine->func.lambda.scope->var_dict, _do_nothing_on_object, _gc_destroy_garbage_in_lambda, gc);
 			_ht_clear(routine->func.lambda.scope->var_dict);
-			if(routine->func.lambda.outer_scope && !_ht_find(gc->collected_table, &routine->func.lambda.outer_scope->ref))
-				_gc_destroy_garbage_in_outer_scope(routine->func.lambda.outer_scope, gc);
+			outs = routine->func.lambda.outer_scope;
+			if(outs) {
+				if(!_ht_find(gc->collected_table, &outs->ref))
+					_gc_add(&outs->ref, outs, gc);
+				routine->func.lambda.outer_scope = 0;
+			}
+			while(outs) {
+				if(_ht_find(gc->collected_table, &outs->ref))
+					break;
+				_HT_FOREACH(outs->scope->var_dict, _do_nothing_on_object, _remove_this_lambda_from_upvalue, routine);
+				outs = outs->prev;
+			}
 		}
 
 		break;
-#endif /* MB_ENABLE_LAMBDA */
-#ifdef MB_ENABLE_LAMBDA
-	case _DT_OUTER_SCOPE: /* Fall through */
 #endif /* MB_ENABLE_LAMBDA */
 #ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF: /* Fall through */
@@ -6640,7 +6654,7 @@ _exit:
 }
 
 #ifdef MB_ENABLE_CLASS
-/* Destroy a class instance garbage */
+/* Collect a class instance */
 static int _gc_destroy_garbage_class(void* data, void* extra, _gc_t* gc) {
 	int result = _OP_RESULT_NORMAL;
 	_ref_t* ref = 0;
@@ -6684,6 +6698,45 @@ _exit:
 	return result;
 }
 #endif /* MB_ENABLE_CLASS */
+
+#ifdef MB_ENABLE_LAMBDA
+/* Collect an outer scope */
+static int _gc_destroy_garbage_outer_scope(void* data, void* extra, _gc_t* gc) {
+	int result = _OP_RESULT_NORMAL;
+	_ref_t* ref = 0;
+	bool_t proc = true;
+	_running_context_ref_t* outs = 0;
+
+	mb_assert(data && extra);
+
+	ref = (_ref_t*)extra;
+	if(_ht_find(gc->collected_table, ref)) {
+		proc = true;
+
+		goto _exit;
+	}
+	switch(ref->type) {
+	case _DT_OUTER_SCOPE:
+		outs = (_running_context_ref_t*)data;
+		if(!_ht_find(gc->collected_table, &outs->ref))
+			_gc_destroy_garbage_in_outer_scope(outs, gc);
+
+		break;
+	default:
+		proc = false;
+
+		break;
+	}
+	if(proc && ref->count)
+		_unref(ref, data);
+
+_exit:
+	if(proc)
+		result = _OP_RESULT_DEL_NODE;
+
+	return result;
+}
+#endif /* MB_ENABLE_LAMBDA */
 
 /* Swap active garbage table and recursive table */
 static void _gc_swap_tables(mb_interpreter_t* s) {
@@ -6748,6 +6801,9 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 		_HT_FOREACH(gc->table, _do_nothing_on_object, _gc_destroy_garbage_class, &s->gc);
 #endif /* MB_ENABLE_CLASS */
 		_HT_FOREACH(gc->table, _do_nothing_on_object, _gc_destroy_garbage, &s->gc);
+#ifdef MB_ENABLE_LAMBDA
+		_HT_FOREACH(gc->table, _do_nothing_on_object, _gc_destroy_garbage_outer_scope, &s->gc);
+#endif /* MB_ENABLE_LAMBDA */
 		_ht_clear(gc->table);
 		if(gc->collecting > 1)
 			gc->collecting--;
@@ -8845,7 +8901,9 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 				switch(aobj->type) {
 				case _DT_VAR:
 					if(!strcmp(aobj->data.variable->name, ovar->data.variable->name)) {
+#ifdef MB_ENABLE_CLASS
 						aobj->data.variable->pathing = true;
+#endif /* MB_ENABLE_CLASS */
 					}
 
 					break;
@@ -8897,6 +8955,27 @@ static int _fill_outer_scope(void* data, void* extra, _upvalue_scope_tuple_t* tu
 	_ref(&tuple->outer_scope->ref, tuple->outer_scope);
 
 	return 0;
+}
+
+/* Remove a lambda from outer scope, which collected the lambda itself as an upvalue */
+static int _remove_this_lambda_from_upvalue(void* data, void* extra, _routine_t* routine) {
+	int result = _OP_RESULT_NORMAL;
+	_object_t* obj = 0;
+	mb_unrefvar(extra);
+
+	assert(routine->type == MB_RT_LAMBDA);
+
+	obj = (_object_t*)data;
+	if(obj->type == _DT_VAR)
+		obj = obj->data.variable->data;
+	if(obj->type == _DT_ROUTINE) {
+		if(obj->data.routine == routine) {
+			assert(obj->data.routine->type == MB_RT_LAMBDA);
+			_MAKE_NIL(obj);
+		}
+	}
+
+	return result;
 }
 
 /* Link the local scope of a lambda and all upvalue scopes in chain to a given scope */

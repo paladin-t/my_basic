@@ -1,4 +1,7 @@
 Nov. 13 2017
+Fixed an extended abort issue
+Fixed a crash bug with routine
+Fixed a GC bug with outer scopes of lambda
 Fixed an accessing issue with upvalues
 
 Nov. 10 2017
