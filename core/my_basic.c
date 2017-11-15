@@ -221,13 +221,13 @@ extern "C" {
 #define _OP_RESULT_NORMAL 0
 #define _OP_RESULT_DEL_NODE -1
 
-typedef int (* _common_compare)(void*, void*);
-typedef int (* _common_operation)(void*, void*);
+typedef int (* _common_compare_t)(void*, void*);
+typedef int (* _common_operation_t)(void*, void*);
 
 /** List */
 
-typedef _common_compare _ls_compare;
-typedef _common_operation _ls_operation;
+typedef _common_compare_t _ls_compare_t;
+typedef _common_operation_t _ls_operation_t;
 
 typedef struct _ls_node_t {
 	void* data;
@@ -238,14 +238,14 @@ typedef struct _ls_node_t {
 
 /** Dictionary */
 
-typedef unsigned (* _ht_hash)(void*, void*);
-typedef _common_compare _ht_compare;
-typedef _common_operation _ht_operation;
+typedef unsigned (* _ht_hash_t)(void*, void*);
+typedef _common_compare_t _ht_compare_t;
+typedef _common_operation_t _ht_operation_t;
 
 typedef struct _ht_node_t {
-	_ls_operation free_extra;
-	_ht_compare compare;
-	_ht_hash hash;
+	_ls_operation_t free_extra;
+	_ht_compare_t compare;
+	_ht_hash_t hash;
 	unsigned array_size;
 	unsigned count;
 	_ls_node_t** array;
@@ -445,7 +445,7 @@ typedef struct _usertype_ref_t {
 	mb_cmp_func_t cmp;
 	mb_fmt_func_t fmt;
 #ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
-	mb_alive_value_checker alive_checker;
+	mb_alive_value_checker_t alive_checker;
 #endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
 	_calculation_operator_info_t* calc_operators;
 	mb_meta_func_t coll_func;
@@ -861,6 +861,7 @@ typedef struct mb_interpreter_t {
 #ifdef MB_ENABLE_FORK
 	struct mb_interpreter_t* forked_from;
 	_running_context_t* forked_context;
+	_ls_node_t* all_forked;
 #endif /* MB_ENABLE_FORK */
 	bool_t valid _PACK1;
 	void* userdata;
@@ -913,7 +914,7 @@ typedef struct mb_interpreter_t {
 	unsigned short last_error_row;
 	unsigned short last_error_col;
 	/** Handlers */
-	mb_alive_checker alive_check_handler;
+	mb_alive_checker_t alive_check_handler;
 	mb_debug_stepped_handler_t debug_stepped_handler;
 	mb_error_handler_t error_handler;
 	mb_print_func_t printer;
@@ -1220,17 +1221,17 @@ static int _ls_cmp_module_func(void* node, void* info);
 
 static _ls_node_t* _ls_create_node(void* data);
 static _ls_node_t* _ls_create(void);
-static _ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp, int* idx);
+static _ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare_t cmp, int* idx);
 static _ls_node_t* _ls_back(_ls_node_t* node);
 static _ls_node_t* _ls_pushback(_ls_node_t* list, void* data);
 static void* _ls_popback(_ls_node_t* list);
 static _ls_node_t* _ls_front(_ls_node_t* node);
 static void* _ls_popfront(_ls_node_t* list);
 static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data);
-static unsigned _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op);
-static unsigned _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
-static unsigned _ls_foreach(_ls_node_t* list, _ls_operation op);
-static _ls_node_t* _ls_sort(_ls_node_t* _mb_unaligned * list, _ls_compare cmp);
+static unsigned _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation_t op);
+static unsigned _ls_try_remove(_ls_node_t* list, void* info, _ls_compare_t cmp, _ls_operation_t op);
+static unsigned _ls_foreach(_ls_node_t* list, _ls_operation_t op);
+static _ls_node_t* _ls_sort(_ls_node_t* _mb_unaligned * list, _ls_compare_t cmp);
 static unsigned _ls_count(_ls_node_t* list);
 static bool_t _ls_empty(_ls_node_t* list);
 static void _ls_clear(_ls_node_t* list);
@@ -1275,11 +1276,11 @@ static int _ht_cmp_string(void* d1, void* d2);
 static int _ht_cmp_intptr(void* d1, void* d2);
 static int _ht_cmp_ref(void* d1, void* d2);
 
-static _ht_node_t* _ht_create(unsigned size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra);
+static _ht_node_t* _ht_create(unsigned size, _ht_compare_t cmp, _ht_hash_t hs, _ls_operation_t freeextra);
 static _ls_node_t* _ht_find(_ht_node_t* ht, void* key);
 static unsigned _ht_set_or_insert(_ht_node_t* ht, void* key, void* value);
-static unsigned _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp);
-static unsigned _ht_foreach(_ht_node_t* ht, _ht_operation op);
+static unsigned _ht_remove(_ht_node_t* ht, void* key, _ls_compare_t cmp);
+static unsigned _ht_foreach(_ht_node_t* ht, _ht_operation_t op);
 static unsigned _ht_count(_ht_node_t* ht);
 static void _ht_clear(_ht_node_t* ht);
 static void _ht_destroy(_ht_node_t* ht);
@@ -1720,7 +1721,10 @@ static void _gc_add(_ref_t* ref, void* data, _gc_t* gc);
 static void _gc_remove(_ref_t* ref, void* data, _gc_t* gc);
 static int _gc_add_reachable(void* data, void* extra, void* h);
 static int _gc_add_reachable_both(void* data, void* extra, void* h);
-static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht);
+#ifdef MB_ENABLE_FORK
+static int _gc_get_reachable_in_forked(void* data, void* extra, _ht_node_t* valid);
+#endif /* MB_ENABLE_FORK */
+static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht, _running_context_t* end);
 static void _gc_alive_marker(mb_interpreter_t* s, void* h, mb_value_t val);
 static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc);
 static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc);
@@ -1804,14 +1808,14 @@ static int _copy_keys_to_value_array(void* data, void* extra, _keys_helper_t* h)
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 #ifdef MB_ENABLE_CLASS
-typedef int (* _class_scope_walker)(void*, void*, void*);
-typedef bool_t (* _class_meta_walker)(_class_t*, void*, void*);
+typedef int (* _class_scope_walker_t)(void*, void*, void*);
+typedef bool_t (* _class_meta_walker_t)(_class_t*, void*, void*);
 static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n);
 static void _begin_class(mb_interpreter_t* s);
 static bool_t _end_class(mb_interpreter_t* s);
 static void _unref_class(_ref_t* ref, void* data);
 static void _destroy_class(_class_t* c);
-static bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret);
+static bool_t _traverse_class(_class_t* c, _class_scope_walker_t scope_walker, _class_meta_walker_t meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret);
 static bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base);
 static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived);
 static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
@@ -2338,7 +2342,7 @@ static _ls_node_t* _ls_create(void) {
 	return result;
 }
 
-static _ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare cmp, int* idx) {
+static _ls_node_t* _ls_find(_ls_node_t* list, void* data, _ls_compare_t cmp, int* idx) {
 	_ls_node_t* result = 0;
 
 	mb_assert(list && data && cmp);
@@ -2463,7 +2467,7 @@ static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data) {
 	return result;
 }
 
-static unsigned _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op) {
+static unsigned _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation_t op) {
 	unsigned result = 0;
 
 	mb_assert(list && node);
@@ -2485,7 +2489,7 @@ static unsigned _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op)
 	return result;
 }
 
-static unsigned _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op) {
+static unsigned _ls_try_remove(_ls_node_t* list, void* info, _ls_compare_t cmp, _ls_operation_t op) {
 	unsigned result = 0;
 	_ls_node_t* tmp = 0;
 
@@ -2516,7 +2520,7 @@ static unsigned _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _l
 	return result;
 }
 
-static unsigned _ls_foreach(_ls_node_t* list, _ls_operation op) {
+static unsigned _ls_foreach(_ls_node_t* list, _ls_operation_t op) {
 	unsigned idx = 0;
 	int opresult = _OP_RESULT_NORMAL;
 	_ls_node_t* node = 0;
@@ -2543,7 +2547,7 @@ static unsigned _ls_foreach(_ls_node_t* list, _ls_operation op) {
 	return idx;
 }
 
-static _ls_node_t* _ls_sort(_ls_node_t* _mb_unaligned * list, _ls_compare cmp) {
+static _ls_node_t* _ls_sort(_ls_node_t* _mb_unaligned * list, _ls_compare_t cmp) {
 	/* Copyright 2001 Simon Tatham, http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.c */
 	bool_t is_circular = false, is_double = true;
 	_ls_node_t* p, * q, * e, * tail, * oldhead;
@@ -2940,7 +2944,7 @@ static int _ht_cmp_ref(void* d1, void* d2) {
 	return 0;
 }
 
-static _ht_node_t* _ht_create(unsigned size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra) {
+static _ht_node_t* _ht_create(unsigned size, _ht_compare_t cmp, _ht_hash_t hs, _ls_operation_t freeextra) {
 	const unsigned array_size = size ? size : _HT_ARRAY_SIZE_DEFAULT;
 	_ht_node_t* result = 0;
 	unsigned ul = 0;
@@ -3025,7 +3029,7 @@ static unsigned _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
 	return result;
 }
 
-static unsigned _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
+static unsigned _ht_remove(_ht_node_t* ht, void* key, _ls_compare_t cmp) {
 	unsigned result = 0;
 	unsigned hash_code = 0;
 	_ls_node_t* bucket = 0;
@@ -3046,7 +3050,7 @@ static unsigned _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
 	return result;
 }
 
-static unsigned _ht_foreach(_ht_node_t* ht, _ht_operation op) {
+static unsigned _ht_foreach(_ht_node_t* ht, _ht_operation_t op) {
 	unsigned result = 0;
 	_ls_node_t* bucket = 0;
 	unsigned ul = 0;
@@ -4845,7 +4849,7 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix, 
 
 	context = (_parsing_context_t*)s->parsing_context;
 
-	if(_ls_find(context->imported, (void*)f, (_ls_compare)_ht_cmp_string, 0)) {
+	if(_ls_find(context->imported, (void*)f, (_ls_compare_t)_ht_cmp_string, 0)) {
 		buf = (char*)f;
 	} else {
 		fp = fopen(f, "rb");
@@ -5427,7 +5431,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 #ifdef MB_ENABLE_MODULE
 				char* ns = mb_strdup(sym + 2, strlen(sym + 2) + 1);
 				mb_strupr(ns);
-				if(_ls_find(s->using_modules, ns, (_ls_compare)_ht_cmp_string, 0)) {
+				if(_ls_find(s->using_modules, ns, (_ls_compare_t)_ht_cmp_string, 0)) {
 					safe_free(ns);
 				} else {
 					_ls_pushback(s->using_modules, ns);
@@ -5452,7 +5456,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 					_post_import(s, lf, &pos, &row, &col);
 				}
 			} else {
-				if(!_ls_find(context->imported, (void*)(sym + 1), (_ls_compare)_ht_cmp_string, 0)) {
+				if(!_ls_find(context->imported, (void*)(sym + 1), (_ls_compare_t)_ht_cmp_string, 0)) {
 					if(s->import_handler) {
 						_object_t* sep = 0;
 						char* lf = 0;
@@ -6446,20 +6450,37 @@ static int _gc_add_reachable_both(void* data, void* extra, void* h) {
 	return result;
 }
 
+#ifdef MB_ENABLE_FORK
+/* Get reachable objects in a forked environment */
+static int _gc_get_reachable_in_forked(void* data, void* extra, _ht_node_t* valid) {
+	int result = _OP_RESULT_NORMAL;
+	mb_interpreter_t* s = 0;
+	_running_context_t* root = 0;
+	mb_unrefvar(extra);
+
+	mb_assert(data);
+
+	s = (mb_interpreter_t*)data;
+	root = _get_root_scope(s->running_context);
+	_gc_get_reachable(s, valid, root);
+
+	return result;
+}
+#endif /* MB_ENABLE_FORK */
+
 /* Get all reachable referenced objects */
-static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
+static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht, _running_context_t* end) {
 	_running_context_t* running = 0;
-	_ht_node_t* global_scope = 0;
+	_ht_node_t* scope = 0;
 
 	mb_assert(s && ht);
 
 	running = s->running_context;
-	while(running) {
-		global_scope = running->var_dict;
-		if(global_scope) {
-			_HT_FOREACH(global_scope, _do_nothing_on_object, _gc_add_reachable, ht);
+	while(running && running != end) {
+		scope = running->var_dict;
+		if(scope) {
+			_HT_FOREACH(scope, _do_nothing_on_object, _gc_add_reachable, ht);
 		}
-
 		running = running->prev;
 	}
 }
@@ -6787,7 +6808,10 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	valid = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
 	if(depth != -1)
 		gc->valid_table = valid;
-	_gc_get_reachable(s, valid);
+	_gc_get_reachable(s, valid, 0);
+#ifdef MB_ENABLE_FORK
+	_LS_FOREACH(s->all_forked, _do_nothing_on_object, _gc_get_reachable_in_forked, valid);
+#endif /* MB_ENABLE_FORK */
 	if(s->alive_check_handler)
 		s->alive_check_handler(s, valid, _gc_alive_marker);
 
@@ -7745,7 +7769,7 @@ static bool_t _find_list(_list_t* coll, mb_value_t* val, int* idx) {
 	_fill_ranged(coll);
 
 	_create_internal_object_from_public_value(val, &oarg);
-	result = !!_ls_find(coll->list, oarg, (_ls_compare)_ht_cmp_object, idx);
+	result = !!_ls_find(coll->list, oarg, (_ls_compare_t)_ht_cmp_object, idx);
 	_destroy_object(oarg, 0);
 
 	return result;
@@ -7769,7 +7793,7 @@ static void _clear_list(_list_t* coll) {
 static void _sort_list(_list_t* coll) {
 	mb_assert(coll);
 
-	_ls_sort(&coll->list, (_ls_compare)_ht_cmp_object);
+	_ls_sort(&coll->list, (_ls_compare_t)_ht_cmp_object);
 
 	_write_on_ref_object(&coll->lock, &coll->ref, coll);
 	_invalidate_list_cache(coll);
@@ -8164,7 +8188,7 @@ static void _destroy_class(_class_t* c) {
 }
 
 /* Traverse all fields of a class instance, and its meta class instances recursively as well */
-static bool_t _traverse_class(_class_t* c, _class_scope_walker scope_walker, _class_meta_walker meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret) {
+static bool_t _traverse_class(_class_t* c, _class_scope_walker_t scope_walker, _class_meta_walker_t meta_walker, unsigned meta_depth, bool_t meta_walk_on_self, void* extra_data, void* ret) {
 	bool_t result = true;
 	_ls_node_t* node = 0;
 	_class_t* meta = 0;
@@ -8209,7 +8233,7 @@ _exit:
 static bool_t _link_meta_class(mb_interpreter_t* s, _class_t* derived, _class_t* base) {
 	mb_assert(s && derived && base);
 
-	if(_ls_find(derived->meta_list, base, (_ls_compare)_ht_cmp_intptr, 0)) {
+	if(_ls_find(derived->meta_list, base, (_ls_compare_t)_ht_cmp_intptr, 0)) {
 		_handle_error_now(s, SE_RN_WRONG_META_CLASS, s->source_file, MB_FUNC_ERR);
 
 		return false;
@@ -8774,7 +8798,7 @@ static void _mark_upvalue(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj
 	if(scp && found_in_scope) {
 		if(!found_in_scope->refered_lambdas)
 			found_in_scope->refered_lambdas = _ls_create();
-		if(!_ls_find(found_in_scope->refered_lambdas, lambda, (_ls_compare)_ht_cmp_intptr, 0))
+		if(!_ls_find(found_in_scope->refered_lambdas, lambda, (_ls_compare_t)_ht_cmp_intptr, 0))
 			_ls_pushback(found_in_scope->refered_lambdas, lambda);
 	}
 
@@ -11629,7 +11653,7 @@ static _ls_node_t* _find_func(mb_interpreter_t* s, char* n, bool_t* mod) {
 			result = result->next;
 			while(result) {
 				mp = (_module_func_t*)result->data;
-				if(_ls_find(s->using_modules, mp->module, (_ls_compare)_ht_cmp_string, 0))
+				if(_ls_find(s->using_modules, mp->module, (_ls_compare_t)_ht_cmp_string, 0))
 					break;
 				result = result->next;
 			}
@@ -11854,6 +11878,10 @@ int mb_open(struct mb_interpreter_t** s) {
 
 	(*s)->parsing_context = _reset_parsing_context((*s)->parsing_context);
 
+#ifdef MB_ENABLE_FORK
+	(*s)->all_forked = _ls_create();
+#endif /* MB_ENABLE_FORK */
+
 	(*s)->edge_destroy_objects = _ls_create();
 	(*s)->lazy_destroy_objects = _ls_create();
 
@@ -11941,6 +11969,11 @@ int mb_close(struct mb_interpreter_t** s) {
 	(*s)->gc.recursive_table = 0;
 	(*s)->gc.collected_table = 0;
 
+#ifdef MB_ENABLE_FORK
+	mb_assert(_ls_count((*s)->all_forked) == 0);
+	_ls_destroy((*s)->all_forked);
+#endif /* MB_ENABLE_FORK */
+
 	_ls_foreach((*s)->edge_destroy_objects, _destroy_object);
 	_ls_destroy((*s)->edge_destroy_objects);
 	_ls_foreach((*s)->lazy_destroy_objects, _destroy_object);
@@ -12015,6 +12048,11 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	_tidy_scope_chain(*s);
 	_clear_scope_chain(*s);
 
+#ifdef MB_ENABLE_FORK
+	mb_assert(_ls_count((*s)->all_forked) == 0);
+	_ls_clear((*s)->all_forked);
+#endif /* MB_ENABLE_FORK */
+
 	(*s)->parsing_context = _reset_parsing_context((*s)->parsing_context);
 
 	if(clrf) {
@@ -12038,7 +12076,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 }
 
 /* Fork a new MY-BASIC environment */
-int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r) {
+int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t cklv) {
 #ifdef MB_ENABLE_FORK
 	int result = MB_FUNC_OK;
 	_running_context_t* running = 0;
@@ -12072,12 +12110,16 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r) {
 
 	(*s)->forked_from = r;
 
+	if(cklv)
+		_ls_pushback(r->all_forked, *s);
+
 	mb_assert(MB_FUNC_OK == result);
 
 	return result;
 #else /* MB_ENABLE_FORK */
 	mb_unrefvar(s);
 	mb_unrefvar(r);
+	mb_unrefvar(cklv);
 
 	return MB_FUNC_ERR;
 #endif /* MB_ENABLE_FORK */
@@ -12112,6 +12154,8 @@ int mb_join(struct mb_interpreter_t** s) {
 	_ls_destroy((*s)->edge_destroy_objects);
 	_ls_foreach((*s)->lazy_destroy_objects, _destroy_object);
 	_ls_destroy((*s)->lazy_destroy_objects);
+
+	_ls_try_remove((*s)->all_forked, *s, _ls_cmp_data, 0);
 
 	safe_free(*s);
 
@@ -13614,7 +13658,7 @@ _exit:
 }
 
 /* Set the global alive checker */
-int mb_set_alive_checker(struct mb_interpreter_t* s, mb_alive_checker f) {
+int mb_set_alive_checker(struct mb_interpreter_t* s, mb_alive_checker_t f) {
 	int result = MB_FUNC_OK;
 
 	if(!s)
@@ -13626,7 +13670,7 @@ int mb_set_alive_checker(struct mb_interpreter_t* s, mb_alive_checker f) {
 }
 
 /* Set the alive checker of a value */
-int mb_set_alive_checker_of_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_alive_value_checker f) {
+int mb_set_alive_checker_of_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_alive_value_checker_t f) {
 #ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
 	int result = MB_FUNC_OK;
 	_object_t obj;
