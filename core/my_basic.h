@@ -604,7 +604,7 @@ MBAPI int mb_open(struct mb_interpreter_t** s);
 MBAPI int mb_close(struct mb_interpreter_t** s);
 MBAPI int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/);
 
-MBAPI int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t cklv/* = true*/);
+MBAPI int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t clfk/* = true*/);
 MBAPI int mb_join(struct mb_interpreter_t** s);
 MBAPI int mb_get_forked_from(struct mb_interpreter_t* s, struct mb_interpreter_t** src);
 

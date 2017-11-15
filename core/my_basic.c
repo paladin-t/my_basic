@@ -12076,7 +12076,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 }
 
 /* Fork a new MY-BASIC environment */
-int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t cklv) {
+int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t clfk) {
 #ifdef MB_ENABLE_FORK
 	int result = MB_FUNC_OK;
 	_running_context_t* running = 0;
@@ -12110,7 +12110,7 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t cklv
 
 	(*s)->forked_from = r;
 
-	if(cklv)
+	if(clfk)
 		_ls_pushback(r->all_forked, *s);
 
 	mb_assert(MB_FUNC_OK == result);
@@ -12119,7 +12119,7 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t cklv
 #else /* MB_ENABLE_FORK */
 	mb_unrefvar(s);
 	mb_unrefvar(r);
-	mb_unrefvar(cklv);
+	mb_unrefvar(clfk);
 
 	return MB_FUNC_ERR;
 #endif /* MB_ENABLE_FORK */
