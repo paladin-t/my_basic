@@ -1703,9 +1703,12 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 		default: break; \
 		} \
 	}
-#ifndef _ONGC
-#	define _ONGC(__s, __g, __c) do { ((void)(__s)); ((void)(__g)); ((void)(__c)); } while(0)
-#endif /* _ONGC */
+#ifndef _PREVGC
+#	define _PREVGC(__s, __g) do { ((void)(__s)); ((void)(__g)); } while(0)
+#endif /* _PREVGC */
+#ifndef _POSTGC
+#	define _POSTGC(__s, __g) do { ((void)(__s)); ((void)(__g)); } while(0)
+#endif /* _POSTGC */
 
 #ifdef _HAS_REF_OBJ_LOCK
 static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
@@ -6823,6 +6826,7 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	_HT_FOREACH(valid, _do_nothing_on_object, _ht_remove_existing, gc->recursive_table);
 
 	/* Collect garbage */
+	_PREVGC(s, gc);
 	do {
 #ifdef MB_ENABLE_CLASS
 		_HT_FOREACH(gc->table, _do_nothing_on_object, _gc_destroy_garbage_class, &s->gc);
@@ -6841,9 +6845,9 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 		_gc_swap_tables(s);
 		gc->collecting++;
 	} while(1);
+	_POSTGC(s, gc);
 
 	/* Tidy */
-	_ONGC(s, gc, gc->collected_table);
 	_ht_clear(gc->collected_table);
 	gc->valid_table = 0;
 	_ht_clear(valid);
