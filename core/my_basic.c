@@ -1703,6 +1703,9 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 		default: break; \
 		} \
 	}
+#ifndef _CANGC
+#	define _CANGC(__s) (!!(__s))
+#endif /* _CANGC */
 #ifndef _PREVGC
 #	define _PREVGC(__s, __g) do { ((void)(__s)); ((void)(__g)); } while(0)
 #endif /* _PREVGC */
@@ -6778,7 +6781,8 @@ static void _gc_swap_tables(mb_interpreter_t* s) {
 
 /* Try trigger garbage collection */
 static void _gc_try_trigger(mb_interpreter_t* s) {
-	mb_assert(s);
+	if(!_CANGC(s))
+		return;
 
 	if(_ht_count(s->gc.table) >= MB_GC_GARBAGE_THRESHOLD)
 		_gc_collect_garbage(s, 1);
@@ -6816,7 +6820,9 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 		gc->valid_table = valid;
 	_gc_get_reachable(s, valid, 0);
 #ifdef MB_ENABLE_FORK
-	_LS_FOREACH(s->all_forked, _do_nothing_on_object, _gc_get_reachable_in_forked, valid);
+	if(s->all_forked) {
+		_LS_FOREACH(s->all_forked, _do_nothing_on_object, _gc_get_reachable_in_forked, valid);
+	}
 #endif /* MB_ENABLE_FORK */
 	if(s->alive_check_handler)
 		s->alive_check_handler(s, valid, _gc_alive_marker);
@@ -11886,10 +11892,6 @@ int mb_open(struct mb_interpreter_t** s) {
 
 	(*s)->parsing_context = _reset_parsing_context((*s)->parsing_context);
 
-#ifdef MB_ENABLE_FORK
-	(*s)->all_forked = _ls_create();
-#endif /* MB_ENABLE_FORK */
-
 	(*s)->edge_destroy_objects = _ls_create();
 	(*s)->lazy_destroy_objects = _ls_create();
 
@@ -11978,8 +11980,10 @@ int mb_close(struct mb_interpreter_t** s) {
 	(*s)->gc.collected_table = 0;
 
 #ifdef MB_ENABLE_FORK
-	mb_assert(_ls_count((*s)->all_forked) == 0);
-	_ls_destroy((*s)->all_forked);
+	if((*s)->all_forked) {
+		mb_assert(_ls_count((*s)->all_forked) == 0);
+		_ls_destroy((*s)->all_forked);
+	}
 #endif /* MB_ENABLE_FORK */
 
 	_ls_foreach((*s)->edge_destroy_objects, _destroy_object);
@@ -12057,8 +12061,10 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	_clear_scope_chain(*s);
 
 #ifdef MB_ENABLE_FORK
-	mb_assert(_ls_count((*s)->all_forked) == 0);
-	_ls_clear((*s)->all_forked);
+	if((*s)->all_forked) {
+		mb_assert(_ls_count((*s)->all_forked) == 0);
+		_ls_clear((*s)->all_forked);
+	}
 #endif /* MB_ENABLE_FORK */
 
 	(*s)->parsing_context = _reset_parsing_context((*s)->parsing_context);
@@ -12118,8 +12124,11 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t clfk
 
 	(*s)->forked_from = r;
 
-	if(clfk)
+	if(clfk) {
+		if(!r->all_forked)
+			r->all_forked = _ls_create();
 		_ls_pushback(r->all_forked, *s);
+	}
 
 	mb_assert(MB_FUNC_OK == result);
 
@@ -12163,7 +12172,8 @@ int mb_join(struct mb_interpreter_t** s) {
 	_ls_foreach((*s)->lazy_destroy_objects, _destroy_object);
 	_ls_destroy((*s)->lazy_destroy_objects);
 
-	_ls_try_remove((*s)->all_forked, *s, _ls_cmp_data, 0);
+	if((*s)->all_forked)
+		_ls_try_remove((*s)->all_forked, *s, _ls_cmp_data, 0);
 
 	safe_free(*s);
 
