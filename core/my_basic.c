@@ -12146,9 +12146,15 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t clfk
 int mb_join(struct mb_interpreter_t** s) {
 #ifdef MB_ENABLE_FORK
 	int result = MB_FUNC_OK;
+	mb_interpreter_t* src = 0;
 
 	if(!s || !(*s) || !(*s)->forked_from)
 		return MB_FUNC_ERR;
+
+	src = *s;
+	while(mb_get_forked_from(src, &src) == MB_FUNC_OK) {
+		/* Do nothing */
+	}
 
 	(*s)->valid = false;
 
@@ -12172,8 +12178,8 @@ int mb_join(struct mb_interpreter_t** s) {
 	_ls_foreach((*s)->lazy_destroy_objects, _destroy_object);
 	_ls_destroy((*s)->lazy_destroy_objects);
 
-	if((*s)->all_forked)
-		_ls_try_remove((*s)->all_forked, *s, _ls_cmp_data, 0);
+	if(src->all_forked)
+		_ls_try_remove(src->all_forked, *s, _ls_cmp_data, 0);
 
 	safe_free(*s);
 
