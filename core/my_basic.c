@@ -1706,6 +1706,9 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 #ifndef _GCNOW
 #	define _GCNOW(__s) (!!(__s))
 #endif /* _GCNOW */
+#ifndef _PREPAREGC
+#	define _PREPAREGC(__s, __g) do { ((void)(__s)); ((void)(__g)); } while(0)
+#endif /* _PREPAREGC */
 #ifndef _PREVGC
 #	define _PREVGC(__s, __g) do { ((void)(__s)); ((void)(__g)); } while(0)
 #endif /* _PREVGC */
@@ -6813,10 +6816,11 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth) {
 	if(gc->disabled)
 		return;
 
-	/* Avoid infinity loop */
+	/* Prepare for GC */
 	if(gc->collecting)
 		return;
 	gc->collecting++;
+	_PREPAREGC(s, gc);
 
 	/* Get reachable information */
 	valid = _ht_create(0, _ht_cmp_ref, _ht_hash_ref, _do_nothing_on_object);
