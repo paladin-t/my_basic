@@ -1703,9 +1703,9 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 		default: break; \
 		} \
 	}
-#ifndef _CANGC
-#	define _CANGC(__s) (!!(__s))
-#endif /* _CANGC */
+#ifndef _GCNOW
+#	define _GCNOW(__s) (!!(__s))
+#endif /* _GCNOW */
 #ifndef _PREVGC
 #	define _PREVGC(__s, __g) do { ((void)(__s)); ((void)(__g)); } while(0)
 #endif /* _PREVGC */
@@ -6781,7 +6781,7 @@ static void _gc_swap_tables(mb_interpreter_t* s) {
 
 /* Try trigger garbage collection */
 static void _gc_try_trigger(mb_interpreter_t* s) {
-	if(!_CANGC(s))
+	if(!_GCNOW(s))
 		return;
 
 	if(_ht_count(s->gc.table) >= MB_GC_GARBAGE_THRESHOLD)
