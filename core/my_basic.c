@@ -1922,8 +1922,12 @@ static void _swap_public_value(mb_value_t* tgt, mb_value_t* src);
 static int _clear_scope_chain(mb_interpreter_t* s);
 static int _dispose_scope_chain(mb_interpreter_t* s);
 static void _tidy_scope_chain(mb_interpreter_t* s);
+static void _collect_intermediate_value_in_scope(_running_context_t* running, void* data);
+#ifdef MB_ENABLE_FORK
+static void _collect_intermediate_value_in_scope_chain(void* data, void* extra, void* d);
+#endif /* MB_ENABLE_FORK */
 static void _collect_intermediate_value(_ref_t* ref, void* data);
-static void _mark_hanged_intermediate_value(mb_interpreter_t* s, _running_context_t* running);
+static void _mark_dangling_intermediate_value(mb_interpreter_t* s, _running_context_t* running);
 static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _ls_node_t** ast, _object_t* obj);
 
 /** Interpretation */
@@ -8011,13 +8015,13 @@ static bool_t _try_purge_it(mb_interpreter_t* s, mb_value_t* val, _object_t* obj
 			if(obj->data.list_it->locking)
 				return result;
 
-			_destroy_list_it(obj->data.list_it); /* Process hanged value */
+			_destroy_list_it(obj->data.list_it); /* Process dangling value */
 		} else if(obj->type == _DT_DICT_IT) {
 			result = true;
 			if(obj->data.dict_it->locking)
 				return result;
 
-			_destroy_dict_it(obj->data.dict_it); /* Process hanged value */
+			_destroy_dict_it(obj->data.dict_it); /* Process dangling value */
 		} else {
 			return result;
 		}
@@ -9905,13 +9909,13 @@ static int _lose_object(void* data, void* extra, _running_context_t* running) {
 #ifdef MB_ENABLE_COLLECTION_LIB
 	if(obj->type == _DT_LIST_IT) {
 		if((!obj->is_ref || !obj->data.list_it->locking) && running->intermediate_value.value.list_it != obj->data.list_it) {
-			_destroy_list_it(obj->data.list_it); /* Process hanged value */
+			_destroy_list_it(obj->data.list_it); /* Process dangling value */
 		}
 
 		goto _exit;
 	} else if(obj->type == _DT_DICT_IT) {
 		if((!obj->is_ref || !obj->data.dict_it->locking) && running->intermediate_value.value.dict_it != obj->data.dict_it) {
-			_destroy_dict_it(obj->data.dict_it); /* Process hanged value */
+			_destroy_dict_it(obj->data.dict_it); /* Process dangling value */
 		}
 
 		goto _exit;
@@ -10603,17 +10607,17 @@ static void _tidy_scope_chain(mb_interpreter_t* s) {
 #endif /* MB_ENABLE_CLASS */
 }
 
-/* Collect the intermediate value */
-static void _collect_intermediate_value(_ref_t* ref, void* data) {
+/* Collect the intermediate value in a scope */
+static void _collect_intermediate_value_in_scope(_running_context_t* running, void* data) {
 	_object_t tmp;
 
-	mb_assert(ref && data);
+	mb_assert(running && data);
 
-	if(!ref->s->running_context)
+	if(!running)
 		return;
 
 	_MAKE_NIL(&tmp);
-	_public_value_to_internal_object(&ref->s->running_context->intermediate_value, &tmp);
+	_public_value_to_internal_object(&running->intermediate_value, &tmp);
 	if(tmp.data.pointer == data) {
 		switch(tmp.type) {
 #ifdef MB_ENABLE_USERTYPE_REF
@@ -10627,7 +10631,7 @@ static void _collect_intermediate_value(_ref_t* ref, void* data) {
 		case _DT_CLASS: /* Fall through */
 #endif /* MB_ENABLE_CLASS */
 		case _DT_ARRAY:
-			mb_make_nil(ref->s->running_context->intermediate_value);
+			mb_make_nil(running->intermediate_value);
 
 			break;
 		default: /* Do nothing */
@@ -10636,8 +10640,44 @@ static void _collect_intermediate_value(_ref_t* ref, void* data) {
 	}
 }
 
-/* Mark the intermediate value to be collected if it's hanged */
-static void _mark_hanged_intermediate_value(mb_interpreter_t* s, _running_context_t* running) {
+#ifdef MB_ENABLE_FORK
+/* Collect all intermediate values in scope chain */
+static void _collect_intermediate_value_in_scope_chain(void* data, void* extra, void* d) {
+	mb_interpreter_t* s = 0;
+	_running_context_t* running = 0;
+	mb_unrefvar(extra);
+
+	s = (mb_interpreter_t*)data;
+	running = s->running_context;
+	while(running) {
+		_collect_intermediate_value_in_scope(running, d);
+		running = running->prev;
+	}
+}
+#endif /* MB_ENABLE_FORK */
+
+/* Collect the intermediate value */
+static void _collect_intermediate_value(_ref_t* ref, void* data) {
+	mb_interpreter_t* s = 0;
+
+	mb_assert(ref && data);
+
+	s = ref->s;
+	if(!s) return;
+	if(s->running_context)
+		_collect_intermediate_value_in_scope(s->running_context, data);
+#ifdef MB_ENABLE_FORK
+	if(s->all_forked) {
+		while(mb_get_forked_from(s, &s) == MB_FUNC_OK) {
+			/* Do nothing */
+		}
+		_LS_FOREACH(s->all_forked, _do_nothing_on_object, _collect_intermediate_value_in_scope_chain, data);
+	}
+#endif /* MB_ENABLE_FORK */
+}
+
+/* Mark the intermediate value to be collected if it's dangling */
+static void _mark_dangling_intermediate_value(mb_interpreter_t* s, _running_context_t* running) {
 	mb_assert(s && running);
 
 	switch(running->intermediate_value.type) {
@@ -10660,7 +10700,7 @@ static void _mark_hanged_intermediate_value(mb_interpreter_t* s, _running_contex
 			else if(tmp.type == _DT_DICT_IT && tmp.data.dict_it->locking)
 				break;
 #endif /* MB_ENABLE_COLLECTION_LIB */
-			_ADDGC(&tmp, &s->gc, false) /* Process hanged value */
+			_ADDGC(&tmp, &s->gc, false) /* Process dangling value */
 		}
 
 		break;
@@ -10767,7 +10807,7 @@ _retry:
 #ifdef MB_ENABLE_STACK_TRACE
 			_ls_popback(s->stack_frames);
 #endif /* MB_ENABLE_STACK_TRACE */
-			_mark_hanged_intermediate_value(s, running);
+			_mark_dangling_intermediate_value(s, running);
 		}
 		if(result == MB_FUNC_IGNORE) {
 			result = MB_FUNC_OK;
@@ -10837,7 +10877,7 @@ _retry:
 	case _DT_ROUTINE:
 		ast = ast->prev;
 		result = _core_call(s, (void**)&ast);
-		_mark_hanged_intermediate_value(s, running);
+		_mark_dangling_intermediate_value(s, running);
 
 		break;
 #ifdef MB_ENABLE_SOURCE_TRACE

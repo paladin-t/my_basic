@@ -1,3 +1,6 @@
+Nov. 16 2017
+Fixed a clearing issue of intermediate values in forked scope chain
+
 Nov. 15 2017
 Added a checking step for alive objects in all forked environment
 
