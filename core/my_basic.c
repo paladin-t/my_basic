@@ -11148,6 +11148,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 	int result = MB_FUNC_ERR;
 	_ls_node_t* ast = 0;
 	_running_context_t* running = 0;
+	_var_t* pathed_var = 0;
 	_object_t* old_val = 0;
 	_ls_node_t* to_node = 0;
 	_object_t range;
@@ -11167,9 +11168,11 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 	running = s->running_context;
 #ifdef MB_ENABLE_CLASS
 	if(var_loop->pathing)
-		var_loop = _search_var_in_scope_chain(s, var_loop);
+		pathed_var = _search_var_in_scope_chain(s, var_loop);
 #endif /* MB_ENABLE_CLASS */
-	old_val = var_loop->data;
+	if(!pathed_var)
+		pathed_var = var_loop;
+	old_val = pathed_var->data;
 	range_ptr = &range;
 	_MAKE_NIL(range_ptr);
 	mb_make_nil(ref_val);
@@ -11250,7 +11253,7 @@ _to:
 
 			/* Assign loop variable */
 			_public_value_to_internal_object(&curr_val, &curr_obj);
-			var_loop->data = &curr_obj;
+			pathed_var->data = &curr_obj;
 			/* Keep looping */
 			result = _common_keep_looping(s, &ast, var_loop);
 			_UNREF(&curr_obj)
@@ -11284,13 +11287,13 @@ _to:
 	} else {
 		/* Assign loop variable */
 		if(lit && !lit->list->range_begin && lit->curr.node && lit->curr.node->data) {
-			var_loop->data = (_object_t*)lit->curr.node->data;
+			pathed_var->data = (_object_t*)lit->curr.node->data;
 		} else if(lit && lit->list->range_begin) {
-			_dispose_object(var_loop->data);
-			var_loop->data->type = _DT_INT;
-			var_loop->data->data.integer = lit->curr.ranging;
+			_dispose_object(pathed_var->data);
+			pathed_var->data->type = _DT_INT;
+			pathed_var->data->data.integer = lit->curr.ranging;
 		} else if(dit && dit->curr_node && dit->curr_node->extra) {
-			var_loop->data = (_object_t*)dit->curr_node->extra;
+			pathed_var->data = (_object_t*)dit->curr_node->extra;
 		}
 		/* Keep looping */
 		result = _common_keep_looping(s, &ast, var_loop);
@@ -11321,7 +11324,7 @@ _exit:
 
 	*l = ast;
 
-	var_loop->data = old_val;
+	pathed_var->data = old_val;
 
 	return result;
 }
