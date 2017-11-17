@@ -180,9 +180,11 @@ extern "C" {
 
 #ifdef MB_COMPACT_MODE
 #	define _PACK1 : 1
+#	define _PACK2 : 2
 #	define _PACK8 : 8
 #else /* MB_COMPACT_MODE */
 #	define _PACK1
+#	define _PACK2
 #	define _PACK8
 #endif /* MB_COMPACT_MODE */
 
@@ -461,6 +463,7 @@ typedef struct _func_t {
 #define _PATHING_NONE 0
 #define _PATHING_NORMAL 1
 #define _PATHING_UNKNOWN_FOR_NOT_FOUND 2
+#define _PATHING_UPVALUE 3
 
 #define _PN(__b) ((!!(__b)) ? (_PATHING_NORMAL) : (_PATHING_NONE))
 #define _PU(__b) ((!!(__b)) ? (_PATHING_UNKNOWN_FOR_NOT_FOUND) : (_PATHING_NONE))
@@ -469,7 +472,7 @@ typedef struct _var_t {
 	char* name;
 	struct _object_t* data;
 #ifdef MB_ENABLE_CLASS
-	bool_t pathing _PACK1;
+	unsigned char pathing _PACK2;
 	bool_t is_me _PACK1;
 #endif /* MB_ENABLE_CLASS */
 } _var_t;
@@ -1888,7 +1891,7 @@ static _running_context_t* _get_root_scope(_running_context_t* scope);
 static _running_context_ref_t* _get_root_ref_scope(_running_context_ref_t* scope);
 #endif /* MB_ENABLE_LAMBDA */
 static _running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s);
-static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, const char* n, int pathing, _ht_node_t** ht, _running_context_t** sp);
+static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, const char* n, int fp, _ht_node_t** ht, _running_context_t** sp);
 static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o);
 static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i);
 static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp, bool_t unknown_for_not_found);
@@ -5328,9 +5331,9 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			tmp.var->data->data.integer = 0;
 #ifdef MB_ENABLE_CLASS
 			if(context->class_state != _CLASS_STATE_NONE)
-				tmp.var->pathing = true;
+				tmp.var->pathing = _PATHING_NORMAL;
 			else if(!is_field)
-				tmp.var->pathing = !!context->current_symbol_contains_accessor;
+				tmp.var->pathing = context->current_symbol_contains_accessor ? _PATHING_NORMAL : _PATHING_NONE;
 #endif /* MB_ENABLE_CLASS */
 			(*obj)->data.variable = tmp.var;
 
@@ -8138,7 +8141,7 @@ static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	me = _create_var(&meobj, _CLASS_ME, strlen(_CLASS_ME) + 1, true);
 	me->data->type = _DT_CLASS;
 	me->data->data.instance = instance;
-	me->pathing = true;
+	me->pathing = _PATHING_NORMAL;
 	me->is_me = true;
 	_ht_set_or_insert(instance->scope->var_dict, me->name, meobj);
 }
@@ -8935,7 +8938,7 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 			if(obj->type == _DT_VAR)
 				var->pathing = obj->data.variable->pathing;
 			else
-				var->pathing = false;
+				var->pathing = _PATHING_NONE;
 #endif /* MB_ENABLE_CLASS */
 			ul = _ht_set_or_insert(tuple->outer_scope->scope->var_dict, ovar->data.variable->name, ovar);
 			mb_assert(ul);
@@ -8948,7 +8951,7 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 				case _DT_VAR:
 					if(!strcmp(aobj->data.variable->name, ovar->data.variable->name)) {
 #ifdef MB_ENABLE_CLASS
-						aobj->data.variable->pathing = true;
+						aobj->data.variable->pathing = _PATHING_UPVALUE;
 #endif /* MB_ENABLE_CLASS */
 					}
 
@@ -9366,7 +9369,7 @@ static _running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s) {
 }
 
 /* Try to search an identifier in a scope chain */
-static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, const char* n, int pathing, _ht_node_t** ht, _running_context_t** sp) {
+static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, const char* n, int fp, _ht_node_t** ht, _running_context_t** sp) {
 	_ls_node_t* result = 0;
 	_running_context_t* running = 0;
 	_ht_node_t* fn = 0;
@@ -9375,8 +9378,8 @@ static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _runni
 	mb_assert(s && n);
 
 #ifdef MB_ENABLE_CLASS
-	if(pathing) {
-		result = _search_identifier_accessor(s, scope, n, &fn, &fs, pathing == _PATHING_UNKNOWN_FOR_NOT_FOUND);
+	if(fp) {
+		result = _search_identifier_accessor(s, scope, n, &fn, &fs, fp == _PATHING_UNKNOWN_FOR_NOT_FOUND);
 		if(result)
 			goto _exit;
 	}
@@ -9390,7 +9393,7 @@ static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _runni
 			goto _exit;
 	}
 #else /* MB_ENABLE_CLASS */
-	mb_unrefvar(pathing);
+	mb_unrefvar(fp);
 #endif /* MB_ENABLE_CLASS */
 
 	if(scope)
@@ -15244,6 +15247,9 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 			evar = obj->data.variable;
 			var = _search_var_in_scope_chain(s, obj->data.variable);
 			if(var == evar) evar = 0;
+#ifdef MB_ENABLE_CLASS
+			if(evar && evar->pathing == _PATHING_UPVALUE) evar = 0;
+#endif /* MB_ENABLE_CLASS */
 			if(var == _OBJ_BOOL_TRUE->data.variable || var == _OBJ_BOOL_FALSE->data.variable) {
 				_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
@@ -16121,11 +16127,11 @@ _retry:
 #ifdef MB_ENABLE_LAMBDA
 		if(obj->data.variable->data->type == _DT_ROUTINE && obj->data.variable->data->data.routine->type == MB_RT_LAMBDA) {
 #ifdef MB_ENABLE_CLASS
-			int pathing = _PN(obj->data.variable->pathing);
+			int fp = _PN(obj->data.variable->pathing);
 #else /* MB_ENABLE_CLASS */
-			int pathing = _PATHING_NORMAL;
+			int fp = _PATHING_NORMAL;
 #endif /* MB_ENABLE_CLASS */
-			pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, pathing, 0, 0);
+			pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, fp, 0, 0);
 			if(pathed && pathed->data)
 				obj = (_object_t*)pathed->data;
 			if(obj->type != _DT_VAR)
@@ -16608,7 +16614,7 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 
 	while(mb_has_arg(s, l)) {
 #ifdef MB_ENABLE_CLASS
-		bool_t pathing = false;
+		unsigned char fp = _PATHING_NONE;
 #endif /* MB_ENABLE_CLASS */
 		void* v = 0;
 
@@ -16631,14 +16637,14 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 		}
 		var = ((_object_t*)v)->data.variable;
 #ifdef MB_ENABLE_CLASS
-		pathing = var->pathing;
+		fp = var->pathing;
 #endif /* MB_ENABLE_CLASS */
 
 		/* Add lambda parameters */
 		obj = 0;
 		var = _create_var(&obj, var->name, 0, true);
 #ifdef MB_ENABLE_CLASS
-		var->pathing = pathing;
+		var->pathing = fp;
 #endif /* MB_ENABLE_CLASS */
 		ul = _ht_set_or_insert(routine->func.lambda.scope->var_dict, var->name, obj);
 		mb_assert(ul);

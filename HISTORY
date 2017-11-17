@@ -1,4 +1,5 @@
 Nov. 17 2017
+Fixed an assignment issue with upvalues
 Fixed a variable lookup issue with a ranged FOR loop
 
 Nov. 16 2017
