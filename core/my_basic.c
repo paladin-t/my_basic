@@ -11172,6 +11172,10 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 #ifdef MB_ENABLE_CLASS
 	if(var_loop->pathing)
 		pathed_var = _search_var_in_scope_chain(s, var_loop);
+	if(pathed_var) {
+		_UNREF(pathed_var->data)
+		_MAKE_NIL(pathed_var->data);
+	}
 #endif /* MB_ENABLE_CLASS */
 	if(!pathed_var)
 		pathed_var = var_loop;
