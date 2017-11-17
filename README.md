@@ -20,7 +20,7 @@
 * [Compatibility](#compatibility)
 * [Main features](#main-features)
 * [Script at a glance](#script-at-a-glance)
-* [Showcase](#showcase)
+* [Awesome](#awesome)
 * [Installation](#installation)
 * [Interpreter workflow diagram](#interpreter-workflow-diagram)
 * [Wiki](#wiki)
@@ -93,11 +93,11 @@ print greeting("Hello", "world");
 
 Read the [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Quick%20Reference.pdf) (especially the "**Programming with BASIC**" section) to get more details about how to program in MY-BASIC.
 
-## Showcase
+## Awesome
 
 See the list for some user creations.
 
-* [Showcase of projects powered by MY-BASIC](https://my-basic.github.io/showcase/)
+* [Awesome projects powered by MY-BASIC](https://my-basic.github.io/awesome/)
 
 Don't forget to share with us about your creativity!
 
