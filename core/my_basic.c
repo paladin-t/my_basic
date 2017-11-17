@@ -11165,6 +11165,10 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 	mb_assert(s && l && var_loop);
 
 	running = s->running_context;
+#ifdef MB_ENABLE_CLASS
+	if(var_loop->pathing)
+		var_loop = _search_var_in_scope_chain(s, var_loop);
+#endif /* MB_ENABLE_CLASS */
 	old_val = var_loop->data;
 	range_ptr = &range;
 	_MAKE_NIL(range_ptr);

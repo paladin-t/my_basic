@@ -1,3 +1,6 @@
+Nov. 17 2017
+Fixed a variable lookup issue with a ranged FOR loop
+
 Nov. 16 2017
 Fixed a clearing issue of intermediate values in forked scope chain
 
