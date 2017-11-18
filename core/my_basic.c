@@ -1375,6 +1375,14 @@ static bool_t _is_expression_terminal(mb_interpreter_t* s, _object_t* obj);
 static bool_t _is_unexpected_calc_type(mb_interpreter_t* s, _object_t* obj);
 static bool_t _is_referenced_calc_type(mb_interpreter_t* s, _object_t* obj);
 static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val);
+
+#ifndef _PREVCALL
+#	define _PREVCALL(__s, __l, __r) do { ((void)(__s)); ((void)(__l)); ((void)(__r)); } while(0)
+#endif /* _PREVCALL */
+#ifndef _POSTCALL
+#	define _POSTCALL(__s, __l, __r) do { ((void)(__s)); ((void)(__l)); ((void)(__r)); } while(0)
+#endif /* _POSTCALL */
+
 static _ls_node_t* _push_var_args(mb_interpreter_t* s);
 static void _pop_var_args(mb_interpreter_t* s, _ls_node_t* last_var_args);
 static int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, unsigned* ia, _routine_t* r, mb_pop_routine_arg_func_t pop_arg, _ls_node_t* args, mb_value_t* arg);
@@ -4380,6 +4388,8 @@ static int _eval_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, un
 	char ln[_LAMBDA_NAME_MAX_LENGTH];
 #endif /* MB_ENABLE_STACK_TRACE && MB_ENABLE_LAMBDA */
 
+	_PREVCALL(s, l, r);
+
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_pushback(s->stack_frames, r->name);
 #endif /* MB_ENABLE_STACK_TRACE */
@@ -4416,6 +4426,8 @@ _exit:
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_popback(s->stack_frames);
 #endif /* MB_ENABLE_STACK_TRACE */
+
+	_POSTCALL(s, l, r);
 
 	return result;
 }
