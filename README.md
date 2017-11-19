@@ -52,7 +52,7 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 * **Lightweight** (within less than 128KB footprint), fast, and configurable
 * With both retro and modern BASIC syntax
 * Case-insensitive tokenization, and many other indelible BASIC feelings
-* [Unicode support](https://github.com/paladin-t/my_basic/wiki/Support-for-Unicode)
+* [Unicode support](https://github.com/paladin-t/my_basic/wiki/Using-Unicode)
 * **[Prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming)** (OOP) paradigm, with reflection
 * **[Lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function)** enhanced functional programming
 * Customizable referenced usertype
@@ -124,7 +124,7 @@ The standalone interpreter supports three running modes:
 
 MY-BASIC is cleanly written in a single C source file and an associated header file. Just copy [`core/my_basic.c`](core/my_basic.c) and [`core/my_basic.h`](core/my_basic.h) to your project folder and add them to a build configuration.
 
-You can definitely [link with MY-BASIC as a lib](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC) as well.
+You can definitely [link with MY-BASIC as a lib](https://github.com/paladin-t/my_basic/wiki/Linking-with-MY_BASIC) as well.
 
 For more details about using MY-BASIC when it has been integrated with a project, see [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Quick%20Reference.pdf) or read the [Wiki](#wiki) pages.
 
@@ -161,8 +161,8 @@ The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Q
 	* [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
 	* [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 * Code with MY-BASIC
-	* [Support for Unicode](https://github.com/paladin-t/my_basic/wiki/Support-for-Unicode)
-	* [Import another file](https://github.com/paladin-t/my_basic/wiki/Import-another-file)
+	* [Using Unicode](https://github.com/paladin-t/my_basic/wiki/Using-Unicode)
+	* [Importing another file](https://github.com/paladin-t/my_basic/wiki/Importing-another-file)
 	* [Module (namespace)](https://github.com/paladin-t/my_basic/wiki/Module-(namespace))
 	* [Sub routine](https://github.com/paladin-t/my_basic/wiki/Sub-routine)
 	* [Lambda abstraction](https://github.com/paladin-t/my_basic/wiki/Lambda-abstraction)
@@ -170,29 +170,29 @@ The [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Q
 	* [Multiple condition](https://github.com/paladin-t/my_basic/wiki/Multiple-condition)
 * Understanding data type system in MY-BASIC
 	* [Collection manipulation](https://github.com/paladin-t/my_basic/wiki/Collection-manipulation)
-	* [Manipulate an array](https://github.com/paladin-t/my_basic/wiki/Manipulate-an-array)
+	* [Manipulating an array](https://github.com/paladin-t/my_basic/wiki/Manipulating-an-array)
 	* [Automatic memory management](https://github.com/paladin-t/my_basic/wiki/Automatic-memory-management)
-	* [Use usertype values](https://github.com/paladin-t/my_basic/wiki/Use-usertype-values)
-	* [Use prototype-based class](https://github.com/paladin-t/my_basic/wiki/Use-prototype-based-class)
-	* [Define a class in C](https://github.com/paladin-t/my_basic/wiki/Define-a-class-in-C)
+	* [Using usertype values](https://github.com/paladin-t/my_basic/wiki/Using-usertype-values)
+	* [Using prototype-based class](https://github.com/paladin-t/my_basic/wiki/Using-prototype-based-class)
+	* [Defining a class in C](https://github.com/paladin-t/my_basic/wiki/Defining-a-class-in-C)
 	* [Meta methods](https://github.com/paladin-t/my_basic/wiki/Meta-methods)
-	* [Override operators](https://github.com/paladin-t/my_basic/wiki/Override-operators)
-	* [Override functions](https://github.com/paladin-t/my_basic/wiki/Override-functions)
-	* [Use iterators](https://github.com/paladin-t/my_basic/wiki/Use-iterators)
+	* [Overriding operators](https://github.com/paladin-t/my_basic/wiki/Overriding-operators)
+	* [Overriding functions](https://github.com/paladin-t/my_basic/wiki/Overriding-functions)
+	* [Using iterators](https://github.com/paladin-t/my_basic/wiki/Using-iterators)
 * Standalone shell
 	* [Extra functions](https://github.com/paladin-t/my_basic/wiki/Extra-functions)
 * Integration
-	* [Link with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Link-with-MY_BASIC)
-	* [Write a debugger](https://github.com/paladin-t/my_basic/wiki/Write-a-debugger)
+	* [Linking with MY-BASIC](https://github.com/paladin-t/my_basic/wiki/Linking-with-MY_BASIC)
+	* [Writing a debugger](https://github.com/paladin-t/my_basic/wiki/Writing-a-debugger)
 	* [Callback](https://github.com/paladin-t/my_basic/wiki/Callback)
 	* [Interop with C#](https://github.com/paladin-t/my_basic/wiki/Interop-with-C%23)
 * Customization
-	* [Customize macros](https://github.com/paladin-t/my_basic/wiki/Customize-macros)
-	* [Customize a memory allocator](https://github.com/paladin-t/my_basic/wiki/Customize-a-memory-allocator)
-	* [Redirect PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirect-PRINT-and-INPUT)
-	* [Redefine int_t and real_t](https://github.com/paladin-t/my_basic/wiki/Redefine-int_t-and-real_t)
-	* [Convert between string and real](https://github.com/paladin-t/my_basic/wiki/Convert-between-string-and-real)
-	* [Customize an importer](https://github.com/paladin-t/my_basic/wiki/Customize-an-importer)
+	* [Customizing macros](https://github.com/paladin-t/my_basic/wiki/Customizing-macros)
+	* [Customizing a memory allocator](https://github.com/paladin-t/my_basic/wiki/Customizing-a-memory-allocator)
+	* [Redirecting PRINT and INPUT](https://github.com/paladin-t/my_basic/wiki/Redirecting-PRINT-and-INPUT)
+	* [Redefining int_t and real_t](https://github.com/paladin-t/my_basic/wiki/Redefining-int_t-and-real_t)
+	* [Converting between string and real](https://github.com/paladin-t/my_basic/wiki/Converting-between-string-and-real)
+	* [Customizing an importer](https://github.com/paladin-t/my_basic/wiki/Customizing-an-importer)
 * [More scripting API](https://github.com/paladin-t/my_basic/wiki/More-scripting-API)
 	* [String matching module](https://github.com/paladin-t/my_basic/wiki/String-matching-module)
 	* [String manipulation module](https://github.com/paladin-t/my_basic/wiki/String-manipulation-module)
@@ -217,7 +217,7 @@ I need your supports to keep this project alive. Consider supporting MY-BASIC de
 One-off [donation](http://paladin-t.github.io/my_basic/donate.html) via PayPal.
 
 <a href="http://paladin-t.github.io/my_basic/donate.html">
-<img src="https://github.com/paladin-t/my_basic/wiki/img/button_donate.png" width="128">
+<img src="https://github.com/paladin-t/my_basic/wiki/img/button_donate.png" width="92">
 </a>
 
 [List of donors](http://paladin-t.github.io/my_basic/donate.html).
