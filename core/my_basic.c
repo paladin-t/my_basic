@@ -1343,6 +1343,10 @@ static int mb_uu_substr(const char* ch, int begin, int count, char** o);
 
 /** Expression processing */
 
+#ifndef _ONCOND
+#	define _ONCOND(__s, __o, __v) do { ((void)(__s)); ((void)(__o)); ((void)(__v)); } while(0)
+#endif /* _ONCOND */
+
 static bool_t _is_operator(mb_func_t op);
 static bool_t _is_flow(mb_func_t op);
 static bool_t _is_unary(mb_func_t op);
@@ -15110,6 +15114,7 @@ static int _core_not(mb_interpreter_t* s, void** l) {
 
 		mb_check(mb_attempt_func_end(s, l));
 	}
+	_ONCOND(s, 0, &arg);
 
 	switch(arg.type) {
 	case MB_DT_NIL:
@@ -15535,6 +15540,7 @@ static int _core_if(mb_interpreter_t* s, void** l) {
 _elseif:
 	_MAKE_NIL(val);
 	result = _calc_expression(s, &ast, &val);
+	_ONCOND(s, val, 0);
 	if(result != MB_FUNC_OK)
 		goto _exit;
 
@@ -15819,6 +15825,7 @@ _loop_begin:
 	ast = loop_begin_node;
 
 	result = _calc_expression(s, &ast, &loop_cond_ptr);
+	_ONCOND(s, loop_cond_ptr, 0);
 	if(result != MB_FUNC_OK)
 		goto _exit;
 
@@ -15932,6 +15939,7 @@ _loop_begin:
 	ast = ast->next;
 
 	result = _calc_expression(s, &ast, &loop_cond_ptr);
+	_ONCOND(s, loop_cond_ptr, 0);
 	if(result != MB_FUNC_OK)
 		goto _exit;
 

@@ -97,7 +97,7 @@ extern "C" {
 
 #define _REALLOC_INC_STEP 16
 
-#define _NO_END(s) ((s) == MB_FUNC_OK || (s) == MB_FUNC_SUSPEND || (s) == MB_FUNC_WARNING || (s) == MB_FUNC_ERR || (s) == MB_FUNC_END)
+#define _NOT_FINISHED(s) ((s) == MB_FUNC_OK || (s) == MB_FUNC_SUSPEND || (s) == MB_FUNC_WARNING || (s) == MB_FUNC_ERR || (s) == MB_FUNC_END)
 
 static struct mb_interpreter_t* bas = 0;
 
@@ -993,9 +993,9 @@ static void _show_help(void) {
 	_printf("Options:\n");
 	_printf("  -h         - Show help information\n");
 #if _USE_MEM_POOL
-	_printf("  -p n       - Set memory pool threashold size, n is size in bytes\n");
+	_printf("  -p n       - Set memory pool threashold, n is size in bytes\n");
 #endif /* _USE_MEM_POOL */
-	_printf("  -f \"dirs\"  - Set importing directories, separated with \";\" for more than one\n");
+	_printf("  -f \"dirs\"  - Set importing directories, separated with \";\" with more than one\n");
 	_printf("\n");
 	_printf("Interactive commands:\n");
 	_printf("  HELP  - View help information\n");
@@ -1585,7 +1585,7 @@ int main(int argc, char* argv[]) {
 		_show_tip();
 		do {
 			status = _do_line();
-		} while(_NO_END(status));
+		} while(_NOT_FINISHED(status));
 	}
 
 	return 0;
