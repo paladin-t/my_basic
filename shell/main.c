@@ -1439,7 +1439,7 @@ static int beep(struct mb_interpreter_t* s, void** l) {
 ** Callbacks and handlers
 */
 
-static int _on_stepped(struct mb_interpreter_t* s, void** l, char* f, int p, unsigned short row, unsigned short col) {
+static int _on_stepped(struct mb_interpreter_t* s, void** l, const char* f, int p, unsigned short row, unsigned short col) {
 	mb_unrefvar(s);
 	mb_unrefvar(l);
 	mb_unrefvar(f);
@@ -1450,7 +1450,7 @@ static int _on_stepped(struct mb_interpreter_t* s, void** l, char* f, int p, uns
 	return MB_FUNC_OK;
 }
 
-static void _on_error(struct mb_interpreter_t* s, mb_error_e e, char* m, char* f, int p, unsigned short row, unsigned short col, int abort_code) {
+static void _on_error(struct mb_interpreter_t* s, mb_error_e e, const char* m, const char* f, int p, unsigned short row, unsigned short col, int abort_code) {
 	mb_unrefvar(s);
 	mb_unrefvar(p);
 
