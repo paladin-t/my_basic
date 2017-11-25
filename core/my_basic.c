@@ -15918,7 +15918,7 @@ _loop_begin:
 	ast = loop_begin_node;
 
 	obj = (_object_t*)ast->data;
-	while(!_IS_FUNC(obj, _core_until)) {
+	while(obj && !_IS_FUNC(obj, _core_until)) {
 		result = _execute_statement(s, &ast, true);
 		if(result == MB_LOOP_BREAK) { /* EXIT */
 			if(_skip_struct(s, &ast, _core_do, 0, _core_until) != MB_FUNC_OK)
@@ -15936,11 +15936,11 @@ _loop_begin:
 			goto _exit;
 		}
 
-		obj = (_object_t*)ast->data;
+		obj = ast ? (_object_t*)ast->data : 0;
 	}
 
-	obj = (_object_t*)ast->data;
-	if(!_IS_FUNC(obj, _core_until)) {
+	obj = ast ? (_object_t*)ast->data : 0;
+	if(!obj || !_IS_FUNC(obj, _core_until)) {
 		_handle_error_on_obj(s, SE_RN_UNTIL_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	ast = ast->next;
