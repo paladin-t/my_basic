@@ -9995,7 +9995,7 @@ static int _compare_numbers(const _object_t* first, const _object_t* second) {
 	} else {
 		if((first->type == _DT_INT ? (real_t)first->data.integer : first->data.float_point) > (second->type == _DT_INT ? (real_t)second->data.integer : second->data.float_point))
 			result = 1;
-		else if((first->type == _DT_INT ? (real_t)first->data.integer : first->data.float_point) > (second->type == _DT_INT ? (real_t)second->data.integer : second->data.float_point))
+		else if((first->type == _DT_INT ? (real_t)first->data.integer : first->data.float_point) < (second->type == _DT_INT ? (real_t)second->data.integer : second->data.float_point))
 			result = -1;
 	}
 
