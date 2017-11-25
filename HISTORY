@@ -1,3 +1,6 @@
+Nov. 25 2017
+Fixed a lookup issue with the mb_get_var function
+
 Nov. 17 2017
 Fixed an assignment issue with upvalues
 Fixed a variable lookup issue with a ranged FOR loop

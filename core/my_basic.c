@@ -1884,7 +1884,7 @@ static _running_context_ref_t* _get_root_ref_scope(_running_context_ref_t* scope
 static _running_context_t* _get_scope_to_add_routine(mb_interpreter_t* s);
 static _ls_node_t* _search_identifier_in_scope_chain(mb_interpreter_t* s, _running_context_t* scope, const char* n, int fp, _ht_node_t** ht, _running_context_t** sp);
 static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, _object_t** o);
-static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i);
+static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i, _object_t** o);
 static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp, bool_t unknown_for_not_found);
 
 static _var_t* _create_var(_object_t** oobj, const char* n, size_t ns, bool_t dup_name);
@@ -9444,19 +9444,22 @@ static _array_t* _search_array_in_scope_chain(mb_interpreter_t* s, _array_t* i, 
 }
 
 /* Try to search a variable in a scope chain */
-static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i) {
+static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i, _object_t** o) {
 	_object_t* obj = 0;
 	_ls_node_t* scp = 0;
 	_var_t* result = 0;
 
 	mb_assert(s && i);
 
+	if(o) *o = 0;
 	result = i;
 	scp = _search_identifier_in_scope_chain(s, 0, result->name, _PATHING_NORMAL, 0, 0);
 	if(scp) {
 		obj = (_object_t*)scp->data;
-		if(obj && obj->type == _DT_VAR)
+		if(obj && obj->type == _DT_VAR) {
+			if(o) *o = obj;
 			result = obj->data.variable;
+		}
 	}
 
 	return result;
@@ -11166,7 +11169,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 	running = s->running_context;
 #ifdef MB_ENABLE_CLASS
 	if(var_loop->pathing)
-		pathed_var = _search_var_in_scope_chain(s, var_loop);
+		pathed_var = _search_var_in_scope_chain(s, var_loop, 0);
 	if(pathed_var) {
 		_UNREF(pathed_var->data)
 		_MAKE_NIL(pathed_var->data);
@@ -13070,6 +13073,10 @@ int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
 	}
 
 	if(obj && obj->type == _DT_VAR) {
+#ifdef MB_ENABLE_CLASS
+		if(obj->data.variable->pathing)
+			_search_var_in_scope_chain(s, obj->data.variable, &obj);
+#endif /* MB_ENABLE_CLASS */
 		if(v)
 			*v = obj;
 	}
@@ -15244,7 +15251,7 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 			_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		} else {
 			evar = obj->data.variable;
-			var = _search_var_in_scope_chain(s, obj->data.variable);
+			var = _search_var_in_scope_chain(s, obj->data.variable, 0);
 			if(var == evar) evar = 0;
 #ifdef MB_ENABLE_CLASS
 			if(evar && evar->pathing == _PATHING_UPVALUE) evar = 0;
