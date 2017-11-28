@@ -15548,6 +15548,7 @@ _elseif:
 	_MAKE_NIL(val);
 	result = _calc_expression(s, &ast, &val);
 	_ONCOND(s, val, 0);
+	_REF(val)
 	if(result != MB_FUNC_OK)
 		goto _exit;
 
