@@ -15,7 +15,6 @@
 ## Contents
 
 * [Introduction](#introduction)
-* [Compatibility](#compatibility)
 * [Main features](#main-features)
 * [BASIC at a glance](#basic-at-a-glance)
 * [Awesome](#awesome)
@@ -30,18 +29,6 @@
 MY-BASIC is a lightweight BASIC interpreter written in standard C, with only dual files. It is a dynamic typed programming language, and aimed to be embeddable, extendable and portable. MY-BASIC supports structured syntax; implements a style of OOP called [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) paradigm; and it offers a functional programming ability with [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). The kernel is written with a C source file and an associated header file. It's easy to either embed it or use it as a standalone interpreter. You can get how to use it and how to add new scripting interfaces in five minutes. It's possible to combine MY-BASIC with existing projects in C, C++, Java, Objective-C, Swift, C# and many other languages. Script driven can make your projects configurable, scalable and elegant. It's also possible to learn how to build an interpreter from scratch with MY-BASIC, or build your own dialect based on it.
 
 The prefix "MY-" in the name means either literally "My" or "Make Your".
-
-## Compatibility
-
-It fits well on a large scale of Workstation, PC, Tablet, Pad, Mobile Phone, PDA, Game Console, Raspberry Pi, Arduino and MCU; totally portable to Windows, macOS, Unix, Linux, iOS, Android, etc.
-
-**For Arduino**
-
-There is an Arduino porting of the interpreter, with a totally rewritten shell and a user manual. See [MY-BASIC ARDU](https://my-basic.github.io/ardu/) for details.
-
-<a href="https://my-basic.github.io/ardu/">
-<img src="https://upload.wikimedia.org/wikipedia/commons/8/87/Arduino_Logo.svg" width="64">
-</a>
 
 ## Main features
 
