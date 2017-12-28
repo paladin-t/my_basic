@@ -1347,10 +1347,10 @@ static int mb_uu_substr(const char* ch, int begin, int count, char** o);
 /** Expression processing */
 
 #ifndef _ONCALC /* Uprootable stub */
-#	define _ONCALC(__optr, __tuple, __result, __exit) do { ((void)(__tuple)); ((void)(__result)); } while(0)
+#	define _ONCALC(__s, __optr, __tuple, __result, __exit) do { ((void)(__s)); ((void)(__tuple)); ((void)(__result)); } while(0)
 #endif /* _ONCALC */
 #ifndef _ONNEG /* Uprootable stub */
-#	define _ONNEG(__arg, __result, __exit) do { ((void)(__arg)); ((void)(__result)); } while(0)
+#	define _ONNEG(__s, __arg, __result, __exit) do { ((void)(__s)); ((void)(__arg)); ((void)(__result)); } while(0)
 #endif /* _ONNEG */
 
 #ifndef _ONCOND /* Uprootable stub */
@@ -14683,7 +14683,7 @@ static int _core_add(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_ONCALC(add, l, result, _exit);
+	_ONCALC(s, add, l, result, _exit);
 	_instruct_obj_meta_obj(add, l, result, _exit);
 	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
 		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
@@ -14705,7 +14705,7 @@ static int _core_min(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_ONCALC(sub, l, result, _exit);
+	_ONCALC(s, sub, l, result, _exit);
 	_instruct_obj_meta_obj(sub, l, result, _exit);
 	_instruct_num_op_num(-, l);
 
@@ -14721,7 +14721,7 @@ static int _core_mul(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_ONCALC(mul, l, result, _exit);
+	_ONCALC(s, mul, l, result, _exit);
 	_instruct_obj_meta_obj(mul, l, result, _exit);
 	_instruct_num_op_num(*, l);
 
@@ -14737,7 +14737,7 @@ static int _core_div(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_ONCALC(div, l, result, _exit);
+	_ONCALC(s, div, l, result, _exit);
 	_instruct_obj_meta_obj(div, l, result, _exit);
 	_proc_div_by_zero(s, l, _exit, result, SE_RN_DIVIDE_BY_ZERO);
 	_instruct_num_op_num(/, l);
@@ -14844,7 +14844,7 @@ static int _core_neg(mb_interpreter_t* s, void** l) {
 	if(inep)
 		(*inep)--;
 
-	_ONNEG(arg, result, _exit);
+	_ONNEG(s, arg, result, _exit);
 	switch(arg.type) {
 	case MB_DT_INT:
 		arg.value.integer = -(arg.value.integer);
