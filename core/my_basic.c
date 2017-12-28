@@ -1097,7 +1097,7 @@ static _object_t* _exp_assign = 0;
 	} while(0)
 #ifdef MB_ENABLE_USERTYPE_REF
 #	if !defined _instruct_obj_meta_obj
-#		define _instruct_obj_meta_obj(__optr, __tuple, __result, __exit) \
+#		define _instruct_obj_meta_obj(__s, __tuple, __optr, __result, __exit) \
 			do { \
 				_tuple3_t* tpptr = (_tuple3_t*)(*__tuple); \
 				_object_t* opnd1 = (_object_t*)(tpptr->e1); \
@@ -1114,13 +1114,13 @@ static _object_t* _exp_assign = 0;
 					if(opnd1->type == _DT_USERTYPE_REF && opnd1->data.usertype_ref->calc_operators && opnd1->data.usertype_ref->calc_operators->__optr) { \
 						_internal_object_to_public_value(opnd1, &vfst); \
 						_internal_object_to_public_value(opnd2, &vscd); \
-						__result = opnd1->data.usertype_ref->calc_operators->__optr(s, (__tuple), &vfst, &vscd, &ret); \
+						__result = opnd1->data.usertype_ref->calc_operators->__optr((__s), (__tuple), &vfst, &vscd, &ret); \
 						_public_value_to_internal_object(&ret, retval); \
 						goto __exit; \
 					} else if(opnd2->type == _DT_USERTYPE_REF && opnd2->data.usertype_ref->calc_operators && opnd2->data.usertype_ref->calc_operators->__optr) { \
 						_internal_object_to_public_value(opnd1, &vfst); \
 						_internal_object_to_public_value(opnd2, &vscd); \
-						__result = opnd2->data.usertype_ref->calc_operators->__optr(s, (__tuple), &vfst, &vscd, &ret); \
+						__result = opnd2->data.usertype_ref->calc_operators->__optr((__s), (__tuple), &vfst, &vscd, &ret); \
 						_public_value_to_internal_object(&ret, retval); \
 						goto __exit; \
 					} \
@@ -1129,7 +1129,7 @@ static _object_t* _exp_assign = 0;
 #	endif /* _instruct_obj_meta_obj */
 #endif /* MB_ENABLE_USERTYPE_REF */
 #ifndef _instruct_obj_meta_obj
-#	define _instruct_obj_meta_obj(__optr, __tuple, __result, __exit) do { ((void)(__tuple)); ((void)(__result)); } while(0)
+#	define _instruct_obj_meta_obj(__s, __tuple, __optr, __result, __exit) do { ((void)(__s)); ((void)(__tuple)); ((void)(__result)); } while(0)
 #endif /* _instruct_obj_meta_obj */
 #define _proc_div_by_zero(__s, __tuple, __exit, __result, __kind) \
 	do { \
@@ -1347,10 +1347,10 @@ static int mb_uu_substr(const char* ch, int begin, int count, char** o);
 /** Expression processing */
 
 #ifndef _ONCALC /* Uprootable stub */
-#	define _ONCALC(__s, __optr, __tuple, __result, __exit) do { ((void)(__s)); ((void)(__tuple)); ((void)(__result)); } while(0)
+#	define _ONCALC(__s, __tuple, __optr, __result, __exit) do { ((void)(__s)); ((void)(__tuple)); ((void)(__result)); } while(0)
 #endif /* _ONCALC */
 #ifndef _ONNEG /* Uprootable stub */
-#	define _ONNEG(__s, __arg, __result, __exit) do { ((void)(__s)); ((void)(__arg)); ((void)(__result)); } while(0)
+#	define _ONNEG(__s, __l, __arg, __result, __exit) do { ((void)(__s)); ((void)(__l)); ((void)(__arg)); ((void)(__result)); } while(0)
 #endif /* _ONNEG */
 
 #ifndef _ONCOND /* Uprootable stub */
@@ -14683,8 +14683,8 @@ static int _core_add(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_ONCALC(s, add, l, result, _exit);
-	_instruct_obj_meta_obj(add, l, result, _exit);
+	_ONCALC(s, l, add, result, _exit);
+	_instruct_obj_meta_obj(s, l, add, result, _exit);
 	if(_is_string(((_tuple3_t*)*l)->e1) || _is_string(((_tuple3_t*)*l)->e2)) {
 		if(_is_string(((_tuple3_t*)*l)->e1) && _is_string(((_tuple3_t*)*l)->e2)) {
 			_instruct_connect_strings(l);
@@ -14705,8 +14705,8 @@ static int _core_min(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_ONCALC(s, sub, l, result, _exit);
-	_instruct_obj_meta_obj(sub, l, result, _exit);
+	_ONCALC(s, l, sub, result, _exit);
+	_instruct_obj_meta_obj(s, l, sub, result, _exit);
 	_instruct_num_op_num(-, l);
 
 	goto _exit; /* Avoid an unreferenced label warning */
@@ -14721,8 +14721,8 @@ static int _core_mul(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_ONCALC(s, mul, l, result, _exit);
-	_instruct_obj_meta_obj(mul, l, result, _exit);
+	_ONCALC(s, l, mul, result, _exit);
+	_instruct_obj_meta_obj(s, l, mul, result, _exit);
 	_instruct_num_op_num(*, l);
 
 	goto _exit; /* Avoid an unreferenced label warning */
@@ -14737,8 +14737,8 @@ static int _core_div(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_ONCALC(s, div, l, result, _exit);
-	_instruct_obj_meta_obj(div, l, result, _exit);
+	_ONCALC(s, l, div, result, _exit);
+	_instruct_obj_meta_obj(s, l, div, result, _exit);
 	_proc_div_by_zero(s, l, _exit, result, SE_RN_DIVIDE_BY_ZERO);
 	_instruct_num_op_num(/, l);
 
@@ -14844,7 +14844,7 @@ static int _core_neg(mb_interpreter_t* s, void** l) {
 	if(inep)
 		(*inep)--;
 
-	_ONNEG(s, arg, result, _exit);
+	_ONNEG(s, l, arg, result, _exit);
 	switch(arg.type) {
 	case MB_DT_INT:
 		arg.value.integer = -(arg.value.integer);
@@ -15174,7 +15174,7 @@ static int _core_is(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_instruct_obj_meta_obj(is, l, result, _exit);
+	_instruct_obj_meta_obj(s, l, is, result, _exit);
 
 	fst = (_object_t*)((_tuple3_t*)*l)->e1;
 	scd = (_object_t*)((_tuple3_t*)*l)->e2;
