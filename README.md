@@ -5,7 +5,7 @@
 |_|_|_| |_|     |_____|__|__|_____|_____|_____|
 ~~~~~~~~~~
 
-**Copyright (C) 2011 - 2017 Wang Renxin. All rights reserved.**
+**Copyright (C) 2011 - 2018 Wang Renxin. All rights reserved.**
 
 [![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
@@ -117,7 +117,7 @@ For more details about using MY-BASIC when it has been integrated with a project
 
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
-It's necessary to know some principle of MY-BASIC before doing heavy customization; nothing's better than a workflow diagram to get a first image.
+It's necessary to know some principle of MY-BASIC before doing deep customization; nothing's better than a workflow diagram to get a first image.
 
 ![](https://github.com/paladin-t/my_basic/wiki/img/workflow.png)
 
