@@ -5662,7 +5662,7 @@ _routine:
 	/* _func_t */
 	if(!context->last_symbol ||
 		(context->last_symbol && ((context->last_symbol->type == _DT_FUNC && context->last_symbol->data.func->pointer != _core_close_bracket) ||
-		context->last_symbol->type == _DT_SEP))) {
+		context->last_symbol->type == _DT_SEP || context->last_symbol->type == _DT_EOS))) {
 		if(strcmp("-", sym) == 0) {
 			ptr = (intptr_t)_core_neg;
 			memcpy(*value, &ptr, sizeof(intptr_t));
