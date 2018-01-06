@@ -161,23 +161,15 @@ extern "C" {
 #	define _LAMBDA_NAME_MAX_LENGTH 32
 #endif /* _LAMBDA_NAME_MAX_LENGTH */
 
+/* Localization specifier */
+#ifndef _LOCALIZATION_USEING
+#	define _LOCALIZATION_USEING 1
+#endif /* _LOCALIZATION_USEING */
+#ifndef _LOCALIZATION_STR
+#	define _LOCALIZATION_STR ""
+#endif /* _LOCALIZATION_STR */
+
 /* Helper */
-#ifndef sgn
-#	define sgn(__v) ((__v) ? ((__v) > 0 ? 1 : -1) : 0)
-#endif /* sgn */
-
-#ifndef countof
-#	define countof(__a) (sizeof(__a) / sizeof(*(__a)))
-#endif /* countof */
-
-#ifndef islower
-#	define islower(__c) ((__c) >= 'a' && (__c) <= 'z')
-#endif /* islower */
-
-#ifndef toupper
-#	define toupper(__c) (islower(__c) ? ((__c) - 'a' + 'A') : (__c))
-#endif /* toupper */
-
 #ifdef MB_COMPACT_MODE
 #	define _PACK1 : 1
 #	define _PACK2 : 2
@@ -188,15 +180,32 @@ extern "C" {
 #	define _PACK8
 #endif /* MB_COMPACT_MODE */
 
-#ifndef _mb_unaligned
+#ifndef _UNALIGNED_ARG
 #	if defined MB_CP_VC && defined MB_OS_WIN64
-#		define _mb_unaligned __unaligned
+#		ifdef MB_COMPACT_MODE
+#			define _UNALIGNED_ARG __unaligned
+#		else /* MB_COMPACT_MODE */
+#			define _UNALIGNED_ARG
+#		endif /* MB_COMPACT_MODE */
 #	else
-#		define _mb_unaligned
+#		define _UNALIGNED_ARG
 #	endif
-#endif /* _mb_unaligned */
+#endif /* _UNALIGNED_ARG */
 
-#define _COPY_BYTES(__l, __r) do { memcpy((__l), (__r), sizeof(mb_val_bytes_t)); } while(0)
+#ifndef sgn
+#	define sgn(__v) ((__v) ? ((__v) > 0 ? 1 : -1) : 0)
+#endif /* sgn */
+
+#ifndef islower
+#	define islower(__c) ((__c) >= 'a' && (__c) <= 'z')
+#endif /* islower */
+#ifndef toupper
+#	define toupper(__c) (islower(__c) ? ((__c) - 'a' + 'A') : (__c))
+#endif /* toupper */
+
+#ifndef countof
+#	define countof(__a) (sizeof(__a) / sizeof(*(__a)))
+#endif /* countof */
 
 #ifndef _mb_check_exit
 #	define _mb_check_exit(__expr, __exit) do { if((__expr) != MB_FUNC_OK) goto __exit; } while(0)
@@ -205,19 +214,7 @@ extern "C" {
 #	define _mb_check_mark_exit(__expr, __result, __exit) do { __result = (__expr); if(__result != MB_FUNC_OK) goto __exit; } while(0)
 #endif /* _mb_check_mark_exit */
 
-#define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
-#define DON2(__a) (((__a) && *(__a)) ? (_object_t*)((*((_ls_node_t**)(__a)))->data) : 0)
-#define TON(__t) (((__t) && *(__t)) ? (_object_t*)(((_tuple3_t*)(*(__t)))->e1) : 0)
-
-#define _NO_EAT_COMMA 2
-
-#define _IS_VAR_ARGS(__v) ((__v) == &_VAR_ARGS)
-
-#define _IS_EOS(__o) (__o && ((_object_t*)(__o))->type == _DT_EOS)
-#define _IS_SEP(__o, __c) (((_object_t*)(__o))->type == _DT_SEP && ((_object_t*)(__o))->data.separator == __c)
-#define _IS_FUNC(__o, __f) (((_object_t*)(__o))->type == _DT_FUNC && ((_object_t*)(__o))->data.func->pointer == __f)
-#define _IS_UNARY_FUNC(__o) (((_object_t*)(__o))->type == _DT_FUNC && _is_unary(((_object_t*)(__o))->data.func->pointer))
-#define _IS_VAR(__o) ((__o) && ((_object_t*)(__o))->type == _DT_VAR)
+/** Collections */
 
 /* Collection functors */
 #define _OP_RESULT_NORMAL 0
@@ -226,8 +223,7 @@ extern "C" {
 typedef int (* _common_compare_t)(void*, void*);
 typedef int (* _common_operation_t)(void*, void*);
 
-/** List */
-
+/* List */
 typedef _common_compare_t _ls_compare_t;
 typedef _common_operation_t _ls_operation_t;
 
@@ -238,8 +234,7 @@ typedef struct _ls_node_t {
 	void* extra;
 } _ls_node_t;
 
-/** Dictionary */
-
+/* Dictionary */
 typedef unsigned (* _ht_hash_t)(void*, void*);
 typedef _common_compare_t _ht_compare_t;
 typedef _common_operation_t _ht_operation_t;
@@ -735,28 +730,39 @@ MBAPI size_t MB_SIZEOF_CLS = sizeof(_class_t);
 MBAPI size_t MB_SIZEOF_RTN = sizeof(_routine_t);
 #endif /* MB_ENABLE_ALLOC_STAT */
 
-#ifdef MB_ENABLE_SOURCE_TRACE
-MBCONST static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0, 0, 0 };
-MBCONST static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0, 0, 0 };
-#else /* MB_ENABLE_SOURCE_TRACE */
-MBCONST static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0 };
-MBCONST static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0 };
-#endif /* MB_ENABLE_SOURCE_TRACE */
+#ifndef _CONST_PART1
+#	ifdef MB_PREFER_SPEED
+#		define _CONST_PART1 false, false,
+#	else /* MB_PREFER_SPEED */
+#		define _CONST_PART1 false,
+#	endif /* MB_PREFER_SPEED */
+#endif /* _CONST_PART1 */
+#ifndef _CONST_PART2
+#	ifdef MB_ENABLE_SOURCE_TRACE
+#		define _CONST_PART2 0, 0, 0
+#	else /* MB_ENABLE_SOURCE_TRACE */
+#		define _CONST_PART2 0
+#	endif /* MB_ENABLE_SOURCE_TRACE */
+#endif /* _CONST_PART2 */
+#ifndef _CONST_TAIL
+#	define _CONST_TAIL _CONST_PART1 _CONST_PART2
+#endif /* _CONST_TAIL */
+
+MBCONST static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, _CONST_TAIL };
+MBCONST static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, _CONST_TAIL };
 #define _MAKE_NIL(__o) do { memset((__o), 0, sizeof(_object_t)); (__o)->type = _DT_NIL; } while(0)
 
 static _object_t* _OBJ_BOOL_TRUE = 0;
 static _object_t* _OBJ_BOOL_FALSE = 0;
 
 #ifdef MB_ENABLE_CLASS
-#ifdef MB_ENABLE_SOURCE_TRACE
-MBCONST static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0, 0, 0 };
-#else /* MB_ENABLE_SOURCE_TRACE */
-MBCONST static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0 };
-#endif /* MB_ENABLE_SOURCE_TRACE */
+MBCONST static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, _CONST_TAIL };
 MBCONST static const _ls_node_t _LS_NODE_UNKNOWN = { (void*)&_OBJ_UNKNOWN, 0, 0, 0 };
 #endif /* MB_ENABLE_CLASS */
 
 #define _VAR_ARGS_STR "..."
+
+#define _IS_VAR_ARGS(__v) ((__v) == &_VAR_ARGS)
 
 #ifdef MB_ENABLE_CLASS
 MBCONST static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0, 0, 0 };
@@ -837,6 +843,8 @@ typedef struct _tuple3_t {
 #define _JMP_NIL 0x00
 #define _JMP_INS 0x01
 #define _JMP_STR 0x02
+
+#define _NO_EAT_COMMA 2
 
 typedef struct mb_interpreter_t {
 	/** Fundamental */
@@ -930,6 +938,8 @@ MBCONST static const char _PRECEDE_TABLE[20][20] = { /* Operator priority table 
 };
 
 static _object_t* _exp_assign = 0;
+
+#define _copy_bytes(__l, __r) do { memcpy((__l), (__r), sizeof(mb_val_bytes_t)); } while(0)
 
 #define _set_real_with_hex(__r, __i) \
 	do { \
@@ -1216,7 +1226,7 @@ static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data);
 static unsigned _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation_t op);
 static unsigned _ls_try_remove(_ls_node_t* list, void* info, _ls_compare_t cmp, _ls_operation_t op);
 static unsigned _ls_foreach(_ls_node_t* list, _ls_operation_t op);
-static _ls_node_t* _ls_sort(_ls_node_t* _mb_unaligned * list, _ls_compare_t cmp);
+static _ls_node_t* _ls_sort(_ls_node_t* _UNALIGNED_ARG * list, _ls_compare_t cmp);
 static unsigned _ls_count(_ls_node_t* list);
 static bool_t _ls_empty(_ls_node_t* list);
 static void _ls_clear(_ls_node_t* list);
@@ -1499,17 +1509,15 @@ static char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned shor
 
 /** Object processors */
 
-static int_t _get_size_of(_data_e type);
-static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected);
+#define DON(__o) ((__o) ? ((_object_t*)((__o)->data)) : 0)
+#define DON2(__a) (((__a) && *(__a)) ? (_object_t*)((*((_ls_node_t**)(__a)))->data) : 0)
+#define TON(__t) (((__t) && *(__t)) ? (_object_t*)(((_tuple3_t*)(*(__t)))->e1) : 0)
 
-static bool_t _is_nil(void* obj);
-static bool_t _is_number(void* obj);
-static bool_t _is_string(void* obj);
-static char* _extract_string(_object_t* obj);
-#ifdef MB_MANUAL_REAL_FORMATTING
-static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
-#endif /* MB_MANUAL_REAL_FORMATTING */
-
+#define _IS_EOS(__o) (__o && ((_object_t*)(__o))->type == _DT_EOS)
+#define _IS_SEP(__o, __c) (((_object_t*)(__o))->type == _DT_SEP && ((_object_t*)(__o))->data.separator == __c)
+#define _IS_FUNC(__o, __f) (((_object_t*)(__o))->type == _DT_FUNC && ((_object_t*)(__o))->data.func->pointer == __f)
+#define _IS_UNARY_FUNC(__o) (((_object_t*)(__o))->type == _DT_FUNC && _is_unary(((_object_t*)(__o))->data.func->pointer))
+#define _IS_VAR(__o) ((__o) && ((_object_t*)(__o))->type == _DT_VAR)
 #ifdef MB_ENABLE_COLLECTION_LIB
 #	define _IS_LIST(__o) ((__o) && ((_object_t*)(__o))->type == _DT_LIST)
 #	define _IS_DICT(__o) ((__o) && ((_object_t*)(__o))->type == _DT_DICT)
@@ -1720,6 +1728,17 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 #	define _POSTGC(__s, __g) do { ((void)(__s)); ((void)(__g)); } while(0)
 #endif /* _POSTGC */
 
+static int_t _get_size_of(_data_e type);
+static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected);
+
+static bool_t _is_nil(void* obj);
+static bool_t _is_number(void* obj);
+static bool_t _is_string(void* obj);
+static char* _extract_string(_object_t* obj);
+#ifdef MB_MANUAL_REAL_FORMATTING
+static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
+#endif /* MB_MANUAL_REAL_FORMATTING */
+
 #ifdef _HAS_REF_OBJ_LOCK
 static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 static bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
@@ -1837,7 +1856,7 @@ static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived);
 static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
 static int _clone_clsss_field(void* data, void* extra, void* n);
 static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret);
-static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t* _mb_unaligned * f);
+static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t* _UNALIGNED_ARG * f);
 static int _search_class_hash_and_compare_functions(mb_interpreter_t* s, _class_t* instance);
 static bool_t _is_a_class(_class_t* instance, void* m, void* ret);
 static bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret);
@@ -1955,7 +1974,7 @@ static bool_t _multiline_statement(mb_interpreter_t* s);
 
 static _running_context_t* _create_running_context(bool_t create_var_dict);
 static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context);
-static void _destroy_parsing_context(_parsing_context_t* _mb_unaligned * context);
+static void _destroy_parsing_context(_parsing_context_t* _UNALIGNED_ARG * context);
 
 /** Interface processors */
 
@@ -2567,7 +2586,7 @@ static unsigned _ls_foreach(_ls_node_t* list, _ls_operation_t op) {
 	return idx;
 }
 
-static _ls_node_t* _ls_sort(_ls_node_t* _mb_unaligned * list, _ls_compare_t cmp) {
+static _ls_node_t* _ls_sort(_ls_node_t* _UNALIGNED_ARG * list, _ls_compare_t cmp) {
 	/* Copyright 2001 Simon Tatham, http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.c */
 	bool_t is_circular = false, is_double = true;
 	_ls_node_t* p, * q, * e, * tail, * oldhead;
@@ -3831,7 +3850,7 @@ _array:
 						_ls_pushback(garbage, arr_elem);
 						arr_elem->type = arr_type;
 						arr_elem->is_ref = true;
-						_COPY_BYTES(arr_elem->data.bytes, arr_val.bytes);
+						_copy_bytes(arr_elem->data.bytes, arr_val.bytes);
 						if(f) {
 							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 						}
@@ -3975,7 +3994,7 @@ _routine:
 #ifdef MB_SIMPLE_ARRAY
 							mb_assert(0 && "Unsupported.");
 #else /* MB_SIMPLE_ARRAY */
-							_COPY_BYTES(arr_elem->data.bytes, arr_val.bytes);
+							_copy_bytes(arr_elem->data.bytes, arr_val.bytes);
 #endif /* MB_SIMPLE_ARRAY */
 						}
 						if(f) {
@@ -4834,14 +4853,18 @@ static mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 /* Print a string */
 static void _print_string(mb_interpreter_t* s, _object_t* obj) {
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+#if _LOCALIZATION_USEING
 	char* loc = 0;
+#endif /* _LOCALIZATION_USEING */
 	char* str = 0;
 	_dynamic_buffer_t buf;
 	size_t lbuf = 0;
 
 	mb_assert(s && obj);
 
-	loc = setlocale(LC_ALL, "");
+#if _LOCALIZATION_USEING
+	loc = setlocale(LC_ALL, _LOCALIZATION_STR);
+#endif /* _LOCALIZATION_USEING */
 	str = obj->data.string ? obj->data.string : MB_NULL_STRING;
 	_INIT_BUF(buf);
 	while((lbuf = (size_t)mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf))) > _WCHARS_OF_BUF(buf)) {
@@ -4849,7 +4872,9 @@ static void _print_string(mb_interpreter_t* s, _object_t* obj) {
 	}
 	_get_printer(s)("%ls", _WCHAR_BUF_PTR(buf));
 	_DISPOSE_BUF(buf);
+#if _LOCALIZATION_USEING
 	setlocale(LC_ALL, loc);
+#endif /* _LOCALIZATION_USEING */
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 	mb_assert(s && obj);
 
@@ -7213,7 +7238,7 @@ static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned index
 		val->float_point = *((real_t*)rawptr);
 		*type = _DT_REAL;
 #else /* MB_SIMPLE_ARRAY */
-		_COPY_BYTES(val->bytes, *((mb_val_bytes_t*)rawptr));
+		_copy_bytes(val->bytes, *((mb_val_bytes_t*)rawptr));
 		*type = arr->types[index];
 #endif /* MB_SIMPLE_ARRAY */
 	} else if(arr->type == _DT_STRING) {
@@ -7278,7 +7303,7 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 
 		break;
 	default:
-		_COPY_BYTES(*((mb_val_bytes_t*)rawptr), val->bytes);
+		_copy_bytes(*((mb_val_bytes_t*)rawptr), val->bytes);
 		arr->types[index] = *type;
 
 		break;
@@ -7316,7 +7341,7 @@ static void _clear_array(_array_t* arr) {
 				} else {
 					_object_t obj;
 					obj.type = arr->types[ul];
-					_COPY_BYTES(obj.data.bytes, rawptr);
+					_copy_bytes(obj.data.bytes, rawptr);
 					_dispose_object(&obj);
 				}
 			}
@@ -8370,7 +8395,7 @@ static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret) {
 }
 
 /* Search for a meta function with a specific name and assign to a member field */
-static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t* _mb_unaligned * f) {
+static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t* _UNALIGNED_ARG * f) {
 	_ls_node_t* node = 0;
 
 	mb_assert(s);
@@ -11122,8 +11147,8 @@ _to:
 			goto _exit;
 	}
 
-	if((_compare_numbers(step_val_ptr, &_OBJ_INT_ZERO) == 1 && _compare_numbers(var_loop->data, to_val_ptr) == 1) ||
-		(_compare_numbers(step_val_ptr, &_OBJ_INT_ZERO) == -1 && _compare_numbers(var_loop->data, to_val_ptr) == -1)) {
+	if((_compare_numbers(step_val_ptr, &_OBJ_INT_ZERO) > 0 && _compare_numbers(var_loop->data, to_val_ptr) > 0) ||
+		(_compare_numbers(step_val_ptr, &_OBJ_INT_ZERO) < 0 && _compare_numbers(var_loop->data, to_val_ptr) < 0)) {
 		/* End looping */
 		result = _common_end_looping(s, &ast);
 
@@ -11516,7 +11541,7 @@ static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
 }
 
 /* Destroy the parsing context of a MY-BASIC environment */
-static void _destroy_parsing_context(_parsing_context_t* _mb_unaligned * context) {
+static void _destroy_parsing_context(_parsing_context_t* _UNALIGNED_ARG * context) {
 	if(!context || !(*context))
 		return;
 
@@ -15438,7 +15463,7 @@ _default:
 		case _DT_STRING: /* Fall through */
 		case _DT_TYPE: /* Fall through */
 		case _DT_USERTYPE:
-			_COPY_BYTES(_val.bytes, val->data.bytes);
+			_copy_bytes(_val.bytes, val->data.bytes);
 
 			break;
 #endif /* MB_SIMPLE_ARRAY */
