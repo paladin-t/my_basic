@@ -13460,7 +13460,8 @@ int mb_set_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 		while((int)ocoll.data.list->count <= i)
 			_push_list(ocoll.data.list, &ret, 0);
 		if(!_set_list(ocoll.data.list, i, &val, &oval)) {
-			_destroy_object(oval, 0);
+			if(oval)
+				_destroy_object(oval, 0);
 
 			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
@@ -17944,7 +17945,8 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 				_mb_check_mark_exit(mb_pop_int(s, l, &idx), result, _exit);
 				_mb_check_mark_exit(mb_pop_value(s, l, &val), result, _exit);
 				if(!_set_list(obj.data.list, idx, &val, &oval)) {
-					_destroy_object(oval, 0);
+					if(oval)
+						_destroy_object(oval, 0);
 
 					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 				}

@@ -1,4 +1,5 @@
 Jan. 15 2018
+Fixed a crash bug with invalid collection index
 Fixed a memory leak with invalid invoking
 Fixed a wrong invoking of recursive sub routine
 
