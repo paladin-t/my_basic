@@ -1,3 +1,7 @@
+Jan. 15 2018
+Fixed a memory leak with invalid invoking
+Fixed a wrong invoking of recursive sub routine
+
 Jan. 3 2018
 Fixed a parsing bug with unary negative operator
 

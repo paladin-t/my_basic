@@ -4456,11 +4456,14 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 #ifdef MB_ENABLE_CLASS
 	bool_t pushed_inst = false;
 	_class_t* last_inst = 0;
+	bool_t same_inst = s->last_routine ? s->last_routine->instance == r->instance : false;
+#else /* MB_ENABLE_CLASS */
+	bool_t same_inst = true;
 #endif /* MB_ENABLE_CLASS */
 
 	mb_assert(s && l && r);
 
-	if(!va && s->last_routine && !s->last_routine->func.basic.parameters && (s->last_routine->name == r->name || !strcmp(s->last_routine->name, r->name))) {
+	if(!va && s->last_routine && !s->last_routine->func.basic.parameters && same_inst && (s->last_routine->name == r->name || !strcmp(s->last_routine->name, r->name))) {
 		ast = *l;
 		_skip_to(s, &ast, 0, _DT_EOS);
 		if(ast && ((_object_t*)ast->data)->type == _DT_EOS)
@@ -9507,6 +9510,7 @@ static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_con
 	char acc[_SINGLE_SYMBOL_MAX_LENGTH];
 	int i = 0;
 	int j = 0;
+	int nc = 0;
 #ifdef MB_ENABLE_CLASS
 	_class_t* instance = 0;
 #else /* MB_ENABLE_CLASS */
@@ -9519,6 +9523,7 @@ static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_con
 		acc[j] = n[i];
 		if(_is_accessor_char(acc[j]) || acc[j] == _ZERO_CHAR) {
 			acc[j] = _ZERO_CHAR;
+			++nc;
 			do {
 #ifdef MB_ENABLE_CLASS
 				if(instance) {
@@ -9530,6 +9535,8 @@ static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_con
 					}
 
 					break;
+				} else if(nc > 1) {
+					return 0;
 				}
 #endif /* MB_ENABLE_CLASS */
 
