@@ -60,6 +60,10 @@ MY-BASIC is a dynamic typed programming language with BASIC syntax and has a ver
 
 I write some of my plans in the [language design](https://github.com/paladin-t/my_basic/wiki/Language-design) page.
 
+[![Homepage](https://github.com/paladin-t/my_basic/wiki/img/basic8_banner.png)](https://paladin-t.github.io/b8/)
+
+Get [BASIC8](https://paladin-t.github.io/b8/) on [Steam](http://store.steampowered.com/app/767240/); a **fantasy computer** for game and other program development powered by MY-BASIC!
+
 ## BASIC at a glance
 
 Come along with a "Hello World" convention in MY-BASIC:
