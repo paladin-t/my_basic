@@ -11789,9 +11789,9 @@ static int _open_constant(mb_interpreter_t* s) {
 
 	running = s->running_context;
 
-	ul = _ht_set_or_insert(running->var_dict, MB_TRUE, _OBJ_BOOL_TRUE);
+	ul = _ht_set_or_insert(running->var_dict, (void*)MB_TRUE, _OBJ_BOOL_TRUE);
 	mb_assert(ul);
-	ul = _ht_set_or_insert(running->var_dict, MB_FALSE, _OBJ_BOOL_FALSE);
+	ul = _ht_set_or_insert(running->var_dict, (void*)MB_FALSE, _OBJ_BOOL_FALSE);
 	mb_assert(ul);
 
 	return result;
