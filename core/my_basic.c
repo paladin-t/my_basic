@@ -3821,11 +3821,6 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 				}
 			} else {
 				if(c->type == _DT_ARRAY) {
-					unsigned arr_idx = 0;
-					mb_value_u arr_val;
-					_data_e arr_type;
-					_object_t* arr_elem = 0;
-
 #ifdef MB_ENABLE_CLASS
 					if(s->last_instance) {
 						_ls_node_t* cs = _search_identifier_in_scope_chain(s, 0, c->data.array->name, _PATHING_NORMAL, 0, 0);
@@ -3838,6 +3833,10 @@ _array:
 						_ls_pushback(opnd, c);
 						f++;
 					} else {
+						unsigned arr_idx = 0;
+						mb_value_u arr_val;
+						_data_e arr_type;
+						_object_t* arr_elem = 0;
 						ast = ast->prev;
 						result = _get_array_index(s, &ast, c, &arr_idx, 0);
 						if(result != MB_FUNC_OK) {
@@ -3912,35 +3911,37 @@ _array:
 					_ls_pushback(opnd, c);
 					f++;
 				} else if(c->type == _DT_ROUTINE) {
-#ifdef MB_ENABLE_CLASS
-					bool_t calling = false;
-					_object_t* obj = 0;
-					_ls_node_t* fn = 0;
-#endif /* MB_ENABLE_CLASS */
 _routine:
-					ast = ast->prev;
+					do {
 #ifdef MB_ENABLE_CLASS
-					calling = s->calling;
-					s->calling = false;
+						bool_t calling = false;
+						_object_t* obj = 0;
+						_ls_node_t* fn = 0;
 #endif /* MB_ENABLE_CLASS */
-					result = _eval_routine(s, &ast, 0, 0, c->data.routine, _has_routine_lex_arg, _pop_routine_lex_arg);
+						ast = ast->prev;
 #ifdef MB_ENABLE_CLASS
-					s->calling = calling;
+						calling = s->calling;
+						s->calling = false;
+#endif /* MB_ENABLE_CLASS */
+						result = _eval_routine(s, &ast, 0, 0, c->data.routine, _has_routine_lex_arg, _pop_routine_lex_arg);
+#ifdef MB_ENABLE_CLASS
+						s->calling = calling;
 #endif /* MB_ENABLE_CLASS */
 #ifdef MB_ENABLE_CLASS
-					obj = ast ? (_object_t*)ast->data : 0;
-					if(_IS_VAR(obj) && _is_valid_class_accessor_following_routine(s, obj->data.variable, ast, &fn)) {
-						if(fn) {
-							if(ast) ast = ast->next;
-							obj = (_object_t*)fn->data;
-							if(_IS_VAR(obj)) {
-								c = obj;
+						obj = ast ? (_object_t*)ast->data : 0;
+						if(_IS_VAR(obj) && _is_valid_class_accessor_following_routine(s, obj->data.variable, ast, &fn)) {
+							if(fn) {
+								if(ast) ast = ast->next;
+								obj = (_object_t*)fn->data;
+								if(_IS_VAR(obj)) {
+									c = obj;
 
-								goto _var;
+									goto _var;
+								}
 							}
 						}
-					}
 #endif /* MB_ENABLE_CLASS */
+					} while(0);
 					if(ast)
 						ast = ast->prev;
 					if(result == MB_FUNC_END)
@@ -4005,40 +4006,42 @@ _routine:
 					}
 				} else {
 					if(c->type == _DT_VAR) {
-						_ls_node_t* cs = _search_identifier_in_scope_chain(s, 0, c->data.variable->name,
+						do {
+							_ls_node_t* cs = _search_identifier_in_scope_chain(s, 0, c->data.variable->name,
 #ifdef MB_ENABLE_CLASS
-							_PU(c->data.variable->pathing),
+								_PU(c->data.variable->pathing),
 #else /* MB_ENABLE_CLASS */
-							0,
+								0,
 #endif /* MB_ENABLE_CLASS */
-							0,
-							0
-						);
-						if(cs) {
+								0,
+								0
+							);
+							if(cs) {
 #ifdef MB_ENABLE_USERTYPE_REF
-							_ls_node_t* fn = ast;
-							if(fn) fn = fn->prev;
-							if(_try_call_func_on_usertype_ref(s, &fn, c, cs, 0)) {
-								ast = fn;
-								c = _create_object();
-								_LAZY_INIT_GLIST;
-								_ls_pushback(garbage, c);
-								_public_value_to_internal_object(&running->intermediate_value, c);
-								_REF(c)
-							} else {
+								_ls_node_t* fn = ast;
+								if(fn) fn = fn->prev;
+								if(_try_call_func_on_usertype_ref(s, &fn, c, cs, 0)) {
+									ast = fn;
+									c = _create_object();
+									_LAZY_INIT_GLIST;
+									_ls_pushback(garbage, c);
+									_public_value_to_internal_object(&running->intermediate_value, c);
+									_REF(c)
+								} else {
 #else /* MB_ENABLE_USERTYPE_REF */
-							{
+								{
 #endif /* MB_ENABLE_USERTYPE_REF */
-								c = (_object_t*)cs->data;
-								if(c && c->type == _DT_VAR && c->data.variable->data->type == _DT_ROUTINE) {
-									c = c->data.variable->data;
-								}
-								if(ast && ast && _IS_FUNC(ast->data, _core_open_bracket)) {
-									if(c && c->type == _DT_ROUTINE)
-										goto _routine;
+									c = (_object_t*)cs->data;
+									if(c && c->type == _DT_VAR && c->data.variable->data->type == _DT_ROUTINE) {
+										c = c->data.variable->data;
+									}
+									if(ast && ast && _IS_FUNC(ast->data, _core_open_bracket)) {
+										if(c && c->type == _DT_ROUTINE)
+											goto _routine;
+									}
 								}
 							}
-						}
+						} while(0);
 #ifdef MB_ENABLE_CLASS
 _var:
 #endif /* MB_ENABLE_CLASS */
