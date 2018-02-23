@@ -995,7 +995,7 @@ static void _show_help(void) {
 #if _USE_MEM_POOL
 	_printf("  -p n       - Set memory pool threashold, n is size in bytes\n");
 #endif /* _USE_MEM_POOL */
-	_printf("  -f \"dirs\"  - Set importing directories, separated with \";\" with more than one\n");
+	_printf("  -f \"dirs\"  - Set importing directories, separated by \";\" with more than one\n");
 	_printf("\n");
 	_printf("Interactive commands:\n");
 	_printf("  HELP  - View help information\n");
@@ -1007,8 +1007,8 @@ static void _show_help(void) {
 	_printf("          Usage: LIST [l [n]], l is start line number, n is line count\n");
 	_printf("  EDIT  - Edit (modify/insert/remove) a line in current program\n");
 	_printf("          Usage: EDIT n, n is line number\n");
-	_printf("                 EDIT -i n, insert a line before a given line, n is line number\n");
-	_printf("                 EDIT -r n, remove a line, n is line number\n");
+	_printf("                 EDIT -i n, insert a line before a given line\n");
+	_printf("                 EDIT -r n, remove a line\n");
 	_printf("  LOAD  - Load a file as current program\n");
 	_printf("          Usage: LOAD *.*\n");
 	_printf("  SAVE  - Save current program to a file\n");
