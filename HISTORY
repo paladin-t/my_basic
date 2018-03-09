@@ -1,3 +1,6 @@
+Mar. 9 2018
+Fixed a GC bug with ranged FOR loop
+
 Jan. 15 2018
 Fixed a crash bug with invalid collection index
 Fixed a memory leak with invalid invoking
@@ -14,7 +17,7 @@ Fixed a lookup issue with the mb_get_var function
 
 Nov. 17 2017
 Fixed an assignment issue with upvalues
-Fixed a variable lookup issue with a ranged FOR loop
+Fixed a variable lookup issue with ranged FOR loop
 
 Nov. 16 2017
 Fixed a clearing issue of intermediate values in forked scope chain

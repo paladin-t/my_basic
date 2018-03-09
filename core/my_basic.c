@@ -1745,6 +1745,7 @@ static bool_t _unlock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
 #endif /* _HAS_REF_OBJ_LOCK */
 
+static bool_t _is_ref(_object_t* obj);
 static _ref_count_t _ref(_ref_t* ref, void* data);
 static bool_t _unref(_ref_t* ref, void* data);
 static _ref_count_t _weak_ref(_ref_t* ref, void* data, _ref_t* weak);
@@ -1753,7 +1754,7 @@ static void _create_ref(_ref_t* ref, _unref_func_t dtor, _data_e t, mb_interpret
 static void _destroy_ref(_ref_t* ref);
 
 static void _gc_add(_ref_t* ref, void* data, _gc_t* gc);
-static void _gc_remove(_ref_t* ref, void* data, _gc_t* gc);
+static unsigned _gc_remove(_ref_t* ref, void* data, _gc_t* gc);
 static int _gc_add_reachable(void* data, void* extra, void* h);
 static int _gc_add_reachable_both(void* data, void* extra, void* h);
 #ifdef MB_ENABLE_FORK
@@ -6237,10 +6238,43 @@ static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 }
 #endif /* _HAS_REF_OBJ_LOCK */
 
+/* Tell whether an object is referenced */
+static bool_t _is_ref(_object_t* obj) {
+	switch(obj->type) {
+#ifdef MB_ENABLE_USERTYPE_REF
+	case _DT_USERTYPE_REF:
+		return true;
+#endif /* MB_ENABLE_USERTYPE_REF */
+#ifdef MB_ENABLE_ARRAY_REF
+	case _DT_ARRAY:
+		return true;
+#endif /* MB_ENABLE_ARRAY_REF */
+#ifdef MB_ENABLE_COLLECTION_LIB
+	case _DT_LIST:
+		return true;
+	case _DT_DICT:
+		return true;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+	case _DT_CLASS:
+		return true;
+#endif /* MB_ENABLE_CLASS */
+	case _DT_ROUTINE:
+#ifdef MB_ENABLE_LAMBDA
+		return obj->data.routine->type == MB_RT_LAMBDA;
+#else /* MB_ENABLE_LAMBDA */
+		return false;
+#endif /* MB_ENABLE_LAMBDA */
+	default:
+		return false;
+	}
+}
+
 /* Increase the reference of a stub by 1 */
 static _ref_count_t _ref(_ref_t* ref, void* data) {
 	_ref_count_t before = *ref->count;
-	mb_unrefvar(data);
+
+	mb_assert((intptr_t)ref == (intptr_t)data);
 
 	++(*ref->count);
 	if(before > *ref->count) {
@@ -6257,6 +6291,8 @@ static bool_t _unref(_ref_t* ref, void* data) {
 	bool_t result = true;
 	_gc_t* gc = 0;
 	bool_t cld = false;
+
+	mb_assert((intptr_t)ref == (intptr_t)data);
 
 	cld = *ref->count == _NONE_REF + 1;
 	do {
@@ -6374,7 +6410,7 @@ static void _gc_add(_ref_t* ref, void* data, _gc_t* gc) {
 }
 
 /* Remove a referenced object from GC */
-static void _gc_remove(_ref_t* ref, void* data, _gc_t* gc) {
+static unsigned _gc_remove(_ref_t* ref, void* data, _gc_t* gc) {
 	_ht_node_t* table = 0;
 
 	mb_assert(ref && data && gc);
@@ -6385,7 +6421,9 @@ static void _gc_remove(_ref_t* ref, void* data, _gc_t* gc) {
 		table = gc->table;
 
 	if(table)
-		_ht_remove(table, ref, 0);
+		return _ht_remove(table, ref, 0);
+
+	return 0;
 }
 
 /* Get reachable objects */
@@ -11196,6 +11234,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 	_running_context_t* running = 0;
 	_var_t* pathed_var = 0;
 	_object_t* old_val = 0;
+	_ref_t* old_val_gc = 0;
 	_ls_node_t* to_node = 0;
 	_object_t range;
 	_object_t* range_ptr = 0;
@@ -11223,6 +11262,11 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 	if(!pathed_var)
 		pathed_var = var_loop;
 	old_val = pathed_var->data;
+	if(_is_ref(old_val)) {
+		old_val_gc = (_ref_t*)old_val->data.pointer;
+		if(!_gc_remove(old_val_gc, (void*)old_val_gc, &old_val_gc->s->gc))
+			old_val_gc = 0;
+	}
 	range_ptr = &range;
 	_MAKE_NIL(range_ptr);
 	mb_make_nil(ref_val);
@@ -11375,6 +11419,8 @@ _exit:
 	*l = ast;
 
 	pathed_var->data = old_val;
+	if(old_val_gc)
+		_gc_add(old_val_gc, (void*)old_val_gc, &old_val_gc->s->gc);
 
 	return result;
 }
@@ -13731,14 +13777,14 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 #ifdef MB_ENABLE_USERTYPE_REF
 		obj.type != _DT_USERTYPE_REF &&
 #endif /* MB_ENABLE_USERTYPE_REF */
+		obj.type != _DT_ARRAY &&
 #ifdef MB_ENABLE_COLLECTION_LIB
 		obj.type != _DT_LIST && obj.type != _DT_DICT &&
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 		obj.type != _DT_CLASS &&
 #endif /* MB_ENABLE_CLASS */
-		obj.type != _DT_ROUTINE &&
-		obj.type != _DT_ARRAY
+		obj.type != _DT_ROUTINE
 	) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_TYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
@@ -13770,14 +13816,14 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 #ifdef MB_ENABLE_USERTYPE_REF
 		obj.type != _DT_USERTYPE_REF &&
 #endif /* MB_ENABLE_USERTYPE_REF */
+		obj.type != _DT_ARRAY &&
 #ifdef MB_ENABLE_COLLECTION_LIB
 		obj.type != _DT_LIST && obj.type != _DT_DICT &&
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
 		obj.type != _DT_CLASS &&
 #endif /* MB_ENABLE_CLASS */
-		obj.type != _DT_ROUTINE &&
-		obj.type != _DT_ARRAY
+		obj.type != _DT_ROUTINE
 	) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_TYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
