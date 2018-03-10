@@ -293,6 +293,7 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Operation failed",
 	"Operator expected",
 	"Assign operator expected",
+	"THEN statement expected",
 	"ELSE statement expected",
 	"ENDIF statement expected",
 	"TO statement expected",
@@ -15654,7 +15655,11 @@ _elseif:
 		skip = true;
 
 		if(!_IS_FUNC(obj, _core_then)) {
-			_handle_error_on_obj(s, SE_RN_INTEGER_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			if(ast->prev && _IS_FUNC(ast->prev->data, _core_then)) {
+				ast = ast->prev;
+			} else {
+				_handle_error_on_obj(s, SE_RN_THEN_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			}
 		}
 
 		if(ast && ast->next && _IS_EOS(ast->next->data)) {

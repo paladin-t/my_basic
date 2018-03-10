@@ -1,5 +1,6 @@
 Mar. 9 2018
 Fixed a GC bug with ranged FOR loop
+Fixed a stepping bug in the IF statement
 
 Jan. 15 2018
 Fixed a crash bug with invalid collection index
