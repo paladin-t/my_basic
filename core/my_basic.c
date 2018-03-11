@@ -15304,7 +15304,6 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 	unsigned arr_idx = 0;
 	bool_t literally = false;
 	_object_t* val = 0;
-	bool_t freed = false;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	int_t idx = 0;
 	mb_value_t key;
@@ -15428,15 +15427,9 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 		}
 #endif /* MB_ENABLE_COLLECTION_LIB */
 #ifdef MB_ENABLE_CLASS
-		if(evar && evar->pathing && evar->data->type == _DT_STRING && !(var->data->type == _DT_STRING && evar->data->data.string != var->data->data.string)) {
-			_dispose_object(evar->data);
-			evar = 0;
-			freed = true;
-		}
 _proc_extra_var:
 #endif /* MB_ENABLE_CLASS */
-		if(!freed)
-			_dispose_object(var->data);
+		_dispose_object(var->data);
 		var->data->type = val->type;
 #ifdef MB_ENABLE_COLLECTION_LIB
 		if(val->type == _DT_LIST_IT || val->type == _DT_DICT_IT)
@@ -15464,8 +15457,10 @@ _proc_extra_var:
 		}
 #ifdef MB_ENABLE_CLASS
 		if(evar && evar->pathing) {
-			if(var->data->type == _DT_STRING)
-				var->data->is_ref = true;
+			if(var->data->type == _DT_STRING) {
+				var->data->data.string = mb_strdup(var->data->data.string, strlen(var->data->data.string) + 1);
+				var->data->is_ref = false;
+			}
 			var = evar;
 			evar = 0;
 			refc++;
