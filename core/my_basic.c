@@ -13141,7 +13141,7 @@ _exit:
 }
 
 /* Get a token literally, store it in an argument if it's a variable */
-int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
+int mb_get_var(struct mb_interpreter_t* s, void** l, void** v, bool_t redir) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
@@ -13166,8 +13166,10 @@ int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
 
 	if(obj && obj->type == _DT_VAR) {
 #ifdef MB_ENABLE_CLASS
-		if(obj->data.variable->pathing)
+		if(redir && obj->data.variable->pathing)
 			_search_var_in_scope_chain(s, obj->data.variable, &obj);
+#else /* MB_ENABLE_CLASS */
+		mb_unrefvar(redir);
 #endif /* MB_ENABLE_CLASS */
 		if(v)
 			*v = obj;
@@ -16737,7 +16739,7 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 			break;
 		}
 
-		_mb_check_mark_exit(mb_get_var(s, l, &v), result, _error);
+		_mb_check_mark_exit(mb_get_var(s, l, &v, true), result, _error);
 
 		if(!v || ((_object_t*)v)->type != _DT_VAR) {
 			_handle_error_on_obj(s, SE_RN_INVALID_LAMBDA, s->source_file, DON2(l), MB_FUNC_ERR, _error, result);

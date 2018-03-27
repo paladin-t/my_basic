@@ -617,7 +617,7 @@ MBAPI int mb_set_class_userdata(struct mb_interpreter_t* s, void** l, void* d);
 
 MBAPI int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val);
 MBAPI int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t val, bool_t force);
-MBAPI int mb_get_var(struct mb_interpreter_t* s, void** l, void** v);
+MBAPI int mb_get_var(struct mb_interpreter_t* s, void** l, void** v, bool_t redir);
 MBAPI int mb_get_var_name(struct mb_interpreter_t* s, void* v, char** n);
 MBAPI int mb_get_var_value(struct mb_interpreter_t* s, void* v, mb_value_t* val);
 MBAPI int mb_set_var_value(struct mb_interpreter_t* s, void* v, mb_value_t val);
