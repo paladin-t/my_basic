@@ -1,3 +1,6 @@
+Apr. 20 2018
+Avoided a warning when a C++ compiler refers char to unsigned
+
 Mar. 11 2018
 Fixed a string assignment issue with class member
 
@@ -1050,7 +1053,7 @@ Improved compatibility with GCC
 Aug. 3 2012
 Implemented memory occupation statistics
 Improved compatibility on 64bit systems
-Fixed some warnings under a stricter mode
+Avoided some warnings under a stricter mode
 
 Jul. 21 2012
 Added a compatibility macro for PRINT a newline

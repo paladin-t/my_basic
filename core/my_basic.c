@@ -3345,15 +3345,21 @@ static int mb_wchar_to_bytes(const wchar_t* sz, char** out, size_t size) {
 
 /* Determine whether a string begins with a BOM, and ignore it */
 static int mb_uu_getbom(const char** ch) {
-	if(!ch && !(*ch))
+#ifdef __cplusplus
+	signed char** ptr = (signed char**)ch;
+#else /* __cplusplus */
+	char** ptr = (char**)ch;
+#endif /* __cplusplus */
+
+	if(!ptr && !(*ptr))
 		return 0;
 
-	if((*ch)[0] == -17 && (*ch)[1] == -69 && (*ch)[2] == -65) {
-		*ch += 3;
+	if((*ptr)[0] == -17 && (*ptr)[1] == -69 && (*ptr)[2] == -65) {
+		*ptr += 3;
 
 		return 3;
-	} else if((*ch)[0] == -2 && (*ch)[1] == -1) {
-		*ch += 2;
+	} else if((*ptr)[0] == -2 && (*ptr)[1] == -1) {
+		*ptr += 2;
 
 		return 2;
 	}
@@ -4962,7 +4968,14 @@ static bool_t _is_blank_char(char c) {
 
 /* Determine whether a character is end of file */
 static bool_t _is_eof_char(char c) {
+#ifdef __cplusplus
+	union { signed char s; char c; } u;
+	u.c = c;
+
+	return u.s == EOF;
+#else /* __cplusplus */
 	return (c == EOF);
+#endif /* __cplusplus */
 }
 
 /* Determine whether a character is newline */
