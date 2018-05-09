@@ -17789,9 +17789,9 @@ static int _std_val(mb_interpreter_t* s, void** l) {
 		}
 	}
 
+_exit:
 	mb_check(mb_attempt_close_bracket(s, l));
 
-_exit:
 	return result;
 }
 
