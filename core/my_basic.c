@@ -8404,6 +8404,12 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 
 			ret = _duplicate_parameter(var, 0, instance->scope);
 			_clone_object(instance->ref.s, obj, ret->data.variable->data, false, var->data->type != _DT_CLASS);
+#ifdef MB_ENABLE_SOURCE_TRACE
+			ret->source_pos = -1;
+			ret->source_row = ret->source_col = 0xFFFF;
+#else /* MB_ENABLE_SOURCE_TRACE */
+			ret->source_pos = -1;
+#endif /* MB_ENABLE_SOURCE_TRACE */
 		}
 
 		break;
