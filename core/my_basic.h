@@ -30,7 +30,9 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#if defined ARDUINO
+#if defined __EMSCRIPTEN__
+#	define MB_CP_EMSCRIPTEN
+#elif defined ARDUINO
 #	define MB_CP_ARDUINO
 #elif defined __BORLANDC__
 #	define MB_CP_BORLANDC
@@ -62,7 +64,9 @@ extern "C" {
 #	define MB_CP_UNKNOWN
 #endif /* Compiler dependent macro */
 
-#if defined _WIN64
+#if defined __EMSCRIPTEN__
+#	define MB_OS_HTML
+#elif defined _WIN64
 #	define MB_OS_WIN
 #	define MB_OS_WIN64
 #elif defined _WIN32
