@@ -14638,6 +14638,30 @@ _exit:
 	return result;
 }
 
+/* Set an import handler to a MY-BASIC environment */
+int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h) {
+	int result = MB_FUNC_OK;
+
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
+	s->import_handler = h;
+
+_exit:
+	return result;
+}
+
+/* Register an allocator and a freer globally */
+int mb_set_memory_manager(mb_memory_allocate_func_t a, mb_memory_free_func_t f) {
+	_mb_allocate_func = a;
+	_mb_free_func = f;
+
+	return MB_FUNC_OK;
+}
+
 /* Get whether GC is enabled */
 bool_t mb_get_gc_enabled(struct mb_interpreter_t* s) {
 	if(!s) return false;
@@ -14704,22 +14728,6 @@ _exit:
 	return result;
 }
 
-/* Set an import handler to a MY-BASIC environment */
-int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h) {
-	int result = MB_FUNC_OK;
-
-	if(!s) {
-		result = MB_FUNC_ERR;
-
-		goto _exit;
-	}
-
-	s->import_handler = h;
-
-_exit:
-	return result;
-}
-
 /* Safe stdin reader function */
 int mb_gets(const char* pmt, char* buf, int s) {
 	int result = 0;
@@ -14752,14 +14760,6 @@ char* mb_memdup(const char* val, unsigned size) {
 	}
 
 	return result;
-}
-
-/* Register an allocator and a freer globally */
-int mb_set_memory_manager(mb_memory_allocate_func_t a, mb_memory_free_func_t f) {
-	_mb_allocate_func = a;
-	_mb_free_func = f;
-
-	return MB_FUNC_OK;
 }
 
 /* ========================================================} */
