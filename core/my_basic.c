@@ -13997,7 +13997,7 @@ int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 	_object_t* obj = 0;
 	_ls_node_t* scp = 0;
 
-	if(!s || !l || !n || !val) {
+	if(!s || !n || !val) {
 		result = MB_FUNC_ERR;
 
 		goto _exit;
@@ -14030,7 +14030,7 @@ int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routi
 	_ls_node_t* tmp = 0;
 	_var_t* var = 0;
 
-	if(!s || !l) {
+	if(!s) {
 		result = MB_FUNC_ERR;
 
 		goto _exit;
