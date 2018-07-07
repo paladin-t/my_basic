@@ -129,10 +129,9 @@ int main() {
 The manual explains most of the fundamental topics, however it doesn't cover everything; read the [Wiki](https://github.com/paladin-t/my_basic/wiki) as supplemental instructions, such as machinism behind MY-BASIC, efficient practice, etc:
 
 * Principles
-	* [Language design](https://github.com/paladin-t/my_basic/wiki/Language-design)
-	* [How lambda works](https://github.com/paladin-t/my_basic/wiki/How-lambda-works)
 	* [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
 	* [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
+	* [How lambda works](https://github.com/paladin-t/my_basic/wiki/How-lambda-works)
 * Code with MY-BASIC
 	* [Using Unicode](https://github.com/paladin-t/my_basic/wiki/Using-Unicode)
 	* [Importing another file](https://github.com/paladin-t/my_basic/wiki/Importing-another-file)
@@ -166,7 +165,7 @@ The manual explains most of the fundamental topics, however it doesn't cover eve
 	* [Redefining int_t and real_t](https://github.com/paladin-t/my_basic/wiki/Redefining-int_t-and-real_t)
 	* [Converting between string and real](https://github.com/paladin-t/my_basic/wiki/Converting-between-string-and-real)
 	* [Customizing an importer](https://github.com/paladin-t/my_basic/wiki/Customizing-an-importer)
-* [More scripting API](https://github.com/paladin-t/my_basic/wiki/More-scripting-API)
+* More scripting API
 	* [String matching module](https://github.com/paladin-t/my_basic/wiki/String-matching-module)
 	* [String manipulation module](https://github.com/paladin-t/my_basic/wiki/String-manipulation-module)
 	* [File module](https://github.com/paladin-t/my_basic/wiki/File-module)
