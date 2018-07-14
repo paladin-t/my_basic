@@ -1,3 +1,6 @@
+Jul. 14 2018
+Fixed a multiple disposing bug with upvalues
+
 May. 13 2018
 Added platform dependent macros for Emscripten
 

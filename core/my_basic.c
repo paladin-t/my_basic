@@ -8915,6 +8915,10 @@ static void _mark_upvalue(mb_interpreter_t* s, _lambda_t* lambda, _object_t* obj
 	running = s->running_context;
 	scp = _search_identifier_in_scope_chain(s, running, n, _PATHING_NORMAL, 0, &found_in_scope);
 	if(scp && found_in_scope) {
+		_object_t* rot = (_object_t*)scp->data;
+		rot = _GET_ROUTINE(rot);
+		if(rot && lambda->scope && lambda->scope->prev != found_in_scope)
+			return;
 		if(!found_in_scope->refered_lambdas)
 			found_in_scope->refered_lambdas = _ls_create();
 		if(!_ls_find(found_in_scope->refered_lambdas, lambda, (_ls_compare_t)_ht_cmp_intptr, 0))
@@ -9041,17 +9045,19 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 			ast = tuple->lambda->entry;
 			while(ast && ast != tuple->lambda->end->next) {
 				_object_t* aobj = (_object_t*)ast->data;
-				switch(aobj->type) {
-				case _DT_VAR:
-					if(!strcmp(aobj->data.variable->name, ovar->data.variable->name)) {
+				if(aobj) {
+					switch(aobj->type) {
+					case _DT_VAR:
+						if(!strcmp(aobj->data.variable->name, ovar->data.variable->name)) {
 #ifdef MB_ENABLE_CLASS
-						aobj->data.variable->pathing = _PATHING_UPVALUE;
+							aobj->data.variable->pathing = _PATHING_UPVALUE;
 #endif /* MB_ENABLE_CLASS */
-					}
+						}
 
-					break;
-				default: /* Do nothing */
-					break;
+						break;
+					default: /* Do nothing */
+						break;
+					}
 				}
 				ast = ast->next;
 			}
