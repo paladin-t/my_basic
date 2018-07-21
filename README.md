@@ -22,24 +22,24 @@
 
 ## Introduction
 
-MY-BASIC is a lightweight BASIC interpreter written in standard C in dual files. It's aimed to be embeddable, extendable and portable. It is a dynamic typed programming language, and supports structured syntax, implements a style of [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) (OOP), and it also implements a functional paradigm by [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). The core is written in a C source file and an associated header file. It's easy to either use it as a standalone interpreter or embed it with existing projects in C, C++, Java, Objective-C, Swift, C#, etc. and totally customizable by adding your own scripting interfaces.
+MY-BASIC is a lightweight BASIC interpreter written in standard C in dual files. It's aimed to be embeddable, extendable and portable. It is a dynamic typed programming language, reserves structured syntax, supports a style of [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) (OOP), also implements a functional paradigm by [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). The core is written in a C source file and an associated header file. It's easy to either use it as a standalone interpreter or embed it with existing projects in C, C++, Java, Objective-C, Swift, C#, etc. and totally customizable by adding your own scripting interfaces.
 
 ## Main features
 
 MY-BASIC offers a wide range of features including:
 
-* Written in **pure C**, source code is portable to a dozen of platforms
-* **Lightweight** (within less than 128KB footprint), fast, and configurable
+* Written in standard C, source code is portable to a dozen of platforms
+* Lightweight (within less than 128KB footprint), fast, and configurable
 * With both retro and modern BASIC syntax
 * Case-insensitive tokenization, and many other indelible BASIC flavour
 * [Unicode support](https://github.com/paladin-t/my_basic/wiki/Using-Unicode)
-* **[Prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming)**, with reflection support
-* **[Lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function)** enhanced functional programming
+* [Prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming), with reflection support
+* [Lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function) enhanced functional programming
 * Customizable referenced/non-referenced usertype
-* Collection construction and manipulation functions for **`LIST`** and **`DICT`**
+* Collection construction and manipulation functions for `LIST` and `DICT`
 * Automatic releasing for referenced values (prototype, lambda, referenced usertype, list, dictionary, etc.) benefited from reference counting and garbage collection
 * Common numeric and string functions
-* Structured **sub routine** definition with the **`DEF/ENDDEF`** statements
+* Structured sub routine definition with the `DEF/ENDDEF` statements
 * Structured `IF/THEN/ELSEIF/ELSE/ENDIF`
 * Structured `FOR/TO/STEP/NEXT`, `FOR/IN/NEXT`, `WHILE/WEND`, `DO/UNTIL`
 * Reserved retro `GOTO`, `GOSUB/RETURN`
@@ -52,9 +52,9 @@ MY-BASIC offers a wide range of features including:
 
 [![BASIC8](https://github.com/paladin-t/my_basic/wiki/img/basic8_banner.png)](https://paladin-t.github.io/b8/)
 
-Get [BASIC8](https://paladin-t.github.io/b8/) - the **fantasy computer** - on [Steam](http://store.steampowered.com/app/767240/) for game and other program development powered by MY-BASIC.
+Get [BASIC8](https://paladin-t.github.io/b8/) - the **fantasy computer** powered by MY-BASIC - on [Steam](http://store.steampowered.com/app/767240/) for game and other program development in an integrated environment.
 
-See more awesome [user creations](https://my-basic.github.io/awesome/).
+See awesome [user creations](https://my-basic.github.io/awesome/).
 
 ## BASIC at a glance
 
@@ -76,13 +76,13 @@ Read the [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASI
 
 ### Using standalone interpreter binary
 
-This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [macOS](output/my_basic_mac), the easiest way is to download one of them to get a playground. Or you can make a build as:
+This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [macOS](output/my_basic_mac), the easiest way is to download to get a direct playground. Or you can make a build by:
 
-* Use the Visual Studio workspace `my_basic.sln` on Windows to build an executable
-* Use the Xcode workspace `my_basic_mac.xcodeproj` on macOS to build an executable
-* Use the `makefile` on *nix OS to build an executable
+* Using the Visual Studio workspace `my_basic.sln` on Windows to build an executable
+* Using the Xcode workspace `my_basic_mac.xcodeproj` on macOS to build an executable
+* Using the `makefile` on *nix OS to build an executable
 
-To compile an interpreter binary for any platform manually, follow these steps:
+Follow these steps to compile an interpreter binary manually for any platform:
 
 1. Retrieve everything under the [`core`](core) and [`shell`](shell) folders for a minimum build
 2. Setup your toolchain for compiling and linking
@@ -91,9 +91,9 @@ To compile an interpreter binary for any platform manually, follow these steps:
 The standalone interpreter supports three running modes:
 
 * Execute the binary without arguments to use the interactive mode
-	* Type "HELP" and hint Enter to get detail usages of it
-* Pass a file to the binary to load and run that BASIC source
-* Pass an argument `-e` followed with an expression to evaluate and print instantly, as a simple calculator, eg. `-e "2 * (3 + 4)"`
+	* Type "HELP" and hint Enter to get usages of it
+* Pass a file to the binary to load and run that BASIC source code
+* Pass an argument `-e` followed with an expression to evaluate and print instantly as a simple calculator, eg. `-e "2 * (3 + 4)"`
 
 ### Combining with existing projects
 
@@ -110,6 +110,8 @@ It's recommended to know the basic principle of MY-BASIC before customizing; not
 A simple setup as follow:
 
 ~~~~~~~~~~c
+#include "my_basic.h"
+
 int main() {
 	struct mb_interpreter_t* bas = NULL;
 
@@ -126,7 +128,7 @@ int main() {
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
-The manual explains most of the fundamental topics, however it doesn't cover everything; read the [Wiki](https://github.com/paladin-t/my_basic/wiki) as supplemental instructions, such as machinism behind MY-BASIC, efficient practice, etc:
+The manual explains most of the fundamental topics, however it doesn't cover everything; read the [Wiki](https://github.com/paladin-t/my_basic/wiki) as supplement instructions, such as machinism behind MY-BASIC, efficient practice, etc:
 
 * Principles
 	* [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
