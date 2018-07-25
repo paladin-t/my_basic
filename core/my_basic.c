@@ -1739,6 +1739,10 @@ static char* _extract_string(_object_t* obj);
 #ifdef MB_MANUAL_REAL_FORMATTING
 static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
 #endif /* MB_MANUAL_REAL_FORMATTING */
+static void _real_to_str_std(real_t r, char* str, size_t size);
+#ifndef mb_realtostr
+#	define mb_realtostr(__r, __s, __z) _real_to_str_std((__r), (__s), (__z))
+#endif /* mb_realtostr */
 
 #ifdef _HAS_REF_OBJ_LOCK
 static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj);
@@ -6203,6 +6207,20 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint) {
 	str[pos] = _ZERO_CHAR;
 }
 #endif /* MB_MANUAL_REAL_FORMATTING */
+
+/* Convert a real number to string the standard way */
+static void _real_to_str_std(real_t r, char* str, size_t size) {
+	if((size_t)sprintf(str, MB_REAL_FMT, r) >= size) {
+		mb_assert(0 && "Buffer overflow.");
+	}
+	for(size_t i = 0; i < size; ++i) {
+		if(str[i] == ',') {
+			str[i] = '.';
+
+			break;
+		}
+	}
+}
 
 #ifdef _HAS_REF_OBJ_LOCK
 /* Lock a referenced object */
@@ -17668,9 +17686,7 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 #ifdef MB_MANUAL_REAL_FORMATTING
 		_real_to_str(arg.value.float_point, _CHAR_BUF_PTR(buf), lbuf, 5);
 #else /* MB_MANUAL_REAL_FORMATTING */
-		if((size_t)sprintf(_CHAR_BUF_PTR(buf), MB_REAL_FMT, arg.value.float_point) >= lbuf) {
-			mb_assert(0 && "Buffer overflow.");
-		}
+		mb_realtostr(arg.value.float_point, _CHAR_BUF_PTR(buf), lbuf);
 #endif /* MB_MANUAL_REAL_FORMATTING */
 
 		break;

@@ -1,3 +1,6 @@
+Jul. 25 2018
+Fixed a real number formatting bug with different locales
+
 Jul. 14 2018
 Fixed a multiple disposing bug with upvalues
 
@@ -310,7 +313,7 @@ Jul. 16 2016
 Added class format support with the STR statement
 
 Jul. 14 2016
-Fixed a boolean operation bug with the NOT statement on float number
+Fixed a boolean operation bug with the NOT statement on real number
 Improved boolean operation
 
 Jul. 13 2016
@@ -374,7 +377,7 @@ Jun. 14 2016
 Fixed some bugs with meta method calling
 
 Jun. 7 2016
-Simplified double precision float number redefinition
+Simplified double precision real number redefinition
 
 May. 24 2016
 Refactored error raising of string manipulation
@@ -892,7 +895,7 @@ Added recursive sub routine support
 Fixed a wrong argument detection bug in mb_has_arg
 
 Sep. 18 2015
-Fixed a float number parsing bug, thanks to Cybermonkey342 for pointing it out
+Fixed a real number parsing bug, thanks to Cybermonkey342 for pointing it out
 Added directly expression evaluation shell command
 
 Sep. 17 2015
@@ -902,7 +905,7 @@ Fixed a repeated disposing bug when using sub routine
 
 Sep. 16 2015
 Added Nil type handling, including assignment, boolean operation, serialization, etc.
-Added an MB_CONVERT_TO_INT_LEVEL macro, would convert float to integer as much as possible if this macro was enabled
+Added an MB_CONVERT_TO_INT_LEVEL macro, would convert real to integer as much as possible if this macro was enabled
 
 Sep. 11 2015
 Added a duplicate sub routine error handling
@@ -973,7 +976,7 @@ Apr. 15 2015
 Added mb_pop_usertype, mb_push_usertype to support user defined type
 
 Apr. 13 2015
-Added mixed integer/float array support
+Added mixed integer/real array support
 Added warning prompt when passing strings to maths functions
 Fixed a memory leak when storing strings in an array
 Improved the interpreter commands
@@ -986,7 +989,7 @@ Disposed parsing context at runtime to reduce memory occupation
 
 Apr. 10 2015
 Improved compatibility with PellesC
-Fixed a double precision float parsing bug on all 32bit systems, thanks to Pito for pointing it out
+Fixed a double precision real parsing bug on all 32bit systems, thanks to Pito for pointing it out
 Fixed an exponential number parsing bug, thanks to Pito for pointing it out
 Fixed a crash bug when a script begins with meaningless negtive number
 
@@ -1089,7 +1092,7 @@ Fixed some memory leaks
 Jul. 3 2012
 Modified/added math functions: FLOOR, CEIL, FIX
 Fixed an INPUT type issue
-Changed float number formatting from using "%f" to "%g" in PRINT, thanks to Bruce Kendall for pointing above three issues out
+Changed real number formatting from using "%f" to "%g" in PRINT, thanks to Bruce Kendall for pointing above three issues out
 Refactored the way to load a script file
 Done several small improvements
 
