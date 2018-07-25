@@ -6210,10 +6210,12 @@ static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint) {
 
 /* Convert a real number to string the standard way */
 static void _real_to_str_std(real_t r, char* str, size_t size) {
+	size_t i = 0;
+
 	if((size_t)sprintf(str, MB_REAL_FMT, r) >= size) {
 		mb_assert(0 && "Buffer overflow.");
 	}
-	for(size_t i = 0; i < size; ++i) {
+	for(i = 0; i < size; ++i) {
 		if(str[i] == ',') {
 			str[i] = '.';
 
