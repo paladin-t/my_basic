@@ -6220,6 +6220,8 @@ static void _real_to_str_std(real_t r, char* str, size_t size) {
 			str[i] = '.';
 
 			break;
+		} else if(str[i] == _ZERO_CHAR) {
+			break;
 		}
 	}
 }
