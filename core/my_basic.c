@@ -1426,8 +1426,8 @@ static mb_meta_status_e _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 		do { \
 			if(_set_current_error((__s), (__err), (__f))) { \
 				_set_error_pos((__s), (__pos), (__row), (__col)); \
+				__result = (__ret); \
 			} \
-			__result = (__ret); \
 			goto __exit; \
 		} while(0)
 #else /* _WARNING_AS_ERROR */
@@ -3631,7 +3631,7 @@ static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object
 	_object_t* result = 0;
 	_tuple3_t tp;
 	_tuple3_t* tpptr = 0;
-	int _status = 0;
+	int ret = 0;
 
 	mb_assert(s && optr);
 	mb_assert(optr->type == _DT_FUNC);
@@ -3647,11 +3647,11 @@ static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object
 	tp.e3 = result;
 	tpptr = &tp;
 
-	_status = (optr->data.func->pointer)(s, (void**)&tpptr);
+	ret = (optr->data.func->pointer)(s, (void**)&tpptr);
 	if(status)
-		*status = _status;
-	if(_status != MB_FUNC_OK) {
-		if(_status != MB_FUNC_WARNING) {
+		*status = ret;
+	if(ret != MB_FUNC_OK) {
+		if(ret != MB_FUNC_WARNING) {
 			safe_free(result);
 		}
 		if(_set_current_error(s, SE_RN_OPERATION_FAILED, 0)) {
@@ -5125,7 +5125,6 @@ static int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigne
 	int result = MB_FUNC_OK;
 	_parsing_context_t* context = 0;
 	char* sym = 0;
-	int status = 0;
 	bool_t delsym = false;
 
 	mb_assert(s);
@@ -5135,11 +5134,10 @@ static int _cut_symbol(mb_interpreter_t* s, int pos, unsigned short row, unsigne
 		sym = (char*)mb_malloc(context->current_symbol_nonius + 1);
 		memcpy(sym, context->current_symbol, context->current_symbol_nonius + 1);
 
-		status = _append_symbol(s, sym, &delsym, pos, row, col);
-		if(status || delsym) {
+		result = _append_symbol(s, sym, &delsym, pos, row, col);
+		if(result != MB_FUNC_OK || delsym) {
 			safe_free(sym);
 		}
-		result = status;
 	}
 	memset(context->current_symbol, 0, sizeof(context->current_symbol));
 	context->current_symbol_nonius = 0;
@@ -11207,6 +11205,8 @@ static int _execute_normal_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 	result = _execute_statement(s, &ast, true);
 	if(result != MB_FUNC_OK)
 		goto _exit;
+	if(!ast)
+		goto _exit;
 	ast = ast->prev;
 
 	obj = (_object_t*)ast->data;
@@ -11228,19 +11228,21 @@ _to:
 	if(result != MB_FUNC_OK)
 		goto _exit;
 
-	obj = (_object_t*)ast->data;
-	if(!_IS_FUNC(obj, _core_step)) {
-		step_val = _OBJ_INT_UNIT;
-	} else {
-		ast = ast->next;
-		if(!ast) {
-			_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
-		}
+	if(ast) {
+		obj = (_object_t*)ast->data;
+		if(!_IS_FUNC(obj, _core_step)) {
+			step_val = _OBJ_INT_UNIT;
+		} else {
+			ast = ast->next;
+			if(!ast) {
+				_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			}
 
-		/* Get step value */
-		result = _calc_expression(s, &ast, &step_val_ptr);
-		if(result != MB_FUNC_OK)
-			goto _exit;
+			/* Get step value */
+			result = _calc_expression(s, &ast, &step_val_ptr);
+			if(result != MB_FUNC_OK)
+				goto _exit;
+		}
 	}
 
 	if((_compare_numbers(step_val_ptr, &_OBJ_INT_ZERO) > 0 && _compare_numbers(var_loop->data, to_val_ptr) > 0) ||
@@ -11251,6 +11253,8 @@ _to:
 		goto _exit;
 	} else {
 		/* Keep looping */
+		if(!ast)
+			goto _exit;
 		result = _common_keep_looping(s, &ast, var_loop);
 		if(result == MB_LOOP_BREAK) {
 			result = MB_FUNC_OK;
@@ -11484,7 +11488,6 @@ static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t)
 	mb_assert(s && l);
 
 	ast = *l;
-	mb_assert(ast && ast->prev);
 	do {
 		if(!ast) {
 			_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(tmp), MB_FUNC_ERR, _exit, result);
@@ -14165,7 +14168,6 @@ _exit:
 /* Load and parse a script string */
 int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 	int result = MB_FUNC_OK;
-	int status = 0;
 	unsigned short _row = 0;
 	unsigned short _col = 0;
 	char wrapped = _ZERO_CHAR;
@@ -14212,9 +14214,8 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 			wrapped = _ZERO_CHAR;
 			++context->parsing_col;
 		} while(0);
-		status = _parse_char(s, l, n, context->parsing_pos, _row, _col);
-		result = status;
-		if(status) {
+		result = _parse_char(s, l, n, context->parsing_pos, _row, _col);
+		if(result != MB_FUNC_OK) {
 			_set_error_pos(s, context->parsing_pos, _row, _col);
 			_handle_error_now(s, s->last_error, s->last_error_file, result);
 
@@ -14225,7 +14226,7 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 		++context->parsing_pos;
 		l += n;
 	};
-	status = _parse_char(s, 0, 1, context->parsing_pos, context->parsing_row, context->parsing_col);
+	result = _parse_char(s, 0, 1, context->parsing_pos, context->parsing_row, context->parsing_col);
 
 _exit:
 	if(reset)
@@ -15693,6 +15694,8 @@ _elseif:
 	_REF(val)
 	if(result != MB_FUNC_OK)
 		goto _exit;
+	if(!ast)
+		goto _exit;
 
 	obj = (_object_t*)ast->data;
 	if(val->data.integer) {
@@ -15721,7 +15724,9 @@ _elseif:
 
 				break;
 			}
-			if(multi_line && ast && (_IS_FUNC(ast->data, _core_else) || _IS_FUNC(ast->data, _core_elseif)))
+			if(!ast)
+				break;
+			if(multi_line && (_IS_FUNC(ast->data, _core_else) || _IS_FUNC(ast->data, _core_elseif)))
 				break;
 			result = _execute_statement(s, &ast, true);
 			if(result != MB_FUNC_OK)
@@ -15985,6 +15990,8 @@ _loop_begin:
 
 	if(loop_cond_ptr->data.integer) {
 		/* Keep looping */
+		if(!ast)
+			goto _exit;
 		obj = (_object_t*)ast->data;
 		while(!_IS_FUNC(obj, _core_wend)) {
 			result = _execute_statement(s, &ast, true);

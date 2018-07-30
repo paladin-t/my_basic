@@ -1,3 +1,6 @@
+Jul. 30 2018
+Fixed a crash bug with incomplete structures
+
 Jul. 25 2018
 Fixed a real number formatting bug with different locales
 
