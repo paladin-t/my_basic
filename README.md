@@ -134,7 +134,7 @@ The manual explains most of the fundamental topics, however it doesn't cover eve
 	* [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
 	* [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 	* [How lambda works](https://github.com/paladin-t/my_basic/wiki/How-lambda-works)
-* Code with MY-BASIC
+* Coding
 	* [Using Unicode](https://github.com/paladin-t/my_basic/wiki/Using-Unicode)
 	* [Importing another file](https://github.com/paladin-t/my_basic/wiki/Importing-another-file)
 	* [Module (namespace)](https://github.com/paladin-t/my_basic/wiki/Module-(namespace))
@@ -142,7 +142,7 @@ The manual explains most of the fundamental topics, however it doesn't cover eve
 	* [Lambda abstraction](https://github.com/paladin-t/my_basic/wiki/Lambda-abstraction)
 	* [Structured exception handling](https://github.com/paladin-t/my_basic/wiki/Structured-exception-handling)
 	* [Multiple condition](https://github.com/paladin-t/my_basic/wiki/Multiple-condition)
-* Understanding data type system in MY-BASIC
+* Data types
 	* [Collection manipulation](https://github.com/paladin-t/my_basic/wiki/Collection-manipulation)
 	* [Manipulating an array](https://github.com/paladin-t/my_basic/wiki/Manipulating-an-array)
 	* [Automatic memory management](https://github.com/paladin-t/my_basic/wiki/Automatic-memory-management)
