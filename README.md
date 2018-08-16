@@ -10,6 +10,8 @@
 [![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 
+[Web playground](https://my-basic.github.io/playground/output/index.html)
+
 ## Contents
 
 * [Introduction](#introduction)
