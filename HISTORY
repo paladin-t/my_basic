@@ -1,3 +1,6 @@
+Nov. 5 2018
+Fixed a crash bug when using an iterator in a conditional expression
+
 Jul. 30 2018
 Fixed a crash bug with incomplete structures
 

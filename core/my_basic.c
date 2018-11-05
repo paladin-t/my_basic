@@ -15827,8 +15827,21 @@ _exit:
 
 	*l = ast;
 
-	if(val->type != _DT_UNKNOWN)
+	switch(val->type) {
+#ifdef MB_ENABLE_COLLECTION_LIB
+	case _DT_LIST_IT: /* Fall through */
+	case _DT_DICT_IT:
+		_destroy_object_capsule_only(val, 0);
+
+		break;
+#endif /* MB_ENABLE_COLLECTION_LIB */
+	case _DT_UNKNOWN: /* Do nothing */
+		break;
+	default:
 		_destroy_object(val, 0);
+
+		break;
+	}
 
 	return result;
 }
