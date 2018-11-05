@@ -8001,6 +8001,13 @@ static bool_t _remove_dict(_dict_t* coll, mb_value_t* key) {
 	mb_assert(coll && key);
 
 	_create_internal_object_from_public_value(key, &okey);
+
+	if(_try_purge_it(coll->ref.s, key, okey)) {
+		_destroy_object_capsule_only(okey, 0);
+
+		return false;
+	}
+
 	result = _ht_find(coll->dict, okey);
 	if(result && result->data) {
 		_ht_remove(coll->dict, okey, _ls_cmp_extra_object);
