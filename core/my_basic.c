@@ -1142,11 +1142,11 @@ static _object_t* _exp_assign = 0;
 #ifndef _instruct_obj_meta_obj
 #	define _instruct_obj_meta_obj(__s, __tuple, __optr, __result, __exit) do { ((void)(__s)); ((void)(__tuple)); ((void)(__result)); } while(0)
 #endif /* _instruct_obj_meta_obj */
-#define _proc_div_by_zero(__s, __tuple, __exit, __result, __kind) \
+#define _proc_div_by_zero(__s, __tuple, __cast, __exit, __result, __kind) \
 	do { \
 		_instruct_common(__tuple) \
-		if((opndv2.type == _DT_INT && opndv2.data.integer == 0) || (opndv2.type == _DT_REAL && opndv2.data.float_point == 0.0f)) { \
-			if((opndv1.type == _DT_INT && opndv1.data.integer == 0) || (opndv1.type == _DT_REAL && opndv1.data.float_point == 0.0f)) { \
+		if((opndv2.type == _DT_INT && opndv2.data.integer == 0) || (opndv2.type == _DT_REAL && (__cast)opndv2.data.float_point == 0)) { \
+			if((opndv1.type == _DT_INT && opndv1.data.integer == 0) || (opndv1.type == _DT_REAL && opndv1.data.float_point == 0)) { \
 				val->type = _DT_REAL; \
 				_set_real_with_hex(val->data.float_point, MB_FNAN); \
 			} else { \
@@ -14879,7 +14879,7 @@ static int _core_div(mb_interpreter_t* s, void** l) {
 
 	_ONCALC(s, l, div, result, _exit);
 	_instruct_obj_meta_obj(s, l, div, result, _exit);
-	_proc_div_by_zero(s, l, _exit, result, SE_RN_DIVIDE_BY_ZERO);
+	_proc_div_by_zero(s, l, real_t, _exit, result, SE_RN_DIVIDE_BY_ZERO);
 	_instruct_num_op_num(/, l);
 
 _exit:
@@ -14892,7 +14892,7 @@ static int _core_mod(mb_interpreter_t* s, void** l) {
 
 	mb_assert(s && l);
 
-	_proc_div_by_zero(s, l, _exit, result, SE_RN_DIVIDE_BY_ZERO);
+	_proc_div_by_zero(s, l, int_t, _exit, result, SE_RN_DIVIDE_BY_ZERO);
 	_instruct_int_op_int(%, l);
 
 _exit:
