@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2018 Wang Renxin
+** Copyright (C) 2011 - 2019 Wang Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -12231,6 +12231,8 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	if(!s || !(*s))
 		return MB_FUNC_ERR;
 
+	(*s)->valid = false;
+
 	(*s)->run_count = 0;
 	(*s)->has_run = false;
 	(*s)->jump_set = _JMP_NIL;
@@ -12290,6 +12292,8 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 
 	result = _open_constant(*s);
 	mb_assert(MB_FUNC_OK == result);
+
+	(*s)->valid = true;
 
 	return result;
 }

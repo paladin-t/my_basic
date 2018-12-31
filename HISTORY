@@ -1,3 +1,6 @@
+Dec. 31 2018
+Fixed a wrong scope processing bug when resetting interpreter
+
 Nov. 10 2018
 Fixed a mod by zero bug with real number
 

@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2018 Wang Renxin
+** Copyright (C) 2011 - 2019 Wang Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -979,7 +979,7 @@ static void _list_directory(const char* path) {
 
 static void _show_tip(void) {
 	_printf("MY-BASIC Interpreter Shell - %s\n", mb_ver_string());
-	_printf("Copyright (C) 2011 - 2018 Wang Renxin. All Rights Reserved.\n");
+	_printf("Copyright (C) 2011 - 2019 Wang Renxin. All Rights Reserved.\n");
 	_printf("For more information, see https://github.com/paladin-t/my_basic/.\n");
 	_printf("Input HELP and hint enter to view help information.\n");
 }
