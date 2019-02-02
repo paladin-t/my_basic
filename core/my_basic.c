@@ -3757,6 +3757,9 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 	running = s->running_context;
 	ast = *l;
 
+	if(!ast) {
+		_handle_error_on_obj(s, SE_RN_INVALID_EXPRESSION, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
+	}
 	c = (_object_t*)ast->data;
 #ifdef MB_PREFER_SPEED
 	if(c->is_const) {
@@ -3795,8 +3798,10 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 	ast = ast->next;
 	_ls_pushback(optr, _exp_assign);
 	while(
-		!(c->type == _DT_FUNC && strcmp(c->data.func->name, _DUMMY_ASSIGN_CHAR) == 0) ||
-		!(((_object_t*)(_ls_back(optr)->data))->type == _DT_FUNC && strcmp(((_object_t*)(_ls_back(optr)->data))->data.func->name, _DUMMY_ASSIGN_CHAR) == 0)) {
+		c &&
+		(!(c->type == _DT_FUNC && strcmp(c->data.func->name, _DUMMY_ASSIGN_CHAR) == 0) ||
+		!(((_object_t*)(_ls_back(optr)->data))->type == _DT_FUNC && strcmp(((_object_t*)(_ls_back(optr)->data))->data.func->name, _DUMMY_ASSIGN_CHAR) == 0))
+	) {
 		if(!hack) {
 			if(_IS_FUNC(c, _core_open_bracket)) {
 				++bracket_count;
@@ -3869,7 +3874,7 @@ _array:
 						f++;
 					}
 				} else if(c->type == _DT_FUNC) {
-					ast = ast->prev;
+					if(ast) ast = ast->prev;
 					if(_IS_UNARY_FUNC(c)) {
 #ifdef MB_ENABLE_STACK_TRACE
 						_ls_pushback(s->stack_frames, c->data.func->name);
@@ -3930,6 +3935,8 @@ _routine:
 						_object_t* obj = 0;
 						_ls_node_t* fn = 0;
 #endif /* MB_ENABLE_CLASS */
+						if(!ast)
+							break;
 						ast = ast->prev;
 #ifdef MB_ENABLE_CLASS
 						calling = s->calling;
@@ -4122,7 +4129,7 @@ _var:
 				if(running->calc_depth != _INFINITY_CALC_DEPTH)
 					running->calc_depth--;
 				if(ast && (running->calc_depth == _INFINITY_CALC_DEPTH || running->calc_depth)) {
-					c = (_object_t*)ast->data;
+					c = ast ? (_object_t*)ast->data : 0;
 					if(c->type == _DT_FUNC && !_is_operator(c->data.func->pointer) && !_is_flow(c->data.func->pointer)) {
 						_ls_foreach(opnd, _remove_source_object);
 
@@ -4138,15 +4145,15 @@ _var:
 			switch(pri) {
 			case '<':
 				_ls_pushback(optr, c);
-				c = (_object_t*)ast->data;
-				ast = ast->next;
+				c = ast ? (_object_t*)ast->data : 0;
+				if(ast) ast = ast->next;
 				f = 0;
 
 				break;
 			case '=':
 				x = (_object_t*)_ls_popback(optr);
-				c = (_object_t*)ast->data;
-				ast = ast->next;
+				c = ast ? (_object_t*)ast->data : 0;
+				if(ast) ast = ast->next;
 
 				break;
 			case '>':
@@ -4539,6 +4546,11 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 
 	do {
 		result = _execute_statement(s, l, true);
+		if(ast == *l) {
+			_handle_error_now(s, SE_RN_INVALID_EXPRESSION, s->last_error_file, result);
+
+			goto _exit;
+		}
 		ast = *l;
 		if(result == MB_SUB_RETURN) {
 			result = MB_FUNC_OK;
@@ -5822,7 +5834,9 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 
 	if(str) {
 #ifdef MB_ENABLE_UNICODE_ID
-		if(n == 1)
+		if(n == 0)
+			result = MB_FUNC_ERR;
+		else if(n == 1)
 			c = *str;
 		else
 			memcpy(&uc, str, n);
@@ -8675,7 +8689,7 @@ static bool_t _is_valid_class_accessor_following_routine(mb_interpreter_t* s, _v
 
 	if(out) *out = 0;
 
-	if(_is_accessor_char(*var->name) && (ast && ast->prev && _IS_FUNC(ast->prev->data, _core_close_bracket)) && running->intermediate_value.type == MB_DT_CLASS) {
+	if(_is_accessor_char(*var->name) && (ast && ast->prev && ast->prev != s->ast && _IS_FUNC(ast->prev->data, _core_close_bracket)) && running->intermediate_value.type == MB_DT_CLASS) {
 		_class_t* instance = (_class_t*)running->intermediate_value.value.instance;
 		_ls_node_t* fn = _search_identifier_in_class(s, instance, var->name + 1, 0, 0);
 		result = true;
@@ -10345,7 +10359,8 @@ static int _internal_object_to_public_value(_object_t* itn, mb_value_t* pbl) {
 
 	switch(itn->type) {
 	case _DT_VAR:
-		result = _internal_object_to_public_value(itn->data.variable->data, pbl);
+		if(itn->data.variable)
+			result = _internal_object_to_public_value(itn->data.variable->data, pbl);
 
 		break;
 	case _DT_NIL:
@@ -10581,7 +10596,7 @@ static void _destroy_var_arg(void* data, void* extra, _gc_t* gc) {
 static void _destroy_edge_objects(mb_interpreter_t* s) {
 	if(!s) return;
 
-	_ls_foreach(s->edge_destroy_objects, _destroy_object);
+	_LS_FOREACH(s->edge_destroy_objects, _destroy_object, _try_clear_intermediate_value, s);
 	_ls_clear(s->edge_destroy_objects);
 }
 
@@ -11045,7 +11060,7 @@ _retry:
 	if(result != MB_FUNC_OK && result != MB_FUNC_SUSPEND && result != MB_SUB_RETURN)
 		goto _exit;
 
-	if(ast) {
+	if(ast && ast != s->ast) {
 		obj = DON(ast);
 		if(!obj) {
 			/* Do nothing */
@@ -11108,14 +11123,16 @@ _exit:
 		end_of_ast = true;
 	}
 
-	do {
+	if(ast == s->ast) {
+		*l = ast->next;
+	} else {
 		int ret = _stepped(s, ast);
 		if(result == MB_FUNC_OK)
 			result = ret;
 
 		if(end_of_ast && ast && ast->next) /* May be changed when stepping */
 			*l = ast->next;
-	} while(0);
+	}
 
 	return result;
 }
@@ -12158,7 +12175,7 @@ int mb_close(struct mb_interpreter_t** s) {
 	_close_core_lib(*s);
 
 	ast = (*s)->ast;
-	_ls_foreach(ast, _destroy_object);
+	_LS_FOREACH(ast, _destroy_object, _try_clear_intermediate_value, *s);
 	_ls_destroy(ast);
 
 	_ls_destroy((*s)->sub_stack);
@@ -12252,7 +12269,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	memset(&(running->intermediate_value), 0, sizeof(mb_value_t));
 
 	ast = (*s)->ast;
-	_ls_foreach(ast, _destroy_object);
+	_LS_FOREACH(ast, _destroy_object, _try_clear_intermediate_value, *s);
 	_ls_clear(ast);
 
 	_ls_clear((*s)->sub_stack);
@@ -12507,6 +12524,11 @@ int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
 	_ls_pushback(s->multiline_enabled, (void*)(intptr_t)false);
 #endif /* _MULTILINE_STATEMENT */
 	ast = (_ls_node_t*)*l;
+	if(!ast) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 	obj = (_object_t*)ast->data;
 	if(!(obj->type == _DT_FUNC)) {
 #if _MULTILINE_STATEMENT
@@ -14024,8 +14046,9 @@ int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val) {
 		goto _exit;
 	}
 
-	if(val.type == MB_DT_STRING)
+	if(val.type == MB_DT_STRING) {
 		safe_free(val.value.string);
+	}
 
 	_assign_public_value(s, &val, 0, false);
 
@@ -14350,7 +14373,13 @@ int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 	}
 
 	do {
+		_ls_node_t* p = ast;
 		result = _execute_statement(s, &ast, true);
+		if(ast == p) {
+			_handle_error_now(s, SE_RN_INVALID_EXPRESSION, s->last_error_file, result);
+
+			goto _exit;
+		}
 		if(result != MB_FUNC_OK && result != MB_SUB_RETURN) {
 			if(result != MB_FUNC_SUSPEND) {
 				if(result >= MB_EXTENDED_ABORT)
@@ -16095,7 +16124,7 @@ static int _core_do(mb_interpreter_t* s, void** l) {
 _loop_begin:
 	ast = loop_begin_node;
 
-	obj = (_object_t*)ast->data;
+	obj = ast ? (_object_t*)ast->data : 0;
 	while(obj && !_IS_FUNC(obj, _core_until)) {
 		result = _execute_statement(s, &ast, true);
 		if(result == MB_LOOP_BREAK) { /* EXIT */
@@ -16416,7 +16445,7 @@ static int _core_def(mb_interpreter_t* s, void** l) {
 	if(s->has_run)
 		goto _skip;
 
-	obj = (_object_t*)ast->data;
+	obj = ast ? (_object_t*)ast->data : 0;
 	if(!_IS_ROUTINE(obj)) {
 		_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -16431,7 +16460,7 @@ static int _core_def(mb_interpreter_t* s, void** l) {
 	}
 	ast = ast->next;
 	obj = (_object_t*)ast->data;
-	while(!_IS_FUNC(obj, _core_close_bracket)) {
+	while(obj && !_IS_FUNC(obj, _core_close_bracket)) {
 		if(obj->type == _DT_VAR) {
 			var = obj->data.variable;
 			rnode = _search_identifier_in_scope_chain(s, routine->func.basic.scope, var->name, _PATHING_NONE, 0, 0);
@@ -16451,15 +16480,15 @@ static int _core_def(mb_interpreter_t* s, void** l) {
 		}
 
 		ast = ast->next;
-		obj = (_object_t*)ast->data;
+		obj = ast ? (_object_t*)ast->data : 0;
 	}
-	ast = ast->next;
+	if(ast) ast = ast->next;
 	routine->func.basic.entry = ast;
 
 _skip:
 	_skip_to(s, &ast, _core_enddef, _DT_INVALID);
 
-	ast = ast->next;
+	if(ast) ast = ast->next;
 
 _exit:
 	*l = ast;
@@ -17001,6 +17030,10 @@ static int _core_end(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
 	mb_assert(s && l);
+
+	mb_check(mb_attempt_func_begin(s, l));
+
+	mb_check(mb_attempt_func_end(s, l));
 
 	result = MB_FUNC_END;
 
@@ -18147,10 +18180,10 @@ static int _std_print(mb_interpreter_t* s, void** l) {
 
 	++s->no_eat_comma_mark;
 	ast = (_ls_node_t*)*l;
-	ast = ast->next;
-	if(!ast || !ast->data) {
+	if(!ast || !ast->next || !ast->next->data) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
+	ast = ast->next;
 
 	obj = (_object_t*)ast->data;
 	do {
