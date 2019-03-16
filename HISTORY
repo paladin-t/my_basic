@@ -1,3 +1,6 @@
+Mar. 16 2019
+Fixed a memory leak when reassigning an array element with string, thanks to Jacques Diederik for pointing it out
+
 Feb. 2 2019
 Fixed some crash and hanging with invalid expression and routine, thanks to siraben for pointing it out
 

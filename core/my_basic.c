@@ -7373,6 +7373,8 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 				_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
 			_sl = strlen(val->string);
+			if(*((char**)rawptr))
+				mb_free(*((char**)rawptr));
 			*((char**)rawptr) = (char*)mb_malloc(_sl + 1);
 			memcpy(*((char**)rawptr), val->string, _sl + 1);
 		}
@@ -7384,6 +7386,8 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 		break;
 	}
 #else /* MB_SIMPLE_ARRAY */
+	if(arr->types[index] == _DT_STRING && *((char**)rawptr))
+		mb_free(*((char**)rawptr));
 	switch(*type) {
 	case _DT_STRING: {
 			size_t _sl = 0;
