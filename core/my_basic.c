@@ -7040,7 +7040,7 @@ static void _unref_usertype_ref(_ref_t* ref, void* data) {
 static void _clone_usertype_ref(_usertype_ref_t* src, _object_t* tgt) {
 	void* cpy = 0;
 
-	assert(src && tgt);
+	mb_assert(src && tgt);
 
 	_MAKE_NIL(tgt);
 
@@ -9157,14 +9157,14 @@ static int _remove_this_lambda_from_upvalue(void* data, void* extra, _routine_t*
 	_object_t* obj = 0;
 	mb_unrefvar(extra);
 
-	assert(routine->type == MB_RT_LAMBDA);
+	mb_assert(routine->type == MB_RT_LAMBDA);
 
 	obj = (_object_t*)data;
 	if(obj->type == _DT_VAR)
 		obj = obj->data.variable->data;
 	if(obj->type == _DT_ROUTINE) {
 		if(obj->data.routine == routine) {
-			assert(obj->data.routine->type == MB_RT_LAMBDA);
+			mb_assert(obj->data.routine->type == MB_RT_LAMBDA);
 			_MAKE_NIL(obj);
 		}
 	}
