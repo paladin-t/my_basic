@@ -945,19 +945,19 @@ static _object_t* _exp_assign = 0;
 #define _set_real_with_hex(__r, __i) \
 	do { \
 		if(sizeof(__r) == sizeof(unsigned char)) { \
-			unsigned char __b = __i; \
+			unsigned char __b = (unsigned char)__i; \
 			memcpy(&(__r), &__b, sizeof(__r)); \
 		} else if(sizeof(__r) == sizeof(unsigned short)) { \
-			unsigned short __b = __i; \
+			unsigned short __b = (unsigned short)__i; \
 			memcpy(&(__r), &__b, sizeof(__r)); \
 		} else if(sizeof(__r) == sizeof(unsigned)) { \
-			unsigned __b = __i; \
+			unsigned __b = (unsigned)__i; \
 			memcpy(&(__r), &__b, sizeof(__r)); \
 		} else if(sizeof(__r) == sizeof(unsigned long)) { \
-			unsigned long __b = __i; \
+			unsigned long __b = (unsigned long)__i; \
 			memcpy(&(__r), &__b, sizeof(__r)); \
 		} else if(sizeof(__r) == sizeof(unsigned long long)) { \
-			unsigned long long __b = __i; \
+			unsigned long long __b = (unsigned long long)__i; \
 			memcpy(&(__r), &__b, sizeof(__r)); \
 		} else { \
 			mb_assert(0 && "Invalid real number precision."); \
