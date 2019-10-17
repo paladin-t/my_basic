@@ -945,20 +945,25 @@ static _object_t* _exp_assign = 0;
 #define _set_real_with_hex(__r, __i) \
 	do { \
 		if(sizeof(__r) == sizeof(unsigned char)) { \
-			unsigned char __b = (unsigned char)__i; \
-			memcpy(&(__r), &__b, sizeof(__r)); \
+			union { unsigned char i; real_t r; } __u; \
+			__u.i = __i; \
+			__r = __u.r; \
 		} else if(sizeof(__r) == sizeof(unsigned short)) { \
-			unsigned short __b = (unsigned short)__i; \
-			memcpy(&(__r), &__b, sizeof(__r)); \
+			union { unsigned short i; real_t r; } __u; \
+			__u.i = __i; \
+			__r = __u.r; \
 		} else if(sizeof(__r) == sizeof(unsigned)) { \
-			unsigned __b = (unsigned)__i; \
-			memcpy(&(__r), &__b, sizeof(__r)); \
+			union { unsigned i; real_t r; } __u; \
+			__u.i = __i; \
+			__r = __u.r; \
 		} else if(sizeof(__r) == sizeof(unsigned long)) { \
-			unsigned long __b = (unsigned long)__i; \
-			memcpy(&(__r), &__b, sizeof(__r)); \
+			union { unsigned long i; real_t r; } __u; \
+			__u.i = __i; \
+			__r = __u.r; \
 		} else if(sizeof(__r) == sizeof(unsigned long long)) { \
-			unsigned long long __b = (unsigned long long)__i; \
-			memcpy(&(__r), &__b, sizeof(__r)); \
+			union { unsigned long long i; real_t r; } __u; \
+			__u.i = __i; \
+			__r = __u.r; \
 		} else { \
 			mb_assert(0 && "Invalid real number precision."); \
 		} \
