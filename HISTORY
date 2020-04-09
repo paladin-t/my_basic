@@ -1,3 +1,6 @@
+Apr. 9 2020
+Improved incomplete IF structure error prompting
+
 Mar. 16 2019
 Fixed a memory leak when reassigning an array element with string, thanks to Jacques Diederik for pointing it out
 
