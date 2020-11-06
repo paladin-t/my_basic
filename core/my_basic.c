@@ -17338,11 +17338,11 @@ static int _std_rnd(mb_interpreter_t* s, void** l) {
 
 		mb_check(mb_attempt_close_bracket(s, l));
 
-		if(lw >= hg) {
+		if(lw >= hg || hg > RAND_MAX) {
 			_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
-		rnd = (real_t)rand() / RAND_MAX * (hg - lw + (real_t)0.99999f) + lw; /* [LOW, HIGH] */
+		rnd = (real_t)(rand() % (hg - lw + 1) + lw); /* [LOW, HIGH] */
 
 		mb_check(mb_push_int(s, l, (int_t)rnd));
 	} else {
