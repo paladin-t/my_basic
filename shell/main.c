@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2020 Wang Renxin
+** Copyright (C) 2011 - 2021 Tony Wang
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -979,7 +979,7 @@ static void _list_directory(const char* path) {
 
 static void _show_tip(void) {
 	_printf("MY-BASIC Interpreter Shell - %s\n", mb_ver_string());
-	_printf("Copyright (C) 2011 - 2020 Wang Renxin. All Rights Reserved.\n");
+	_printf("Copyright (C) 2011 - 2021 Tony Wang. All Rights Reserved.\n");
 	_printf("For more information, see https://github.com/paladin-t/my_basic/.\n");
 	_printf("Input HELP and hint enter to view help information.\n");
 }
@@ -999,19 +999,19 @@ static void _show_help(void) {
 	_printf("\n");
 	_printf("Interactive commands:\n");
 	_printf("  HELP  - View help information\n");
-	_printf("  CLS   - Clear screen\n");
-	_printf("  NEW   - Clear current program\n");
-	_printf("  RUN   - Run current program\n");
-	_printf("  BYE   - Quit interpreter\n");
-	_printf("  LIST  - List current program\n");
+	_printf("  CLS   - Clear the screen\n");
+	_printf("  NEW   - Clear the current program\n");
+	_printf("  RUN   - Run the current program\n");
+	_printf("  BYE   - Quit the interpreter\n");
+	_printf("  LIST  - List the current program\n");
 	_printf("          Usage: LIST [l [n]], l is start line number, n is line count\n");
 	_printf("  EDIT  - Edit (modify/insert/remove) a line in current program\n");
 	_printf("          Usage: EDIT n, n is line number\n");
 	_printf("                 EDIT -i n, insert a line before a given line\n");
 	_printf("                 EDIT -r n, remove a line\n");
-	_printf("  LOAD  - Load a file as current program\n");
+	_printf("  LOAD  - Load a file to the current program\n");
 	_printf("          Usage: LOAD *.*\n");
-	_printf("  SAVE  - Save current program to a file\n");
+	_printf("  SAVE  - Save the current program to a file\n");
 	_printf("          Usage: SAVE *.*\n");
 	_printf("  KILL  - Delete a file\n");
 	_printf("          Usage: KILL *.*\n");

@@ -5,7 +5,7 @@
 |_|_|_| |_|     |_____|__|__|_____|_____|_____|
 ~~~~~~~~~~
 
-**Copyright (C) 2011 - 2020 Wang Renxin**
+**Copyright (C) 2011 - 2021 Tony Wang**
 
 [![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
@@ -24,7 +24,7 @@
 
 ## Introduction
 
-MY-BASIC is a lightweight BASIC interpreter written in standard C in dual files. It's aimed to be embeddable, extendable and portable. It is a dynamic typed programming language, reserves structured syntax, supports a style of [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) (OOP), also implements a functional paradigm by [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). The core is written in a C source file and an associated header file. It's easy to either use it as a standalone interpreter or embed it with existing projects in C, C++, Java, Objective-C, Swift, C#, etc. and totally customizable by adding your own scripting interfaces.
+MY-BASIC is a lightweight BASIC interpreter written in standard C in dual files. It aims to be embeddable, extendable and portable. It is a dynamic typed programming language, reserves structured syntax, supports a style of [prototype-based programming](https://en.wikipedia.org/wiki/Prototype-based_programming) (OOP), also implements a functional paradigm by [lambda abstraction](https://en.wikipedia.org/wiki/Anonymous_function). The core is written in a C source file and an associated header file. It's easy to either use it as a standalone interpreter or embed it with existing projects in C, C++, Java, Objective-C, Swift, C#, etc. and totally customizable by adding your own scripting interface.
 
 ## Main features
 
@@ -80,36 +80,36 @@ Read the [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASI
 
 This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [macOS](output/my_basic_mac), the easiest way is to download to get a direct playground. Or you can make a build by:
 
-* Using the Visual Studio workspace `my_basic.sln` on Windows to build an executable
-* Using the Xcode workspace `my_basic_mac.xcodeproj` on macOS to build an executable
-* Using the `makefile` on *nix OS to build an executable
+* Using the Visual Studio solution `my_basic.sln` for Windows build
+* Using the Xcode workspace `my_basic_mac.xcodeproj` for macOS build
+* Using the `makefile` for *nix build
 
-Follow these steps to compile an interpreter binary manually for any platform:
+Follow these steps to compile an interpreter binary manually for other platform:
 
-1. Retrieve everything under the [`core`](core) and [`shell`](shell) folders for a minimum build
+1. Retrieve everything under the [`core`](core) and [`shell`](shell) folders for a minimum setup
 2. Setup your toolchain for compiling and linking
-3. Compile [`core/my_basic.c`](core/my_basic.c) and [`shell/main.c`](shell/main.c), with both including [`core/my_basic.h`](core/my_basic.h); then link up an executable
+3. Compile [`core/my_basic.c`](core/my_basic.c) and [`shell/main.c`](shell/main.c), while both includes [`core/my_basic.h`](core/my_basic.h); then link up an executable
 
 The standalone interpreter supports three running modes:
 
 * Execute the binary without arguments to use the interactive mode
-	* Type "HELP" and hint Enter to get usages of it
+	* Type "HELP" and hint Enter to see usages
 * Pass a file to the binary to load and run that BASIC source code
-* Pass an argument `-e` followed with an expression to evaluate and print instantly as a simple calculator, eg. `-e "2 * (3 + 4)"`
+* Pass an argument `-e` followed with an expression to evaluate and print instantly as a simple calculator, eg. `-e "22 / 7"`
 
 ### Combining with existing projects
 
-Just copy [`core/my_basic.c`](core/my_basic.c) and [`core/my_basic.h`](core/my_basic.h) to your project and add them to the build configuration. You can [link with MY-BASIC as a lib](https://github.com/paladin-t/my_basic/wiki/Linking-with-MY_BASIC) as well.
+Just copy [`core/my_basic.c`](core/my_basic.c) and [`core/my_basic.h`](core/my_basic.h) to your project and add them to the build pipeline. You can [link with MY-BASIC as a lib](https://github.com/paladin-t/my_basic/wiki/Linking-with-MY_BASIC) as well.
 
 For details about using MY-BASIC after integration, see [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASIC%20Quick%20Reference.pdf) and read the [Wiki](#wiki) pages.
 
 ## [Interpreter workflow diagram](https://github.com/paladin-t/my_basic/wiki/Interpreter-workflow-diagram)
 
-It's recommended to know the basic principle of MY-BASIC before customizing; nothing's better than a workflow diagram to get a first image.
+MY-BASIC's workflow diagram can be concluded in a single image.
 
 ![](https://github.com/paladin-t/my_basic/wiki/img/workflow.png)
 
-A simple setup as follow:
+A simple setup:
 
 ~~~~~~~~~~c
 #include "my_basic.h"
@@ -130,7 +130,7 @@ int main() {
 
 ## [Wiki](https://github.com/paladin-t/my_basic/wiki)
 
-The manual explains most of the fundamental topics, however it doesn't cover everything; read the [Wiki](https://github.com/paladin-t/my_basic/wiki) as supplement instructions, such as machinism behind MY-BASIC, efficient practice, etc:
+The manual explains most of the fundamental topics, however it doesn't cover everything; read the [Wiki](https://github.com/paladin-t/my_basic/wiki) for supplements, like machinism behind MY-BASIC, efficient practice, etc:
 
 * Principles
 	* [Passes](https://github.com/paladin-t/my_basic/wiki/Passes)
