@@ -18786,7 +18786,7 @@ _exit:
 }
 
 /* EXISTS statement */
-static int _coll_exists(mb_interpreter_t* s, void** l){
+static int _coll_exists(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
 	mb_value_t arg;

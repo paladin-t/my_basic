@@ -1218,7 +1218,9 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 ** Scripting interfaces
 */
 
-#ifdef MB_OS_WIN
+#if defined MB_OS_HTML
+#	define _OS "HTML"
+#elif defined MB_OS_WIN
 #	define _OS "WINDOWS"
 #elif defined MB_OS_IOS || MB_OS_IOS_SIM
 #	define _OS "IOS"
