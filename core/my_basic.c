@@ -17769,13 +17769,12 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 #endif /* MB_MANUAL_REAL_FORMATTING */
 
 		break;
-	case MB_DT_STRING:
-		lbuf = strlen(arg.value.string) + 1; /* Buffer needs to be as big as the string */
-		_RESIZE_CHAR_BUF(buf, lbuf);
-		char* str = mb_memdup(arg.value.string, lbuf); /* Create a copy of the string */
-		_CHAR_BUF_PTR(buf) = str;
+	case MB_DT_STRING: {
+			char* ret = mb_strdup(arg.value.string, strlen(arg.value.string) + 1);
+			mb_check(mb_push_string(s, l, ret));
 
-		break;
+			goto _exit;
+		}
 	case MB_DT_TYPE: {
 			const char* sp = mb_get_type_string(arg.value.type);
 			char* ret = mb_strdup(sp, strlen(sp) + 1);
