@@ -161,14 +161,6 @@ extern "C" {
 #	define _LAMBDA_NAME_MAX_LENGTH 32
 #endif /* _LAMBDA_NAME_MAX_LENGTH */
 
-/* Localization specifier */
-#ifndef _LOCALIZATION_USEING
-#	define _LOCALIZATION_USEING 1
-#endif /* _LOCALIZATION_USEING */
-#ifndef _LOCALIZATION_STR
-#	define _LOCALIZATION_STR ""
-#endif /* _LOCALIZATION_STR */
-
 /* Helper */
 #ifdef MB_COMPACT_MODE
 #	define _PACK1 : 1
@@ -4888,18 +4880,12 @@ static mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 /* Print a string */
 static void _print_string(mb_interpreter_t* s, _object_t* obj) {
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
-#if _LOCALIZATION_USEING
-	char* loc = 0;
-#endif /* _LOCALIZATION_USEING */
 	char* str = 0;
 	_dynamic_buffer_t buf;
 	size_t lbuf = 0;
 
 	mb_assert(s && obj);
 
-#if _LOCALIZATION_USEING
-	loc = setlocale(LC_ALL, _LOCALIZATION_STR);
-#endif /* _LOCALIZATION_USEING */
 	str = obj->data.string ? obj->data.string : MB_NULL_STRING;
 	_INIT_BUF(buf);
 	while((lbuf = (size_t)mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf))) > _WCHARS_OF_BUF(buf)) {
@@ -4907,9 +4893,6 @@ static void _print_string(mb_interpreter_t* s, _object_t* obj) {
 	}
 	_get_printer(s)("%ls", _WCHAR_BUF_PTR(buf));
 	_DISPOSE_BUF(buf);
-#if _LOCALIZATION_USEING
-	setlocale(LC_ALL, loc);
-#endif /* _LOCALIZATION_USEING */
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 	mb_assert(s && obj);
 

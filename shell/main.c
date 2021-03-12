@@ -784,12 +784,10 @@ static void _list_one_line(bool_t nl, long l, const char* ln) {
 #if defined MB_CP_VC && defined MB_ENABLE_UNICODE
 	wchar_t wstr[16];
 	wchar_t* wstrp = wstr;
-	char* loc = setlocale(LC_ALL, "");
 	_bytes_to_wchar(ln, &wstrp, countof(wstr));
 	_printf(nl ? "%ld]%ls\n" : "%ld]%ls", l, wstrp);
 	if(wstrp != wstr)
 		free(wstrp);
-	setlocale(LC_ALL, loc);
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 	_printf(nl ? "%ld]%s\n" : "%ld]%s", l, ln);
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
@@ -1513,6 +1511,10 @@ static void _on_startup(void) {
 #ifdef _HAS_TICKS
 	srand((unsigned)_ticks());
 #endif /* _HAS_TICKS */
+
+	setlocale(LC_ALL, "");
+	setlocale(LC_NUMERIC, "C");
+	setlocale(LC_TIME, "C");
 
 	mb_init();
 
