@@ -33,7 +33,6 @@
 #ifdef MB_CP_VC
 #	include <conio.h>
 #	include <crtdbg.h>
-#	include <locale.h>
 #	include <Windows.h>
 #elif !defined MB_CP_BORLANDC && !defined MB_CP_TCC
 #	include <unistd.h>
@@ -48,6 +47,7 @@
 #	include <sys/time.h>
 #endif /* MB_CP_CLANG */
 #include <assert.h>
+#include <locale.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>

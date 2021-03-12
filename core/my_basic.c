@@ -43,7 +43,6 @@
 #endif /* MB_CP_ARDUINO */
 #ifdef MB_CP_VC
 #	include <conio.h>
-#	include <locale.h>
 #	include <malloc.h>
 #	include <Windows.h>
 #else /* MB_CP_VC */
