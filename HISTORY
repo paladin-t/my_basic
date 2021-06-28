@@ -1,5 +1,8 @@
+Jun. 28 2021
+Improved error prompting of assigning to reserved word
+
 Apr. 9 2020
-Improved incomplete IF structure error prompting
+Improved error prompting of incomplete IF structure
 
 Mar. 16 2019
 Fixed a memory leak when reassigning an array element with string, thanks to Jacques Diederik for pointing it out

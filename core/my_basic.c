@@ -271,6 +271,7 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Too many dimensions",
 	"Rank out of bound",
 	"Invalid identifier usage",
+	"Cannot assign to reserved word",
 	"Duplicate identifier",
 	"Incomplete structure",
 	"Label not exists",
@@ -15426,7 +15427,7 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 			goto _exit;
 	} else if(obj->type == _DT_VAR) {
 		if(_IS_ME(obj->data.variable)) {
-			_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_CANNOT_ASSIGN_TO_RESERVED_WORD, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		} else {
 			evar = obj->data.variable;
 			var = _search_var_in_scope_chain(s, obj->data.variable, 0);
@@ -15435,11 +15436,11 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 			if(evar && evar->pathing == _PATHING_UPVALUE) evar = 0;
 #endif /* MB_ENABLE_CLASS */
 			if(var == _OBJ_BOOL_TRUE->data.variable || var == _OBJ_BOOL_FALSE->data.variable) {
-				_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+				_handle_error_on_obj(s, SE_RN_CANNOT_ASSIGN_TO_RESERVED_WORD, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
 		}
 	} else {
-		_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		_handle_error_on_obj(s, SE_RN_CANNOT_ASSIGN_TO_RESERVED_WORD, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 
 	ast = ast->next;
