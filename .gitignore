@@ -14,3 +14,8 @@
 *.obj
 *.pdb
 *.suo
+
+*_export.h
+
+*build*
+.idea

@@ -93,7 +93,8 @@ extern "C" {
 #endif /* OS dependent macro */
 
 #ifndef MBAPI
-#	define MBAPI
+#include "core_export.h"
+#	define MBAPI CORE_EXPORT
 #endif /* MBAPI */
 
 #ifndef MBIMPL

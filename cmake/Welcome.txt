@@ -1,0 +1,1 @@
+mybasic is a statically typed embeddable scripting language. It combines the simplicity and flexibility needed for scripting with a compile-time protection against type errors.
