@@ -5,7 +5,7 @@
 |_|_|_| |_|     |_____|__|__|_____|_____|_____|
 ~~~~~~~~~~
 
-**Copyright (C) 2011 - 2021 Tony Wang**
+**Copyright (C) 2011 - 2022 Tony Wang**
 
 [![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
