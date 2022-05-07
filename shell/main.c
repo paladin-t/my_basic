@@ -921,9 +921,9 @@ static void _load_program(const char* path) {
 		_set_code(txt);
 		free(txt);
 		if(_code()->count == 1) {
-			_printf("Load done. %d line loaded.\n", _code()->count);
+			_printf("Done, %d line loaded.\n", _code()->count);
 		} else {
-			_printf("Load done. %d lines loaded.\n", _code()->count);
+			_printf("Done, %d lines loaded.\n", _code()->count);
 		}
 	} else {
 		_printf("Cannot load file \"%s\".\n", path);
@@ -940,9 +940,9 @@ static void _save_program(const char* path) {
 		_printf("Cannot save file \"%s\".\n", path);
 	} else {
 		if(_code()->count == 1) {
-			_printf("Save done. %d line saved.\n", _code()->count);
+			_printf("Done, %d line saved.\n", _code()->count);
 		} else {
-			_printf("Save done. %d lines saved.\n", _code()->count);
+			_printf("Done, %d lines saved.\n", _code()->count);
 		}
 	}
 	free(txt);
@@ -950,12 +950,12 @@ static void _save_program(const char* path) {
 
 static void _kill_program(const char* path) {
 	if(!unlink(path)) {
-		_printf("Delete file \"%s\" successfully.\n", path);
+		_printf("Succeeded to deleted file \"%s\".\n", path);
 	} else {
 		FILE* fp = fopen(path, "rb");
 		if(fp) {
 			fclose(fp);
-			_printf("Delete file \"%s\" failed.\n", path);
+			_printf("Failed to delete file \"%s\".\n", path);
 		} else {
 			_printf("File \"%s\" not found.\n", path);
 		}
@@ -979,42 +979,42 @@ static void _show_tip(void) {
 	_printf("MY-BASIC Interpreter Shell - %s\n", mb_ver_string());
 	_printf("Copyright (C) 2011 - 2022 Tony Wang. All Rights Reserved.\n");
 	_printf("For more information, see https://github.com/paladin-t/my_basic/.\n");
-	_printf("Input HELP and hint enter to view help information.\n");
+	_printf("Input HELP and hint enter to view the help information.\n");
 }
 
 static void _show_help(void) {
 	_printf("Modes:\n");
-	_printf("  %s           - Launch interactive mode\n", _BIN_FILE_NAME);
+	_printf("  %s           - Launch in the interactive mode\n", _BIN_FILE_NAME);
 	_printf("  %s *.*       - Load and run a file\n", _BIN_FILE_NAME);
 	_printf("  %s -e \"expr\" - Evaluate an expression\n", _BIN_FILE_NAME);
 	_printf("\n");
 	_printf("Options:\n");
-	_printf("  -h         - Show help information\n");
+	_printf("  -h         - Show the help information\n");
 #if _USE_MEM_POOL
-	_printf("  -p n       - Set memory pool threashold, n is size in bytes\n");
+	_printf("  -p n       - Set the memory pool threashold to `n` bytes\n");
 #endif /* _USE_MEM_POOL */
-	_printf("  -f \"dirs\"  - Set importing directories, separated by \";\" with more than one\n");
+	_printf("  -f \"dirs\"  - Set the importing directories, separated by \";\" for multiple\n");
 	_printf("\n");
 	_printf("Interactive commands:\n");
-	_printf("  HELP  - View help information\n");
+	_printf("  HELP  - View the help information\n");
 	_printf("  CLS   - Clear the screen\n");
 	_printf("  NEW   - Clear the current program\n");
 	_printf("  RUN   - Run the current program\n");
 	_printf("  BYE   - Quit the interpreter\n");
 	_printf("  LIST  - List the current program\n");
-	_printf("          Usage: LIST [l [n]], l is start line number, n is line count\n");
-	_printf("  EDIT  - Edit (modify/insert/remove) a line in current program\n");
-	_printf("          Usage: EDIT n, n is line number\n");
-	_printf("                 EDIT -i n, insert a line before a given line\n");
-	_printf("                 EDIT -r n, remove a line\n");
-	_printf("  LOAD  - Load a file to the current program\n");
+	_printf("          Usage: LIST [l [n]], `l` for start line number, `n` for line count\n");
+	_printf("  EDIT  - Edit (modify/insert/remove) a line in the current program\n");
+	_printf("          Usage: EDIT n, `n` for line number\n");
+	_printf("                 EDIT -i n, insert a line before the specific position\n");
+	_printf("                 EDIT -r n, remove a line at the specific position\n");
+	_printf("  LOAD  - Load a file as the current program\n");
 	_printf("          Usage: LOAD *.*\n");
 	_printf("  SAVE  - Save the current program to a file\n");
 	_printf("          Usage: SAVE *.*\n");
 	_printf("  KILL  - Delete a file\n");
 	_printf("          Usage: KILL *.*\n");
 	_printf("  DIR   - List all files in a directory\n");
-	_printf("          Usage: DIR [p], p is a directory path\n");
+	_printf("          Usage: DIR [p], `p` for directory path\n");
 }
 
 static int _do_line(void) {
@@ -1171,7 +1171,7 @@ static bool_t _process_parameters(int argc, char* argv[]) {
 				help = true;
 #if _USE_MEM_POOL
 			} else if(!memcmp(argv[i] + 1, "p", 1)) {
-				_CHECK_ARG(argc, i, "-p: Memory pool threashold size expected.\n");
+				_CHECK_ARG(argc, i, "-p: Memory pool threashold expected.\n");
 				memp = argv[++i];
 				if(argc > i + 1)
 					prog = argv[++i];
@@ -1456,7 +1456,7 @@ static void _on_error(struct mb_interpreter_t* s, mb_error_e e, const char* m, c
 
 	if(e != SE_NO_ERR) {
 		if(f) {
-			if(e == SE_RN_WRONG_FUNCTION_REACHED) {
+			if(e == SE_RN_REACHED_TO_WRONG_FUNCTION) {
 				_printf(
 					"Error:\n    Ln %d, Col %d in Func: %s\n    Code %d, Abort Code %d\n    Message: %s.\n",
 					row, col, f,

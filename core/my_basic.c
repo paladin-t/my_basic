@@ -67,6 +67,7 @@ extern "C" {
 #ifdef MB_CP_VC
 #	pragma warning(push)
 #	pragma warning(disable : 4127)
+#	pragma warning(disable : 4214)
 #	pragma warning(disable : 4305)
 #	pragma warning(disable : 4309)
 #	pragma warning(disable : 4805)
@@ -250,7 +251,7 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Function not exists",
 	"Not supported",
 	/** Parsing */
-	"Open file failed",
+	"Failed to open file",
 	"Symbol too long",
 	"Invalid character",
 	"Invalid module",
@@ -267,7 +268,7 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"String expected",
 	"Variable expected",
 	"Index out of bound",
-	"Cannot find with given index",
+	"Cannot find with the specific index",
 	"Too many dimensions",
 	"Rank out of bound",
 	"Invalid identifier usage",
@@ -281,8 +282,8 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Comma or semicolon expected",
 	"Open bracket expected",
 	"Close bracket expected",
-	"Nested too much",
-	"Operation failed",
+	"Too many nested",
+	"Failed to operation",
 	"Operator expected",
 	"Assign operator expected",
 	"THEN statement expected",
@@ -296,7 +297,7 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Calculation error",
 	"Invalid expression",
 	"Divide by zero",
-	"Wrong function reached",
+	"Reached to wrong function",
 	"Cannot suspend in a routine",
 	"Cannot mix instructional and structured sub routines",
 	"Invalid routine",
@@ -2032,7 +2033,7 @@ static int _close_coll_lib(mb_interpreter_t* s);
 				_ls_node_t* ast = 0; static int i = 0; ++i; \
 				printf("Unaccessable function called %d times.\n", i); \
 				ast = (_ls_node_t*)(*(__l)); \
-				_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, (__s)->source_file, DON(ast), MB_FUNC_ERR, __exit, (__result)); \
+				_handle_error_on_obj((__s), SE_RN_REACHED_TO_WRONG_FUNCTION, (__s)->source_file, DON(ast), MB_FUNC_ERR, __exit, (__result)); \
 			} while(0)
 #	endif /* MB_CP_VC < 1300 */
 #endif /* MB_CP_VC */
@@ -2040,7 +2041,7 @@ static int _close_coll_lib(mb_interpreter_t* s);
 #	define _do_nothing(__s, __l, __exit, __result) \
 		do { \
 			_ls_node_t* ast = (_ls_node_t*)(*(__l)); \
-			_handle_error_on_obj((__s), SE_RN_WRONG_FUNCTION_REACHED, (char*)MB_FUNC, DON(ast), MB_FUNC_ERR, __exit, (__result)); \
+			_handle_error_on_obj((__s), SE_RN_REACHED_TO_WRONG_FUNCTION, (char*)MB_FUNC, DON(ast), MB_FUNC_ERR, __exit, (__result)); \
 		} while(0);
 #endif /* _do_nothing */
 
@@ -3651,7 +3652,7 @@ static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object
 		if(ret != MB_FUNC_WARNING) {
 			safe_free(result);
 		}
-		if(_set_current_error(s, SE_RN_OPERATION_FAILED, 0)) {
+		if(_set_current_error(s, SE_RN_FAILED_TO_OPERATE, 0)) {
 #ifdef MB_ENABLE_SOURCE_TRACE
 			_set_error_pos(s, optr->source_pos, optr->source_row, optr->source_col);
 #else /* MB_ENABLE_SOURCE_TRACE */
@@ -4082,7 +4083,7 @@ _var:
 										case _DT_LIST:
 											_mb_check_exit(mb_pop_int(s, (void**)l, &idx), _error);
 											if(!_at_list(ocoll->data.list, idx, &ret)) {
-												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
+												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
 											}
 
 											break;
@@ -4090,7 +4091,7 @@ _var:
 											mb_make_nil(key);
 											_mb_check_exit(mb_pop_value(s, (void**)l, &key), _error);
 											if(!_find_dict(ocoll->data.dict, &key, &ret)) {
-												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
+												_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, TON(l), MB_FUNC_ERR, _error, result);
 											}
 
 											break;
@@ -4160,7 +4161,7 @@ _var:
 				r = _operate_operand(s, theta, a, b, &result);
 				if(!r) {
 					_ls_clear(optr);
-					_handle_error_on_obj(s, SE_RN_OPERATION_FAILED, s->source_file, errn ? DON(errn) : DON(ast), MB_FUNC_ERR, _error, result);
+					_handle_error_on_obj(s, SE_RN_FAILED_TO_OPERATE, s->source_file, errn ? DON(errn) : DON(ast), MB_FUNC_ERR, _error, result);
 				}
 				_ls_pushback(opnd, r);
 				_LAZY_INIT_GLIST;
@@ -4170,7 +4171,7 @@ _var:
 
 				break;
 			case ' ':
-				_handle_error_on_obj(s, SE_RN_OPERATION_FAILED, s->source_file, errn ? DON(errn) : DON(ast), MB_FUNC_ERR, _error, result);
+				_handle_error_on_obj(s, SE_RN_FAILED_TO_OPERATE, s->source_file, errn ? DON(errn) : DON(ast), MB_FUNC_ERR, _error, result);
 
 				break;
 			}
@@ -5546,14 +5547,14 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 								context->parsing_pos = pos;
 								context->parsing_row = row;
 								context->parsing_col = col;
-								_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
+								_handle_error_now(s, SE_PS_FAILED_TO_OPEN_FILE, s->source_file, MB_FUNC_ERR);
 							}
 							_destroy_memory(last->data, last->extra);
 							_ls_popback(context->imported);
 						}
 						_post_import(s, lf, &pos, &row, &col);
 					} else {
-						_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
+						_handle_error_now(s, SE_PS_FAILED_TO_OPEN_FILE, s->source_file, MB_FUNC_ERR);
 					}
 				}
 			}
@@ -5880,7 +5881,7 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 				if(_is_identifier_char(c)) {
 					_mb_check_exit(result = _append_char_to_symbol(s, c), _exit);
 				} else if(_is_operator_char(c)) {
-					if(_is_exponent_prefix(context->current_symbol, 0, context->current_symbol_nonius - 2) && _is_exponential_char(last_char) && c == '-') {
+					if(_is_exponent_prefix(context->current_symbol, 0, context->current_symbol_nonius - 2) && _is_exponential_char(last_char) && (c == '+' || c == '-')) {
 						_mb_check_exit(result = _append_char_to_symbol(s, c), _exit);
 					} else {
 						context->symbol_state = _SS_OPERATOR;
@@ -11557,7 +11558,7 @@ static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l) {
 			if(_skip_single_line_struct(&ast, _core_then))
 				continue;
 			if(++nested > sizeof(mask) * 8) {
-				_handle_error_on_obj(s, SE_RN_NESTED_TOO_MUCH, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+				_handle_error_on_obj(s, SE_RN_TOO_MANY_NESTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
 		} else if(ast && nested && _IS_FUNC((_object_t*)ast->data, _core_then)) {
 			if(!(ast && ast->next && _IS_EOS(ast->next->data)))
@@ -13532,14 +13533,14 @@ int mb_get_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 		mb_int_val(idx, i);
 		_public_value_to_internal_object(&coll, &ocoll);
 		if(!_at_list(ocoll.data.list, i, &ret)) {
-			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
 		break;
 	case MB_DT_DICT:
 		_public_value_to_internal_object(&coll, &ocoll);
 		if(!_find_dict(ocoll.data.dict, &idx, &ret)) {
-			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
 		break;
@@ -13590,7 +13591,7 @@ int mb_set_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 			if(oval)
 				_destroy_object(oval, 0);
 
-			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
 		break;
@@ -13640,14 +13641,14 @@ int mb_remove_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_val
 		mb_int_val(idx, i);
 		_public_value_to_internal_object(&coll, &ocoll);
 		if(!_remove_at_list(ocoll.data.list, i)) {
-			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
 		break;
 	case MB_DT_DICT:
 		_public_value_to_internal_object(&coll, &ocoll);
 		if(!_remove_dict(ocoll.data.dict, &idx)) {
-			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 		}
 
 		break;
@@ -14283,7 +14284,7 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 		if(result)
 			goto _exit;
 	} else {
-		_set_current_error(s, SE_PS_OPEN_FILE_FAILED, 0);
+		_set_current_error(s, SE_PS_FAILED_TO_OPEN_FILE, 0);
 
 		result = MB_FUNC_ERR;
 	}
@@ -15490,7 +15491,7 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 			case _DT_LIST:
 				if(!_set_list(var->data->data.list, idx, 0, &val)) {
 					safe_free(val);
-					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 				}
 
 				break;
@@ -18000,7 +18001,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 			_public_value_to_internal_object(&ov, &obj);
 			_mb_check_mark_exit(mb_pop_int(s, l, &index), result, _exit);
 			if(!_at_list(obj.data.list, index, &ret)) {
-				_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+				_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
 
 			break;
@@ -18008,7 +18009,7 @@ static int _std_get(mb_interpreter_t* s, void** l) {
 			_public_value_to_internal_object(&ov, &obj);
 			_mb_check_mark_exit(mb_pop_value(s, l, &arg), result, _exit);
 			if(!_find_dict(obj.data.dict, &arg, &ret)) {
-				_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+				_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 			}
 
 			break;
@@ -18108,7 +18109,7 @@ static int _std_set(mb_interpreter_t* s, void** l) {
 					if(oval)
 						_destroy_object(oval, 0);
 
-					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 				}
 			}
 
@@ -18906,7 +18907,7 @@ static int _coll_remove(mb_interpreter_t* s, void** l) {
 				_mb_check_mark_exit(mb_pop_int(s, l, &idx), result, _exit);
 
 				if(!_remove_at_list(ocoll.data.list, idx)) {
-					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 				}
 			}
 
@@ -18917,7 +18918,7 @@ static int _coll_remove(mb_interpreter_t* s, void** l) {
 				_mb_check_mark_exit(mb_pop_value(s, l, &key), result, _exit);
 
 				if(!_remove_dict(ocoll.data.dict, &key)) {
-					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_GIVEN_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+					_handle_error_on_obj(s, SE_RN_CANNOT_FIND_WITH_THE_SPECIFIC_INDEX, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 				}
 			}
 
