@@ -7,7 +7,7 @@
 
 **Copyright (C) 2011 - 2022 Tony Wang**
 
-[![Build status](https://travis-ci.org/paladin-t/my_basic.svg?branch=master)](https://travis-ci.org/paladin-t/my_basic)
+[![Build status](https://github.com/paladin-t/my_basic/actions/workflows/c.yml/badge.svg)](https://github.com/paladin-t/my_basic/actions/workflows/c.yml)
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 
 [Web playground](https://my-basic.github.io/playground/output/index.html)

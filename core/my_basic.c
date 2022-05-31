@@ -18381,7 +18381,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 #ifdef MB_CP_VC
 		getch();
 #else /* MB_CP_VC */
-		_get_inputer(s)(pmt, line, sizeof(line));
+		_get_inputer(s)(s, pmt, line, sizeof(line));
 #endif /* MB_CP_VC */
 
 		goto _exit;
