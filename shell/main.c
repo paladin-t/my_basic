@@ -851,7 +851,7 @@ static void _edit_program(const char* no) {
 	--lno;
 	memset(line, 0, _MAX_LINE_LENGTH);
 	_printf("%ld]", lno + 1);
-	mb_gets(0, line, _MAX_LINE_LENGTH);
+	mb_gets(bas, 0, line, _MAX_LINE_LENGTH);
 	l = (int)strlen(line);
 	_code()->lines[lno] = (char*)realloc(_code()->lines[lno], l + 2);
 	strcpy(_code()->lines[lno], line);
@@ -876,7 +876,7 @@ static void _insert_program(const char* no) {
 	--lno;
 	memset(line, 0, _MAX_LINE_LENGTH);
 	_printf("%ld]", lno + 1);
-	mb_gets(0, line, _MAX_LINE_LENGTH);
+	mb_gets(bas, 0, line, _MAX_LINE_LENGTH);
 	if(_code()->count + 1 == _code()->size) {
 		_code()->size += _REALLOC_INC_STEP;
 		_code()->lines = (char**)realloc(_code()->lines, sizeof(char*) * _code()->size);
@@ -1026,7 +1026,7 @@ static int _do_line(void) {
 
 	memset(line, 0, _MAX_LINE_LENGTH);
 	_printf("]");
-	mb_gets(0, line, _MAX_LINE_LENGTH);
+	mb_gets(bas, 0, line, _MAX_LINE_LENGTH);
 
 	memcpy(dup, line, _MAX_LINE_LENGTH);
 	strtok(line, " ");
