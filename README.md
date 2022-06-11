@@ -54,7 +54,7 @@ MY-BASIC offers a wide range of features including:
 
 [![BASIC8](https://github.com/paladin-t/my_basic/wiki/img/basic8_banner.png)](https://paladin-t.github.io/b8/)
 
-Get [BASIC8](https://paladin-t.github.io/b8/) - the **fantasy computer** powered by MY-BASIC - on [Steam](http://store.steampowered.com/app/767240/) for game and other program development in an integrated environment.
+Get [BASIC8](https://paladin-t.github.io/b8/) - the **Fantasy Computer** powered by MY-BASIC - on [Steam](http://store.steampowered.com/app/767240/) for game and other program development in an integrated environment.
 
 See awesome [user creations](https://my-basic.github.io/awesome/).
 
@@ -78,11 +78,11 @@ Read the [MY-BASIC Quick Reference](https://paladin-t.github.io/my_basic/MY-BASI
 
 ### Using standalone interpreter binary
 
-This repository contains precompiled binaries for [Windows](output/my_basic.exe) and [macOS](output/my_basic_mac), the easiest way is to download to get a direct playground. Or you can make a build by:
+This repository contains precompiled binaries for [Windows](output/my_basic.exe), [macOS](output/my_basic_mac) and [Linux](output/my_basic_linux), the easiest way is to download to get a direct playground. Or you can make a build by:
 
 * Using the Visual Studio solution `my_basic.sln` for Windows build
 * Using the Xcode workspace `my_basic_mac.xcodeproj` for macOS build
-* Using the `makefile` for *nix build
+* Using the `makefile` for Linux build
 
 Follow these steps to compile an interpreter binary manually for other platform:
 
