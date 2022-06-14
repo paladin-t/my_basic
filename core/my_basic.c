@@ -5543,7 +5543,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			if(buf) {
 				if(buf != sym + 1) {
 					char* lf = (char*)(_ls_back(context->imported)->data);
-					int pos; unsigned short row, col;
+					int pos = 0; unsigned short row = 0, col = 0;
 					lf = _prev_import(s, lf, &pos, &row, &col);
 					mb_load_string(s, buf, true);
 					safe_free(buf);
@@ -5554,7 +5554,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 					if(s->import_handler) {
 						_object_t* sep = 0;
 						char* lf = 0;
-						int pos; unsigned short row, col;
+						int pos = 0; unsigned short row = 0, col = 0;
 						sep = _create_object();
 						sep->type = _DT_SEP;
 						sep->data.separator = ':';
@@ -5568,7 +5568,7 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 								context->parsing_pos = pos;
 								context->parsing_row = row;
 								context->parsing_col = col;
-								_handle_error_now(s, SE_PS_FAILED_TO_OPEN_FILE, s->source_file, MB_FUNC_ERR);
+								_handle_error_now(s, SE_PS_FAILED_TO_OPEN_FILE, lf, MB_FUNC_ERR);
 							}
 							_destroy_memory(last->data, last->extra);
 							_ls_popback(context->imported);
