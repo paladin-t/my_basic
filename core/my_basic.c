@@ -101,7 +101,7 @@ extern "C" {
 /* Version information */
 #define MB_VER_MAJOR 1
 #define MB_VER_MINOR 2
-#define MB_VER_REVISION 0
+#define MB_VER_REVISION 1
 #define MB_VER_SUFFIX
 #define MB_VERSION ((MB_VER_MAJOR * 0x01000000) + (MB_VER_MINOR * 0x00010000) + (MB_VER_REVISION))
 #define MB_MAKE_STRINGIZE(A) #A
@@ -900,7 +900,8 @@ typedef struct mb_interpreter_t {
 	unsigned short last_error_col;
 	/** Handlers */
 	mb_alive_checker_t alive_check_handler;
-	mb_debug_stepped_handler_t debug_stepped_handler;
+	mb_debug_stepped_handler_t debug_prev_stepped_handler;
+	mb_debug_stepped_handler_t debug_post_stepped_handler;
 	mb_error_handler_t error_handler;
 	mb_print_func_t printer;
 	mb_input_func_t inputer;
@@ -1965,7 +1966,8 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 
 /** Interpretation */
 
-static int _stepped(mb_interpreter_t* s, _ls_node_t* ast);
+static int _prev_stepped(mb_interpreter_t* s, _ls_node_t* ast);
+static int _post_stepped(mb_interpreter_t* s, _ls_node_t* ast);
 static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l, bool_t force_next);
 static int _common_end_looping(mb_interpreter_t* s, _ls_node_t** l);
 static int _common_keep_looping(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop);
@@ -4289,7 +4291,7 @@ static int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigne
 	if(_multiline_statement(s)) {
 		_object_t* obj = 0;
 		obj = (_object_t*)ast->data;
-		while(obj && obj->type == _DT_EOS) {
+		while(_IS_EOS(obj)) {
 			ast = ast->next;
 			obj = ast ? (_object_t*)ast->data : 0;
 		}
@@ -4471,6 +4473,7 @@ _exit:
 static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigned ca, _routine_t* r, mb_has_routine_arg_func_t has_arg, mb_pop_routine_arg_func_t pop_arg) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
+	_object_t* obj = 0;
 	_running_context_t* running = 0;
 	_routine_t* lastr = 0;
 	mb_value_t inte;
@@ -4489,7 +4492,9 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 	if(!va && s->last_routine && !s->last_routine->func.basic.parameters && same_inst && (s->last_routine->name == r->name || !strcmp(s->last_routine->name, r->name))) {
 		ast = *l;
 		_skip_to(s, &ast, 0, _DT_EOS);
-		if(ast && ((_object_t*)ast->data)->type == _DT_EOS)
+		if(ast)
+			obj = (_object_t*)ast->data;
+		if(_IS_EOS(obj))
 			ast = ast->next;
 		if(ast && _IS_FUNC((_object_t*)ast->data, _core_enddef)) { /* Tail recursion optimization */
 			*l = r->func.basic.entry;
@@ -6070,6 +6075,11 @@ static char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned shor
 	obj->data.import_info = info;
 	_ls_pushback(s->ast, obj);
 
+	obj = _create_object();
+	obj->type = _DT_EOS;
+	obj->is_ref = false;
+	_ls_pushback(s->ast, obj);
+
 	return result;
 #else /* MB_ENABLE_SOURCE_TRACE */
 	mb_unrefvar(s);
@@ -6686,7 +6696,7 @@ static int _gc_destroy_garbage_in_class(void* data, void* extra, _gc_t* gc) {
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	if(obj->type == _DT_VAR) {
+	if(_IS_VAR(obj)) {
 		_gc_destroy_garbage_in_class(obj->data.variable->data, 0, gc);
 		safe_free(obj->data.variable->name);
 		safe_free(obj->data.variable);
@@ -6709,7 +6719,7 @@ static int _gc_destroy_garbage_in_lambda(void* data, void* extra, _gc_t* gc) {
 	mb_assert(data);
 
 	obj = (_object_t*)data;
-	if(obj->type == _DT_VAR) {
+	if(_IS_VAR(obj)) {
 #ifdef MB_ENABLE_CLASS
 		if(_is_string(obj) && obj->data.variable->pathing) {
 			safe_free(obj->data.variable->data);
@@ -7074,7 +7084,7 @@ static void _clone_usertype_ref(_usertype_ref_t* src, _object_t* tgt) {
 /* Try to call a registered function on a referenced usertype */
 static bool_t _try_call_func_on_usertype_ref(mb_interpreter_t* s, _ls_node_t** ast, _object_t* obj, _ls_node_t* pathed, int* ret) {
 	_object_t* tmp = (_object_t*)pathed->data;
-	if(tmp && tmp->type == _DT_VAR && tmp->data.variable->data->type == _DT_USERTYPE_REF) {
+	if(_IS_VAR(tmp) && tmp->data.variable->data->type == _DT_USERTYPE_REF) {
 		bool_t mod = false;
 		_ls_node_t* fn = 0;
 		mb_func_t func = 0;
@@ -9083,7 +9093,7 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 				var->data->is_ref = true;
 			}
 #ifdef MB_ENABLE_CLASS
-			if(obj->type == _DT_VAR)
+			if(_IS_VAR(obj))
 				var->pathing = obj->data.variable->pathing;
 			else
 				var->pathing = _PATHING_NONE;
@@ -9165,9 +9175,9 @@ static int _remove_this_lambda_from_upvalue(void* data, void* extra, _routine_t*
 	mb_assert(routine->type == MB_RT_LAMBDA);
 
 	obj = (_object_t*)data;
-	if(obj->type == _DT_VAR)
+	if(_IS_VAR(obj))
 		obj = obj->data.variable->data;
-	if(obj->type == _DT_ROUTINE) {
+	if(_IS_ROUTINE(obj)) {
 		if(obj->data.routine == routine) {
 			mb_assert(obj->data.routine->type == MB_RT_LAMBDA);
 			_MAKE_NIL(obj);
@@ -9611,7 +9621,7 @@ static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i, _objec
 	scp = _search_identifier_in_scope_chain(s, 0, result->name, _PATHING_NORMAL, 0, 0);
 	if(scp) {
 		obj = (_object_t*)scp->data;
-		if(obj && obj->type == _DT_VAR) {
+		if(_IS_VAR(obj)) {
 			if(o) *o = obj;
 			result = obj->data.variable;
 		}
@@ -10914,23 +10924,46 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 
 /** Interpretation */
 
-/* Callback a stepped debug handler, this function is called each step */
-static int _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
+/* Callback a stepped debug handler, this function is called before each step */
+static int _prev_stepped(mb_interpreter_t* s, _ls_node_t* ast) {
 	int result = MB_FUNC_OK;
 	_object_t* obj = 0;
 
 	mb_assert(s);
 
-	if(s->debug_stepped_handler) {
+	if(s->debug_prev_stepped_handler) {
 		if(ast && ast->data) {
 			obj = (_object_t*)ast->data;
 #ifdef MB_ENABLE_SOURCE_TRACE
-			result = s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, obj->source_row, obj->source_col);
+			result = s->debug_prev_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, obj->source_row, obj->source_col);
 #else /* MB_ENABLE_SOURCE_TRACE */
-			result = s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, 0, 0);
+			result = s->debug_prev_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, 0, 0);
 #endif /* MB_ENABLE_SOURCE_TRACE */
 		} else {
-			result = s->debug_stepped_handler(s, (void**)&ast, s->source_file, -1, 0, 0);
+			result = s->debug_prev_stepped_handler(s, (void**)&ast, s->source_file, -1, 0, 0);
+		}
+	}
+
+	return result;
+}
+
+/* Callback a stepped debug handler, this function is called after each step */
+static int _post_stepped(mb_interpreter_t* s, _ls_node_t* ast) {
+	int result = MB_FUNC_OK;
+	_object_t* obj = 0;
+
+	mb_assert(s);
+
+	if(s->debug_post_stepped_handler) {
+		if(ast && ast->data) {
+			obj = (_object_t*)ast->data;
+#ifdef MB_ENABLE_SOURCE_TRACE
+			result = s->debug_post_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, obj->source_row, obj->source_col);
+#else /* MB_ENABLE_SOURCE_TRACE */
+			result = s->debug_post_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, 0, 0);
+#endif /* MB_ENABLE_SOURCE_TRACE */
+		} else {
+			result = s->debug_post_stepped_handler(s, (void**)&ast, s->source_file, -1, 0, 0);
 		}
 	}
 
@@ -10955,6 +10988,10 @@ static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l, bool_t force_
 	ast = *l;
 
 	obj = (_object_t*)ast->data;
+
+	result = _prev_stepped(s, ast);
+	if(result != MB_FUNC_OK)
+		goto _exit;
 
 _retry:
 	switch(obj->type) {
@@ -11079,7 +11116,7 @@ _retry:
 		} else if(_IS_SEP(obj, ':')) {
 			skip_to_eoi = false;
 			ast = ast->next;
-		} else if(obj && obj->type == _DT_VAR) {
+		} else if(_IS_VAR(obj)) {
 #ifdef MB_ENABLE_CLASS
 			_ls_node_t* fn = 0;
 			if(_is_valid_class_accessor_following_routine(s, obj->data.variable, ast, &fn)) {
@@ -11115,7 +11152,7 @@ _retry:
 	if(skip_to_eoi && s->skip_to_eoi && s->skip_to_eoi == _ls_back(s->sub_stack)) {
 		s->skip_to_eoi = 0;
 		obj = (_object_t*)ast->data;
-		if(obj->type != _DT_EOS) {
+		if(!_IS_EOS(obj)) {
 			result = _skip_to(s, &ast, 0, _DT_EOS);
 			if(result != MB_FUNC_OK)
 				goto _exit;
@@ -11135,7 +11172,7 @@ _exit:
 	if(ast == s->ast) {
 		*l = ast->next;
 	} else {
-		int ret = _stepped(s, ast);
+		int ret = _post_stepped(s, ast);
 		if(result == MB_FUNC_OK)
 			result = ret;
 
@@ -12589,7 +12626,7 @@ int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l) {
 	do {
 		ast = ast->next;
 		obj = ast ? (_object_t*)ast->data : 0;
-	} while(obj && obj->type == _DT_EOS);
+	} while(_IS_EOS(obj));
 #else /* _MULTILINE_STATEMENT */
 	ast = ast->next;
 	obj = ast ? (_object_t*)ast->data : 0;
@@ -12627,7 +12664,7 @@ int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
 #if _MULTILINE_STATEMENT
 	_ls_popback(s->multiline_enabled);
 	obj = (_object_t*)ast->data;
-	while(obj && obj->type == _DT_EOS) {
+	while(_IS_EOS(obj)) {
 		ast = ast->next;
 		obj = ast ? (_object_t*)ast->data : 0;
 	}
@@ -12659,7 +12696,7 @@ int mb_has_arg(struct mb_interpreter_t* s, void** l) {
 #if _MULTILINE_STATEMENT
 		if(_multiline_statement(s)) {
 			obj = (_object_t*)ast->data;
-			while(obj && obj->type == _DT_EOS) {
+			while(_IS_EOS(obj)) {
 				ast = ast->next;
 				obj = ast ? (_object_t*)ast->data : 0;
 			}
@@ -12669,7 +12706,7 @@ int mb_has_arg(struct mb_interpreter_t* s, void** l) {
 #else /* _MULTILINE_STATEMENT */
 		obj = ast ? (_object_t*)ast->data : 0;
 #endif /* _MULTILINE_STATEMENT */
-		if(obj && !_IS_FUNC(obj, _core_close_bracket) && obj->type != _DT_EOS)
+		if(obj && !_IS_FUNC(obj, _core_close_bracket) && !_IS_EOS(obj))
 			result = obj->type != _DT_SEP && obj->type != _DT_EOS;
 	}
 
@@ -12868,7 +12905,7 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 	if(_multiline_statement(s)) {
 		_object_t* obj = 0;
 		obj = (_object_t*)ast->data;
-		while(obj && obj->type == _DT_EOS) {
+		while(_IS_EOS(obj)) {
 			ast = ast->next;
 			obj = ast ? (_object_t*)ast->data : 0;
 		}
@@ -13029,7 +13066,7 @@ int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 	tmp = _search_identifier_in_scope_chain(s, 0, n, _PATHING_NONE, 0, 0);
 	if(tmp && tmp->data) {
 		obj = (_object_t*)tmp->data;
-		if(obj->type == _DT_VAR)
+		if(_IS_VAR(obj))
 			var = obj->data.variable;
 	}
 	if(s->last_instance || (obj && !var)) {
@@ -13256,7 +13293,7 @@ int mb_get_var(struct mb_interpreter_t* s, void** l, void** v, bool_t redir) {
 		if(ast) ast = ast->next;
 	}
 
-	if(obj && obj->type == _DT_VAR) {
+	if(_IS_VAR(obj)) {
 #ifdef MB_ENABLE_CLASS
 		if(redir && obj->data.variable->pathing)
 			_search_var_in_scope_chain(s, obj->data.variable, &obj);
@@ -13293,7 +13330,7 @@ int mb_get_var_name(struct mb_interpreter_t* s, void* v, char** n) {
 		goto _exit;
 
 	obj = (_object_t*)v;
-	if(obj->type != _DT_VAR)
+	if(!_IS_VAR(obj))
 		goto _exit;
 
 	if(n) *n = obj->data.variable->name;
@@ -13317,7 +13354,7 @@ int mb_get_var_value(struct mb_interpreter_t* s, void* v, mb_value_t* val) {
 		goto _exit;
 
 	obj = (_object_t*)v;
-	if(obj->type != _DT_VAR)
+	if(!_IS_VAR(obj))
 		goto _exit;
 
 	_internal_object_to_public_value(obj->data.variable->data, val);
@@ -13340,7 +13377,7 @@ int mb_set_var_value(struct mb_interpreter_t* s, void* v, mb_value_t val) {
 	if(!v)
 		goto _exit;
 	obj = (_object_t*)v;
-	if(obj->type != _DT_VAR)
+	if(!_IS_VAR(obj))
 		goto _exit;
 
 	_public_value_to_internal_object(&val, obj->data.variable->data);
@@ -14117,7 +14154,7 @@ int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routi
 	if(tmp) {
 		if(force) {
 			obj = (_object_t*)tmp->data;
-			if(obj->type == _DT_VAR)
+			if(_IS_VAR(obj))
 				var = obj->data.variable;
 		} else {
 			_handle_error_on_obj(s, SE_RN_DUPLICATE_ROUTINE, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -14470,7 +14507,7 @@ int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 	v = _search_identifier_in_scope_chain(s, 0, n, _PATHING_NONE, 0, 0);
 	if(v) {
 		obj = (_object_t*)v->data;
-		mb_assert(obj->type == _DT_VAR);
+		mb_assert(_IS_VAR(obj));
 		if(val)
 			result = _internal_object_to_public_value(obj->data.variable->data, val);
 		else
@@ -14504,7 +14541,7 @@ int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
 	v = _search_identifier_in_scope_chain(s, 0, n, _PATHING_NONE, 0, 0);
 	if(v) {
 		obj = (_object_t*)v->data;
-		mb_assert(obj->type == _DT_VAR);
+		mb_assert(_IS_VAR(obj));
 		result = _public_value_to_internal_object(&val, obj->data.variable->data);
 	} else {
 		_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, (_object_t*)0, MB_FUNC_ERR, _exit, result);
@@ -14554,7 +14591,7 @@ _exit:
 }
 
 /* Set a stepped handler to a MY-BASIC environment */
-int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t h) {
+int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t prev, mb_debug_stepped_handler_t post) {
 	int result = MB_FUNC_OK;
 
 	if(!s) {
@@ -14563,7 +14600,8 @@ int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_ha
 		goto _exit;
 	}
 
-	s->debug_stepped_handler = h;
+	s->debug_prev_stepped_handler = prev;
+	s->debug_post_stepped_handler = post;
 
 _exit:
 	return result;
@@ -15363,8 +15401,8 @@ static int _core_is(mb_interpreter_t* s, void** l) {
 	scd = (_object_t*)((_tuple3_t*)*l)->e2;
 	val = (_object_t*)((_tuple3_t*)*l)->e3;
 
-	if(fst && fst->type == _DT_VAR) fst = fst->data.variable->data;
-	if(scd && scd->type == _DT_VAR) scd = scd->data.variable->data;
+	if(_IS_VAR(fst)) fst = fst->data.variable->data;
+	if(_IS_VAR(scd)) scd = scd->data.variable->data;
 	if(!fst || !scd) {
 		_handle_error_on_obj(s, SE_RN_SYNTAX_ERROR, s->source_file, TON(l), MB_FUNC_ERR, _exit, result);
 	}
@@ -15781,8 +15819,11 @@ _elseif:
 			result = _execute_statement(s, &ast, true);
 			if(result != MB_FUNC_OK)
 				goto _exit;
-			if(ast)
-				ast = ast->prev;
+			if(ast) {
+				obj = (_object_t*)ast->data;
+				if(obj->type != _DT_PREV_IMPORT && obj->type != _DT_POST_IMPORT)
+					ast = ast->prev;
+			}
 		} while(ast && (
 				(!multi_line && _IS_SEP(ast->data, ':')) || (
 					multi_line && ast->next && (
@@ -15798,7 +15839,7 @@ _elseif:
 			goto _exit;
 
 		obj = (_object_t*)ast->data;
-		if(obj->type != _DT_EOS) {
+		if(!_IS_EOS(obj)) {
 			s->skip_to_eoi = 0;
 			result = _skip_to(s, &ast, 0, _DT_EOS);
 			if(result != MB_FUNC_OK)
@@ -15825,7 +15866,7 @@ _elseif:
 			goto _exit;
 
 		obj = (_object_t*)ast->data;
-		if(obj->type != _DT_EOS) {
+		if(!_IS_EOS(obj)) {
 			skip = true;
 
 			if(!_IS_FUNC(obj, _core_else)) {
@@ -15951,7 +15992,7 @@ static int _core_for(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 
 	obj = (_object_t*)ast->data;
-	if(obj->type != _DT_VAR) {
+	if(!_IS_VAR(obj)) {
 		_handle_error_on_obj(s, SE_RN_LOOP_VAR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	var_loop = obj->data.variable;
@@ -16016,10 +16057,10 @@ static int _core_next(mb_interpreter_t* s, void** l) {
 	result = MB_LOOP_CONTINUE;
 
 	ast = ast->next;
-	if(ast && ((_object_t*)ast->data)->type == _DT_VAR) {
+	if(ast)
 		obj = (_object_t*)ast->data;
+	if(_IS_VAR(obj))
 		running->next_loop_var = obj->data.variable;
-	}
 
 	*l = ast;
 
@@ -16329,7 +16370,7 @@ _retry:
 			ast = ast->next;
 			obj = (_object_t*)ast->data;
 #ifdef MB_ENABLE_CLASS
-			if(obj->type == _DT_VAR) {
+			if(_IS_VAR(obj)) {
 				pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, _PN(obj->data.variable->pathing), 0, 0);
 				if(pathed && pathed->data)
 					obj = (_object_t*)pathed->data;
@@ -16362,7 +16403,7 @@ _retry:
 			pathed = _search_identifier_in_scope_chain(s, 0, obj->data.variable->name, fp, 0, 0);
 			if(pathed && pathed->data)
 				obj = (_object_t*)pathed->data;
-			if(obj->type != _DT_VAR)
+			if(!_IS_VAR(obj))
 				goto _retry;
 		}
 #endif /* MB_ENABLE_LAMBDA */
@@ -16473,7 +16514,7 @@ static int _core_def(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 	obj = (_object_t*)ast->data;
 	while(obj && !_IS_FUNC(obj, _core_close_bracket)) {
-		if(obj->type == _DT_VAR) {
+		if(_IS_VAR(obj)) {
 			var = obj->data.variable;
 			rnode = _search_identifier_in_scope_chain(s, routine->func.basic.scope, var->name, _PATHING_NONE, 0, 0);
 			if(rnode)
@@ -16614,7 +16655,7 @@ static int _core_class(mb_interpreter_t* s, void** l) {
 		do {
 			ast = ast->next;
 			obj = (_object_t*)ast->data;
-			if(obj && obj->type == _DT_VAR) {
+			if(_IS_VAR(obj)) {
 				_ls_node_t* tmp =_search_identifier_in_scope_chain(s, _OUTTER_SCOPE(running), obj->data.variable->name, _PATHING_NONE, 0, 0);
 				if(tmp && tmp->data)
 					obj = (_object_t*)tmp->data;
@@ -16860,7 +16901,7 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 
 		_mb_check_mark_exit(mb_get_var(s, l, &v, true), result, _error);
 
-		if(!v || ((_object_t*)v)->type != _DT_VAR) {
+		if(!_IS_VAR(v)) {
 			_handle_error_on_obj(s, SE_RN_INVALID_LAMBDA, s->source_file, DON2(l), MB_FUNC_ERR, _error, result);
 		}
 		var = ((_object_t*)v)->data.variable;
@@ -18377,7 +18418,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 	ast = (_ls_node_t*)*l;
 	obj = ast ? (_object_t*)ast->data : 0;
 
-	if(!obj || obj->type == _DT_EOS) {
+	if(!obj || _IS_EOS(obj)) {
 #ifdef MB_CP_VC
 		getch();
 #else /* MB_CP_VC */
@@ -18397,7 +18438,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		ast = ast->next;
 		obj = (_object_t*)ast->data;
 	}
-	if(obj->type != _DT_VAR) {
+	if(!_IS_VAR(obj)) {
 		_handle_error_on_obj(s, SE_RN_VAR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
 	if(obj->data.variable->data->type == _DT_INT || obj->data.variable->data->type == _DT_REAL) {

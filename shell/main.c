@@ -84,6 +84,8 @@ extern "C" {
 #	define _BIN_FILE_NAME "my_basic"
 #elif defined MB_OS_MAC
 #	define _BIN_FILE_NAME "my_basic_mac"
+#elif defined MB_OS_LINUX
+#	define _BIN_FILE_NAME "my_basic_linux"
 #else
 #	define _BIN_FILE_NAME "my_basic_bin"
 #endif
@@ -1439,7 +1441,18 @@ static int beep(struct mb_interpreter_t* s, void** l) {
 ** Callbacks and handlers
 */
 
-static int _on_stepped(struct mb_interpreter_t* s, void** l, const char* f, int p, unsigned short row, unsigned short col) {
+static int _on_prev_stepped(struct mb_interpreter_t* s, void** l, const char* f, int p, unsigned short row, unsigned short col) {
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(f);
+	mb_unrefvar(p);
+	mb_unrefvar(row);
+	mb_unrefvar(col);
+
+	return MB_FUNC_OK;
+}
+
+static int _on_post_stepped(struct mb_interpreter_t* s, void** l, const char* f, int p, unsigned short row, unsigned short col) {
 	mb_unrefvar(s);
 	mb_unrefvar(l);
 	mb_unrefvar(f);
@@ -1520,7 +1533,7 @@ static void _on_startup(void) {
 
 	mb_open(&bas);
 
-	mb_debug_set_stepped_handler(bas, _on_stepped);
+	mb_debug_set_stepped_handler(bas, _on_prev_stepped, _on_post_stepped);
 	mb_set_error_handler(bas, _on_error);
 	mb_set_import_handler(bas, _on_import);
 

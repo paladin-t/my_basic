@@ -659,7 +659,7 @@ MBAPI int mb_schedule_suspend(struct mb_interpreter_t* s, int t);
 MBAPI int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val);
 MBAPI int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val);
 MBAPI int mb_debug_get_stack_trace(struct mb_interpreter_t* s, void** l, char** fs, unsigned fc);
-MBAPI int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t h);
+MBAPI int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t prev, mb_debug_stepped_handler_t post);
 
 MBAPI const char* mb_get_type_string(mb_data_e t);
 
