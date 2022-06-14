@@ -15821,7 +15821,9 @@ _elseif:
 				goto _exit;
 			if(ast) {
 				obj = (_object_t*)ast->data;
-				if(obj->type != _DT_PREV_IMPORT && obj->type != _DT_POST_IMPORT)
+				if(obj->type == _DT_PREV_IMPORT || obj->type == _DT_POST_IMPORT)
+					_execute_statement(s, &ast, true);
+				else
 					ast = ast->prev;
 			}
 		} while(ast && (
