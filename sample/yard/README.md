@@ -12,9 +12,9 @@
 
 	my_basic_mac start.bas
 
-**Others**
+**Linux**
 
-	my_basic_bin start.bas
+	my_basic_linux start.bas
 
 **Note**
 

@@ -1464,34 +1464,36 @@ static int _on_post_stepped(struct mb_interpreter_t* s, void** l, const char* f,
 }
 
 static void _on_error(struct mb_interpreter_t* s, mb_error_e e, const char* m, const char* f, int p, unsigned short row, unsigned short col, int abort_code) {
+	const char* type = abort_code == MB_FUNC_WARNING ? "Warning" : "Error";
 	mb_unrefvar(s);
 	mb_unrefvar(p);
 
-	if(e != SE_NO_ERR) {
-		if(f) {
-			if(e == SE_RN_REACHED_TO_WRONG_FUNCTION) {
-				_printf(
-					"Error:\n    Ln %d, Col %d in Func: %s\n    Code %d, Abort Code %d\n    Message: %s.\n",
-					row, col, f,
-					e, abort_code,
-					m
-				);
-			} else {
-				_printf(
-					"Error:\n    Ln %d, Col %d in File: %s\n    Code %d, Abort Code %d\n    Message: %s.\n",
-					row, col, f,
-					e, e == SE_EA_EXTENDED_ABORT ? abort_code - MB_EXTENDED_ABORT : abort_code,
-					m
-				);
-			}
+	if(e == SE_NO_ERR)
+		return;
+
+	if(f) {
+		if(e == SE_RN_REACHED_TO_WRONG_FUNCTION) {
+			_printf(
+				"%s:\n    Ln %d, Col %d in Func: %s\n    Code %d, Abort Code %d\n    Message: %s.\n",
+				type, row, col, f,
+				e, abort_code,
+				m
+			);
 		} else {
 			_printf(
-				"Error:\n    Ln %d, Col %d\n    Code %d, Abort Code %d\n    Message: %s.\n",
-				row, col,
+				"%s:\n    Ln %d, Col %d in File: %s\n    Code %d, Abort Code %d\n    Message: %s.\n",
+				type, row, col, f,
 				e, e == SE_EA_EXTENDED_ABORT ? abort_code - MB_EXTENDED_ABORT : abort_code,
 				m
 			);
 		}
+	} else {
+		_printf(
+			"%s:\n    Ln %d, Col %d\n    Code %d, Abort Code %d\n    Message: %s.\n",
+			type, row, col,
+			e, e == SE_EA_EXTENDED_ABORT ? abort_code - MB_EXTENDED_ABORT : abort_code,
+			m
+		);
 	}
 }
 

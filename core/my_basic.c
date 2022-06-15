@@ -256,6 +256,7 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Symbol too long",
 	"Invalid character",
 	"Invalid module",
+	"Duplicate IMPORT",
 	/** Running */
 	"Empty program",
 	"Program too long",
@@ -1406,22 +1407,22 @@ static mb_meta_status_e _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 
 /** Handlers */
 
-#define _handle_error_now(__s, __err, __f, __result) \
-	do { \
-		_set_current_error((__s), (__err), (__f)); \
-		if((__s)->error_handler) { \
-			if((__s)->handled_error) \
-				break; \
-			(__s)->handled_error = true; \
-			((__s)->error_handler)((__s), (__s)->last_error, (char*)mb_get_error_desc((__s)->last_error), \
-				(__s)->last_error_file, \
-				(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_pos : (__s)->last_error_pos, \
-				(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_row : (__s)->last_error_row, \
-				(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_col : (__s)->last_error_col, \
-				(__result)); \
-		} \
-	} while(0)
 #if _WARNING_AS_ERROR
+#	define _handle_error_now(__s, __err, __f, __result) \
+		do { \
+			_set_current_error((__s), (__err), (__f)); \
+			if((__s)->error_handler) { \
+				if((__s)->handled_error) \
+					break; \
+				(__s)->handled_error = true; \
+				((__s)->error_handler)((__s), (__s)->last_error, (char*)mb_get_error_desc((__s)->last_error), \
+					(__s)->last_error_file, \
+					(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_pos : (__s)->last_error_pos, \
+					(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_row : (__s)->last_error_row, \
+					(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_col : (__s)->last_error_col, \
+					(__result)); \
+			} \
+		} while(0)
 #	define _handle_error_at_pos(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
 			if(_set_current_error((__s), (__err), (__f))) { \
@@ -1431,6 +1432,26 @@ static mb_meta_status_e _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 			goto __exit; \
 		} while(0)
 #else /* _WARNING_AS_ERROR */
+#	define _handle_error_now(__s, __err, __f, __result) \
+		do { \
+			_set_current_error((__s), (__err), (__f)); \
+			if((__s)->error_handler) { \
+				if((__s)->handled_error) \
+					break; \
+				(__s)->handled_error = true; \
+				((__s)->error_handler)((__s), (__s)->last_error, (char*)mb_get_error_desc((__s)->last_error), \
+					(__s)->last_error_file, \
+					(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_pos : (__s)->last_error_pos, \
+					(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_row : (__s)->last_error_row, \
+					(__s)->parsing_context && !(__s)->run_count ? (__s)->parsing_context->parsing_col : (__s)->last_error_col, \
+					(__result)); \
+			} \
+			if((__result) == MB_FUNC_WARNING) { \
+				(__s)->last_error = SE_NO_ERR; \
+				(__s)->last_error_file = 0; \
+				(__s)->handled_error = false; \
+			} \
+		} while(0)
 #	define _handle_error_at_pos(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
 			if(_set_current_error((__s), (__err), (__f))) { \
@@ -5541,7 +5562,9 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			/* Import another file */
 			buf = _load_file(s, sym + 1, ":", true);
 			if(buf) {
-				if(buf != sym + 1) {
+				if(buf == sym + 1) {
+					_handle_error_now(s, SE_PS_DUPLICATE_IMPORT, s->source_file, MB_FUNC_WARNING);
+				} else {
 					char* lf = (char*)(_ls_back(context->imported)->data);
 					int pos = 0; unsigned short row = 0, col = 0;
 					lf = _prev_import(s, lf, &pos, &row, &col);
