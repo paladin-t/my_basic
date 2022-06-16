@@ -249,7 +249,7 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"No error",
 	/** Common */
 	"Function already exists",
-	"Function not exists",
+	"Function does not exist",
 	"Not supported",
 	/** Parsing */
 	"Failed to open file",
@@ -277,7 +277,7 @@ MBCONST static const char* const _ERR_DESC[] = {
 	"Cannot assign to reserved word",
 	"Duplicate identifier",
 	"Incomplete structure",
-	"Label not exists",
+	"Label does not exist",
 	"No return point",
 	"Colon expected",
 	"Comma expected",
@@ -11914,7 +11914,7 @@ static int _remove_func(mb_interpreter_t* s, char* n, bool_t local) {
 	if(exists)
 		result += _ht_remove(scope, (void*)name, _ls_cmp_extra_string);
 	else
-		_set_current_error(s, SE_CM_FUNC_NOT_EXISTS, 0);
+		_set_current_error(s, SE_CM_FUNC_DOES_NOT_EXIST, 0);
 	safe_free(name);
 
 #ifdef MB_ENABLE_MODULE
@@ -16304,7 +16304,7 @@ static int _core_goto(mb_interpreter_t* s, void** l) {
 	if(!label->node) {
 		glbsyminscope = _ht_find(running->var_dict, label->name);
 		if(!(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_LABEL)) {
-			_handle_error_on_obj(s, SE_RN_LABEL_NOT_EXISTS, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+			_handle_error_on_obj(s, SE_RN_LABEL_DOES_NOT_EXIST, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
 		label->node = ((_object_t*)glbsyminscope->data)->data.label->node;
 	}
