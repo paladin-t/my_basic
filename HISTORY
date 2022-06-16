@@ -1,3 +1,6 @@
+Jun. 16 2022
+Fixed an error purging issue of the interpreter manipulation functions, thanks to iUltimateLP for pointing it out
+
 Jun. 15 2022
 Improved warning prompting of duplicate IMPORT
 
