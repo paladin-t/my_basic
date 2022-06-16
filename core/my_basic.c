@@ -14283,6 +14283,8 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 	}
 
 	s->run_count = 0;
+	s->last_error = SE_NO_ERR;
+	s->last_error_file = 0;
 
 	if(!s->parsing_context)
 		s->parsing_context = _reset_parsing_context(s->parsing_context);
@@ -14422,6 +14424,8 @@ int mb_run(struct mb_interpreter_t* s, bool_t clear_parser) {
 		s->calling = false;
 #endif /* MB_ENABLE_CLASS */
 		s->last_routine = 0;
+		s->last_error = SE_NO_ERR;
+		s->last_error_file = 0;
 
 #if _MULTILINE_STATEMENT
 		_ls_clear(s->multiline_enabled);
