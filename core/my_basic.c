@@ -1946,6 +1946,7 @@ static _var_t* _search_var_in_scope_chain(mb_interpreter_t* s, _var_t* i, _objec
 static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_context_t* scope, const char* n, _ht_node_t** ht, _running_context_t** sp, bool_t unknown_for_not_found);
 
 static _var_t* _create_var(_object_t** oobj, const char* n, size_t ns, bool_t dup_name);
+static int _retrieve_var(void* data, void* extra, void* t);
 static _object_t* _create_object(void);
 static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bool_t toupval, bool_t deep);
 static int _dispose_object(_object_t* obj);
@@ -9764,6 +9765,40 @@ static _var_t* _create_var(_object_t** oobj, const char* n, size_t ns, bool_t du
 	return var;
 }
 
+/* Retrieve a variable's name and value */
+static int _retrieve_var(void* data, void* extra, void* t) {
+	int result = _OP_RESULT_NORMAL;
+	_tuple3_t* tuple = 0;
+	mb_interpreter_t* s = 0;
+	mb_var_retrieving_func_t receiver = 0;
+	int* count = 0;
+	_object_t* obj = 0;
+	_var_t* var = 0;
+	mb_value_t val;
+	mb_unrefvar(extra);
+
+	mb_assert(data && t);
+
+	mb_make_nil(val);
+
+	tuple = (_tuple3_t*)t;
+	s = (mb_interpreter_t*)tuple->e1;
+	receiver = (mb_var_retrieving_func_t)(uintptr_t)tuple->e2;
+	count = (int*)tuple->e3;
+
+	obj = (_object_t*)data;
+	if(obj->type == _DT_VAR) {
+		if(receiver) {
+			var = (_var_t*)obj->data.variable;
+			_internal_object_to_public_value(var->data, &val);
+			receiver(s, var->name, val);
+		}
+		++*count;
+	}
+
+	return result;
+}
+
 /* Create an _object_t struct */
 static _object_t* _create_object(void) {
 	_object_t* result = 0;
@@ -12308,7 +12343,7 @@ int mb_close(struct mb_interpreter_t** s) {
 }
 
 /* Reset a MY-BASIC environment */
-int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
+int mb_reset(struct mb_interpreter_t** s, bool_t clear_funcs, bool_t clear_vars) {
 	int result = MB_FUNC_OK;
 	_ht_node_t* global_scope = 0;
 	_ls_node_t* ast;
@@ -12350,8 +12385,10 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	_ls_clear((*s)->multiline_enabled);
 #endif /* _MULTILINE_STATEMENT */
 
-	_tidy_scope_chain(*s);
-	_clear_scope_chain(*s);
+	if(clear_vars) {
+		_tidy_scope_chain(*s);
+		_clear_scope_chain(*s);
+	}
 
 #ifdef MB_ENABLE_FORK
 	if((*s)->all_forked) {
@@ -12362,7 +12399,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 
 	(*s)->parsing_context = _reset_parsing_context((*s)->parsing_context);
 
-	if(clrf) {
+	if(clear_funcs) {
 #ifdef MB_ENABLE_MODULE
 		global_scope = (*s)->module_func_dict;
 		_ht_foreach(global_scope, _ht_destroy_module_func_list);
@@ -12385,7 +12422,7 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 }
 
 /* Fork a new MY-BASIC environment */
-int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t clfk) {
+int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t clear_forked) {
 #ifdef MB_ENABLE_FORK
 	int result = MB_FUNC_OK;
 	_running_context_t* running = 0;
@@ -12419,7 +12456,7 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t clfk
 
 	(*s)->forked_from = r;
 
-	if(clfk) {
+	if(clear_forked) {
 		if(!r->all_forked)
 			r->all_forked = _ls_create();
 		_ls_pushback(r->all_forked, *s);
@@ -12431,7 +12468,7 @@ int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t clfk
 #else /* MB_ENABLE_FORK */
 	mb_unrefvar(s);
 	mb_unrefvar(r);
-	mb_unrefvar(clfk);
+	mb_unrefvar(clear_forked);
 
 	return MB_FUNC_ERR;
 #endif /* MB_ENABLE_FORK */
@@ -13255,6 +13292,36 @@ _exit:
 	return result;
 }
 
+/* Retrieve all variables at the current frame */
+int mb_get_vars(struct mb_interpreter_t* s, void** l, mb_var_retrieving_func_t r, int stack_offset) {
+	int result = 0;
+	_running_context_t* running = 0;
+	_tuple3_t tuple;
+	mb_unrefvar(l);
+
+	if(!s)
+		goto _exit;
+
+	running = s->running_context;
+	if(stack_offset == -1) {
+		running = _get_root_scope(running);
+	} else {
+		while(stack_offset > 0 && running) {
+			running = running->prev;
+			--stack_offset;
+		}
+	}
+	if(!running)
+		goto _exit;
+	tuple.e1 = s;
+	tuple.e2 = (void*)(uintptr_t)r;
+	tuple.e3 = &result;
+	_HT_FOREACH(running->var_dict, _do_nothing_on_object, _retrieve_var, &tuple);
+
+_exit:
+	return result;
+}
+
 /* Add a variable with a specific name */
 int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t val, bool_t force) {
 	int result = MB_FUNC_OK;
@@ -13470,7 +13537,7 @@ _exit:
 
 /* Get the length of an array */
 int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* i) {
-	int result = MB_FUNC_OK;
+	int result = 0;
 	_array_t* arr = 0;
 
 	if(!s || !l) {
@@ -13747,7 +13814,7 @@ _exit:
 
 /* Tell the element count of a collection */
 int mb_count_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, int* c) {
-	int result = MB_FUNC_OK;
+	int result = 0;
 	_object_t ocoll;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	_list_t* lst = 0;
@@ -14578,13 +14645,34 @@ _exit:
 	return result;
 }
 
+/* Get stack frame count of a MY-BASIC environment */
+int mb_debug_get_stack_frame_count(struct mb_interpreter_t* s) {
+#ifdef MB_ENABLE_STACK_TRACE
+	int result = 0;
+
+	if(!s) {
+		goto _exit;
+	}
+
+	result = _ls_count(s->stack_frames);
+
+_exit:
+	return result;
+#else /* MB_ENABLE_STACK_TRACE */
+	int result = 0;
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+
+	return result;
+#endif /* MB_ENABLE_STACK_TRACE */
+}
+
 /* Get stack frame names of a MY-BASIC environment */
-int mb_debug_get_stack_trace(struct mb_interpreter_t* s, void** l, char** fs, unsigned fc) {
+int mb_debug_get_stack_trace(struct mb_interpreter_t* s, char** fs, unsigned fc) {
 #ifdef MB_ENABLE_STACK_TRACE
 	int result = MB_FUNC_OK;
 	_ls_node_t* f = 0;
 	unsigned i = 0;
-	mb_unrefvar(l);
 
 	if(!s) {
 		result = MB_FUNC_ERR;
@@ -14609,7 +14697,6 @@ _exit:
 #else /* MB_ENABLE_STACK_TRACE */
 	int result = MB_FUNC_ERR;
 	mb_unrefvar(s);
-	mb_unrefvar(l);
 	mb_unrefvar(fs);
 	mb_unrefvar(fc);
 

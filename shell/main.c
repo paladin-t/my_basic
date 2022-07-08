@@ -715,7 +715,7 @@ static int _new_program(void) {
 
 	_clear_code();
 
-	result = mb_reset(&bas, false);
+	result = mb_reset(&bas, false, false);
 
 	mb_gc(bas, 0);
 
@@ -1044,7 +1044,7 @@ static int _do_line(void) {
 	} else if(_str_eq(line, "RUN")) {
 		int i = 0;
 		mb_assert(_code());
-		result = mb_reset(&bas, false);
+		result = mb_reset(&bas, false, false);
 		for(i = 0; i < _code()->count; ++i) {
 			if(result)
 				break;
@@ -1368,7 +1368,7 @@ static int trace(struct mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	mb_check(mb_debug_get_stack_trace(s, l, frames, countof(frames)));
+	mb_check(mb_debug_get_stack_trace(s, frames, countof(frames)));
 
 	for(i = 1; i < countof(frames); ) {
 		if(frames[i]) {

@@ -563,6 +563,7 @@ typedef int (* mb_func_t)(struct mb_interpreter_t*, void**);
 typedef int (* mb_has_routine_arg_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, void*);
 typedef int (* mb_pop_routine_arg_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, void*, mb_value_t*);
 typedef int (* mb_routine_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, void*, mb_has_routine_arg_func_t, mb_pop_routine_arg_func_t);
+typedef void (* mb_var_retrieving_func_t)(struct mb_interpreter_t*, const char*, mb_value_t);
 typedef int (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, void**, const char*, int, unsigned short, unsigned short);
 typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, mb_error_e, const char*, const char*, int, unsigned short, unsigned short, int);
 typedef int (* mb_print_func_t)(struct mb_interpreter_t*, const char*, ...);
@@ -588,9 +589,9 @@ MBAPI int mb_init(void);
 MBAPI int mb_dispose(void);
 MBAPI int mb_open(struct mb_interpreter_t** s);
 MBAPI int mb_close(struct mb_interpreter_t** s);
-MBAPI int mb_reset(struct mb_interpreter_t** s, bool_t clrf/* = false*/);
+MBAPI int mb_reset(struct mb_interpreter_t** s, bool_t clear_funcs/* = false*/, bool_t clear_vars/* = false*/);
 
-MBAPI int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t clfk/* = true*/);
+MBAPI int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t clear_forked/* = true*/);
 MBAPI int mb_join(struct mb_interpreter_t** s);
 MBAPI int mb_get_forked_from(struct mb_interpreter_t* s, struct mb_interpreter_t** src);
 
@@ -622,6 +623,7 @@ MBAPI int mb_get_class_userdata(struct mb_interpreter_t* s, void** l, void** d);
 MBAPI int mb_set_class_userdata(struct mb_interpreter_t* s, void** l, void* d);
 
 MBAPI int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t* val);
+MBAPI int mb_get_vars(struct mb_interpreter_t* s, void** l, mb_var_retrieving_func_t r, int stack_offset/* = 0*/);
 MBAPI int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t val, bool_t force);
 MBAPI int mb_get_var(struct mb_interpreter_t* s, void** l, void** v, bool_t redir);
 MBAPI int mb_get_var_name(struct mb_interpreter_t* s, void* v, char** n);
@@ -659,7 +661,8 @@ MBAPI int mb_schedule_suspend(struct mb_interpreter_t* s, int t);
 
 MBAPI int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val);
 MBAPI int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val);
-MBAPI int mb_debug_get_stack_trace(struct mb_interpreter_t* s, void** l, char** fs, unsigned fc);
+MBAPI int mb_debug_get_stack_frame_count(struct mb_interpreter_t* s);
+MBAPI int mb_debug_get_stack_trace(struct mb_interpreter_t* s, char** fs, unsigned fc);
 MBAPI int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t prev, mb_debug_stepped_handler_t post);
 
 MBAPI const char* mb_get_type_string(mb_data_e t);
