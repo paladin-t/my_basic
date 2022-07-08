@@ -9770,7 +9770,7 @@ static int _retrieve_var(void* data, void* extra, void* t) {
 	int result = _OP_RESULT_NORMAL;
 	_tuple3_t* tuple = 0;
 	mb_interpreter_t* s = 0;
-	mb_var_retrieving_func_t receiver = 0;
+	mb_var_retrieving_func_t retrieved = 0;
 	int* count = 0;
 	_object_t* obj = 0;
 	_var_t* var = 0;
@@ -9783,15 +9783,15 @@ static int _retrieve_var(void* data, void* extra, void* t) {
 
 	tuple = (_tuple3_t*)t;
 	s = (mb_interpreter_t*)tuple->e1;
-	receiver = (mb_var_retrieving_func_t)(uintptr_t)tuple->e2;
+	retrieved = (mb_var_retrieving_func_t)(uintptr_t)tuple->e2;
 	count = (int*)tuple->e3;
 
 	obj = (_object_t*)data;
 	if(obj->type == _DT_VAR) {
-		if(receiver) {
+		if(retrieved) {
 			var = (_var_t*)obj->data.variable;
 			_internal_object_to_public_value(var->data, &val);
-			receiver(s, var->name, val);
+			retrieved(s, var->name, val);
 		}
 		++*count;
 	}
