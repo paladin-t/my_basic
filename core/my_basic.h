@@ -589,7 +589,7 @@ MBAPI int mb_init(void);
 MBAPI int mb_dispose(void);
 MBAPI int mb_open(struct mb_interpreter_t** s);
 MBAPI int mb_close(struct mb_interpreter_t** s);
-MBAPI int mb_reset(struct mb_interpreter_t** s, bool_t clear_funcs/* = false*/, bool_t clear_vars/* = false*/);
+MBAPI int mb_reset(struct mb_interpreter_t** s, bool_t clear_funcs/* = false*/, bool_t clear_vars/* = true*/);
 
 MBAPI int mb_fork(struct mb_interpreter_t** s, struct mb_interpreter_t* r, bool_t clear_forked/* = true*/);
 MBAPI int mb_join(struct mb_interpreter_t** s);
@@ -661,7 +661,7 @@ MBAPI int mb_schedule_suspend(struct mb_interpreter_t* s, int t);
 
 MBAPI int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val);
 MBAPI int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val);
-MBAPI int mb_debug_get_stack_frame_count(struct mb_interpreter_t* s);
+MBAPI int mb_debug_count_stack_frames(struct mb_interpreter_t* s);
 MBAPI int mb_debug_get_stack_trace(struct mb_interpreter_t* s, char** fs, unsigned fc);
 MBAPI int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t prev, mb_debug_stepped_handler_t post);
 

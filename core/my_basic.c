@@ -101,7 +101,7 @@ extern "C" {
 /* Version information */
 #define MB_VER_MAJOR 1
 #define MB_VER_MINOR 2
-#define MB_VER_REVISION 1
+#define MB_VER_REVISION 2
 #define MB_VER_SUFFIX
 #define MB_VERSION ((MB_VER_MAJOR * 0x01000000) + (MB_VER_MINOR * 0x00010000) + (MB_VER_REVISION))
 #define MB_MAKE_STRINGIZE(A) #A
@@ -14646,7 +14646,7 @@ _exit:
 }
 
 /* Get stack frame count of a MY-BASIC environment */
-int mb_debug_get_stack_frame_count(struct mb_interpreter_t* s) {
+int mb_debug_count_stack_frames(struct mb_interpreter_t* s) {
 #ifdef MB_ENABLE_STACK_TRACE
 	int result = 0;
 
