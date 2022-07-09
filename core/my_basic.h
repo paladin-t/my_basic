@@ -188,6 +188,14 @@ extern "C" {
 #	define MB_CONVERT_TO_INT_LEVEL MB_CONVERT_TO_INT_LEVEL_ALL
 #endif /* MB_CONVERT_TO_INT_LEVEL */
 
+#ifndef MB_PRINT_INPUT_PROMPT
+#	define MB_PRINT_INPUT_PROMPT 1
+#endif /* MB_PRINT_INPUT_PROMPT */
+
+#ifndef MB_PRINT_INPUT_CONTENT
+#	define MB_PRINT_INPUT_CONTENT 0
+#endif /* MB_PRINT_INPUT_CONTENT */
+
 #ifndef MB_PREFER_SPEED
 #	define MB_PREFER_SPEED
 #endif /* MB_PREFER_SPEED */
@@ -278,15 +286,13 @@ extern "C" {
 #ifndef mb_stricmp
 #	ifdef MB_CP_VC
 #		define mb_stricmp _strcmpi
-#	else /* MB_CP_VC */
-#		ifdef MB_CP_BORLANDC
-#			define mb_stricmp stricmp
-#		elif defined MB_CP_PELLESC
-#			define mb_stricmp _stricmp
-#		else
-#			define mb_stricmp strcasecmp
-#		endif
-#	endif /* MB_CP_VC */
+#	elif defined MB_CP_BORLANDC
+#		define mb_stricmp stricmp
+#	elif defined MB_CP_PELLESC
+#		define mb_stricmp _stricmp
+#	else
+#		define mb_stricmp strcasecmp
+#	endif
 #endif /* mb_stricmp */
 
 #ifndef mb_assert

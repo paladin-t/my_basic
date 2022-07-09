@@ -468,11 +468,10 @@ static int _append_line(const char* txt) {
 		code->lines = (char**)realloc(code->lines, sizeof(char*) * code->size);
 	}
 	result = l = (int)strlen(txt);
-	buf = (char*)malloc(l + 2);
+	buf = (char*)malloc(l + 1);
 	_CHECK_MEM(buf);
 	memcpy(buf, txt, l);
-	buf[l] = '\n';
-	buf[l + 1] = '\0';
+	buf[l] = '\0';
 	code->lines[code->count++] = buf;
 
 	return result;

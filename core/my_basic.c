@@ -13540,11 +13540,8 @@ int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* 
 	int result = 0;
 	_array_t* arr = 0;
 
-	if(!s || !l) {
-		result = MB_FUNC_ERR;
-
+	if(!s || !l)
 		goto _exit;
-	}
 
 	arr = (_array_t*)a;
 	if(r < 0 || r >= arr->dimension_count) {
@@ -13814,7 +13811,7 @@ _exit:
 
 /* Tell the element count of a collection */
 int mb_count_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, int* c) {
-	int result = 0;
+	int result = MB_FUNC_OK;
 	_object_t ocoll;
 #ifdef MB_ENABLE_COLLECTION_LIB
 	_list_t* lst = 0;
@@ -18545,7 +18542,9 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 	}
 	if(obj->type == _DT_STRING) {
 		pmt = obj->data.string;
+#if MB_PRINT_INPUT_PROMPT
 		_print_string(s, obj);
+#endif /* MB_PRINT_INPUT_PROMPT */
 		ast = ast->next;
 		obj = (_object_t*)ast->data;
 		if(!_IS_SEP(obj, ',')) {
@@ -18561,10 +18560,18 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		_get_inputer(s)(s, pmt, line, sizeof(line));
 		obj->data.variable->data->type = _DT_INT;
 		obj->data.variable->data->data.integer = (int_t)mb_strtol(line, &conv_suc, 0);
-		if(*conv_suc != _ZERO_CHAR) {
+		if(*conv_suc == _ZERO_CHAR) {
+#if MB_PRINT_INPUT_CONTENT
+			_get_printer(s)(s, MB_INT_FMT "\n", obj->data.variable->data->data.integer);
+#endif /* MB_PRINT_INPUT_CONTENT */
+		} else {
 			obj->data.variable->data->type = _DT_REAL;
 			obj->data.variable->data->data.float_point = (real_t)mb_strtod(line, &conv_suc);
-			if(*conv_suc != _ZERO_CHAR) {
+			if(*conv_suc == _ZERO_CHAR) {
+#if MB_PRINT_INPUT_CONTENT
+				_get_printer(s)(s, MB_REAL_FMT "\n", obj->data.variable->data->data.float_point);
+#endif /* MB_PRINT_INPUT_CONTENT */
+			} else {
 				_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
 		}
@@ -18587,12 +18594,18 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 			while((len = mb_wchar_to_bytes(_WCHAR_BUF_PTR(wbuf), &_CHAR_BUF_PTR(buf), _CHARS_OF_BUF(buf))) > _CHARS_OF_BUF(buf)) {
 				_RESIZE_CHAR_BUF(buf, len);
 			}
+#if MB_PRINT_INPUT_CONTENT
+			_get_printer(s)(s, "%ls\n", _WCHAR_BUF_PTR(wbuf));
+#endif /* MB_PRINT_INPUT_CONTENT */
 			_DISPOSE_BUF(wbuf);
 			obj->data.variable->data->data.string = _HEAP_CHAR_BUF(buf);
 			obj->data.variable->data->is_ref = false;
 		} while(0);
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 		obj->data.variable->data->data.string = mb_memdup(line, (unsigned)(len + 1));
+#if MB_PRINT_INPUT_CONTENT
+		_get_printer(s)(s, "%s\n", obj->data.variable->data->data.string);
+#endif /* MB_PRINT_INPUT_CONTENT */
 #endif /* MB_CP_VC && MB_ENABLE_UNICODE */
 		ast = ast->next;
 	} else {

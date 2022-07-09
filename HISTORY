@@ -1,7 +1,13 @@
+Jul. 9 2022
+Added an MB_PRINT_INPUT_PROMPT macro
+Added an MB_PRINT_INPUT_CONTENT macro
+Fixed a wrong return value of the mb_get_array_len function
+Fixed a newline bug of the shell
+
 Jul. 8 2022
-Added a mb_get_vars function to retrieve active variables
+Added an mb_get_vars function to retrieve active variables
 Added a clear_vars parameter to the mb_reset function
-Added a mb_debug_count_stack_frames function to get the stack frame count
+Added an mb_debug_count_stack_frames function to get the stack frame count
 Removed a few unused parameters
 
 Jun. 16 2022
