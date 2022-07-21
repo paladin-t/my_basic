@@ -9774,6 +9774,7 @@ static int _retrieve_var(void* data, void* extra, void* t) {
 	int* count = 0;
 	_object_t* obj = 0;
 	_var_t* var = 0;
+	_array_t* arr = 0;
 	mb_value_t val;
 	mb_unrefvar(extra);
 
@@ -9787,13 +9788,27 @@ static int _retrieve_var(void* data, void* extra, void* t) {
 	count = (int*)tuple->e3;
 
 	obj = (_object_t*)data;
-	if(obj->type == _DT_VAR) {
+	switch(obj->type) {
+	case _DT_VAR:
 		if(retrieved) {
 			var = (_var_t*)obj->data.variable;
 			_internal_object_to_public_value(var->data, &val);
 			retrieved(s, var->name, val);
 		}
 		++*count;
+
+		break;
+	case _DT_ARRAY:
+		if(retrieved) {
+			arr = (_array_t*)obj->data.array;
+			_internal_object_to_public_value(obj, &val);
+			retrieved(s, arr->name, val);
+		}
+		++*count;
+
+		break;
+	default: /* Do nothing */
+		break;
 	}
 
 	return result;
