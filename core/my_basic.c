@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2022 Tony Wang
+** Copyright (C) 2011 - 2023 Tony Wang
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -772,6 +772,9 @@ MBCONST static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0 };
 
 MBCONST static const char _MULTI_LINE_COMMENT_PREFIX[] = "'[";
 MBCONST static const char _MULTI_LINE_COMMENT_POSTFIX[] = "']";
+
+MBCONST static const char _UNICODE_OPEN_QUOTE[] = { 0xe2, 0x80, 0x9c };
+MBCONST static const char _UNICODE_CLOSE_QUOTE[] = { 0xe2, 0x80, 0x9d };
 
 typedef enum _parsing_state_e {
 	_PS_NORMAL,
@@ -5888,6 +5891,16 @@ static int _parse_char(mb_interpreter_t* s, const char* str, int n, int pos, uns
 	case _PS_NORMAL:
 #ifdef MB_ENABLE_UNICODE_ID
 		if(uc) {
+			if(n == countof(_UNICODE_OPEN_QUOTE)) {
+				if(memcmp(str, _UNICODE_OPEN_QUOTE, n) == 0) {
+					_handle_error_at_pos(s, SE_PS_INVALID_CHAR, s->source_file, pos, row, col, MB_FUNC_ERR, _exit, result);
+				}
+			}
+			if(n == countof(_UNICODE_CLOSE_QUOTE)) {
+				if(memcmp(str, _UNICODE_CLOSE_QUOTE, n) == 0) {
+					_handle_error_at_pos(s, SE_PS_INVALID_CHAR, s->source_file, pos, row, col, MB_FUNC_ERR, _exit, result);
+				}
+			}
 			if(context->symbol_state == _SS_IDENTIFIER) {
 				_mb_check_exit(result = _append_uu_char_to_symbol(s, str, n), _exit);
 			} else if(context->symbol_state == _SS_OPERATOR) {

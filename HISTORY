@@ -1,3 +1,6 @@
+Sep. 18 2023
+Improved handling of Unicode quotes
+
 Jul. 21 2022
 Fixed an array retrieving bug in the mb_get_vars function, thanks to nurbles for pointing it out
 
