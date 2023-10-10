@@ -153,6 +153,10 @@ extern "C" {
 #	endif
 #endif /* MB_ENABLE_UNICODE_ID */
 
+#ifndef MB_UNICODE_NEED_CONVERTING
+#	define MB_UNICODE_NEED_CONVERTING 0
+#endif /* MB_UNICODE_NEED_CONVERTING */
+
 #ifndef MB_ENABLE_FORK
 #	define MB_ENABLE_FORK
 #endif /* MB_ENABLE_FORK */

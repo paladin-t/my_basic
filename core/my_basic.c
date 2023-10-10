@@ -1346,11 +1346,11 @@ static bool_t mb_is_little_endian(void);
 
 /** Unicode handling */
 
-#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE && MB_UNICODE_NEED_CONVERTING
 static int mb_bytes_to_wchar(const char* sz, wchar_t** out, size_t size);
 static int mb_bytes_to_wchar_ansi(const char* sz, wchar_t** out, size_t size);
 static int mb_wchar_to_bytes(const wchar_t* sz, char** out, size_t size);
-#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE && MB_UNICODE_NEED_CONVERTING */
 
 static int mb_uu_getbom(const char** ch);
 #ifdef MB_ENABLE_UNICODE
@@ -3346,7 +3346,7 @@ static bool_t mb_is_little_endian(void) {
 
 /** Unicode handling */
 
-#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE && MB_UNICODE_NEED_CONVERTING
 /* Map a UTF8 character string to a UTF16 (wide character) string */
 static int mb_bytes_to_wchar(const char* sz, wchar_t** out, size_t size) {
 	int result = MultiByteToWideChar(CP_UTF8, 0, sz, -1, 0, 0);
@@ -3373,7 +3373,7 @@ static int mb_wchar_to_bytes(const wchar_t* sz, char** out, size_t size) {
 
 	return result;
 }
-#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE && MB_UNICODE_NEED_CONVERTING */
 
 /* Determine whether a string begins with a BOM, and ignore it */
 static int mb_uu_getbom(const char** ch) {
@@ -4926,7 +4926,7 @@ static int _standard_printer(mb_interpreter_t* s, const char* fmt, ...) {
 
 /* Print a string */
 static void _print_string(mb_interpreter_t* s, _object_t* obj) {
-#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE && MB_UNICODE_NEED_CONVERTING
 	char* str = 0;
 	_dynamic_buffer_t buf;
 	size_t lbuf = 0;
@@ -4940,11 +4940,11 @@ static void _print_string(mb_interpreter_t* s, _object_t* obj) {
 	}
 	_get_printer(s)(s, "%ls", _WCHAR_BUF_PTR(buf));
 	_DISPOSE_BUF(buf);
-#else /* MB_CP_VC && MB_ENABLE_UNICODE */
+#else /* MB_CP_VC && MB_ENABLE_UNICODE && MB_UNICODE_NEED_CONVERTING */
 	mb_assert(s && obj);
 
 	_get_printer(s)(s, "%s", obj->data.string ? obj->data.string : MB_NULL_STRING);
-#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE && MB_UNICODE_NEED_CONVERTING */
 }
 
 /** Parsing helpers */
@@ -18610,7 +18610,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 			safe_free(obj->data.variable->data->data.string);
 		}
 		len = (size_t)_get_inputer(s)(s, pmt, line, sizeof(line));
-#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE && MB_UNICODE_NEED_CONVERTING
 		do {
 			_dynamic_buffer_t buf;
 			_dynamic_buffer_t wbuf;
@@ -18629,12 +18629,12 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 			obj->data.variable->data->data.string = _HEAP_CHAR_BUF(buf);
 			obj->data.variable->data->is_ref = false;
 		} while(0);
-#else /* MB_CP_VC && MB_ENABLE_UNICODE */
+#else /* MB_CP_VC && MB_ENABLE_UNICODE && MB_UNICODE_NEED_CONVERTING */
 		obj->data.variable->data->data.string = mb_memdup(line, (unsigned)(len + 1));
 #if MB_PRINT_INPUT_CONTENT
 		_get_printer(s)(s, "%s\n", obj->data.variable->data->data.string);
 #endif /* MB_PRINT_INPUT_CONTENT */
-#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE && MB_UNICODE_NEED_CONVERTING*/
 		ast = ast->next;
 	} else {
 		_handle_error_on_obj(s, SE_RN_INVALID_ID_USAGE, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);

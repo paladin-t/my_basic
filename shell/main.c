@@ -33,6 +33,8 @@
 #ifdef MB_CP_VC
 #	include <conio.h>
 #	include <crtdbg.h>
+#	include <fcntl.h>
+#	include <io.h>
 #	include <Windows.h>
 #elif !defined MB_CP_BORLANDC && !defined MB_CP_TCC
 #	include <unistd.h>
@@ -1440,6 +1442,49 @@ static int beep(struct mb_interpreter_t* s, void** l) {
 ** Callbacks and handlers
 */
 
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE && !MB_UNICODE_NEED_CONVERTING
+static int _on_input(struct mb_interpreter_t* s, const char* pmt, char* buf, int n) {
+	int result = 0;
+	mb_unrefvar(s);
+	mb_unrefvar(pmt);
+
+	if(buf && n) {
+		int wlen = n;
+		int save = _setmode(_fileno(stdin), _O_U16TEXT);
+		wchar_t* wstr = malloc(wlen * sizeof(wchar_t));
+		if(fgetws(wstr, wlen, stdin) == 0) {
+			_setmode(_fileno(stdin), save);
+
+			free(wstr);
+
+			fprintf(stderr, "Error reading.\n");
+
+			exit(1);
+		}
+		int len = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, 0, 0, 0, 0);
+		if(!len) {
+			_setmode(_fileno(stdin), save);
+
+			free(wstr);
+
+			fprintf(stderr, "Error reading.\n");
+
+			exit(1);
+		}
+		WideCharToMultiByte(CP_UTF8, 0, wstr, -1, buf, n, 0, 0);
+		free(wstr);
+		_setmode(_fileno(stdin), save);
+		result = len - 1;
+		if(buf[result - 1] == '\n') {
+			buf[result - 1] = '\0';
+			result--;
+		}
+	}
+
+	return result;
+}
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE && !MB_UNICODE_NEED_CONVERTING */
+
 static int _on_prev_stepped(struct mb_interpreter_t* s, void** l, const char* f, int p, unsigned short row, unsigned short col) {
 	mb_unrefvar(s);
 	mb_unrefvar(l);
@@ -1526,7 +1571,13 @@ static void _on_startup(void) {
 	srand((unsigned)_ticks());
 #endif /* _HAS_TICKS */
 
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE && !MB_UNICODE_NEED_CONVERTING
+	SetConsoleOutputCP(CP_UTF8);
+	SetConsoleCP(CP_UTF8);
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE && !MB_UNICODE_NEED_CONVERTING */
+
 	setlocale(LC_ALL, "");
+	setlocale(LC_CTYPE, "C");
 	setlocale(LC_NUMERIC, "C");
 	setlocale(LC_TIME, "C");
 
@@ -1534,6 +1585,9 @@ static void _on_startup(void) {
 
 	mb_open(&bas);
 
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE && !MB_UNICODE_NEED_CONVERTING
+	mb_set_inputer(bas, _on_input);
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE && !MB_UNICODE_NEED_CONVERTING */
 	mb_debug_set_stepped_handler(bas, _on_prev_stepped, _on_post_stepped);
 	mb_set_error_handler(bas, _on_error);
 	mb_set_import_handler(bas, _on_import);
