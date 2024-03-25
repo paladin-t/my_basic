@@ -1049,7 +1049,7 @@ static _object_t* _exp_assign = 0;
 	do { \
 		_instruct_common(__tuple) \
 		if(opndv1.type == _DT_INT && opndv2.type == _DT_INT) { \
-			if((real_t)(opndv1.data.integer __optr opndv2.data.integer) == (real_t)opndv1.data.integer __optr (real_t)opndv2.data.integer) { \
+			if((real_t)(opndv1.data.integer __optr opndv2.data.integer) == ((real_t)opndv1.data.integer __optr (real_t)opndv2.data.integer)) { \
 				val->type = _DT_INT; \
 				val->data.integer = opndv1.data.integer __optr opndv2.data.integer; \
 			} else { \
