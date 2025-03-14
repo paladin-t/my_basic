@@ -3846,10 +3846,11 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 		hack = false;
 		if(!(c->type == _DT_FUNC && _is_operator(c->data.func->pointer))) {
 			if(_is_expression_terminal(s, c)) {
+				_object_t *d = c;
 				c = _exp_assign;
 				if(ast)
 					ast = ast->prev;
-				if(bracket_count) {
+				if(bracket_count && !_IS_EOS(d)) {
 					_object_t _cb;
 					_func_t _cbf;
 					_MAKE_NIL(&_cb);
