@@ -1,3 +1,7 @@
+Apr. 29 2025
+Fixed a crash bug of using stack after scope, thanks to cde-
+Fixed a minus symbol parsing bug when MEM statement, thanks to Overscore
+
 Oct. 10 2023
 Improved UTF8 input/output via console on Windows
 

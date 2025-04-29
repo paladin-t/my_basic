@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2024 Tony Wang
+** Copyright (C) 2011 - 2025 Tony Wang
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -3850,15 +3850,17 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 				if(ast)
 					ast = ast->prev;
 				if(bracket_count) {
-					_object_t _cb;
-					_func_t _cbf;
-					_MAKE_NIL(&_cb);
-					_cb.type = _DT_FUNC;
-					_cb.data.func = &_cbf;
-					_cb.data.func->name = ")";
-					_cb.data.func->pointer = _core_close_bracket;
+					_object_t* cb = _create_object();
+					_LAZY_INIT_GLIST;
+					_ls_pushback(garbage, cb);
+					_MAKE_NIL(cb);
+					cb->type = _DT_FUNC;
+					cb->data.func = (_func_t*)mb_malloc(sizeof(_func_t));
+					memset(cb->data.func, 0, sizeof(_func_t));
+					cb->data.func->name = mb_strdup(")", 2);
+					cb->data.func->pointer = _core_close_bracket;
 					while(bracket_count) {
-						_ls_pushback(optr, &_cb);
+						_ls_pushback(optr, cb);
 						bracket_count--;
 						f = 0;
 					}
