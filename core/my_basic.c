@@ -3383,7 +3383,7 @@ static int mb_uu_getbom(const char** ch) {
 	char** ptr = (char**)ch;
 #endif /* __cplusplus */
 
-	if(!ptr && !(*ptr))
+	if(!ptr || !(*ptr))
 		return 0;
 
 	if((*ptr)[0] == -17 && (*ptr)[1] == -69 && (*ptr)[2] == -65) {
