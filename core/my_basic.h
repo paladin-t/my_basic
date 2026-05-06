@@ -26,6 +26,8 @@
 #ifndef __MY_BASIC_H__
 #define __MY_BASIC_H__
 
+#include <stddef.h> /* size_t, used by mb_string_t */
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -319,7 +321,9 @@ typedef unsigned short mb_mem_tag_t;
 #endif /* mb_mem_tag_t */
 
 #ifndef mb_bytes_size
-#	define mb_bytes_size (mb_max(mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), sizeof(int_t)), sizeof(real_t)))
+/* Note: must fit at least sizeof(mb_string_t), which is sizeof(char*) + sizeof(size_t)
+   so that the mb_value_u union remains representable inside mb_val_bytes_t. */
+#	define mb_bytes_size (mb_max(mb_max(mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), sizeof(int_t)), sizeof(real_t)), (sizeof(char*) + sizeof(size_t))))
 #endif /* mb_bytes_size */
 
 #ifndef mb_make_nil
@@ -338,8 +342,11 @@ typedef unsigned short mb_mem_tag_t;
 #	define mb_make_real(__v, __d) do { (__v).value.float_point = (__d); (__v).type = MB_DT_REAL; } while(0)
 #endif /* mb_make_real */
 #ifndef mb_make_string
-#	define mb_make_string(__v, __d) do { (__v).value.string = (__d); (__v).type = MB_DT_STRING; } while(0)
+#	define mb_make_string(__v, __d) do { (__v).value.string_z.data = (__d); (__v).value.string_z.length = strlen(__v); (__v).type = MB_DT_STRING; } while(0)
 #endif /* mb_make_string */
+#ifndef mb_make_string_z
+#	define mb_make_string_z(__v, __d, __l) do { (__v).value.string_z.data = (__d); (__v).value.string_z.length = (__l); (__v).type = MB_DT_STRING; } while(0)
+#endif /* mb_make_string_z */
 #ifndef mb_make_usertype
 #	define mb_make_usertype(__v, __d) do { memset(&(__v).value.bytes, 0, sizeof(mb_val_bytes_t)); (__v).value.usertype = (__d); (__v).type = MB_DT_USERTYPE; } while(0)
 #endif /* mb_make_usertype */
@@ -539,10 +546,31 @@ typedef enum mb_routine_type_e {
 
 typedef unsigned char mb_val_bytes_t[mb_bytes_size];
 
+/*
+ * A length-tracked string used for BASIC runtime string values (MB_DT_STRING).
+ *
+ * Unlike a plain C string, the byte at position [length] is reserved for an extra
+ * trailing 0x00 (kept by the interpreter for safety / compatibility with code paths
+ * that still rely on NUL termination), but bytes at positions [0 .. length-1] may
+ * include any byte value, including 0x00.
+ *
+ *   data    -- pointer to the byte buffer; the buffer is allocated with at least
+ *              'length + 1' bytes and 'data[length]' is always 0x00.
+ *   length  -- logical byte length of the string (count of bytes the BASIC program
+ *              considers to belong to the value). LEN() returns this.
+ *
+ * A string with 'data == NULL' and 'length == 0' is the empty/uninitialised value.
+*/
+typedef struct mb_string_t {
+	char* data;         /* Must start with a char* pointing to the string.  This is so the mb_value_u union can have a char* string for backward compatibility (because it's a union they both align) */
+	size_t length;
+} mb_string_t;
+
 typedef union mb_value_u {
 	int_t integer;
 	real_t float_point;
-	char* string;
+	char* string;               /* This is really a reference into string_z's first member.  This is here for backward compatibility */
+	mb_string_t string_z;
 	mb_data_e type;
 	void* usertype;
 #ifdef MB_ENABLE_USERTYPE_REF
@@ -619,11 +647,13 @@ MBAPI int mb_has_arg(struct mb_interpreter_t* s, void** l);
 MBAPI int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val);
 MBAPI int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val);
 MBAPI int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val);
+MBAPI int mb_pop_string_z(struct mb_interpreter_t* s, void** l, char** val, size_t* len);
 MBAPI int mb_pop_usertype(struct mb_interpreter_t* s, void** l, void** val);
 MBAPI int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val);
 MBAPI int mb_push_int(struct mb_interpreter_t* s, void** l, int_t val);
 MBAPI int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val);
 MBAPI int mb_push_string(struct mb_interpreter_t* s, void** l, char* val);
+MBAPI int mb_push_string_z(struct mb_interpreter_t* s, void** l, char* val, size_t len);
 MBAPI int mb_push_usertype(struct mb_interpreter_t* s, void** l, void* val);
 MBAPI int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 
@@ -694,6 +724,8 @@ MBAPI int mb_get_userdata(struct mb_interpreter_t* s, void** d);
 MBAPI int mb_set_userdata(struct mb_interpreter_t* s, void* d);
 MBAPI int mb_gets(struct mb_interpreter_t* s, const char* pmt, char* buf, int n);
 MBAPI char* mb_memdup(const char* val, unsigned size);
+
+const char *GetCurrentFuncName(struct mb_interpreter_t *s, void **l);
 
 #ifdef MB_COMPACT_MODE
 #	pragma pack()
