@@ -725,8 +725,6 @@ MBAPI int mb_set_userdata(struct mb_interpreter_t* s, void* d);
 MBAPI int mb_gets(struct mb_interpreter_t* s, const char* pmt, char* buf, int n);
 MBAPI char* mb_memdup(const char* val, unsigned size);
 
-const char *GetCurrentFuncName(struct mb_interpreter_t *s, void **l);
-
 #ifdef MB_COMPACT_MODE
 #	pragma pack()
 #endif /* MB_COMPACT_MODE */

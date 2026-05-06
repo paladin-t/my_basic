@@ -2318,12 +2318,6 @@ MBCONST static const _func_t _std_libs[] = {
 	{ "RIGHT", _std_right },
 	{ "STR", _std_str },
 
-	{ "CHR$", _std_chr },
-	{ "LEFT$", _std_left },
-	{ "MID$", _std_mid },
-	{ "RIGHT$", _std_right },
-	{ "STR$", _std_str },
-
 	{ _STD_ID_VAL, _std_val },
 
 	{ _STD_ID_LEN, _std_len },
@@ -19722,21 +19716,6 @@ _exit:
 #endif /* MB_ENABLE_COLLECTION_LIB */
 
 /* ========================================================} */
-
-const char *GetCurrentFuncName(struct mb_interpreter_t *s, void **l)
-{
-    _ls_node_t* ast = 0;
-    _object_t* c = 0;
-
-    ast = *l;
-    c = (_object_t*)ast->data;
-
-    if(c->type == _DT_FUNC)
-    {
-        return c->data.func->name;
-    }
-    return NULL;
-}
 
 #ifdef MB_COMPACT_MODE
 #	pragma pack()
