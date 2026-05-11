@@ -1,3 +1,8 @@
+May. 11 2026
+Added an mb_push_managed_value function to specify whether a (string) value is managed when pushing it
+Added an mb_set_string_measurer function to measure string length
+Improved string concat
+
 Apr. 29 2025
 Fixed a crash bug of using stack after scope, thanks to cde-
 Fixed a minus symbol parsing bug when MEM statement, thanks to Overscore

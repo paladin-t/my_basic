@@ -825,6 +825,7 @@ typedef struct _running_context_t {
 	struct _running_context_t* ref;
 	_var_t* next_loop_var;
 	mb_value_t intermediate_value;
+	bool_t donot_ref_intermediate_value;
 	int calc_depth;
 #ifdef MB_ENABLE_LAMBDA
 	_ls_node_t* refered_lambdas;
@@ -1082,6 +1083,8 @@ static _object_t* _exp_assign = 0;
 	do { \
 		char* _str1 = 0; \
 		char* _str2 = 0; \
+		size_t _len1 = 0; \
+		size_t _len2 = 0; \
 		_tuple3_t* tpptr = (_tuple3_t*)(*__tuple); \
 		_object_t* opnd1 = (_object_t*)(tpptr->e1); \
 		_object_t* opnd2 = (_object_t*)(tpptr->e2); \
@@ -1092,10 +1095,12 @@ static _object_t* _exp_assign = 0;
 		} \
 		_str1 = _extract_string(opnd1); \
 		_str2 = _extract_string(opnd2); \
-		val->data.string = (char*)mb_malloc(strlen(_str1) + strlen(_str2) + 1); \
-		memset(val->data.string, 0, strlen(_str1) + strlen(_str2) + 1); \
-		strcat(val->data.string, _str1); \
-		strcat(val->data.string, _str2); \
+		_len1 = mb_strlen(_str1); \
+		_len2 = mb_strlen(_str2); \
+		val->data.string = (char*)mb_malloc(_len1 + _len2 + 1); \
+		memcpy(val->data.string, _str1, _len1); \
+		memcpy(val->data.string + _len1, _str2, _len2); \
+		val->data.string[_len1 + _len2] = '\0'; \
 	} while(0)
 #define _instruct_compare_strings(__optr, __tuple) \
 	do { \
@@ -1328,6 +1333,7 @@ static volatile size_t _mb_allocated = 0;
 static const size_t _mb_allocated = (size_t)(~0);
 #endif /* MB_ENABLE_ALLOC_STAT */
 
+static mb_string_measure_func_t _mb_strlen_func = 0;
 static mb_memory_allocate_func_t _mb_allocate_func = 0;
 static mb_memory_free_func_t _mb_free_func = 0;
 
@@ -1337,6 +1343,7 @@ static void mb_free(void* p);
 static int mb_memcmp(void* l, void* r, size_t s);
 static size_t mb_memtest(void* p, size_t s);
 
+static size_t mb_strlen(const char* p);
 static char* mb_strdup(const char* p, size_t s);
 static char* mb_strupr(char* s);
 
@@ -3309,6 +3316,14 @@ static size_t mb_memtest(void* p, size_t s) {
 	return result;
 }
 
+/* Get the length of a string */
+static size_t mb_strlen(const char* s) {
+	if(_mb_strlen_func)
+		return _mb_strlen_func(s);
+
+	return strlen(s);
+}
+
 /* Duplicate a string */
 static char* mb_strdup(const char* p, size_t s) {
 #ifdef MB_ENABLE_ALLOC_STAT
@@ -3321,7 +3336,7 @@ static char* mb_strdup(const char* p, size_t s) {
 	if(s)
 		return mb_memdup(p, (unsigned)s);
 
-	return mb_memdup(p, (unsigned)(strlen(p) + 1));
+	return mb_memdup(p, (unsigned)(mb_strlen(p) + 1));
 #endif /* MB_ENABLE_ALLOC_STAT */
 }
 
@@ -3939,7 +3954,10 @@ _array:
 						mb_make_nil(running->intermediate_value);
 						/* Fall through */
 					case _DT_STRING:
-						c->is_ref = true;
+						if(running->donot_ref_intermediate_value)
+							c->is_ref = false;
+						else
+							c->is_ref = true;
 					default: /* Do nothing */
 						break;
 					}
@@ -4243,7 +4261,7 @@ _fast:
 		(*val)->type = c->type;
 		if(_is_string(c)) {
 			char* _str = _extract_string(c);
-			(*val)->data.string = mb_strdup(_str, strlen(_str) + 1);
+			(*val)->data.string = mb_strdup(_str, mb_strlen(_str) + 1);
 			(*val)->is_ref = false;
 		} else {
 			(*val)->data = c->data;
@@ -7426,7 +7444,7 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 			if(arr->type != _DT_STRING) {
 				_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 			}
-			_sl = strlen(val->string);
+			_sl = mb_strlen(val->string);
 			if(*((char**)rawptr))
 				mb_free(*((char**)rawptr));
 			*((char**)rawptr) = (char*)mb_malloc(_sl + 1);
@@ -7445,7 +7463,7 @@ static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, 
 	switch(*type) {
 	case _DT_STRING: {
 			size_t _sl = 0;
-			_sl = strlen(val->string);
+			_sl = mb_strlen(val->string);
 			*((char**)rawptr) = (char*)mb_malloc(_sl + 1);
 			memcpy(*((char**)rawptr), val->string, _sl + 1);
 			arr->types[index] = _DT_STRING;
@@ -10569,7 +10587,7 @@ static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t*
 	_public_value_to_internal_object(pbl, *itn);
 	if((*itn)->type == _DT_STRING) {
 		(*itn)->is_ref = false;
-		(*itn)->data.string = mb_strdup((*itn)->data.string, strlen((*itn)->data.string) + 1);
+		(*itn)->data.string = mb_strdup((*itn)->data.string, mb_strlen((*itn)->data.string) + 1);
 	}
 
 	return result;
@@ -13128,6 +13146,21 @@ _exit:
 	return result;
 }
 
+/* Push an argument value, and specify whether it's managed by the interpreter */
+int mb_push_managed_value(struct mb_interpreter_t* s, void** l, mb_value_t val, bool_t managed) {
+	const int result = mb_push_value(s, l, val);
+	_running_context_t* running = 0;
+
+	if(result != MB_FUNC_OK)
+		goto _exit;
+
+	running = s->running_context;
+	running->donot_ref_intermediate_value = managed;
+
+_exit:
+	return result;
+}
+
 /* Begin a class */
 int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t** meta, int c, mb_value_t* out) {
 #ifdef MB_ENABLE_CLASS
@@ -14911,6 +14944,13 @@ _exit:
 	return result;
 }
 
+/* Register a string measurer globally */
+int mb_set_string_measurer(mb_string_measure_func_t m) {
+	_mb_strlen_func = m;
+
+	return MB_FUNC_OK;
+}
+
 /* Register an allocator and a freer globally */
 int mb_set_memory_manager(mb_memory_allocate_func_t a, mb_memory_free_func_t f) {
 	_mb_allocate_func = a;
@@ -15737,7 +15777,7 @@ _proc_extra_var:
 #ifdef MB_ENABLE_CLASS
 		if(evar && evar->pathing) {
 			if(var->data->type == _DT_STRING) {
-				var->data->data.string = mb_strdup(var->data->data.string, strlen(var->data->data.string) + 1);
+				var->data->data.string = mb_strdup(var->data->data.string, mb_strlen(var->data->data.string) + 1);
 				var->data->is_ref = false;
 			}
 			var = evar;
@@ -17848,7 +17888,7 @@ static int _std_mid(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	if(count <= 0 || start < 0 || start >= (int_t)strlen(arg)) {
+	if(count <= 0 || start < 0 || start >= (int_t)mb_strlen(arg)) {
 		_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
 	}
 
@@ -17907,7 +17947,7 @@ static int _std_right(mb_interpreter_t* s, void** l) {
 	}
 #else /* MB_ENABLE_UNICODE */
 	sub = (char*)mb_malloc(count + 1);
-	memcpy(sub, arg + (strlen(arg) - count), count);
+	memcpy(sub, arg + (mb_strlen(arg) - count), count);
 	sub[count] = _ZERO_CHAR;
 #endif /* MB_ENABLE_UNICODE */
 	mb_check(mb_push_string(s, l, sub));
@@ -17955,7 +17995,7 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 
 		break;
 	case MB_DT_STRING: {
-			char* ret = mb_strdup(arg.value.string, strlen(arg.value.string) + 1);
+			char* ret = mb_strdup(arg.value.string, mb_strlen(arg.value.string) + 1);
 			mb_check(mb_push_string(s, l, ret));
 
 			goto _exit;
@@ -18125,7 +18165,7 @@ static int _std_len(mb_interpreter_t* s, void** l) {
 #ifdef MB_ENABLE_UNICODE
 			_mb_check_mark_exit(mb_push_int(s, l, (int_t)mb_uu_strlen(arg.value.string)), result, _exit);
 #else /* MB_ENABLE_UNICODE */
-			_mb_check_mark_exit(mb_push_int(s, l, (int_t)strlen(arg.value.string)), result, _exit);
+			_mb_check_mark_exit(mb_push_int(s, l, (int_t)mb_strlen(arg.value.string)), result, _exit);
 #endif /* MB_ENABLE_UNICODE */
 
 			break;

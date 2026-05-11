@@ -589,6 +589,7 @@ typedef void (* mb_alive_checker_t)(struct mb_interpreter_t*, void*, mb_alive_ma
 typedef void (* mb_alive_value_checker_t)(struct mb_interpreter_t*, void*, mb_value_t, mb_alive_marker_t);
 typedef int (* mb_meta_operator_t)(struct mb_interpreter_t*, void**, mb_value_t*, mb_value_t*, mb_value_t*);
 typedef mb_meta_status_e (* mb_meta_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, const char*);
+typedef unsigned (* mb_string_measure_func_t)(const char*);
 typedef char* (* mb_memory_allocate_func_t)(unsigned);
 typedef void (* mb_memory_free_func_t)(char*);
 
@@ -626,6 +627,7 @@ MBAPI int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val);
 MBAPI int mb_push_string(struct mb_interpreter_t* s, void** l, char* val);
 MBAPI int mb_push_usertype(struct mb_interpreter_t* s, void** l, void* val);
 MBAPI int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
+MBAPI int mb_push_managed_value(struct mb_interpreter_t* s, void** l, mb_value_t val, bool_t managed);
 
 MBAPI int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t** meta, int c, mb_value_t* out);
 MBAPI int mb_end_class(struct mb_interpreter_t* s, void** l);
@@ -686,6 +688,7 @@ MBAPI int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p);
 MBAPI int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p);
 
 MBAPI int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h);
+MBAPI int mb_set_string_measurer(mb_string_measure_func_t m);
 MBAPI int mb_set_memory_manager(mb_memory_allocate_func_t a, mb_memory_free_func_t f);
 MBAPI bool_t mb_get_gc_enabled(struct mb_interpreter_t* s);
 MBAPI int mb_set_gc_enabled(struct mb_interpreter_t* s, bool_t gc);
