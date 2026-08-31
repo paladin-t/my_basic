@@ -773,8 +773,8 @@ MBCONST static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0 };
 MBCONST static const char _MULTI_LINE_COMMENT_PREFIX[] = "'[";
 MBCONST static const char _MULTI_LINE_COMMENT_POSTFIX[] = "']";
 
-MBCONST static const char _UNICODE_OPEN_QUOTE[] = { 0xe2, 0x80, 0x9c };
-MBCONST static const char _UNICODE_CLOSE_QUOTE[] = { 0xe2, 0x80, 0x9d };
+MBCONST static const unsigned char _UNICODE_OPEN_QUOTE[] = { 0xe2, 0x80, 0x9c };
+MBCONST static const unsigned char _UNICODE_CLOSE_QUOTE[] = { 0xe2, 0x80, 0x9d };
 
 typedef enum _parsing_state_e {
 	_PS_NORMAL,
